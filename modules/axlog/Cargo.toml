@@ -1,0 +1,30 @@
+[package]
+name = "axlog"
+version = "0.1.0"
+edition = "2021"
+authors = ["Yuekai Jia <equation618@gmail.com>"]
+description = "Macros for multi-level formatted logging used by ArceOS"
+license = "GPL-3.0-or-later OR Apache-2.0"
+homepage = "https://github.com/rcore-os/arceos"
+repository = "https://github.com/rcore-os/arceos/tree/main/modules/axlog"
+documentation = "https://rcore-os.github.io/arceos/axlog/index.html"
+
+[features]
+std = ["dep:chrono"]
+log-level-off = ["log/max_level_off"]
+log-level-error = ["log/max_level_error"]
+log-level-warn = ["log/max_level_warn"]
+log-level-info = ["log/max_level_info"]
+log-level-debug = ["log/max_level_debug"]
+log-level-trace = ["log/max_level_trace"]
+default = []
+
+[dependencies]
+cfg-if = "1.0"
+log = "0.4"
+spinlock = { path = "../../crates/spinlock" }
+crate_interface = { path = "../../crates/crate_interface" }
+chrono = { version = "0.4", optional = true }
+
+[dev-dependencies]
+axlog = { path = ".", features = ["std"] }
