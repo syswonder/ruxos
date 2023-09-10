@@ -40,4 +40,6 @@ allocated addr=0x[0-9a-f]\{16\}
 allocated addr=0x[0-9a-f]\{16\}
 allocated addr=0x[0-9a-f]\{16\}
 Memory tests run OK!
+Running environ tests...
+Environ tests run OK!
 Shutting down...

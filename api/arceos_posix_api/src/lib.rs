@@ -16,6 +16,9 @@ extern crate axruntime;
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
+#[cfg(feature = "alloc")]
+pub use axruntime::{environ, OUR_ENVIRON, environ_iter};
+
 #[macro_use]
 mod utils;
 
@@ -60,3 +63,4 @@ pub use imp::pthread::mutex::{
 };
 #[cfg(feature = "multitask")]
 pub use imp::pthread::{sys_pthread_create, sys_pthread_exit, sys_pthread_join, sys_pthread_self};
+

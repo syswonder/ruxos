@@ -23,5 +23,11 @@ int main()
     }
     free(p);
     puts("Memory tests run OK!");
+	puts("Running environ tests...");
+	char *env1 = "env1", *ex1 = "ex1", *ex2 = "ex_2";
+    if(setenv(env1, ex1, 1) || strcmp(ex1, getenv(env1))) puts("set new env is wrong");
+	if(setenv(env1, ex2, 1) || strcmp(ex2, getenv(env1))) puts("set old env is wrong");
+	if(setenv(env1, ex1, 0) || strcmp(ex2, getenv(env1))) puts("override the old env is wrong");
+	puts("Environ tests run OK!");
     return 0;
 }

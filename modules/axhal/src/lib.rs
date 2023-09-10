@@ -79,3 +79,5 @@ pub use self::platform::platform_init;
 
 #[cfg(feature = "smp")]
 pub use self::platform::platform_init_secondary;
+
+pub static mut COMLINE_BUF:[u8; 256] = [0; 256];

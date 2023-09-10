@@ -53,6 +53,10 @@ NET_DEV ?= user
 IP ?= 10.0.2.15
 GW ?= 10.0.2.2
 
+#args and env
+ARGS ?= 
+ENVS ?= 
+
 # App type
 ifeq ($(wildcard $(APP)),)
   $(error Application path "$(APP)" is not valid)

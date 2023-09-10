@@ -32,6 +32,15 @@ mod mp;
 #[cfg(feature = "smp")]
 pub use self::mp::rust_main_secondary;
 
+#[cfg(feature = "alloc")]
+extern crate alloc;
+#[cfg(feature = "alloc")]
+mod env;
+#[cfg(feature = "alloc")]
+pub use self::env::{environ, OUR_ENVIRON, environ_iter};
+#[cfg(feature = "alloc")]
+use self::env::boot_add_environ;
+
 const LOGO: &str = r#"
        d8888                            .d88888b.   .d8888b.
       d88888                           d88P" "Y88b d88P  Y88b
@@ -187,6 +196,40 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
 
     while !is_init_ok() {
         core::hint::spin_loop();
+    }
+
+	// environ initialization
+    #[cfg(feature = "alloc")]
+    unsafe {
+        use alloc::vec::Vec;
+        let mut boot_str = if cfg!(any(target_arch = "x86", target_arch = "x86_64")) {
+			let cmdline_buf: &[u8] = &axhal::COMLINE_BUF;
+			let mut len = 0;
+			for c in cmdline_buf.iter() {
+				if *c == 0 {
+					break;
+				}
+				len += 1;
+			}
+        	core::str::from_utf8(&cmdline_buf[..len]).unwrap()
+        } else {
+            dtb::get_node("chosen").unwrap().prop("bootargs").str()
+        };
+		(_, boot_str) = match boot_str.split_once(';') {
+			Some((a, b)) => (a, b),
+			None => ("", "")
+		};
+        let (args, envs) = match boot_str.split_once(';') {
+            Some((a, e)) => (a, e),
+            None => ("", ""), 
+        };
+        let envs: Vec<&str> = envs.split(" ").collect();
+		let _args: Vec<&str> = args.split(" ").collect();
+        for i in envs {
+            boot_add_environ(i);
+        }
+        OUR_ENVIRON.push(core::ptr::null_mut());
+        environ = OUR_ENVIRON.as_mut_ptr();
     }
 
     unsafe { main() };

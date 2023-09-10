@@ -34,7 +34,8 @@
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
-
+#[cfg(feature = "alloc")]
+mod env;
 #[path = "."]
 mod ctypes {
     #[rustfmt::skip]
@@ -95,7 +96,8 @@ pub use self::unistd::{abort, exit, getpid};
 pub use self::malloc::{free, malloc};
 #[cfg(feature = "alloc")]
 pub use self::strftime::strftime;
-
+#[cfg(feature = "alloc")]
+pub use self::env::{getenv, setenv, unsetenv};
 #[cfg(feature = "fd")]
 pub use self::fd_ops::{ax_fcntl, close, dup, dup2, dup3};
 
