@@ -1,8 +1,19 @@
 
 # How to run?
 - Run:
-  - `make A=apps/c/redis/ LOG=error NET=y BLK=y ARCH=aarch64 SMP=4 run`(for aarch64)
-  - `make A=apps/c/redis/ LOG=error NET=y BLK=y ARCH=x86_64 SMP=4 run`(for x86_64)
+  
+  - for aarch64
+  
+     ```
+     make A=apps/c/redis/ LOG=error NET=y BLK=y ARCH=aarch64 SMP=4 ARGS="./redis-server,--bind,0.0.0.0,--port,5555,--save,\"\",--appendonly,no,--protected-mode,no,--ignore-warnings,ARM64-COW-BUG" run
+     ```
+  
+  - for x86_64
+  
+     ```
+     make A=apps/c/redis/ LOG=error NET=y BLK=y ARCH=x86_64 SMP=4 ARGS="./redis-server,--bind,0.0.0.0,--port,5555,--save,\"\",--appendonly,no,--protected-mode,no" run
+     ```
+  
 
 # How to test?
 - Use `redis-cli -p 5555` to connect to redis-server, and enjoy ArceOS-Redis world!
