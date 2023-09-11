@@ -22,7 +22,6 @@ crate-type = ["staticlib"]
 [features]
 default = []
 
-lgw = ["alloc", "multitask"]
 # Multicore
 smp = ["arceos_posix_api/smp"]
 
