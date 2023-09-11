@@ -15,7 +15,7 @@ use axio::PollState;
 use axsync::Mutex;
 
 use super::fd_ops::{add_file_like, close_file_like, FileLike};
-use crate::ctypes;
+use crate::{ctypes, sys_fcntl};
 
 #[derive(Copy, Clone, PartialEq)]
 enum RingBufferStatus {
@@ -218,6 +218,37 @@ pub fn sys_pipe(fds: &mut [c_int]) -> c_int {
         fds[0] = read_fd as c_int;
         fds[1] = write_fd as c_int;
 
+        Ok(0)
+    })
+}
+
+/// `pipe2` syscall, used by AARCH64
+///
+/// Return 0 on success
+pub fn sys_pipe2(fds: &mut [c_int], flag: c_int) -> c_int {
+    debug!(
+        "sys_pipe2 <= fds: {:#x}, flag: {}",
+        fds.as_ptr() as usize,
+        flag
+    );
+    let ret = sys_pipe(fds);
+    if ret < 0 {
+        return ret;
+    }
+    syscall_body!(sys_pipe2, {
+        if (flag as u32 & !(ctypes::O_CLOEXEC | ctypes::O_NONBLOCK)) != 0 {
+            return Err(LinuxError::EINVAL);
+        }
+
+        if (flag as u32 & ctypes::O_CLOEXEC) != 0 {
+            sys_fcntl(fds[0], ctypes::F_SETFD as _, ctypes::FD_CLOEXEC as _);
+            sys_fcntl(fds[1], ctypes::F_SETFD as _, ctypes::FD_CLOEXEC as _);
+        }
+
+        if (flag as u32 & ctypes::O_NONBLOCK) != 0 {
+            sys_fcntl(fds[0], ctypes::F_SETFL as _, ctypes::O_NONBLOCK as _);
+            sys_fcntl(fds[1], ctypes::F_SETFL as _, ctypes::O_NONBLOCK as _);
+        }
         Ok(0)
     })
 }

@@ -53,8 +53,24 @@ fn handle_sync_exception(tf: &mut TrapFrame) {
             debug!("BRK #{:#x} @ {:#x} ", iss, tf.elr);
             tf.elr += 4;
         }
+        #[cfg(feature = "musl")]
         Some(ESR_EL1::EC::Value::SVC64) => {
-            warn!("No supervisor call is supported currently!");
+            debug!("Handle supervisor call {}", tf.r[8]);
+            let result = crate::trap::handle_syscall(
+                tf.r[8] as usize,
+                [
+                    tf.r[0] as _,
+                    tf.r[1] as _,
+                    tf.r[2] as _,
+                    tf.r[3] as _,
+                    tf.r[4] as _,
+                    tf.r[5] as _,
+                ],
+            );
+            tf.r[0] = result as u64;
+            // Jump to next instruction
+            // tf.elr += 4;
+            // debug!("elr = {:#x}", tf.elr);
         }
         Some(ESR_EL1::EC::Value::DataAbortLowerEL)
         | Some(ESR_EL1::EC::Value::InstrAbortLowerEL) => {

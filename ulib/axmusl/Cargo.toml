@@ -1,0 +1,52 @@
+[package]
+name = "axmusl"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+crate-type = ["staticlib"]
+
+[features]
+default = []
+
+# Multicore
+smp = ["arceos_posix_api/smp"]
+
+# Floating point/SIMD
+fp_simd = ["axfeat/fp_simd"]
+
+# Memory
+alloc = ["arceos_posix_api/alloc"]
+tls = ["alloc", "axfeat/tls"]
+
+# Multi-task
+multitask = ["arceos_posix_api/multitask"]
+
+# File system
+fs = ["arceos_posix_api/fs", "fd"]
+
+# Networking
+net = ["arceos_posix_api/net", "fd"]
+
+# Libc features
+fd = ["arceos_posix_api/fd"]
+pipe = ["arceos_posix_api/pipe"]
+select = ["arceos_posix_api/select"]
+epoll = ["arceos_posix_api/epoll"]
+
+musl = ["axfeat/musl", "arceos_posix_api/musl", "axfeat/tls", "arceos_posix_api/tls"]
+
+# Interrupts
+irq = ["axruntime/irq", "arceos_posix_api/irq", "axfeat/irq"]
+
+[dependencies]
+axfeat = { path = "../../api/axfeat" }
+arceos_posix_api = { path = "../../api/arceos_posix_api" }
+num_enum = { version = "0.5.11", default-features = false }
+axruntime = { path = "../../modules/axruntime", optional = true }
+axhal = { path = "../../modules/axhal" }
+axlog = { path = "../../modules/axlog" }
+kernel_guard = { path = "../../crates/kernel_guard" }
+crate_interface = { path = "../../crates/crate_interface" }

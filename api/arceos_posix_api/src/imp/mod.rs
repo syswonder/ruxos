@@ -21,9 +21,24 @@ pub mod fd_ops;
 pub mod fs;
 #[cfg(any(feature = "select", feature = "poll", feature = "epoll"))]
 pub mod io_mpx;
+#[cfg(feature = "fd")]
+pub mod ioctl;
+#[cfg(feature = "alloc")]
+pub mod mmap;
 #[cfg(feature = "net")]
 pub mod net;
 #[cfg(feature = "pipe")]
 pub mod pipe;
 #[cfg(feature = "multitask")]
 pub mod pthread;
+#[cfg(feature = "alloc")]
+pub mod sig;
+
+/// Invalid syscall
+pub fn sys_invalid(id: core::ffi::c_int) -> core::ffi::c_int {
+    debug!("sys_invalid <= id: {}", id);
+    syscall_body!(
+        sys_invalid,
+        Err::<core::ffi::c_int, axerrno::LinuxError>(axerrno::LinuxError::ENOSYS)
+    )
+}

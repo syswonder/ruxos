@@ -24,6 +24,8 @@ fs = ["axdriver", "axfs"]
 net = ["axdriver", "axnet"]
 display = ["axdriver", "axdisplay"]
 
+musl = []
+
 [dependencies]
 cfg-if = "1.0"
 axhal = { path = "../axhal" }

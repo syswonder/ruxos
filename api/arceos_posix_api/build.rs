@@ -95,6 +95,7 @@ typedef struct {{
             "pthread_cond_t",
             "pthread_condattr_t",
             "sysinfo",
+            "pid_t",
         ];
         let allow_vars = [
             "O_.*",
@@ -109,6 +110,7 @@ typedef struct {{
             "RLIMIT_.*",
             "EAI_.*",
             "MAXADDRS",
+            "CLONE_.*",
         ];
 
         #[derive(Debug)]

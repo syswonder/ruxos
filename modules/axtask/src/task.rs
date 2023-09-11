@@ -30,7 +30,7 @@ pub struct TaskId(u64);
 /// The possible states of a task.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub(crate) enum TaskState {
+pub enum TaskState {
     Running = 1,
     Ready = 2,
     Blocked = 3,
@@ -64,6 +64,8 @@ pub struct TaskInner {
 
     #[cfg(feature = "tls")]
     tls: TlsArea,
+
+    tl: Option<usize>,
 }
 
 impl TaskId {
@@ -118,6 +120,16 @@ impl TaskInner {
             .wait_until(|| self.state() == TaskState::Exited);
         Some(self.exit_code.load(Ordering::Acquire))
     }
+
+    /// set 0 to thread_list_lock
+    pub fn free_thread_list_lock(&self) {
+        unsafe {
+            if self.tl.is_some() {
+                let addr = self.tl.unwrap();
+                (addr as *mut core::ffi::c_int).write_volatile(0);
+            }
+        }
+    }
 }
 
 // private methods
@@ -143,7 +155,63 @@ impl TaskInner {
             ctx: UnsafeCell::new(TaskContext::new()),
             #[cfg(feature = "tls")]
             tls: TlsArea::alloc(),
+            tl: None,
         }
+    }
+
+    fn new_common_tls(id: TaskId, name: String, tls: usize, tl: Option<usize>) -> Self {
+        Self {
+            id,
+            name,
+            is_idle: false,
+            is_init: false,
+            entry: None,
+            state: AtomicU8::new(TaskState::Ready as u8),
+            in_wait_queue: AtomicBool::new(false),
+            #[cfg(feature = "irq")]
+            in_timer_list: AtomicBool::new(false),
+            #[cfg(feature = "preempt")]
+            need_resched: AtomicBool::new(false),
+            #[cfg(feature = "preempt")]
+            preempt_disable_count: AtomicUsize::new(0),
+            exit_code: AtomicI32::new(0),
+            wait_for_exit: WaitQueue::new(),
+            kstack: None,
+            ctx: UnsafeCell::new(TaskContext::new()),
+            #[cfg(feature = "tls")]
+            tls: TlsArea::new_with_addr(tls),
+            tl,
+        }
+    }
+
+    /// Create a new task with the given entry function, stack size and tls area address
+    pub(crate) fn new_musl<F>(
+        entry: F,
+        name: String,
+        stack_size: usize,
+        tls: usize,
+        // thread list lock
+        tl: Option<usize>,
+    ) -> AxTaskRef
+    where
+        F: FnOnce() + Send + 'static,
+    {
+        let mut t = Self::new_common_tls(TaskId::new(), name, tls, tl);
+        debug!("new task: {}", t.id_name());
+        let kstack = TaskStack::alloc(align_up_4k(stack_size));
+
+        #[cfg(feature = "tls")]
+        let tls = VirtAddr::from(t.tls.tls_ptr() as usize);
+        #[cfg(not(feature = "tls"))]
+        let tls = VirtAddr::from(0);
+
+        t.entry = Some(Box::into_raw(Box::new(entry)));
+        t.ctx.get_mut().init(task_entry as usize, kstack.top(), tls);
+        t.kstack = Some(kstack);
+        if t.name == "idle" {
+            t.is_idle = true;
+        }
+        Arc::new(AxTask::new(t))
     }
 
     /// Create a new task with the given entry function and stack size.
@@ -187,12 +255,12 @@ impl TaskInner {
     }
 
     #[inline]
-    pub(crate) fn state(&self) -> TaskState {
+    pub fn state(&self) -> TaskState {
         self.state.load(Ordering::Acquire).into()
     }
 
     #[inline]
-    pub(crate) fn set_state(&self, state: TaskState) {
+    pub fn set_state(&self, state: TaskState) {
         self.state.store(state as u8, Ordering::Release)
     }
 
@@ -207,7 +275,7 @@ impl TaskInner {
     }
 
     #[inline]
-    pub(crate) fn is_blocked(&self) -> bool {
+    pub fn is_blocked(&self) -> bool {
         matches!(self.state(), TaskState::Blocked)
     }
 
@@ -316,6 +384,7 @@ struct TaskStack {
 impl TaskStack {
     pub fn alloc(size: usize) -> Self {
         let layout = Layout::from_size_align(size, 16).unwrap();
+        debug!("taskStack::layout = {:?}", layout);
         Self {
             ptr: NonNull::new(unsafe { alloc::alloc::alloc(layout) }).unwrap(),
             layout,

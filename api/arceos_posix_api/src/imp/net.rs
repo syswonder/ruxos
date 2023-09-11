@@ -309,6 +309,10 @@ pub fn sys_sendto(
         "sys_sendto <= {} {:#x} {} {} {:#x} {}",
         socket_fd, buf_ptr as usize, len, flag, socket_addr as usize, addrlen
     );
+    if socket_addr.is_null() {
+        return sys_send(socket_fd, buf_ptr, len, flag);
+    }
+
     syscall_body!(sys_sendto, {
         if buf_ptr.is_null() {
             return Err(LinuxError::EFAULT);
@@ -356,8 +360,12 @@ pub unsafe fn sys_recvfrom(
         "sys_recvfrom <= {} {:#x} {} {} {:#x} {:#x}",
         socket_fd, buf_ptr as usize, len, flag, socket_addr as usize, addrlen as usize
     );
+    if socket_addr.is_null() {
+        return sys_recv(socket_fd, buf_ptr, len, flag);
+    }
+
     syscall_body!(sys_recvfrom, {
-        if buf_ptr.is_null() || socket_addr.is_null() || addrlen.is_null() {
+        if buf_ptr.is_null() || addrlen.is_null() {
             return Err(LinuxError::EFAULT);
         }
         let socket = Socket::from_fd(socket_fd)?;

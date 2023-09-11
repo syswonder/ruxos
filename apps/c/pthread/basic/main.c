@@ -56,6 +56,7 @@ void test_create_join()
     char *s = "Main thread pass message";
     void *thread_result;
     pthread_t t1, t2;
+
     res = pthread_create(&t1, NULL, ThreadFunc1, NULL);
     if (res != 0) {
         puts("fail to create thread1");

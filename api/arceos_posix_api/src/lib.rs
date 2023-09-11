@@ -48,6 +48,7 @@ pub mod ctypes;
 pub use imp::io::{sys_read, sys_write, sys_writev};
 pub use imp::resources::{sys_getrlimit, sys_setrlimit};
 pub use imp::sys::sys_sysinfo;
+pub use imp::sys_invalid;
 pub use imp::task::{sys_exit, sys_getpid, sys_sched_yield};
 pub use imp::time::{sys_clock_gettime, sys_clock_settime, sys_nanosleep};
 
@@ -55,8 +56,8 @@ pub use imp::time::{sys_clock_gettime, sys_clock_settime, sys_nanosleep};
 pub use imp::fd_ops::{sys_close, sys_dup, sys_dup2, sys_fcntl};
 #[cfg(feature = "fs")]
 pub use imp::fs::{
-    sys_fstat, sys_getcwd, sys_lseek, sys_lstat, sys_mkdir, sys_open, sys_rename, sys_rmdir,
-    sys_stat, sys_unlink,
+    sys_fstat, sys_getcwd, sys_lseek, sys_lstat, sys_mkdir, sys_open, sys_openat, sys_rename,
+    sys_rmdir, sys_stat, sys_unlink,
 };
 #[cfg(feature = "poll")]
 pub use imp::io_mpx::sys_poll;
@@ -64,6 +65,10 @@ pub use imp::io_mpx::sys_poll;
 pub use imp::io_mpx::sys_select;
 #[cfg(feature = "epoll")]
 pub use imp::io_mpx::{sys_epoll_create, sys_epoll_ctl, sys_epoll_wait};
+#[cfg(feature = "fd")]
+pub use imp::ioctl::sys_ioctl;
+#[cfg(feature = "alloc")]
+pub use imp::mmap::{sys_mmap, sys_mprotect, sys_munmap};
 #[cfg(feature = "net")]
 pub use imp::net::{
     sys_accept, sys_bind, sys_connect, sys_freeaddrinfo, sys_getaddrinfo, sys_getpeername,
@@ -71,7 +76,7 @@ pub use imp::net::{
     sys_shutdown, sys_socket,
 };
 #[cfg(feature = "pipe")]
-pub use imp::pipe::sys_pipe;
+pub use imp::pipe::{sys_pipe, sys_pipe2};
 #[cfg(feature = "multitask")]
 pub use imp::pthread::condvar::{
     sys_pthread_cond_broadcast, sys_pthread_cond_init, sys_pthread_cond_signal,
@@ -82,5 +87,13 @@ pub use imp::pthread::mutex::{
     sys_pthread_mutex_init, sys_pthread_mutex_lock, sys_pthread_mutex_trylock,
     sys_pthread_mutex_unlock,
 };
+
 #[cfg(feature = "multitask")]
-pub use imp::pthread::{sys_pthread_create, sys_pthread_exit, sys_pthread_join, sys_pthread_self};
+pub use imp::pthread::futex::sys_futex;
+#[cfg(feature = "multitask")]
+pub use imp::pthread::{
+    sys_clone, sys_pthread_create, sys_pthread_exit, sys_pthread_join, sys_pthread_self,
+    sys_set_tid_address,
+};
+#[cfg(feature = "alloc")]
+pub use imp::sig::sys_rt_sigprocmask;

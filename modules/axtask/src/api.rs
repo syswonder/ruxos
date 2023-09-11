@@ -108,6 +108,23 @@ where
     task
 }
 
+/// Used by musl
+// pub fn spawn_raw_musl<F>(f: Box<F>, name: String, stack_size: usize, tls: usize, tl: Option<usize>) -> AxTaskRef
+pub fn spawn_raw_musl<F>(
+    f: F,
+    name: String,
+    stack_size: usize,
+    tls: usize,
+    tl: Option<usize>,
+) -> AxTaskRef
+where
+    F: FnOnce() + Send + 'static,
+{
+    let task = TaskInner::new_musl(f, name, stack_size, tls, tl);
+    RUN_QUEUE.lock().add_task(task.clone());
+    task
+}
+
 /// Spawns a new task with the default parameters.
 ///
 /// The default task name is an empty string. The default task stack size is
@@ -119,6 +136,15 @@ where
     F: FnOnce() + Send + 'static,
 {
     spawn_raw(f, "".into(), axconfig::TASK_STACK_SIZE)
+}
+
+/// Used by musl
+// pub fn spawn_musl<F>(f: Box<F>, tls: usize, tl: Option<usize>) -> AxTaskRef
+pub fn spawn_musl<F>(f: F, tls: usize, tl: Option<usize>) -> AxTaskRef
+where
+    F: FnOnce() + Send + 'static,
+{
+    spawn_raw_musl(f, "".into(), axconfig::TASK_STACK_SIZE, tls, tl)
 }
 
 /// Set the priority for current task.

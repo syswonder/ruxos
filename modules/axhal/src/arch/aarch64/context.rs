@@ -97,6 +97,7 @@ impl TaskContext {
     pub fn switch_to(&mut self, next_ctx: &Self) {
         #[cfg(feature = "fp_simd")]
         self.fp_state.switch_to(&next_ctx.fp_state);
+        trace!("next instruction: {:#x}", next_ctx.lr);
         unsafe { context_switch(self, next_ctx) }
     }
 }
