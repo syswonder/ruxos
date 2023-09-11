@@ -71,6 +71,9 @@ log-level-info = ["axlog/log-level-info"]
 log-level-debug = ["axlog/log-level-debug"]
 log-level-trace = ["axlog/log-level-trace"]
 
+# musl
+musl = ["axhal/musl", "axruntime/musl", "axalloc/slab", "axtask/musl"]
+
 [dependencies]
 axruntime = { path = "../../modules/axruntime" }
 axhal = { path = "../../modules/axhal" }

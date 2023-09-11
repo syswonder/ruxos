@@ -45,9 +45,22 @@ fn poll_all(fds: &mut [ctypes::pollfd]) -> LinuxResult<usize> {
     Ok(events_num)
 }
 
+/// `ppoll` used by A64. Currently ignore signal
+pub unsafe fn sys_ppoll(
+    fds: *mut ctypes::pollfd,
+    nfds: ctypes::nfds_t,
+    timeout: *const ctypes::timespec,
+    _sig_mask: *const ctypes::sigset_t,
+    _sig_num: ctypes::size_t,
+) -> c_int {
+    debug!("sys_ppoll <= nfds: {} timeout: {:?}", nfds, *timeout);
+    let to = Duration::from(*timeout).as_millis() as c_int;
+    sys_poll(fds, nfds, to)
+}
+
 /// Used to monitor multiple file descriptors for events
 pub unsafe fn sys_poll(fds: *mut ctypes::pollfd, nfds: ctypes::nfds_t, timeout: c_int) -> c_int {
-    debug!("ax_poll <= nfds: {} timeout: {}", nfds, timeout);
+    debug!("ax_poll <= nfds: {} timeout: {} ms", nfds, timeout);
 
     syscall_body!(ax_poll, {
         if nfds == 0 {

@@ -4,7 +4,11 @@ include scripts/make/cargo.mk
 include scripts/make/features.mk
 
 ifeq ($(APP_TYPE), c)
-  include scripts/make/build_c.mk
+  ifeq ($(MUSL), y)
+    include scripts/make/build_musl.mk
+  else
+    include scripts/make/build_c.mk
+  endif
 else
   rust_package := $(shell cat $(APP)/Cargo.toml | sed -n 's/^name = "\([a-z0-9A-Z_\-]*\)"/\1/p')
   rust_target_dir := $(CURDIR)/target/$(TARGET)/$(MODE)
@@ -37,7 +41,11 @@ ifeq ($(APP_TYPE), rust)
 	$(call cargo_build,--manifest-path $(APP)/Cargo.toml,$(AX_FEAT) $(LIB_FEAT) $(APP_FEAT))
 	@cp $(rust_elf) $(OUT_ELF)
 else ifeq ($(APP_TYPE), c)
-	$(call cargo_build,-p axlibc,$(AX_FEAT) $(LIB_FEAT))
+  ifeq ($(MUSL), y)
+		$(call cargo_build,-p axmusl,$(AX_FEAT) $(LIB_FEAT))
+  else
+		$(call cargo_build,-p axlibc,$(AX_FEAT) $(LIB_FEAT))
+  endif
 endif
 
 $(info lhw print feat $(AX_FEAT) |||  $(LIB_FEAT))

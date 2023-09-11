@@ -31,6 +31,8 @@
 # * Network options:
 #     - `IP`: ArceOS IPv4 address (default is 10.0.2.15 for QEMU user netdev)
 #     - `GW`: Gateway IPv4 address (default is 10.0.2.2 for QEMU user netdev)
+# * Libc options:
+#     - `MUSL`: Link C app with musl libc
 
 # General options
 ARCH ?= x86_64
@@ -70,6 +72,9 @@ GW ?= 10.0.2.2
 # args and envs
 ARGS ?= 
 ENVS ?= 
+
+# Libc options
+MUSL ?= n
 
 # App type
 ifeq ($(wildcard $(APP)),)
@@ -136,6 +141,7 @@ export AX_GW=$(GW)
 export AX_9P_ADDR = $(NET_9P_ADDR)
 export AX_ANAME_9P = $(ANAME_9P)
 export AX_PROTOCOL_9P = $(PROTOCOL_9P)
+export AX_MUSL=$(MUSL)
 
 # Binutils
 CROSS_COMPILE ?= $(ARCH)-linux-musl-
@@ -225,7 +231,7 @@ else
 	$(call make_disk_image,fat32,$(DISK_IMG))
 endif
 
-clean: clean_c
+clean: clean_c clean_musl
 	rm -rf $(APP)/*.bin $(APP)/*.elf
 	cargo clean
 
@@ -233,4 +239,8 @@ clean_c::
 	rm -rf ulib/axlibc/build_*
 	rm -rf $(app-objs)
 
-.PHONY: all build disasm run justrun debug clippy fmt fmt_c test test_no_fail_fast clean clean_c doc disk_image
+clean_musl:
+	rm -rf ulib/axmusl/build_*
+	rm -rf ulib/axmusl/install
+
+.PHONY: all build disasm run justrun debug clippy fmt fmt_c test test_no_fail_fast clean clean_c clean_musl doc disk_image

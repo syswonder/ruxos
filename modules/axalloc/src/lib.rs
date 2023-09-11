@@ -221,7 +221,7 @@ pub fn global_init(start_vaddr: usize, size: usize) {
     debug!(
         "initialize global allocator at: [{:#x}, {:#x})",
         start_vaddr,
-        start_vaddr + size
+        start_vaddr + size,
     );
     GLOBAL_ALLOCATOR.init(start_vaddr, size);
 }

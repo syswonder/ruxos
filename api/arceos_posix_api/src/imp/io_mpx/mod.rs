@@ -23,8 +23,8 @@ mod poll;
 mod select;
 
 #[cfg(feature = "epoll")]
-pub use self::epoll::{sys_epoll_create, sys_epoll_ctl, sys_epoll_wait};
+pub use self::epoll::{sys_epoll_create, sys_epoll_ctl, sys_epoll_pwait, sys_epoll_wait};
 #[cfg(feature = "poll")]
-pub use self::poll::sys_poll;
+pub use self::poll::{sys_poll, sys_ppoll};
 #[cfg(feature = "select")]
-pub use self::select::sys_select;
+pub use self::select::{sys_pselect6, sys_select};

@@ -37,6 +37,8 @@ extern crate axlog;
 mod lang_items;
 #[cfg(feature = "signal")]
 mod signal;
+
+#[cfg(not(feature = "musl"))]
 mod trap;
 
 #[cfg(feature = "smp")]
@@ -69,8 +71,25 @@ const LOGO: &str = r#"
 d88P     888 888      "Y8888P  "Y8888   "Y88888P"   "Y8888P"
 "#;
 
+#[no_mangle]
+extern "C" fn init_dummy() {}
+
+#[no_mangle]
+extern "C" fn fini_dummy() {}
+
+#[no_mangle]
+extern "C" fn ldso_dummy() {}
+
 extern "C" {
-    fn main(argc: c_int, argv: *mut *mut c_char);
+    fn main(argc: c_int, argv: *mut *mut c_char) -> c_int;
+    fn __libc_start_main(
+        main: unsafe extern "C" fn(argc: c_int, argv: *mut *mut c_char) -> c_int,
+        argc: c_int,
+        argv: *mut *mut c_char,
+        init_dummy: extern "C" fn(),
+        fini_dummy: extern "C" fn(),
+        ldso_dummy: extern "C" fn(),
+    ) -> c_int;
 }
 
 struct LogIfImpl;
@@ -244,13 +263,29 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     let mut argc: c_int = 0;
     // environ variables and Command line parameters initialization
     #[cfg(feature = "alloc")]
-    init_cmdline(&mut argc);
-
     unsafe {
-        #[cfg(feature = "alloc")]
+        init_cmdline(&mut argc);
+        #[cfg(not(feature = "musl"))]
         main(argc, argv);
-        #[cfg(not(feature = "alloc"))]
-        main(argc, core::ptr::null_mut());
+
+        #[cfg(feature = "musl")]
+        __libc_start_main(main, argc, argv, init_dummy, fini_dummy, ldso_dummy);
+    }
+
+    #[cfg(not(feature = "alloc"))]
+    unsafe {
+        #[cfg(not(feature = "musl"))]
+        main(0, core::ptr::null_mut());
+
+        #[cfg(feature = "musl")]
+        __libc_start_main(
+            main,
+            0,
+            core::ptr::null_mut(),
+            init_dummy,
+            fini_dummy,
+            ldso_dummy,
+        )
     };
 
     #[cfg(feature = "multitask")]

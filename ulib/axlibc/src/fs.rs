@@ -50,7 +50,7 @@ pub unsafe extern "C" fn stat(path: *const c_char, buf: *mut ctypes::stat) -> c_
 /// Return 0 if success.
 #[no_mangle]
 pub unsafe extern "C" fn fstat(fd: c_int, buf: *mut ctypes::stat) -> c_int {
-    e(sys_fstat(fd, buf))
+    e(sys_fstat(fd, buf as *mut core::ffi::c_void))
 }
 
 /// Get the metadata of the symbolic link and write into `buf`.
@@ -64,7 +64,19 @@ pub unsafe extern "C" fn lstat(path: *const c_char, buf: *mut ctypes::stat) -> c
 /// Get the path of the current directory.
 #[no_mangle]
 pub unsafe extern "C" fn getcwd(buf: *mut c_char, size: usize) -> *mut c_char {
-    sys_getcwd(buf, size)
+    if buf.is_null() && size != 0 {
+        crate::errno::set_errno(axerrno::LinuxError::EINVAL as _);
+        return core::ptr::null_mut() as *mut c_char;
+    }
+    let e = sys_getcwd(buf, size);
+    if e < 0 {
+        return core::ptr::null_mut() as *mut c_char;
+    }
+    if e == 0 || buf.read() != '/' as _ {
+        crate::errno::set_errno(axerrno::LinuxError::ENOENT as _);
+        return core::ptr::null_mut() as *mut c_char;
+    }
+    buf
 }
 
 /// Rename `old` to `new`

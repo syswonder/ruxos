@@ -3,8 +3,9 @@
  *   You can use this software according to the terms and conditions of the Mulan PSL v2.
  *   You may obtain a copy of Mulan PSL v2 at:
  *               http://license.coscl.org.cn/MulanPSL2
- *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
- *   See the Mulan PSL v2 for more details.
+ *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A
+ * PARTICULAR PURPOSE. See the Mulan PSL v2 for more details.
  */
 
 #ifndef __SYS_STAT_H__
@@ -29,7 +30,53 @@ struct stat {
     struct timespec st_ctim; /* time of last status change*/
 };
 
-//lhw unsure change
+#if defined(__aarch64__)
+struct kstat {
+    dev_t st_dev;
+    ino_t st_ino;
+    mode_t st_mode;
+    nlink_t st_nlink;
+    uid_t st_uid;
+    gid_t st_gid;
+    dev_t st_rdev;
+    unsigned long __pad;
+    off_t st_size;
+    blksize_t st_blksize;
+    int __pad2;
+    blkcnt_t st_blocks;
+    long st_atime_sec;
+    long st_atime_nsec;
+    long st_mtime_sec;
+    long st_mtime_nsec;
+    long st_ctime_sec;
+    long st_ctime_nsec;
+    unsigned __unused[2];
+};
+#else
+struct kstat {
+    dev_t st_dev;
+    ino_t st_ino;
+    nlink_t st_nlink;
+
+    mode_t st_mode;
+    uid_t st_uid;
+    gid_t st_gid;
+    unsigned int __pad0;
+    dev_t st_rdev;
+    off_t st_size;
+    blksize_t st_blksize;
+    blkcnt_t st_blocks;
+
+    long st_atime_sec;
+    long st_atime_nsec;
+    long st_mtime_sec;
+    long st_mtime_nsec;
+    long st_ctime_sec;
+    long st_ctime_nsec;
+    long __unused[3];
+};
+#endif
+
 #define st_atime st_atim.tv_sec
 #define st_mtime st_mtim.tv_sec
 #define st_ctime st_ctim.tv_sec
@@ -49,13 +96,13 @@ struct stat {
 #define S_TYPEISSHM(buf) 0
 #define S_TYPEISTMO(buf) 0
 
-#define S_ISDIR(mode)  (((mode)&S_IFMT) == S_IFDIR)
-#define S_ISCHR(mode)  (((mode)&S_IFMT) == S_IFCHR)
-#define S_ISBLK(mode)  (((mode)&S_IFMT) == S_IFBLK)
-#define S_ISREG(mode)  (((mode)&S_IFMT) == S_IFREG)
-#define S_ISFIFO(mode) (((mode)&S_IFMT) == S_IFIFO)
-#define S_ISLNK(mode)  (((mode)&S_IFMT) == S_IFLNK)
-#define S_ISSOCK(mode) (((mode)&S_IFMT) == S_IFSOCK)
+#define S_ISDIR(mode)  (((mode) & S_IFMT) == S_IFDIR)
+#define S_ISCHR(mode)  (((mode) & S_IFMT) == S_IFCHR)
+#define S_ISBLK(mode)  (((mode) & S_IFMT) == S_IFBLK)
+#define S_ISREG(mode)  (((mode) & S_IFMT) == S_IFREG)
+#define S_ISFIFO(mode) (((mode) & S_IFMT) == S_IFIFO)
+#define S_ISLNK(mode)  (((mode) & S_IFMT) == S_IFLNK)
+#define S_ISSOCK(mode) (((mode) & S_IFMT) == S_IFSOCK)
 
 #ifndef S_IRUSR
 #define S_ISUID 04000

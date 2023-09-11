@@ -11,3 +11,4 @@ poll
 select
 driver-ramdisk
 virtio-9p
+rtc

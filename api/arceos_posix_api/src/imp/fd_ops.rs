@@ -114,6 +114,29 @@ pub fn sys_dup2(old_fd: c_int, new_fd: c_int) -> c_int {
     })
 }
 
+/// `dup3` used by A64 for MUSL
+#[cfg(feature = "musl")]
+pub fn sys_dup3(old_fd: c_int, new_fd: c_int, flags: c_int) -> c_int {
+    debug!(
+        "sys_dup3 <= old_fd: {}, new_fd: {}, flags: {:x}",
+        old_fd, new_fd, flags
+    );
+    syscall_body!(sys_dup3, {
+        if old_fd == new_fd {
+            return Err(LinuxError::EINVAL);
+        }
+        sys_dup2(old_fd, new_fd);
+        if flags as u32 & ctypes::O_CLOEXEC != 0 {
+            sys_fcntl(
+                new_fd,
+                ctypes::F_SETFD as c_int,
+                ctypes::FD_CLOEXEC as usize,
+            );
+        }
+        Ok(new_fd)
+    })
+}
+
 /// Manipulate file descriptor.
 ///
 /// TODO: `SET/GET` command is ignored, hard-code stdin/stdout

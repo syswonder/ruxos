@@ -52,6 +52,7 @@ cfg_if::cfg_if! {
         /// load average
         pub mod loadavg;
         /// specific key-value storage for each task
+        #[cfg(not(feature = "musl"))]
         pub mod tsd;
         /// TODO: if irq is disabled, what value should AVENRUN be?
         /// average run load, same as in linux kernel
@@ -73,6 +74,7 @@ cfg_if::cfg_if! {
         #[doc(cfg(feature = "multitask"))]
         pub use self::api::*;
         pub use self::api::{sleep, sleep_until, yield_now};
+        pub use task::TaskState;
     } else {
         mod api_s;
         pub use self::api_s::{sleep, sleep_until, yield_now};
