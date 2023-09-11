@@ -256,6 +256,23 @@ pub fn sys_socket(domain: c_int, socktype: c_int, protocol: c_int) -> c_int {
     })
 }
 
+/// `setsockopt`, currently ignored
+///
+/// TODO: implement this
+pub fn sys_setsockopt(
+    fd: c_int,
+    level: c_int,
+    optname: c_int,
+    _optval: *const c_void,
+    optlen: ctypes::socklen_t,
+) -> c_int {
+    debug!(
+        "sys_setsockopt <= fd: {}, level: {}, optname: {}, optlen: {}, IGNORED",
+        fd, level, optname, optlen
+    );
+    syscall_body!(sys_setsockopt, Ok(0))
+}
+
 /// Bind a address to a socket.
 ///
 /// Return 0 if success.
@@ -309,6 +326,10 @@ pub fn sys_sendto(
         "sys_sendto <= {} {:#x} {} {} {:#x} {}",
         socket_fd, buf_ptr as usize, len, flag, socket_addr as usize, addrlen
     );
+    if socket_addr.is_null() {
+        return sys_send(socket_fd, buf_ptr, len, flag);
+    }
+
     syscall_body!(sys_sendto, {
         if buf_ptr.is_null() {
             return Err(LinuxError::EFAULT);
@@ -356,8 +377,12 @@ pub unsafe fn sys_recvfrom(
         "sys_recvfrom <= {} {:#x} {} {} {:#x} {:#x}",
         socket_fd, buf_ptr as usize, len, flag, socket_addr as usize, addrlen as usize
     );
+    if socket_addr.is_null() {
+        return sys_recv(socket_fd, buf_ptr, len, flag);
+    }
+
     syscall_body!(sys_recvfrom, {
-        if buf_ptr.is_null() || socket_addr.is_null() || addrlen.is_null() {
+        if buf_ptr.is_null() || addrlen.is_null() {
             return Err(LinuxError::EFAULT);
         }
         let socket = Socket::from_fd(socket_fd)?;

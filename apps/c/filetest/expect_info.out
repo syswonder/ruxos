@@ -19,5 +19,9 @@ device model: static
 Initialize filesystems...
 use block device 0: "virtio-blk"
 Primary CPU 0 init OK.
+rmdir, mkdir, open success!
+first fgets success!
+second fgets success!
+remove file and dir success!
 filetest success!
 Shutting down...

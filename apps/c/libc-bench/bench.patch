@@ -1,0 +1,102 @@
+diff --git a/Makefile b/Makefile
+index efda5c0..0a481be 100644
+--- a/Makefile
++++ b/Makefile
+@@ -6,11 +6,12 @@ CFLAGS = -Os -D_XOPEN_SOURCE=700
+ LDFLAGS = -static
+ LIBS = -lpthread -lrt -lpthread
+ 
++LIBC-BENCH = libctest.o
+ 
+-all: libc-bench
++all: $(LIBC-BENCH)
+ 
+ clean:
+-	rm -f $(OBJS) libc-bench
++	rm -f $(OBJS) $(LIBC-BENCH)
+ 
+ test: all
+ 	./libc-bench
+@@ -21,8 +22,8 @@ relink:
+ 
+ retest: relink test
+ 
+-libc-bench: $(OBJS)
+-	$(CC) $(LDFLAGS) -o $@ $(OBJS) $(LIBS)
++$(LIBC-BENCH): $(OBJS)
++	$(CC) -r -o $@ $(OBJS) $(LIBS)
+ 
+ %.o: %.c
+ 	$(CC) $(CFLAGS) -c -o $@ $<
+diff --git a/main.c b/main.c
+index 12bb541..bce685f 100644
+--- a/main.c
++++ b/main.c
+@@ -7,55 +7,33 @@
+ 
+ void print_stats(struct timespec tv0)
+ {
+-	FILE *f;
+-	char buf[256];
+ 	struct timespec tv;
+-	int maj, min, in_heap=0;
+-	unsigned long l;
+-	size_t vm_size=0, vm_rss=0, vm_priv_dirty=0;
+ 
+ 	clock_gettime(CLOCK_REALTIME, &tv);
+ 	tv.tv_sec -= tv0.tv_sec;
+-	if ((tv.tv_nsec -= tv0.tv_nsec) < 0) {
++	if ((tv.tv_nsec -= tv0.tv_nsec) < 0)
++	{
+ 		tv.tv_nsec += 1000000000;
+ 		tv.tv_sec--;
+ 	}
+ 
+-	f = fopen("/proc/self/smaps", "rb");
+-	if (f) while (fgets(buf, sizeof buf, f)) {
+-		if (sscanf(buf, "%*lx-%*lx %*s %*lx %x:%x %*lu %*s", &maj, &min)==2)
+-			in_heap = (!maj && !min && !strstr(buf, "---p") && (strstr(buf, "[heap]") || !strchr(buf, '[')));
+-		if (in_heap) {
+-			if (sscanf(buf, "Size: %lu", &l)==1) vm_size += l;
+-			else if (sscanf(buf, "Rss: %lu", &l)==1) vm_rss += l;
+-			else if (sscanf(buf, "Private_Dirty: %lu", &l)==1) vm_priv_dirty += l;
+-		}
+-	}
+-	if (f) fclose(f);
+-	printf("  time: %ld.%.9ld, virt: %zu, res: %zu, dirty: %zu\n\n",
+-		(long)tv.tv_sec, (long)tv.tv_nsec,
+-		vm_size, vm_rss, vm_priv_dirty);
++	printf("  time: %ld.%.9ld\n\n",
++		   (long)tv.tv_sec, (long)tv.tv_nsec);
++
+ }
+ 
+ int run_bench(const char *label, size_t (*bench)(void *), void *params)
+ {
+ 	struct timespec tv0;
+-	pid_t p = fork();
+-	if (p) {
+-		int status;
+-		wait(&status);
+-		return status;
+-	}
+ 
+ 	puts(label);
+ 	clock_gettime(CLOCK_REALTIME, &tv0);
+ 	bench(params);
+ 	print_stats(tv0);
+-	exit(0);
+ }
+ 
+-#define RUN(a, b) \
+-	extern size_t (a)(void *); \
++#define RUN(a, b)             \
++	extern size_t(a)(void *); \
+ 	run_bench(#a " (" #b ")", (a), (b))
+ 
+ int main()
+@@ -95,4 +73,3 @@ int main()
+ 	RUN(b_regex_search, "(a|b|c)*d*b");
+ 	RUN(b_regex_search, "a{25}b");
+ }
+-

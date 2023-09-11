@@ -176,6 +176,22 @@ pub unsafe fn sys_epoll_ctl(
     })
 }
 
+/// `epoll_pwait` used by A64. Currently ignore signals
+pub unsafe fn sys_epoll_pwait(
+    epfd: c_int,
+    events: *mut ctypes::epoll_event,
+    maxevents: c_int,
+    timeout: c_int,
+    _sigs: *const ctypes::sigset_t,
+    _sig_num: *const ctypes::size_t,
+) -> c_int {
+    debug!(
+        "sys_epoll_pwait <= epfd: {}, maxevents: {}, timeout: {}",
+        epfd, maxevents, timeout
+    );
+    sys_epoll_wait(epfd, events, maxevents, timeout)
+}
+
 /// Waits for events on the epoll instance referred to by the file descriptor epfd.
 pub unsafe fn sys_epoll_wait(
     epfd: c_int,

@@ -8,11 +8,9 @@
  */
 
 use alloc::{boxed::Box, string::String, sync::Arc};
-use core::ffi::c_void;
 use core::ops::Deref;
 use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, AtomicU8, Ordering};
 use core::{alloc::Layout, cell::UnsafeCell, fmt, ptr::NonNull};
-use spinlock::SpinNoIrq;
 
 #[cfg(feature = "preempt")]
 use core::sync::atomic::AtomicUsize;
@@ -23,6 +21,7 @@ use axhal::tls::TlsArea;
 use axhal::arch::TaskContext;
 use memory_addr::{align_up_4k, VirtAddr};
 
+#[cfg(not(feature = "musl"))]
 use crate::tsd::{DestrFunction, KEYS, TSD};
 use crate::{AxRunQueue, AxTask, AxTaskRef, WaitQueue};
 
@@ -33,10 +32,14 @@ pub struct TaskId(u64);
 /// The possible states of a task.
 #[repr(u8)]
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
-pub(crate) enum TaskState {
+pub enum TaskState {
+    /// Task is running on cpu
     Running = 1,
+    /// Task is ready for schedule
     Ready = 2,
+    /// Task is blocked
     Blocked = 3,
+    /// Task exits, waiting for gc
     Exited = 4,
 }
 
@@ -68,7 +71,15 @@ pub struct TaskInner {
     #[cfg(feature = "tls")]
     tls: TlsArea,
 
+    #[cfg(not(feature = "musl"))]
     tsd: TSD,
+
+    // set tid
+    #[cfg(feature = "musl")]
+    set_tid: AtomicU64,
+    // clear tid
+    #[cfg(feature = "musl")]
+    tl: AtomicU64,
 }
 
 impl TaskId {
@@ -123,6 +134,18 @@ impl TaskInner {
             .wait_until(|| self.state() == TaskState::Exited);
         Some(self.exit_code.load(Ordering::Acquire))
     }
+
+    /// set 0 to thread_list_lock
+    #[cfg(feature = "musl")]
+    pub fn free_thread_list_lock(&self) {
+        unsafe {
+            let addr = self.tl.load(Ordering::Relaxed);
+            if addr == 0 {
+                return;
+            }
+            (addr as *mut core::ffi::c_int).write_volatile(0)
+        }
+    }
 }
 
 // private methods
@@ -148,8 +171,85 @@ impl TaskInner {
             ctx: UnsafeCell::new(TaskContext::new()),
             #[cfg(feature = "tls")]
             tls: TlsArea::alloc(),
-            tsd: SpinNoIrq::new([core::ptr::null_mut(); axconfig::PTHREAD_KEY_MAX]),
+            #[cfg(not(feature = "musl"))]
+            tsd: spinlock::SpinNoIrq::new([core::ptr::null_mut(); axconfig::PTHREAD_KEY_MAX]),
+            #[cfg(feature = "musl")]
+            set_tid: AtomicU64::new(0),
+            #[cfg(feature = "musl")]
+            tl: AtomicU64::new(0),
         }
+    }
+
+    #[cfg(feature = "musl")]
+    fn new_common_tls(
+        id: TaskId,
+        name: String,
+        tls: usize,
+        set_tid: AtomicU64,
+        tl: AtomicU64,
+    ) -> Self {
+        Self {
+            id,
+            name,
+            is_idle: false,
+            is_init: false,
+            entry: None,
+            state: AtomicU8::new(TaskState::Ready as u8),
+            in_wait_queue: AtomicBool::new(false),
+            #[cfg(feature = "irq")]
+            in_timer_list: AtomicBool::new(false),
+            #[cfg(feature = "preempt")]
+            need_resched: AtomicBool::new(false),
+            #[cfg(feature = "preempt")]
+            preempt_disable_count: AtomicUsize::new(0),
+            exit_code: AtomicI32::new(0),
+            wait_for_exit: WaitQueue::new(),
+            kstack: None,
+            ctx: UnsafeCell::new(TaskContext::new()),
+            #[cfg(feature = "tls")]
+            tls: TlsArea::new_with_addr(tls),
+            set_tid,
+            // clear child tid
+            tl,
+        }
+    }
+
+    /// for set_tid_addr
+    #[cfg(feature = "musl")]
+    pub fn set_child_tid(&self, tid: usize) {
+        self.set_tid.store(tid as _, Ordering::Release);
+    }
+
+    /// Create a new task with the given entry function, stack size and tls area address
+    #[cfg(feature = "musl")]
+    pub(crate) fn new_musl<F>(
+        entry: F,
+        name: String,
+        stack_size: usize,
+        tls: usize,
+        set_tid: AtomicU64,
+        // clear child tid
+        tl: AtomicU64,
+    ) -> AxTaskRef
+    where
+        F: FnOnce() + Send + 'static,
+    {
+        let mut t = Self::new_common_tls(TaskId::new(), name, tls, set_tid, tl);
+        debug!("new task: {}", t.id_name());
+        let kstack = TaskStack::alloc(align_up_4k(stack_size));
+
+        #[cfg(feature = "tls")]
+        let tls = VirtAddr::from(t.tls.tls_ptr() as usize);
+        #[cfg(not(feature = "tls"))]
+        let tls = VirtAddr::from(0);
+
+        t.entry = Some(Box::into_raw(Box::new(entry)));
+        t.ctx.get_mut().init(task_entry as usize, kstack.top(), tls);
+        t.kstack = Some(kstack);
+        if t.name == "idle" {
+            t.is_idle = true;
+        }
+        Arc::new(AxTask::new(t))
     }
 
     /// Create a new task with the given entry function and stack size.
@@ -192,13 +292,15 @@ impl TaskInner {
         Arc::new(AxTask::new(t))
     }
 
+    /// Get task state
     #[inline]
-    pub(crate) fn state(&self) -> TaskState {
+    pub fn state(&self) -> TaskState {
         self.state.load(Ordering::Acquire).into()
     }
 
+    /// Set task state
     #[inline]
-    pub(crate) fn set_state(&self, state: TaskState) {
+    pub fn set_state(&self, state: TaskState) {
         self.state.store(state as u8, Ordering::Release)
     }
 
@@ -212,8 +314,9 @@ impl TaskInner {
         matches!(self.state(), TaskState::Ready)
     }
 
+    /// Check blocking
     #[inline]
-    pub(crate) fn is_blocked(&self) -> bool {
+    pub fn is_blocked(&self) -> bool {
         matches!(self.state(), TaskState::Blocked)
     }
 
@@ -298,6 +401,7 @@ impl TaskInner {
     }
 }
 
+#[cfg(not(feature = "musl"))]
 impl TaskInner {
     /// Allocate a key
     pub fn alloc_key(&self, destr_function: Option<DestrFunction>) -> Option<usize> {
@@ -308,7 +412,7 @@ impl TaskInner {
         unsafe { KEYS.lock() }.free(key)
     }
     /// Get the destructor function of a key
-    pub fn set_tsd(&self, key: usize, value: *mut c_void) -> Option<()> {
+    pub fn set_tsd(&self, key: usize, value: *mut core::ffi::c_void) -> Option<()> {
         if key < self.tsd.lock().len() {
             self.tsd.lock()[key] = value;
             Some(())
@@ -317,7 +421,7 @@ impl TaskInner {
         }
     }
     /// Get the destructor function of a key
-    pub fn get_tsd(&self, key: usize) -> Option<*mut c_void> {
+    pub fn get_tsd(&self, key: usize) -> Option<*mut core::ffi::c_void> {
         if key < self.tsd.lock().len() {
             Some(self.tsd.lock()[key])
         } else {
@@ -353,7 +457,8 @@ struct TaskStack {
 
 impl TaskStack {
     pub fn alloc(size: usize) -> Self {
-        let layout = Layout::from_size_align(size, 16).unwrap();
+        let layout = Layout::from_size_align(size, 8).unwrap();
+        debug!("taskStack::layout = {:?}", layout);
         Self {
             ptr: NonNull::new(unsafe { alloc::alloc::alloc(layout) }).unwrap(),
             layout,

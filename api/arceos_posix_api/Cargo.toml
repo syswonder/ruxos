@@ -28,6 +28,10 @@ pipe = ["fd"]
 select = ["fd"]
 epoll = ["fd"]
 poll = ["fd"]
+tls = ["axfeat/tls"]
+irq = ["axfeat/irq"]
+
+musl = ["axfeat/musl"]
 
 [dependencies]
 # ArceOS modules
