@@ -93,13 +93,13 @@ pub use self::time::{clock_gettime, nanosleep};
 pub use self::unistd::{abort, exit, getpid};
 
 #[cfg(feature = "alloc")]
-pub use self::malloc::{free, malloc};
-#[cfg(feature = "alloc")]
-pub use self::strftime::strftime;
-#[cfg(feature = "alloc")]
 pub use self::env::{getenv, setenv, unsetenv};
 #[cfg(feature = "fd")]
 pub use self::fd_ops::{ax_fcntl, close, dup, dup2, dup3};
+#[cfg(feature = "alloc")]
+pub use self::malloc::{free, malloc};
+#[cfg(feature = "alloc")]
+pub use self::strftime::strftime;
 
 #[cfg(feature = "fs")]
 pub use self::fs::{ax_open, fstat, getcwd, lseek, lstat, rename, stat};

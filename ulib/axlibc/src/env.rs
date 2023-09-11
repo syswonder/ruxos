@@ -1,7 +1,7 @@
-use arceos_posix_api::{OUR_ENVIRON, environ, environ_iter};
+use arceos_posix_api::{environ, environ_iter, OUR_ENVIRON};
 use core::ffi::{c_char, c_int, c_void};
 
-use crate::malloc::{malloc, free};
+use crate::malloc::{free, malloc};
 
 unsafe fn find_env(search: *const c_char) -> Option<(usize, *mut c_char)> {
     for (i, mut item) in environ_iter().enumerate() {
@@ -108,7 +108,6 @@ pub unsafe extern "C" fn setenv(
     0
 }
 
-
 /// unset an environ variable
 #[no_mangle]
 pub unsafe extern "C" fn unsetenv(key: *const c_char) -> c_int {
@@ -143,6 +142,6 @@ pub unsafe extern "C" fn unsetenv(key: *const c_char) -> c_int {
 #[no_mangle]
 pub unsafe extern "C" fn getenv(name: *const c_char) -> *mut c_char {
     find_env(name)
-		.map(|val| val.1)
-		.unwrap_or(core::ptr::null_mut())
+        .map(|val| val.1)
+        .unwrap_or(core::ptr::null_mut())
 }

@@ -63,4 +63,3 @@ pub use imp::pthread::mutex::{
 };
 #[cfg(feature = "multitask")]
 pub use imp::pthread::{sys_pthread_create, sys_pthread_exit, sys_pthread_join, sys_pthread_self};
-

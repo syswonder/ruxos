@@ -37,7 +37,7 @@ extern crate alloc;
 #[cfg(feature = "alloc")]
 mod env;
 #[cfg(feature = "alloc")]
-pub use self::env::{environ, OUR_ENVIRON, environ_iter, argv};
+pub use self::env::{argv, environ, environ_iter, OUR_ENVIRON};
 #[cfg(feature = "alloc")]
 use self::env::{boot_add_environ, init_argv};
 use core::ffi::{c_char, c_int};
@@ -198,30 +198,30 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     while !is_init_ok() {
         core::hint::spin_loop();
     }
-	// environ initialization
+    // environ initialization
     #[cfg(feature = "alloc")]
     unsafe {
         use alloc::vec::Vec;
         let mut boot_str = if cfg!(any(target_arch = "x86", target_arch = "x86_64")) {
-			let cmdline_buf: &[u8] = &axhal::COMLINE_BUF;
-			let mut len = 0;
-			for c in cmdline_buf.iter() {
-				if *c == 0 {
-					break;
-				}
-				len += 1;
-			}
-        	core::str::from_utf8(&cmdline_buf[..len]).unwrap()
+            let cmdline_buf: &[u8] = &axhal::COMLINE_BUF;
+            let mut len = 0;
+            for c in cmdline_buf.iter() {
+                if *c == 0 {
+                    break;
+                }
+                len += 1;
+            }
+            core::str::from_utf8(&cmdline_buf[..len]).unwrap()
         } else {
             dtb::get_node("chosen").unwrap().prop("bootargs").str()
         };
-		(_, boot_str) = match boot_str.split_once(';') {
-			Some((a, b)) => (a, b),
-			None => ("", "")
-		};
+        (_, boot_str) = match boot_str.split_once(';') {
+            Some((a, b)) => (a, b),
+            None => ("", ""),
+        };
         let (args, envs) = match boot_str.split_once(';') {
             Some((a, e)) => (a, e),
-            None => ("", ""), 
+            None => ("", ""),
         };
         let envs: Vec<&str> = envs.split(" ").collect();
         for i in envs {
@@ -229,16 +229,18 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
         }
         OUR_ENVIRON.push(core::ptr::null_mut());
         environ = OUR_ENVIRON.as_mut_ptr();
-		// set up argvs
-		let args: Vec<&str> = args.split(" ").filter(|i| i.len() != 0).collect();
-		let argc = args.len() as c_int;
-		init_argv(args);
+        // set up argvs
+        let args: Vec<&str> = args.split(" ").filter(|i| i.len() != 0).collect();
+        let argc = args.len() as c_int;
+        init_argv(args);
 
-		main(argc, argv);
+        main(argc, argv);
     }
 
-	#[cfg(not(feature = "alloc"))]
-    unsafe { main(0, core::ptr::null_mut()) };
+    #[cfg(not(feature = "alloc"))]
+    unsafe {
+        main(0, core::ptr::null_mut())
+    };
 
     #[cfg(feature = "multitask")]
     axtask::exit(0);
