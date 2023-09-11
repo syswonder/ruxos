@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int main()
+int main(int argc, char* argv[])
 {
     puts("Running memory tests...");
     uintptr_t *brk = (uintptr_t *)malloc(0);
@@ -29,5 +29,10 @@ int main()
 	if(setenv(env1, ex2, 1) || strcmp(ex2, getenv(env1))) puts("set old env is wrong");
 	if(setenv(env1, ex1, 0) || strcmp(ex2, getenv(env1))) puts("override the old env is wrong");
 	puts("Environ tests run OK!");
+	puts("Running argv tests...");
+	if (argc != 3) puts("args num is wrong");
+	if (strcmp(argv[0], "abc") || strcmp(argv[1], "def") || strcmp(argv[2], "ghi")) puts("argv is wrong");
+	if(argv[3] != NULL) puts("argv is wrong");
+	puts("Argv tests run OK!");
     return 0;
 }

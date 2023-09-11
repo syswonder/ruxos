@@ -7,7 +7,6 @@ unsafe fn find_env(search: *const c_char) -> Option<(usize, *mut c_char)> {
     for (i, mut item) in environ_iter().enumerate() {
         let mut search = search;
         loop {
-            // search中的环境变量名是否到头
             let end_of_query = *search == 0 || *search == b'=' as c_char;
             assert_ne!(*item, 0, "environ has an item without value");
             if *item == b'=' as c_char || end_of_query {
@@ -75,6 +74,7 @@ unsafe fn copy_kv(
     core::ptr::write(existing.add(key_len + 1 + value_len), 0);
 }
 
+/// set an environ variable
 #[no_mangle]
 pub unsafe extern "C" fn setenv(
     key: *const c_char,
@@ -82,20 +82,16 @@ pub unsafe extern "C" fn setenv(
     overwrite: c_int,
 ) -> c_int {
     let key_len = strlen(key);
-    let value_len = strlen(value); // 不包括空字符
-    // 如果环境变量表中存在该环境变量
+    let value_len = strlen(value);
     if let Some((i, existing)) = find_env(key) {
         if overwrite == 0 {
             return 0;
         }
 
         let existing_len = strlen(existing);
-        // 如果现有环境变量值长度大于新值长度，则复用该位置
         if existing_len >= value_len {
             // Reuse existing element's allocation
             core::ptr::copy_nonoverlapping(value, existing, value_len);
-            //TODO: fill to end with zeroes
-            // 补\0
             core::ptr::write(existing.add(value_len), 0);
         } else {
             // Reuse environ slot, but allocate a new pointer.
@@ -112,6 +108,8 @@ pub unsafe extern "C" fn setenv(
     0
 }
 
+
+/// unset an environ variable
 #[no_mangle]
 pub unsafe extern "C" fn unsetenv(key: *const c_char) -> c_int {
     if let Some((i, _)) = find_env(key) {
@@ -141,7 +139,10 @@ pub unsafe extern "C" fn unsetenv(key: *const c_char) -> c_int {
     0
 }
 
+/// get the corresponding environ variable
 #[no_mangle]
 pub unsafe extern "C" fn getenv(name: *const c_char) -> *mut c_char {
-    find_env(name).map(|val| val.1).unwrap_or(core::ptr::null_mut())
+    find_env(name)
+		.map(|val| val.1)
+		.unwrap_or(core::ptr::null_mut())
 }

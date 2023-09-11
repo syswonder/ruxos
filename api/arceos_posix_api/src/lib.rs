@@ -17,7 +17,7 @@ extern crate axruntime;
 extern crate alloc;
 
 #[cfg(feature = "alloc")]
-pub use axruntime::{environ, OUR_ENVIRON, environ_iter};
+pub use axruntime::{environ, environ_iter, OUR_ENVIRON};
 
 #[macro_use]
 mod utils;

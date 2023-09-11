@@ -37,9 +37,10 @@ extern crate alloc;
 #[cfg(feature = "alloc")]
 mod env;
 #[cfg(feature = "alloc")]
-pub use self::env::{environ, OUR_ENVIRON, environ_iter};
+pub use self::env::{environ, OUR_ENVIRON, environ_iter, argv};
 #[cfg(feature = "alloc")]
-use self::env::boot_add_environ;
+use self::env::{boot_add_environ, init_argv};
+use core::ffi::{c_char, c_int};
 
 const LOGO: &str = r#"
        d8888                            .d88888b.   .d8888b.
@@ -53,7 +54,7 @@ d88P     888 888      "Y8888P  "Y8888   "Y88888P"   "Y8888P"
 "#;
 
 extern "C" {
-    fn main();
+    fn main(argc: c_int, argv: *mut *mut c_char);
 }
 
 struct LogIfImpl;
@@ -197,7 +198,6 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     while !is_init_ok() {
         core::hint::spin_loop();
     }
-
 	// environ initialization
     #[cfg(feature = "alloc")]
     unsafe {
@@ -224,15 +224,21 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
             None => ("", ""), 
         };
         let envs: Vec<&str> = envs.split(" ").collect();
-		let _args: Vec<&str> = args.split(" ").collect();
         for i in envs {
             boot_add_environ(i);
         }
         OUR_ENVIRON.push(core::ptr::null_mut());
         environ = OUR_ENVIRON.as_mut_ptr();
+		// set up argvs
+		let args: Vec<&str> = args.split(" ").filter(|i| i.len() != 0).collect();
+		let argc = args.len() as c_int;
+		init_argv(args);
+
+		main(argc, argv);
     }
 
-    unsafe { main() };
+	#[cfg(not(feature = "alloc"))]
+    unsafe { main(0, core::ptr::null_mut()) };
 
     #[cfg(feature = "multitask")]
     axtask::exit(0);
