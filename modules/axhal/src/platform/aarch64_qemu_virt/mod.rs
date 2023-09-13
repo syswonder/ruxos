@@ -23,6 +23,8 @@ pub mod console {
 
 pub mod time {
     pub use crate::platform::aarch64_common::generic_timer::*;
+    #[cfg(feature = "rtc")]
+    pub use crate::platform::aarch64_common::pl031::*;
 }
 
 pub mod misc {
@@ -61,6 +63,8 @@ pub fn platform_init() {
     #[cfg(feature = "irq")]
     super::aarch64_common::gic::init_primary();
     super::aarch64_common::generic_timer::init_percpu();
+    #[cfg(feature = "rtc")]
+    super::aarch64_common::pl031::init();
     super::aarch64_common::pl011::init();
 }
 
