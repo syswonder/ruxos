@@ -62,7 +62,7 @@ mod utils;
 mod fd_ops;
 #[cfg(feature = "fs")]
 mod fs;
-#[cfg(any(feature = "select", feature = "epoll"))]
+#[cfg(any(feature = "select", feature = "poll", feature = "epoll"))]
 mod io_mpx;
 #[cfg(feature = "alloc")]
 mod malloc;
@@ -125,6 +125,8 @@ pub use self::pthread::{pthread_mutex_init, pthread_mutex_lock, pthread_mutex_un
 #[cfg(feature = "pipe")]
 pub use self::pipe::pipe;
 
+#[cfg(feature = "poll")]
+pub use self::io_mpx::poll;
 #[cfg(feature = "select")]
 pub use self::io_mpx::select;
 #[cfg(feature = "epoll")]
