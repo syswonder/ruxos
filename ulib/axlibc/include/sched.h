@@ -29,4 +29,6 @@ typedef struct cpu_set_t {
 
 int sched_setaffinity(pid_t, size_t, const cpu_set_t *);
 
+int sched_yield(void);
+
 #endif // _SCHED_H

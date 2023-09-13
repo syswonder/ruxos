@@ -16,6 +16,13 @@
 #include <unistd.h>
 
 // TODO:
+pid_t getppid(void)
+{
+    unimplemented();
+    return 0;
+}
+
+// TODO:
 uid_t geteuid(void)
 {
     unimplemented();
@@ -30,6 +37,13 @@ uid_t getuid(void)
 }
 
 // TODO
+int setuid (uid_t __uid)
+{
+    unimplemented();
+    return 0;
+}
+
+// TODO
 pid_t setsid(void)
 {
     unimplemented();
@@ -37,7 +51,49 @@ pid_t setsid(void)
 }
 
 // TODO
+int setgid(gid_t gid)
+{
+    unimplemented();
+    return 0;
+}
+
+// TODO
 int isatty(int fd)
+{
+    unimplemented();
+    return 0;
+}
+
+// TODO
+int getpagesize(void)
+{
+    unimplemented();
+    return 0;
+}
+
+// TODO
+ssize_t pread(int fd, void *buf, size_t count, off_t offset)
+{
+    unimplemented();
+    return 0;
+}
+
+// TODO
+ssize_t pwrite(int fd, const void *buf, size_t count, off_t offset)
+{
+    unimplemented();
+    return 0;
+}
+
+// TODO
+int gethostname(char *hostname, size_t size)
+{
+    unimplemented();
+    return 0;
+}
+
+// TODO
+int chown(const char *path, uid_t owner, gid_t group)
 {
     unimplemented();
     return 0;

@@ -24,11 +24,12 @@ struct stat {
     off_t st_size;            /* total size, in bytes*/
     blksize_t st_blksize;     /* blocksize for filesystem I/O*/
     blkcnt_t st_blocks;       /* number of blocks allocated*/
-    struct timespec st_atime; /* time of last access*/
-    struct timespec st_mtime; /* time of last modification*/
-    struct timespec st_ctime; /* time of last status change*/
+    struct timespec st_atim; /* time of last access*/
+    struct timespec st_mtim; /* time of last modification*/
+    struct timespec st_ctim; /* time of last status change*/
 };
 
+//lhw unsure change
 #define st_atime st_atim.tv_sec
 #define st_mtime st_mtim.tv_sec
 #define st_ctime st_ctim.tv_sec

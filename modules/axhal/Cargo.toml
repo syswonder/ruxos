@@ -24,7 +24,6 @@ log = "0.4"
 cfg-if = "1.0"
 bitflags = "2.2"
 static_assertions = "1.1.0"
-ds1307 = "0.5"
 embedded-hal = "0.2.7"
 axlog = { path = "../axlog" }
 axconfig = { path = "../axconfig" }

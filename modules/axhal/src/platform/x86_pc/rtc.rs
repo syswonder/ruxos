@@ -1,17 +1,21 @@
-use core::cmp::PartialEq;
-use core::ops::{BitAnd, BitOr, Not};
 use core::arch::asm;
+use core::cmp::PartialEq;
 use core::marker::PhantomData;
+use core::ops::{BitAnd, BitOr, Not};
 use lazy_init::LazyInit;
 
 pub trait Io {
-    type Value: Copy + PartialEq + BitAnd<Output = Self::Value> + BitOr<Output = Self::Value> + Not<Output = Self::Value>;
+    type Value: Copy
+        + PartialEq
+        + BitAnd<Output = Self::Value>
+        + BitOr<Output = Self::Value>
+        + Not<Output = Self::Value>;
 
     fn read(&self) -> Self::Value;
     fn write(&mut self, value: Self::Value);
 
     #[inline(always)]
-    fn readf(&self, flags: Self::Value) -> bool  {
+    fn readf(&self, flags: Self::Value) -> bool {
         (self.read() & flags) as Self::Value == flags
     }
 
@@ -24,55 +28,6 @@ pub trait Io {
         self.write(tmp);
     }
 }
-
-pub struct ReadOnly<I> {
-    inner: I
-}
-
-impl<I> ReadOnly<I> {
-    pub const fn new(inner: I) -> ReadOnly<I> {
-        ReadOnly {
-            inner: inner
-        }
-    }
-}
-
-impl<I: Io> ReadOnly<I> {
-    #[inline(always)]
-    pub fn read(&self) -> I::Value {
-        self.inner.read()
-    }
-
-    #[inline(always)]
-    pub fn readf(&self, flags: I::Value) -> bool {
-        self.inner.readf(flags)
-    }
-}
-
-pub struct WriteOnly<I> {
-    inner: I
-}
-
-impl<I> WriteOnly<I> {
-    pub const fn new(inner: I) -> WriteOnly<I> {
-        WriteOnly {
-            inner: inner
-        }
-    }
-}
-
-impl<I: Io> WriteOnly<I> {
-    #[inline(always)]
-    pub fn write(&mut self, value: I::Value) {
-        self.inner.write(value)
-    }
-
-    #[inline(always)]
-    pub fn writef(&mut self, flags: I::Value, value: bool) {
-        self.inner.writef(flags, value)
-    }
-}
-
 
 /// Generic PIO
 #[derive(Copy, Clone)]
@@ -162,16 +117,12 @@ impl Io for Pio<u32> {
 
 pub static mut X86_RTC: LazyInit<Rtc> = LazyInit::new();
 
-pub fn init() {
-    let mut rtc = Rtc::new();
-}
-
 fn cvt_bcd(value: usize) -> usize {
     (value & 0xF) + ((value / 16) * 10)
 }
 
-fn cvt_dec(value: usize) -> usize{
-    ((value / 10) <<4 ) | (value % 10)
+fn cvt_dec(value: usize) -> usize {
+    ((value / 10) << 4) | (value % 10)
 }
 
 /// RTC
@@ -295,7 +246,6 @@ impl Rtc {
         secs
     }
 
-
     /// Get time
     pub fn time(&mut self) -> u64 {
         loop {
@@ -311,14 +261,14 @@ impl Rtc {
         }
     }
 
-    pub unsafe fn write_time_no_wait(&mut self,unix_time:u32){
-        let mut second = self.read(0) as usize;
-        let mut minute = self.read(2) as usize;
-        let mut hour = self.read(4) as usize;
-        let mut day = self.read(7) as usize;
-        let mut month = self.read(8) as usize;
-        let mut year = self.read(9) as usize;
-        let mut century = /* TODO: Fix invalid value from VirtualBox
+    pub unsafe fn write_time_no_wait(&mut self, unix_time: u32) {
+        let second = self.read(0) as usize;
+        let minute = self.read(2) as usize;
+        let hour = self.read(4) as usize;
+        let day = self.read(7) as usize;
+        let month = self.read(8) as usize;
+        let year = self.read(9) as usize;
+        let _century = /* TODO: Fix invalid value from VirtualBox
         if let Some(century_reg) = century_register {
             self.read(century_reg) as usize
         } else */ {
@@ -326,14 +276,23 @@ impl Rtc {
         };
         let register_b = self.read(0xB);
 
-
-        debug!("{}, {}, {}, {}, {}, {}, {}, {}",second,minute,hour,day,month,year,register_b,register_b & 4);
+        debug!(
+            "{}, {}, {}, {}, {}, {}, {}, {}",
+            second,
+            minute,
+            hour,
+            day,
+            month,
+            year,
+            register_b,
+            register_b & 4
+        );
 
         let secs = unix_time;
-        let nsecs = 0;
+        let _nsecs = 0;
 
         // 计算日期和时间
-        let mut t = secs;
+        let t = secs;
         let mut tdiv = t / 86400;
         let mut tt = t % 86400;
         let mut hour = tt / 3600;
@@ -343,7 +302,6 @@ impl Rtc {
         let mut sec = tt;
         let mut year = 1970;
         let mut mon = 1;
-        let mut mday = 0;
 
         // 计算年、月和日
         while tdiv >= 365 {
@@ -366,7 +324,7 @@ impl Rtc {
             }
         }
 
-        mday = tdiv + 1;
+        let mut mday = tdiv + 1;
 
         year -= 2000;
 
@@ -385,7 +343,7 @@ impl Rtc {
         bcd_value |= tens << 4;
         hour = bcd_value;
 
-        debug!("{}, {}, {}, {}, {}, {}",sec,min,hour,mday,mon,year);
+        debug!("{}, {}, {}, {}, {}, {}", sec, min, hour, mday, mon, year);
         self.write(0, sec as u8);
         self.write(2, min as u8);
         self.write(4, hour as u8);
@@ -415,24 +373,24 @@ fn days_in_month(month: u64, year: u64) -> u64 {
 }
 
 /// return rtc time value
-pub fn rtc_read_time() -> u64{
-    unsafe{
-        if !X86_RTC.is_init(){
+pub fn rtc_read_time() -> u64 {
+    unsafe {
+        if !X86_RTC.is_init() {
             X86_RTC.init_by(Rtc::new());
         }
-        let mut rtc: &mut Rtc = X86_RTC.get_mut_unchecked();
+        let rtc: &mut Rtc = X86_RTC.get_mut_unchecked();
         /*let mut rtc = Rtc::new();*/
         rtc.time()
     }
 }
 
 /// change rtc time value
-pub fn rtc_write_time(seconds:u32){
-    unsafe{
-        if !X86_RTC.is_init(){
+pub fn rtc_write_time(seconds: u32) {
+    unsafe {
+        if !X86_RTC.is_init() {
             X86_RTC.init_by(Rtc::new());
         }
-        let mut rtc: &mut Rtc = X86_RTC.get_mut_unchecked();
+        let rtc: &mut Rtc = X86_RTC.get_mut_unchecked();
         /*let mut rtc = Rtc::new();*/
         rtc.write_time_no_wait(seconds);
     }

@@ -16,3 +16,9 @@ int sched_setaffinity(pid_t __pid, size_t __cpusetsize, const cpu_set_t *__cpuse
     unimplemented();
     return 0;
 }
+
+int sched_yield(void)
+{
+    unimplemented();
+    return 0;
+}

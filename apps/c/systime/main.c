@@ -12,7 +12,6 @@ int main()
     printf("now time: %ld : %ld\n", tv.tv_sec,tv.tv_usec);
 
     usleep(3000000);
-    //sleep(3);
 
     if (gettimeofday(&tv, NULL) != 0 ) {
         perror("gettimeofday");

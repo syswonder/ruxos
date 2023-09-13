@@ -7,3 +7,6 @@ fs
 net
 pipe
 epoll
+poll
+select
+driver-ramdisk

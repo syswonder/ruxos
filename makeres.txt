@@ -1,0 +1,187 @@
+lhw ulib/axlibc/build_aarch64/%.o:ulib/axlibc/c/%.c ulib/axlibc/build_aarch64/.cflags
+run_cmd,aarch64-linux-musl-gcc,-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -c -o  
+lhw ulib/axlibc/build_aarch64/libc.a: ulib/axlibc/build_aarch64 _check_need_rebuild ulib/axlibc/build_aarch64/assert.o ulib/axlibc/build_aarch64/ctype.o ulib/axlibc/build_aarch64/dirent.o ulib/axlibc/build_aarch64/dlfcn.o ulib/axlibc/build_aarch64/fcntl.o ulib/axlibc/build_aarch64/flock.o ulib/axlibc/build_aarch64/fnmatch.o ulib/axlibc/build_aarch64/glob.o ulib/axlibc/build_aarch64/grp.o ulib/axlibc/build_aarch64/ioctl.o ulib/axlibc/build_aarch64/libgen.o ulib/axlibc/build_aarch64/libm.o ulib/axlibc/build_aarch64/locale.o ulib/axlibc/build_aarch64/log.o ulib/axlibc/build_aarch64/math.o ulib/axlibc/build_aarch64/mmap.o ulib/axlibc/build_aarch64/netdb.o ulib/axlibc/build_aarch64/network.o ulib/axlibc/build_aarch64/pow.o ulib/axlibc/build_aarch64/prctl.o ulib/axlibc/build_aarch64/printf.o ulib/axlibc/build_aarch64/pthread.o ulib/axlibc/build_aarch64/pwd.o ulib/axlibc/build_aarch64/resource.o ulib/axlibc/build_aarch64/sched.o ulib/axlibc/build_aarch64/select.o ulib/axlibc/build_aarch64/semaphore.o ulib/axlibc/build_aarch64/sendfile.o ulib/axlibc/build_aarch64/signal.o ulib/axlibc/build_aarch64/socket.o ulib/axlibc/build_aarch64/stat.o ulib/axlibc/build_aarch64/statfs.o ulib/axlibc/build_aarch64/stdio.o ulib/axlibc/build_aarch64/stdlib.o ulib/axlibc/build_aarch64/string.o ulib/axlibc/build_aarch64/syslog.o ulib/axlibc/build_aarch64/time.o ulib/axlibc/build_aarch64/uio.o ulib/axlibc/build_aarch64/unistd.o ulib/axlibc/build_aarch64/utsname.o ulib/axlibc/build_aarch64/wait.o
+run_cmd,aarch64-linux-musl-ar,rcs  ulib/axlibc/build_aarch64/assert.o ulib/axlibc/build_aarch64/ctype.o ulib/axlibc/build_aarch64/dirent.o ulib/axlibc/build_aarch64/dlfcn.o ulib/axlibc/build_aarch64/fcntl.o ulib/axlibc/build_aarch64/flock.o ulib/axlibc/build_aarch64/fnmatch.o ulib/axlibc/build_aarch64/glob.o ulib/axlibc/build_aarch64/grp.o ulib/axlibc/build_aarch64/ioctl.o ulib/axlibc/build_aarch64/libgen.o ulib/axlibc/build_aarch64/libm.o ulib/axlibc/build_aarch64/locale.o ulib/axlibc/build_aarch64/log.o ulib/axlibc/build_aarch64/math.o ulib/axlibc/build_aarch64/mmap.o ulib/axlibc/build_aarch64/netdb.o ulib/axlibc/build_aarch64/network.o ulib/axlibc/build_aarch64/pow.o ulib/axlibc/build_aarch64/prctl.o ulib/axlibc/build_aarch64/printf.o ulib/axlibc/build_aarch64/pthread.o ulib/axlibc/build_aarch64/pwd.o ulib/axlibc/build_aarch64/resource.o ulib/axlibc/build_aarch64/sched.o ulib/axlibc/build_aarch64/select.o ulib/axlibc/build_aarch64/semaphore.o ulib/axlibc/build_aarch64/sendfile.o ulib/axlibc/build_aarch64/signal.o ulib/axlibc/build_aarch64/socket.o ulib/axlibc/build_aarch64/stat.o ulib/axlibc/build_aarch64/statfs.o ulib/axlibc/build_aarch64/stdio.o ulib/axlibc/build_aarch64/stdlib.o ulib/axlibc/build_aarch64/string.o ulib/axlibc/build_aarch64/syslog.o ulib/axlibc/build_aarch64/time.o ulib/axlibc/build_aarch64/uio.o ulib/axlibc/build_aarch64/unistd.o ulib/axlibc/build_aarch64/utsname.o ulib/axlibc/build_aarch64/wait.o
+redis-build-args CC=aarch64-linux-musl-gcc CFLAGS="-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format" USE_JEMALLOC=no -j  make make
+lhw apps/c/redis//%.o: apps/c/redis//%.c ulib/axlibc/include/assert.h ulib/axlibc/include/ax_pthread_mutex.h ulib/axlibc/include/crypt.h ulib/axlibc/include/ctype.h ulib/axlibc/include/dirent.h ulib/axlibc/include/dlfcn.h ulib/axlibc/include/endian.h ulib/axlibc/include/errno.h ulib/axlibc/include/fcntl.h ulib/axlibc/include/features.h ulib/axlibc/include/float.h ulib/axlibc/include/fnmatch.h ulib/axlibc/include/glob.h ulib/axlibc/include/grp.h ulib/axlibc/include/inttypes.h ulib/axlibc/include/langinfo.h ulib/axlibc/include/libgen.h ulib/axlibc/include/limits.h ulib/axlibc/include/locale.h ulib/axlibc/include/malloc.h ulib/axlibc/include/math.h ulib/axlibc/include/memory.h ulib/axlibc/include/netdb.h ulib/axlibc/include/poll.h ulib/axlibc/include/pthread.h ulib/axlibc/include/pwd.h ulib/axlibc/include/regex.h ulib/axlibc/include/sched.h ulib/axlibc/include/semaphore.h ulib/axlibc/include/setjmp.h ulib/axlibc/include/signal.h ulib/axlibc/include/stdarg.h ulib/axlibc/include/stdbool.h ulib/axlibc/include/stddef.h ulib/axlibc/include/stdint.h ulib/axlibc/include/stdio.h ulib/axlibc/include/stdlib.h ulib/axlibc/include/string.h ulib/axlibc/include/strings.h ulib/axlibc/include/syslog.h ulib/axlibc/include/termios.h ulib/axlibc/include/time.h ulib/axlibc/include/unistd.h
+run_cmd,aarch64-linux-musl-gcc,-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format  -c -o  
+lhw apps/c/redis//redis_aarch64-qemu-virt.elf: ulib/axlibc/build_aarch64/libc.a target/aarch64-unknown-none-softfloat/release/libaxlibc.a  apps/c/redis//redis-7.0.12/src/redis-server.o
+run_cmd,rust-lld -flavor gnu,-nostdlib -static -no-pie --gc-sections -T/home/oslab/Desktop/rukos/modules/axhal/linker_aarch64-qemu-virt.lds  -o 
+lhw print feat axfeat/log-level-info axfeat/paging axfeat/irq axfeat/driver-ramdisk |||  axlibc/smp axlibc/alloc axlibc/fp_simd axlibc/multitask axlibc/fs axlibc/net axlibc/pipe axlibc/epoll axlibc/poll axlibc/select axlibc/fd
+lhw print out bin & elf apps/c/redis//redis_aarch64-qemu-virt.bin |||  apps/c/redis//redis_aarch64-qemu-virt.elf
+lhw apps/c/redis/ ||| apps/c/redis//redis_aarch64-qemu-virt.bin
+    [92;1mBuilding[0m App: redis, Arch: aarch64, Platform: aarch64-qemu-virt, App type: c
+[37mcargo build[0m [90m--target aarch64-unknown-none-softfloat --target-dir /home/oslab/Desktop/rukos/target --release  -p axlibc --features "axfeat/log-level-info axfeat/paging axfeat/irq axfeat/driver-ramdisk axlibc/smp axlibc/alloc axlibc/fp_simd axlibc/multitask axlibc/fs axlibc/net axlibc/pipe axlibc/epoll axlibc/poll axlibc/select axlibc/fd"[0m
+[37mmkdir[0m [90m-p ulib/axlibc/build_aarch64[0m
+CFLAGS changed, rebuild
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/assert.o ulib/axlibc/c/assert.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/ctype.o ulib/axlibc/c/ctype.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/dirent.o ulib/axlibc/c/dirent.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/dlfcn.o ulib/axlibc/c/dlfcn.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/fcntl.o ulib/axlibc/c/fcntl.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/flock.o ulib/axlibc/c/flock.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/fnmatch.o ulib/axlibc/c/fnmatch.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/glob.o ulib/axlibc/c/glob.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/grp.o ulib/axlibc/c/grp.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/ioctl.o ulib/axlibc/c/ioctl.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/libgen.o ulib/axlibc/c/libgen.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/libm.o ulib/axlibc/c/libm.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/locale.o ulib/axlibc/c/locale.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/log.o ulib/axlibc/c/log.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/math.o ulib/axlibc/c/math.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/mmap.o ulib/axlibc/c/mmap.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/netdb.o ulib/axlibc/c/netdb.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/network.o ulib/axlibc/c/network.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/pow.o ulib/axlibc/c/pow.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/prctl.o ulib/axlibc/c/prctl.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/printf.o ulib/axlibc/c/printf.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/pthread.o ulib/axlibc/c/pthread.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/pwd.o ulib/axlibc/c/pwd.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/resource.o ulib/axlibc/c/resource.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/sched.o ulib/axlibc/c/sched.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/select.o ulib/axlibc/c/select.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/semaphore.o ulib/axlibc/c/semaphore.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/sendfile.o ulib/axlibc/c/sendfile.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/signal.o ulib/axlibc/c/signal.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/socket.o ulib/axlibc/c/socket.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/stat.o ulib/axlibc/c/stat.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/statfs.o ulib/axlibc/c/statfs.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/stdio.o ulib/axlibc/c/stdio.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/stdlib.o ulib/axlibc/c/stdlib.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/string.o ulib/axlibc/c/string.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/syslog.o ulib/axlibc/c/syslog.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/time.o ulib/axlibc/c/time.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/uio.o ulib/axlibc/c/uio.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/unistd.o ulib/axlibc/c/unistd.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/utsname.o ulib/axlibc/c/utsname.c[0m
+[37maarch64-linux-musl-gcc[0m [90m-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format -c -o ulib/axlibc/build_aarch64/wait.o ulib/axlibc/c/wait.c[0m
+[37maarch64-linux-musl-ar[0m [90mrcs ulib/axlibc/build_aarch64/libc.a ulib/axlibc/build_aarch64/assert.o ulib/axlibc/build_aarch64/ctype.o ulib/axlibc/build_aarch64/dirent.o ulib/axlibc/build_aarch64/dlfcn.o ulib/axlibc/build_aarch64/fcntl.o ulib/axlibc/build_aarch64/flock.o ulib/axlibc/build_aarch64/fnmatch.o ulib/axlibc/build_aarch64/glob.o ulib/axlibc/build_aarch64/grp.o ulib/axlibc/build_aarch64/ioctl.o ulib/axlibc/build_aarch64/libgen.o ulib/axlibc/build_aarch64/libm.o ulib/axlibc/build_aarch64/locale.o ulib/axlibc/build_aarch64/log.o ulib/axlibc/build_aarch64/math.o ulib/axlibc/build_aarch64/mmap.o ulib/axlibc/build_aarch64/netdb.o ulib/axlibc/build_aarch64/network.o ulib/axlibc/build_aarch64/pow.o ulib/axlibc/build_aarch64/prctl.o ulib/axlibc/build_aarch64/printf.o ulib/axlibc/build_aarch64/pthread.o ulib/axlibc/build_aarch64/pwd.o ulib/axlibc/build_aarch64/resource.o ulib/axlibc/build_aarch64/sched.o ulib/axlibc/build_aarch64/select.o ulib/axlibc/build_aarch64/semaphore.o ulib/axlibc/build_aarch64/sendfile.o ulib/axlibc/build_aarch64/signal.o ulib/axlibc/build_aarch64/socket.o ulib/axlibc/build_aarch64/stat.o ulib/axlibc/build_aarch64/statfs.o ulib/axlibc/build_aarch64/stdio.o ulib/axlibc/build_aarch64/stdlib.o ulib/axlibc/build_aarch64/string.o ulib/axlibc/build_aarch64/syslog.o ulib/axlibc/build_aarch64/time.o ulib/axlibc/build_aarch64/uio.o ulib/axlibc/build_aarch64/unistd.o ulib/axlibc/build_aarch64/utsname.o ulib/axlibc/build_aarch64/wait.o[0m
+cd apps/c/redis//redis-7.0.12 && make CC=aarch64-linux-musl-gcc CFLAGS="-DAX_CONFIG_SMP -DAX_CONFIG_ALLOC -DAX_CONFIG_FP_SIMD -DAX_CONFIG_MULTITASK -DAX_CONFIG_FS -DAX_CONFIG_NET -DAX_CONFIG_PIPE -DAX_CONFIG_EPOLL -DAX_CONFIG_POLL -DAX_CONFIG_SELECT -DAX_CONFIG_FD -DAX_LOG_INFO -nostdinc -fno-builtin -ffreestanding -Wall -I/home/oslab/Desktop/rukos/ulib/axlibc/include -O3 -Wno-format" USE_JEMALLOC=no -j
+make[1]: Entering directory '/home/oslab/Desktop/rukos/apps/c/redis/redis-7.0.12'
+cd src && make all
+make[2]: Entering directory '/home/oslab/Desktop/rukos/apps/c/redis/redis-7.0.12/src'
+
+Hint: It's a good idea to run 'make test' ;)
+
+make[2]: Leaving directory '/home/oslab/Desktop/rukos/apps/c/redis/redis-7.0.12/src'
+make[1]: Leaving directory '/home/oslab/Desktop/rukos/apps/c/redis/redis-7.0.12'
+    [96;1mLinking[0m apps/c/redis//redis_aarch64-qemu-virt.elf
+[37mrust-lld -flavor gnu[0m [90m-nostdlib -static -no-pie --gc-sections -T/home/oslab/Desktop/rukos/modules/axhal/linker_aarch64-qemu-virt.lds ulib/axlibc/build_aarch64/libc.a target/aarch64-unknown-none-softfloat/release/libaxlibc.a apps/c/redis//redis-7.0.12/src/redis-server.o -o apps/c/redis//redis_aarch64-qemu-virt.elf[0m
+[37mrust-objcopy --binary-architecture=aarch64[0m [90mapps/c/redis//redis_aarch64-qemu-virt.elf --strip-all -O binary apps/c/redis//redis_aarch64-qemu-virt.bin[0m
+    [96;1mRunning[0m on qemu...
+[37mqemu-system-aarch64[0m [90m-m 128M -smp 4 -cpu cortex-a72 -machine virt -kernel apps/c/redis//redis_aarch64-qemu-virt.bin -append ";;" -device virtio-blk-device,drive=disk0 -drive id=disk0,if=none,format=raw,file=disk.img -device virtio-net-device,netdev=net0 -netdev user,id=net0,hostfwd=tcp::5555-:5555,hostfwd=udp::5555-:5555 -nographic[0m
+
+       d8888                            .d88888b.   .d8888b.
+      d88888                           d88P" "Y88b d88P  Y88b
+     d88P888                           888     888 Y88b.
+    d88P 888 888d888  .d8888b  .d88b.  888     888  "Y888b.
+   d88P  888 888P"   d88P"    d8P  Y8b 888     888     "Y88b.
+  d88P   888 888     888      88888888 888     888       "888
+ d8888888888 888     Y88b.    Y8b.     Y88b. .d88P Y88b  d88P
+d88P     888 888      "Y8888P  "Y8888   "Y88888P"   "Y8888P"
+
+arch = aarch64
+platform = aarch64-qemu-virt
+target = aarch64-unknown-none-softfloat
+smp = 4
+build_mode = release
+log_level = info
+
+[37m[  0.023184 axruntime:166] [32mLogging is enabled.[m
+[m[37m[  0.024771 axruntime:167] [32mPrimary CPU 0 started, dtb = 0x44000000.[m
+[m[37m[  0.025676 axruntime:169] [32mFound physcial memory regions:[m
+[m[37m[  0.026657 axruntime:171] [32m  [PA:0x40080000, PA:0x40223000) .text (READ | EXECUTE | RESERVED)[m
+[m[37m[  0.027892 axruntime:171] [32m  [PA:0x40223000, PA:0x40270000) .rodata (READ | RESERVED)[m
+[m[37m[  0.028810 axruntime:171] [32m  [PA:0x40270000, PA:0x402cd000) .data .tdata .tbss .percpu (READ | WRITE | RESERVED)[m
+[m[37m[  0.030038 axruntime:171] [32m  [PA:0x402cd000, PA:0x403cd000) boot stack (READ | WRITE | RESERVED)[m
+[m[37m[  0.031690 axruntime:171] [32m  [PA:0x403cd000, PA:0x40419000) .bss (READ | WRITE | RESERVED)[m
+[m[37m[  0.032772 axruntime:171] [32m  [PA:0x40419000, PA:0x48000000) free memory (READ | WRITE | FREE)[m
+[m[37m[  0.033889 axruntime:171] [32m  [PA:0x9000000, PA:0x9001000) mmio (READ | WRITE | DEVICE | RESERVED)[m
+[m[37m[  0.035049 axruntime:171] [32m  [PA:0x8000000, PA:0x8020000) mmio (READ | WRITE | DEVICE | RESERVED)[m
+[m[37m[  0.036111 axruntime:171] [32m  [PA:0xa000000, PA:0xa004000) mmio (READ | WRITE | DEVICE | RESERVED)[m
+[m[37m[  0.037232 axruntime:171] [32m  [PA:0x10000000, PA:0x3eff0000) mmio (READ | WRITE | DEVICE | RESERVED)[m
+[m[37m[  0.038343 axruntime:171] [32m  [PA:0x4010000000, PA:0x4020000000) mmio (READ | WRITE | DEVICE | RESERVED)[m
+[m[37m[  0.039404 axruntime:171] [32m  [PA:0x9010000, PA:0x9011000) mmio (READ | WRITE | DEVICE | RESERVED)[m
+[m[37m[  0.040475 axruntime:276] [32mInitialize global memory allocator...[m
+[m[37m[  0.041284 axruntime:277] [32m  use TLSF allocator.[m
+[m[37m[  0.043116 axruntime:185] [32mInitialize kernel page table...[m
+[m[37m[  0.045223 axruntime:189] [32mInitialize platform devices...[m
+[m[37m[  0.045967 axhal::platform::aarch64_common::gic:60] [32mInitialize GICv2...[m
+[m[37m[  0.048132 axtask::api:75] [32mInitialize scheduling...[m
+[m[37m[  0.049539 axtask::api:81] [32m  use FIFO scheduler.[m
+[m[37m[  0.050315 axdriver:161] [32mInitialize device drivers...[m
+[m[37m[  0.050996 axdriver:162] [32m  device model: static[m
+[m[37m[  0.057850 axdriver:133] [32mregistered a new Block device: "ramdisk"[m
+[m[37m[  0.059444 virtio_drivers::device::net::dev_raw:31] [32mDevice features CTRL_GUEST_OFFLOADS | MAC | GSO | MRG_RXBUF | STATUS | CTRL_VQ | CTRL_RX | CTRL_VLAN | CTRL_RX_EXTRA | GUEST_ANNOUNCE | CTL_MAC_ADDR | RING_INDIRECT_DESC | RING_EVENT_IDX[m
+[m[37m[  0.072109 axdriver::bus::mmio:20] [32mregistered a new Net device at [PA:0xa003c00, PA:0xa003e00): "virtio-net"[m
+[m[37m[  0.073609 axfs:50] [32mInitialize filesystems...[m
+[m[37m[  0.074410 axfs:53] [32m  use block device 0: "ramdisk"[m
+[m[37m[  0.075406 fatfs::boot_sector:615] [31mInvalid FAT type[m
+[m[37m[  0.085938 fatfs::dir:140] [31mIs a directory[m
+[m[37m[  0.087992 fatfs::dir:140] [31mIs a directory[m
+[m[37m[  0.090508 fatfs::dir:140] [31mIs a directory[m
+[m[37m[  0.091624 fatfs::dir:140] [31mIs a directory[m
+[m[37m[  0.093499 axnet:53] [32mInitialize network subsystem...[m
+[m[37m[  0.094362 axnet:56] [32m  use NIC 0: "virtio-net"[m
+[m[37m[  0.096699 axnet::smoltcp_impl:335] [32mcreated net interface "eth0":[m
+[m[37m[  0.097537 axnet::smoltcp_impl:336] [32m  ether:    52-54-00-12-34-56[m
+[m[37m[  0.098608 axnet::smoltcp_impl:337] [32m  ip:       10.0.2.15/24[m
+[m[37m[  0.099441 axnet::smoltcp_impl:338] [32m  gateway:  10.0.2.2[m
+[m[37m[  0.100172 axhal::platform::aarch64_common::psci:122] [32mStarting CPU 1 ON ...[m
+[m[37m[  0.101381 axruntime::mp:44] [32mSecondary CPU 1 started.[m
+[m[37m[  0.102373 axruntime::mp:54] [32mSecondary CPU 1 init OK.[m
+[m[37m[  0.110297 axhal::platform::aarch64_common::psci:122] [32mStarting CPU 2 ON ...[m
+[m[37m[  0.111344 axruntime::mp:44] [32mSecondary CPU 2 started.[m
+[m[37m[  0.112044 axruntime::mp:54] [32mSecondary CPU 2 init OK.[m
+[m[37m[  0.118085 axhal::platform::aarch64_common::psci:122] [32mStarting CPU 3 ON ...[m
+[m[37m[  0.124810 axruntime::mp:44] [32mSecondary CPU 3 started.[m
+[m[37m[  0.125801 axruntime::mp:54] [32mSecondary CPU 3 init OK.[m
+[m[37m[  0.134250 axruntime:215] [32mInitialize interrupt handlers...[m
+[m[37m[  0.136351 axruntime:225] [32mPrimary CPU 0 init OK.[m
+[m[33mWARN: no ax_call implementation for setlocale:[0m 
+[33mWARN: no ax_call implementation for tzset:[0m 
+[33mWARN: no ax_call implementation for umask:[0m mask: 511
+[33mWARN: no ax_call implementation for umask:[0m mask: 0
+[37m[  0.144995 0:2 arceos_posix_api::imp::fs:121] [32msys_open => Err(ENOENT)[m
+[m[37m[  0.147469 0:2 axruntime::lang_items:14] [31mpanicked at modules/axhal/src/arch/aarch64/trap.rs:72:13:
+EL1 Page Fault @ 0xffff000040218368, FAR=0x0, ISS=0x4:
+TrapFrame {
+    r: [
+        0x0,
+        0xffff00004023e8f0,
+        0x0,
+        0x72,
+        0xffff0000403072c0,
+        0x0,
+        0x10,
+        0x0,
+        0x1ce8d16d,
+        0x69a7a51,
+        0xbd773343,
+        0x2c001973,
+        0xffff0000402237f0,
+        0xffff000040306fd0,
+        0xa82f9aff,
+        0x5ba0f4cf,
+        0xfa8425e3,
+        0x1ed8d233,
+        0xd2f58b3f,
+        0xffff000040420a50,
+        0x0,
+        0xffff000040420a50,
+        0xffff0000403cd000,
+        0xffff0000403cd280,
+        0x0,
+        0x0,
+        0xffff000040230000,
+        0x0,
+        0xffff000040420a20,
+        0xffff0000403071f0,
+        0xffff000040099678,
+    ],
+    usp: 0xffff00004041a4e0,
+    elr: 0xffff000040218368,
+    spsr: 0x60000345,
+}[m
+[m[37m[  0.161530 0:2 axhal::platform::aarch64_common::psci:105] [32mShutting down...[m
+[m

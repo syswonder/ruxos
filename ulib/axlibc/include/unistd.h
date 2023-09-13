@@ -14,6 +14,8 @@
 #include <stddef.h>
 #include <sys/stat.h>
 
+#define _SC_LEVEL1_DCACHE_LINESIZE 130
+
 #define STDIN_FILENO  0
 #define STDOUT_FILENO 1
 #define STDERR_FILENO 2
@@ -78,6 +80,8 @@ pid_t fork(void);
 int execve(const char *, char *const[], char *const[]);
 _Noreturn void _exit(int);
 
+int getpagesize(void);
+
 pid_t getpid(void);
 pid_t getppid(void);
 pid_t getpgrp(void);
@@ -100,6 +104,10 @@ int setuid(uid_t);
 int seteuid(uid_t);
 int setgid(gid_t);
 int setegid(gid_t);
+
+int gethostname(char *, size_t);
+
+int chown(const char *, uid_t, gid_t);
 
 long sysconf(int);
 

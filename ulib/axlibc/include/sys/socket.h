@@ -77,12 +77,25 @@ ssize_t sendto(int, const void *, size_t, int, const struct sockaddr *, socklen_
 ssize_t recvfrom(int, void *__restrict, size_t, int, struct sockaddr *__restrict,
                  socklen_t *__restrict);
 ssize_t sendmsg(int, const struct msghdr *, int);
+ssize_t recvmsg (int, struct msghdr *, int);
 
 int getsockopt(int, int, int, void *__restrict, socklen_t *__restrict);
 int setsockopt(int, int, int, const void *, socklen_t);
 
 int getsockname(int sockfd, struct sockaddr *restrict addr, socklen_t *restrict addrlen);
 int getpeername(int sockfd, struct sockaddr *restrict addr, socklen_t *restrict addrlen);
+
+int socketpair (int, int, int, int [2]);
+
+#define SCM_RIGHTS      0x01
+#define SCM_CREDENTIALS 0x02
+
+#define MSG_OOB       0x0001
+#define MSG_PEEK      0x0002
+#define MSG_DONTROUTE 0x0004
+#define MSG_CTRUNC    0x0008
+#define MSG_PROXY     0x0010
+#define MSG_TRUNC     0x0020
 
 #define SO_BINDTODEVICE            25
 #define SO_ATTACH_FILTER           26
@@ -315,5 +328,21 @@ int getpeername(int sockfd, struct sockaddr *restrict addr, socklen_t *restrict 
 
 #define SO_RCVTIMEO SO_RCVTIMEO_OLD
 #define SO_SNDTIMEO SO_SNDTIMEO_OLD
+
+#define CMSG_DATA(cmsg) ((unsigned char *) (((struct cmsghdr *)(cmsg)) + 1))
+#define CMSG_NXTHDR(mhdr, cmsg) ((cmsg)->cmsg_len < sizeof (struct cmsghdr) || \
+	__CMSG_LEN(cmsg) + sizeof(struct cmsghdr) >= __MHDR_END(mhdr) - (unsigned char *)(cmsg) \
+	? 0 : (struct cmsghdr *)__CMSG_NEXT(cmsg))
+#define CMSG_FIRSTHDR(mhdr) ((size_t) (mhdr)->msg_controllen >= sizeof (struct cmsghdr) ? (struct cmsghdr *) (mhdr)->msg_control : (struct cmsghdr *) 0)
+
+#define CMSG_ALIGN(len) (((len) + sizeof (size_t) - 1) & (size_t) ~(sizeof (size_t) - 1))
+#define CMSG_SPACE(len) (CMSG_ALIGN (len) + CMSG_ALIGN (sizeof (struct cmsghdr)))
+#define CMSG_LEN(len)   (CMSG_ALIGN (sizeof (struct cmsghdr)) + (len))
+
+struct linger {
+	int l_onoff;
+	int l_linger;
+};
+
 
 #endif // __SOCKET_H__

@@ -17,6 +17,8 @@
 #define CLOCK_MONOTONIC 1
 #define CLOCKS_PER_SEC  1000000L
 
+#define __tm_gmtoff tm_gmtoff
+
 struct tm {
     int tm_sec;   /* seconds of minute */
     int tm_min;   /* minutes of hour */

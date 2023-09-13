@@ -20,6 +20,11 @@ uint16_t htons(uint16_t);
 uint32_t ntohl(uint32_t);
 uint16_t ntohs(uint16_t);
 
+#define INADDR_ANY        ((in_addr_t) 0x00000000)
+#define INADDR_BROADCAST  ((in_addr_t) 0xffffffff)
+#define INADDR_NONE       ((in_addr_t) 0xffffffff)
+#define INADDR_LOOPBACK   ((in_addr_t) 0x7f000001)
+
 #define IPPROTO_IP       0
 #define IPPROTO_HOPOPTS  0
 #define IPPROTO_ICMP     1
@@ -134,5 +139,7 @@ struct sockaddr_in6 {
     struct in6_addr sin6_addr;
     uint32_t sin6_scope_id;
 };
+
+
 
 #endif // _NETINET_IN_H

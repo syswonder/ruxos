@@ -172,6 +172,8 @@ struct sigaction {
 #define sa_handler   __sa_handler.sa_handler
 #define sa_sigaction __sa_handler.sa_sigaction
 
+int sigprocmask(int, const sigset_t *__restrict, sigset_t *__restrict);
+int sigsuspend(const sigset_t *);
 void (*signal(int, void (*)(int)))(int);
 int sigaction(int, const struct sigaction *__restrict, struct sigaction *__restrict);
 int sigemptyset(sigset_t *);

@@ -392,3 +392,17 @@ int system(const char *cmd)
     unimplemented();
     return 0;
 }
+
+// TODO
+char *realpath(const char *restrict path, char *restrict resolved_path)
+{
+    unimplemented();
+    return 0;
+}
+
+// TODO
+int posix_memalign(void **memptr, size_t alignment, size_t size)
+{
+    unimplemented();
+    return 0;
+}

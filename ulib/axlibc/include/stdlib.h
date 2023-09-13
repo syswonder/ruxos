@@ -23,6 +23,8 @@
 #define EXIT_FAILURE 1
 #define EXIT_SUCCESS 0
 
+int posix_memalign (void **, size_t, size_t);
+
 long long atoll(const char *nptr);
 
 float strtof(const char *__restrict, char **__restrict);
@@ -33,6 +35,7 @@ unsigned long strtoul(const char *nptr, char **endptr, int base);
 long long strtoll(const char *nptr, char **endptr, int base);
 unsigned long long strtoull(const char *nptr, char **endptr, int base);
 
+char *realpath (const char *__restrict, char *__restrict);
 int rand(void);
 void srand(unsigned);
 long random(void);

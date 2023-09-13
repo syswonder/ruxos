@@ -16,6 +16,8 @@ ifneq ($(V),)
   redis-build-args += V=$(V)
 endif
 
+$(info redis-build-args $(redis-build-args)  make $(MAKE))
+
 $(redis-dir):
 	@echo "Download redis source code"
 	wget https://github.com/redis/redis/archive/$(redis-version).tar.gz -P $(APP)

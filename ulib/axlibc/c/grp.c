@@ -7,11 +7,18 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-#include <poll.h>
 #include <stdio.h>
+#include <grp.h>
 
 // TODO
-int poll(struct pollfd *__fds, nfds_t __nfds, int __timeout)
+int initgroups(const char *user, gid_t group)
+{
+    unimplemented();
+    return 0;
+}
+
+// TODO
+struct group *getgrnam(const char *name)
 {
     unimplemented();
     return 0;

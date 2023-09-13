@@ -139,6 +139,7 @@ OUT_DIR ?= $(APP)
 APP_NAME := $(shell basename $(APP))
 LD_SCRIPT := $(CURDIR)/modules/axhal/linker_$(PLATFORM_NAME).lds
 OUT_ELF := $(OUT_DIR)/$(APP_NAME)_$(PLATFORM_NAME).elf
+#OUT_BIN := /home/oslab/Desktop/nginx-1.24.0/objs/nginx_aarch64-qemu-q35.bin
 OUT_BIN := $(OUT_DIR)/$(APP_NAME)_$(PLATFORM_NAME).bin
 
 all: build
@@ -154,6 +155,8 @@ else ifeq ($(PLATFORM_NAME), aarch64-bsta1000b)
 endif
 
 build: $(OUT_DIR) $(OUT_BIN)
+
+$(info lhw $(OUT_DIR) ||| $(OUT_BIN))
 
 disasm:
 	$(OBJDUMP) $(OUT_ELF) | less

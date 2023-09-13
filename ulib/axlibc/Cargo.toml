@@ -45,7 +45,9 @@ net = ["arceos_posix_api/net", "fd"]
 fd = []
 pipe = ["arceos_posix_api/pipe"]
 select = ["arceos_posix_api/select"]
+poll = ["arceos_posix_api/poll"]
 epoll = ["arceos_posix_api/epoll"]
+random-hw = []
 
 [dependencies]
 axfeat = { path = "../../api/axfeat" }

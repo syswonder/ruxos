@@ -89,6 +89,39 @@ int getaddrinfo(const char *, const char *, const struct addrinfo *, struct addr
 void freeaddrinfo(struct addrinfo *);
 const char *gai_strerror(int __ecode);
 
+/* Legacy functions follow (marked OBsolete in SUS) */
+
+struct netent {
+	char *n_name;
+	char **n_aliases;
+	int n_addrtype;
+	uint32_t n_net;
+};
+
+struct hostent {
+	char *h_name;
+	char **h_aliases;
+	int h_addrtype;
+	int h_length;
+	char **h_addr_list;
+};
+#define h_addr h_addr_list[0]
+
+struct servent {
+	char *s_name;
+	char **s_aliases;
+	int s_port;
+	char *s_proto;
+};
+
+struct protoent {
+	char *p_name;
+	char **p_aliases;
+	int p_proto;
+};
+
+struct hostent *gethostbyname (const char *);
+
 #endif // AX_CONFIG_NET
 
 #endif // _NETDB_H
