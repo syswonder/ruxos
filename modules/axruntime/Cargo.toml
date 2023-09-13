@@ -10,13 +10,15 @@ repository = "https://github.com/rcore-os/arceos/tree/main/modules/axruntime"
 documentation = "https://rcore-os.github.io/arceos/axruntime/index.html"
 
 [features]
-default = []
+default = ["axhal/rtc"]
+#default = []
 
 smp = ["axhal/smp"]
 irq = ["axhal/irq", "axtask?/irq", "percpu", "kernel_guard"]
 tls = ["axhal/tls", "axtask?/tls"]
 alloc = ["axalloc"]
 paging = ["axhal/paging", "lazy_init"]
+rtc = ["axhal/rtc"]
 
 multitask = ["axtask/multitask"]
 fs = ["axdriver", "axfs"]

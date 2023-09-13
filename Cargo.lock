@@ -375,7 +375,9 @@ dependencies = [
  "bitflags 2.4.0",
  "cfg-if",
  "crate_interface",
+ "ds1307",
  "dw_apb_uart",
+ "embedded-hal",
  "handler_table",
  "kernel_guard",
  "lazy_init",
@@ -912,6 +914,16 @@ dependencies = [
  "driver_display",
  "driver_net",
  "virtio-drivers",
+]
+
+[[package]]
+name = "ds1307"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "111baaf868b52da3308be02b86f126bd071bed9910c8210ec1c6cde41ff59b9f"
+dependencies = [
+ "embedded-hal",
+ "rtcc",
 ]
 
 [[package]]
@@ -1576,6 +1588,15 @@ dependencies = [
  "const-default",
  "libc",
  "svgbobdoc",
+]
+
+[[package]]
+name = "rtcc"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3623619ce77c09a7d87cf7c61c5c887b9c7dee8805f66af6c4aa5824be4d9930"
+dependencies = [
+ "chrono",
 ]
 
 [[package]]

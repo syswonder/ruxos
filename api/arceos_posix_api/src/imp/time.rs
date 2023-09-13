@@ -56,6 +56,19 @@ pub unsafe fn sys_clock_gettime(_clk: ctypes::clockid_t, ts: *mut ctypes::timesp
     })
 }
 
+/// Get clock time since booting
+pub unsafe fn sys_clock_settime(_clk: ctypes::clockid_t, ts: *mut ctypes::timespec) -> c_int {
+    syscall_body!(sys_clock_setttime, {
+        if ts.is_null() {
+            return Err(LinuxError::EFAULT);
+        }
+        let new_tv = Duration::new((*ts).tv_sec as u64,(*ts).tv_nsec as u32);
+        axhal::time::set_current_time(new_tv);
+        debug!("sys_clock_setttime: {}.{:09}s", new_tv.as_secs(), new_tv.as_nanos());
+        Ok(0)
+    })
+}
+
 /// Sleep some nanoseconds
 ///
 /// TODO: should be woken by signals, and set errno

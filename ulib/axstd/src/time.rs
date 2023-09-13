@@ -25,6 +25,10 @@ impl Instant {
         Instant(arceos_api::time::ax_current_time())
     }
 
+    pub fn current_time(&self) -> Duration{
+        self.0
+    }
+
     /// Returns the amount of time elapsed from another instant to this one,
     /// or zero duration if that instant is later than this one.
     ///

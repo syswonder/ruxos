@@ -169,6 +169,14 @@ int gettimeofday(struct timeval *tv, struct timezone *tz)
     return 0;
 }
 
+int settimeofday(const struct timeval *tv, const struct timezone *tz)
+{
+	if (!tv) return 0;
+	clock_settime(CLOCK_REALTIME, &((struct timespec){
+		.tv_sec = tv->tv_sec, .tv_nsec = tv->tv_usec * 1000}));
+    return 0; 
+}
+
 // TODO:
 int utimes(const char *filename, const struct timeval times[2])
 {
