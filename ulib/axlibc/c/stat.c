@@ -18,13 +18,6 @@ int fchmod(int fd, mode_t mode)
     return 0;
 }
 
-// TODO:
-int mkdir(const char *path, mode_t mode)
-{
-    unimplemented();
-    return 0;
-}
-
 // TODO
 int chmod(const char *path, mode_t mode)
 {

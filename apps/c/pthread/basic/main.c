@@ -134,6 +134,7 @@ int main()
     test_create_join();
     test_create_exit();
     test_mutex();
+	test_condvar();
     puts("(C)Pthread basic tests run OK!");
 
     return 0;

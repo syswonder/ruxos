@@ -61,8 +61,45 @@ pub unsafe extern "C" fn pthread_mutex_lock(mutex: *mut ctypes::pthread_mutex_t)
     e(api::sys_pthread_mutex_lock(mutex))
 }
 
+/// Lock the given mutex. If the mutex is already locked, it returns immediatly with the error
+/// code EBUSY.
+#[no_mangle]
+pub unsafe extern "C" fn pthread_mutex_trylock(mutex: *mut ctypes::pthread_mutex_t) -> c_int {
+	e(api::sys_pthread_mutex_trylock(mutex))
+}
+
 /// Unlock the given mutex.
 #[no_mangle]
 pub unsafe extern "C" fn pthread_mutex_unlock(mutex: *mut ctypes::pthread_mutex_t) -> c_int {
     e(api::sys_pthread_mutex_unlock(mutex))
+}
+
+/// Initialize a condition variable
+#[no_mangle]
+pub unsafe extern "C" fn pthread_cond_init(
+    condvar: *mut ctypes::pthread_cond_t,
+    attr: *mut ctypes::pthread_condattr_t,
+) -> c_int {
+	e(api::sys_pthread_cond_init(condvar, attr))
+}
+
+/// Wait for the condition variable to be signaled
+#[no_mangle]
+pub unsafe extern "C" fn pthread_cond_wait(
+    condvar: *mut ctypes::pthread_cond_t,
+    mutex: *mut ctypes::pthread_mutex_t,
+) -> c_int {
+	e(api::sys_pthread_cond_wait(condvar, mutex))
+}
+
+/// Restarts one of the threads that are waiting on the condition variable.
+#[no_mangle]
+pub unsafe extern "C" fn pthread_cond_signal(condvar: *mut ctypes::pthread_cond_t) -> c_int {
+	e(api::sys_pthread_cond_signal(condvar))
+}
+
+/// Restarts all the threads that are waiting on the condition variable.
+#[no_mangle]
+pub unsafe extern "C" fn pthread_cond_broadcast(condvar: *mut ctypes::pthread_cond_t) -> c_int {
+	e(api::sys_pthread_cond_broadcast(condvar))
 }

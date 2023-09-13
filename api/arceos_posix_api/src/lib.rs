@@ -53,7 +53,7 @@ pub use imp::time::{sys_clock_gettime, sys_nanosleep};
 #[cfg(feature = "fd")]
 pub use imp::fd_ops::{sys_close, sys_dup, sys_dup2, sys_fcntl};
 #[cfg(feature = "fs")]
-pub use imp::fs::{sys_fstat, sys_getcwd, sys_lseek, sys_lstat, sys_open, sys_rename, sys_stat};
+pub use imp::fs::{sys_fstat, sys_getcwd, sys_lseek, sys_lstat, sys_open, sys_rename, sys_stat, sys_rmdir, sys_unlink, sys_mkdir};
 #[cfg(feature = "select")]
 pub use imp::io_mpx::sys_select;
 #[cfg(feature = "epoll")]
@@ -62,13 +62,15 @@ pub use imp::io_mpx::{sys_epoll_create, sys_epoll_ctl, sys_epoll_wait};
 pub use imp::net::{
     sys_accept, sys_bind, sys_connect, sys_freeaddrinfo, sys_getaddrinfo, sys_getpeername,
     sys_getsockname, sys_listen, sys_recv, sys_recvfrom, sys_send, sys_sendto, sys_shutdown,
-    sys_socket,
+    sys_socket, sys_sendmsg
 };
 #[cfg(feature = "pipe")]
 pub use imp::pipe::sys_pipe;
 #[cfg(feature = "multitask")]
 pub use imp::pthread::mutex::{
-    sys_pthread_mutex_init, sys_pthread_mutex_lock, sys_pthread_mutex_unlock,
+    sys_pthread_mutex_init, sys_pthread_mutex_lock, sys_pthread_mutex_unlock, sys_pthread_mutex_trylock
 };
 #[cfg(feature = "multitask")]
 pub use imp::pthread::{sys_pthread_create, sys_pthread_exit, sys_pthread_join, sys_pthread_self};
+#[cfg(feature = "multitask")]
+pub use imp::pthread::condvar::{sys_pthread_cond_init, sys_pthread_cond_wait, sys_pthread_cond_signal, sys_pthread_cond_broadcast};

@@ -10,7 +10,7 @@
 use arceos_posix_api::{
     sys_accept, sys_bind, sys_connect, sys_freeaddrinfo, sys_getaddrinfo, sys_getpeername,
     sys_getsockname, sys_listen, sys_recv, sys_recvfrom, sys_send, sys_sendto, sys_shutdown,
-    sys_socket,
+    sys_socket, sys_sendmsg
 };
 use core::ffi::{c_char, c_int, c_void};
 
@@ -186,4 +186,13 @@ pub unsafe extern "C" fn getpeername(
     addrlen: *mut ctypes::socklen_t,
 ) -> c_int {
     e(sys_getpeername(sock_fd, addr, addrlen))
+}
+
+#[no_mangle]
+pub extern "C" fn ax_sendmsg(
+    socket_fd: c_int,
+    msg: *const ctypes::msghdr,
+    flags: c_int,
+) -> ctypes::ssize_t {
+	e(sys_sendmsg(socket_fd, msg, flags) as _) as _
 }

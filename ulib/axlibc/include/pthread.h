@@ -25,7 +25,7 @@ typedef struct {
 } pthread_condattr_t;
 
 #include <ax_pthread_mutex.h>
-
+#include <ax_pthread_cond.h>
 typedef struct {
     unsigned __attr;
 } pthread_mutexattr_t;
@@ -41,15 +41,15 @@ typedef struct {
 #define _a_guardsize __u.__s[1]
 #define _a_stackaddr __u.__s[2]
 
-typedef struct {
-    union {
-        int __i[12];
-        volatile int __vi[12];
-        void *__p[12 * sizeof(int) / sizeof(void *)];
-    } __u;
-} pthread_cond_t;
-#define _c_clock  __u.__i[4]
-#define _c_shared __u.__p[0]
+// typedef struct {
+//     union {
+//         int __i[12];
+//         volatile int __vi[12];
+//         void *__p[12 * sizeof(int) / sizeof(void *)];
+//     } __u;
+// } pthread_cond_t;
+// #define _c_clock  __u.__i[4]
+// #define _c_shared __u.__p[0]
 
 typedef void *pthread_t;
 

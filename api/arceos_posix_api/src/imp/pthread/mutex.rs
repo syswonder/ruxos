@@ -9,7 +9,7 @@
 
 use crate::{ctypes, utils::check_null_mut_ptr};
 
-use axerrno::LinuxResult;
+use axerrno::{LinuxResult, LinuxError};
 use axsync::Mutex;
 
 use core::ffi::c_int;
@@ -36,6 +36,16 @@ impl PthreadMutex {
     fn unlock(&self) -> LinuxResult {
         unsafe { self.0.force_unlock() };
         Ok(())
+    }
+
+	fn trylock(&self) -> LinuxResult {
+        match self.0.try_lock() {
+            Some(mutex_guard) => {
+                let _guard = ManuallyDrop::new(mutex_guard);
+                Ok(())
+            },
+            None => Err(LinuxError::EBUSY)
+        }
     }
 }
 
@@ -74,6 +84,21 @@ pub fn sys_pthread_mutex_unlock(mutex: *mut ctypes::pthread_mutex_t) -> c_int {
         unsafe {
             (*mutex.cast::<PthreadMutex>()).unlock()?;
         }
+        Ok(0)
+    })
+}
+
+/// Lock the given mutex like sys_pthread_mutex_lock, except that it does not 
+/// block the calling thread if the mutex is already locked. 
+/// 
+/// Instead, it returns with the error code EBUSY.
+pub fn sys_pthread_mutex_trylock(mutex: *mut ctypes::pthread_mutex_t) -> c_int {
+    debug!("sys_pthread_mutex_trylock <= {:#x}", mutex as usize);
+    syscall_body!(sys_pthread_mutex_trylock, {
+        check_null_mut_ptr(mutex)?;
+		unsafe {
+			(*mutex.cast::<PthreadMutex>()).trylock()?;
+		}
         Ok(0)
     })
 }
