@@ -32,6 +32,7 @@ static mut LAST_UPDATE: AtomicU64 = AtomicU64::new(0);
 // TODO: if irq is disabled, what value should AVENRUN be?
 static mut AVENRUN: [u64; 3] = [0, 0, 0];
 
+/// Get the load average
 pub fn get_avenrun(loads: &mut [u64; 3]) {
     for i in 0..3 {
         unsafe {
@@ -50,7 +51,7 @@ fn calc_load(load: u64, exp: u64, active: u64) -> u64 {
     if active >= load {
         newload += FIXED_1 - 1;
     }
-    return newload / FIXED_1;
+    newload / FIXED_1
 }
 
 #[cfg(feature = "irq")]

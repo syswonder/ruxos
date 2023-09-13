@@ -27,7 +27,7 @@ pub unsafe extern "C" fn sysconf(name: c_int) -> c_long {
         ctypes::_SC_AVPHYS_PAGES => axalloc::global_allocator().available_pages(),
         // Maximum number of files per process
         #[cfg(feature = "fd")]
-        ctypes::_SC_OPEN_MAX => super::fd_ops::AX_FILE_LIMIT,
+        ctypes::_SC_OPEN_MAX => arceos_posix_api::AX_FILE_LIMIT.try_into().unwrap(),
         _ => 0,
     }
 }

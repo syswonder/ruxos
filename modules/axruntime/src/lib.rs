@@ -278,7 +278,7 @@ fn init_interrupt() {
     fn update_timer() {
         // Safety: we have disabled preemption in IRQ handler.
         let mut deadline = unsafe { NEXT_DEADLINE.read_current_raw() };
-        deadline = deadline + PERIODIC_INTERVAL_NANOS;
+        deadline += PERIODIC_INTERVAL_NANOS;
         unsafe { NEXT_DEADLINE.write_current_raw(deadline) };
         axhal::time::set_oneshot_timer(deadline);
     }

@@ -48,6 +48,7 @@ cfg_if::cfg_if! {
         mod task;
         mod api;
         mod wait_queue;
+        /// load average
         pub mod loadavg;
 
         #[cfg(feature = "irq")]
