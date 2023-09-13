@@ -62,6 +62,7 @@ typedef struct {{
             "clockid_t",
             "rlimit",
             "aibuf",
+            "sysinfo",
         ];
         let allow_vars = [
             "O_.*",
