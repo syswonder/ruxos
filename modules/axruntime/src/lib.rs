@@ -281,9 +281,9 @@ fn init_interrupt() {
         let mut deadline = unsafe { NEXT_DEADLINE.read_current_raw() };
         if now_ns >= deadline {
             deadline = now_ns + PERIODIC_INTERVAL_NANOS;
-            unsafe { NEXT_DEADLINE.write_current_raw(deadline) };
-            axhal::time::set_oneshot_timer(deadline);
         }
+        unsafe { NEXT_DEADLINE.write_current_raw(deadline + PERIODIC_INTERVAL_NANOS) };
+        axhal::time::set_oneshot_timer(deadline);
     }
 
     axhal::irq::register_handler(TIMER_IRQ_NUM, || {
