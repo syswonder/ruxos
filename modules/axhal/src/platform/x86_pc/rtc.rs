@@ -414,7 +414,7 @@ fn days_in_month(month: u64, year: u64) -> u64 {
     }
 }
 
-
+/// return rtc time value
 pub fn rtc_read_time() -> u64{
     unsafe{
         if !X86_RTC.is_init(){
@@ -426,6 +426,7 @@ pub fn rtc_read_time() -> u64{
     }
 }
 
+/// change rtc time value
 pub fn rtc_write_time(seconds:u32){
     unsafe{
         if !X86_RTC.is_init(){

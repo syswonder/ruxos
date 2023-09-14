@@ -25,6 +25,7 @@ impl Instant {
         Instant(arceos_api::time::ax_current_time())
     }
 
+    /// return time value
     pub fn current_time(&self) -> Duration{
         self.0
     }

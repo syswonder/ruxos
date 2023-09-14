@@ -54,6 +54,7 @@ pub fn current_time() -> TimeValue {
     TimeValue::from_nanos(current_time_nanos())
 }
 
+/// set time value
 pub fn set_current_time(new_tv:TimeValue){
     let nanos = current_time_nanos();
     #[cfg(feature = "rtc")]
