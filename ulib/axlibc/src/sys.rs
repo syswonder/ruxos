@@ -7,7 +7,7 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use arceos_posix_api::{config, ctypes, PAGE_SIZE_4K};
+use arceos_posix_api::{config, ctypes, sys_getrlimit, PAGE_SIZE_4K};
 use core::ffi::{c_int, c_long};
 
 /// Return system configuration infomation
@@ -16,6 +16,12 @@ use core::ffi::{c_int, c_long};
 #[no_mangle]
 pub unsafe extern "C" fn sysconf(name: c_int) -> c_long {
     match name as u32 {
+        // Maximum process number
+        ctypes::_SC_CHILD_MAX => {
+            let mut rl: ctypes::rlimit = core::mem::zeroed();
+            sys_getrlimit(ctypes::RLIMIT_NPROC.try_into().unwrap(), &mut rl);
+            rl.rlim_max as c_long
+        }
         // Page size
         ctypes::_SC_PAGE_SIZE => PAGE_SIZE_4K as c_long,
         // Total physical pages
@@ -23,11 +29,18 @@ pub unsafe extern "C" fn sysconf(name: c_int) -> c_long {
         // Number of processors in use
         ctypes::_SC_NPROCESSORS_ONLN => config::SMP as c_long,
         // Avaliable physical pages
-        #[cfg(feature = "axalloc")]
-        ctypes::_SC_AVPHYS_PAGES => axalloc::global_allocator().available_pages(),
+        ctypes::_SC_AVPHYS_PAGES => {
+            let mut info: arceos_posix_api::ctypes::sysinfo = core::mem::zeroed();
+            arceos_posix_api::sys_sysinfo(&mut info);
+            (info.freeram / PAGE_SIZE_4K as u64) as c_long
+        }
         // Maximum number of files per process
         #[cfg(feature = "fd")]
-        ctypes::_SC_OPEN_MAX => arceos_posix_api::AX_FILE_LIMIT.try_into().unwrap(),
+        ctypes::_SC_OPEN_MAX => {
+            let mut rl: ctypes::rlimit = core::mem::zeroed();
+            sys_getrlimit(ctypes::RLIMIT_NOFILE.try_into().unwrap(), &mut rl);
+            rl.rlim_max as c_long
+        }
         _ => 0,
     }
 }

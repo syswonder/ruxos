@@ -209,6 +209,7 @@ dependencies = [
  "bindgen",
  "flatten_objects",
  "lazy_static",
+ "memory_addr",
  "spin 0.9.8",
  "static_assertions",
 ]

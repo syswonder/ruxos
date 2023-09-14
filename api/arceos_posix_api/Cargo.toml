@@ -43,6 +43,7 @@ axnet = { path = "../../modules/axnet", optional = true }
 # Other crates
 axio = { path = "../../crates/axio" }
 axerrno = { path = "../../crates/axerrno" }
+memory_addr = { path = "../../crates/memory_addr" }
 static_assertions = "1.1.0"
 spin = { version = "0.9" }
 lazy_static = { version = "1.4", features = ["spin_no_std"] }

@@ -25,6 +25,8 @@ extern crate axruntime;
 #[cfg(feature = "alloc")]
 extern crate alloc;
 
+pub use memory_addr::PAGE_SIZE_4K;
+
 #[macro_use]
 mod utils;
 
@@ -43,7 +45,7 @@ pub mod ctypes;
 
 pub use imp::io::{sys_read, sys_write, sys_writev};
 pub use imp::resources::{sys_getrlimit, sys_setrlimit};
-pub use imp::sys::PAGE_SIZE_4K;
+pub use imp::sys::sys_sysinfo;
 pub use imp::task::{sys_exit, sys_getpid, sys_sched_yield};
 pub use imp::time::{sys_clock_gettime, sys_nanosleep};
 

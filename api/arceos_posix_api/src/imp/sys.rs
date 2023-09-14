@@ -11,9 +11,6 @@ use core::ffi::{c_int, c_long};
 
 use crate::ctypes;
 
-/// Page size
-pub const PAGE_SIZE_4K: usize = 4096;
-
 /// Return sysinfo struct
 #[no_mangle]
 pub unsafe extern "C" fn sys_sysinfo(info: *mut ctypes::sysinfo) -> c_int {
@@ -41,7 +38,7 @@ pub unsafe extern "C" fn sys_sysinfo(info: *mut ctypes::sysinfo) -> c_int {
             use core::ffi::c_ulong;
             let allocator = axalloc::global_allocator();
             info_mut.freeram = (allocator.available_bytes()
-                + allocator.available_pages() * PAGE_SIZE_4K)
+                + allocator.available_pages() * memory_addr::PAGE_SIZE_4K)
                 as c_ulong;
             info_mut.totalram = info_mut.freeram + allocator.used_bytes() as c_ulong;
         }
