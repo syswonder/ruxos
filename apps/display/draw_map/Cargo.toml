@@ -1,5 +1,5 @@
 [package]
-name = "arceos-display"
+name = "arceos-display-draw-map"
 version = "0.1.0"
 edition = "2021"
 authors = ["Shiping Yuan <robert_yuan@pku.edu.com>"]
@@ -7,5 +7,6 @@ authors = ["Shiping Yuan <robert_yuan@pku.edu.com>"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-axstd = { path = "../../ulib/axstd", features = ["display"], optional = true }
+axstd = { path = "../../../ulib/axstd", features = ["display"], optional = true }
 embedded-graphics = "0.8"
+tinybmp = "0.5.0"

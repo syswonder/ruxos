@@ -69,11 +69,20 @@ dependencies = [
 ]
 
 [[package]]
-name = "arceos-display"
+name = "arceos-display-basic-painting"
 version = "0.1.0"
 dependencies = [
  "axstd",
  "embedded-graphics",
+]
+
+[[package]]
+name = "arceos-display-draw-map"
+version = "0.1.0"
+dependencies = [
+ "axstd",
+ "embedded-graphics",
+ "tinybmp",
 ]
 
 [[package]]
@@ -1826,6 +1835,15 @@ dependencies = [
 [[package]]
 name = "timer_list"
 version = "0.1.0"
+
+[[package]]
+name = "tinybmp"
+version = "0.5.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "197cc000e382175ff15abd9c54c694ef80ef20cb07e7f956c71e3ea97fc8dc60"
+dependencies = [
+ "embedded-graphics",
+]
 
 [[package]]
 name = "tinytemplate"
