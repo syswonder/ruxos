@@ -56,7 +56,8 @@ members = [
     "ulib/axstd",
     "ulib/axlibc",
 
-    "apps/display",
+    "apps/display/basic_painting",
+    "apps/display/draw_map",
     "apps/exception",
     "apps/helloworld",
     "apps/systime",
