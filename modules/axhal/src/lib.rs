@@ -88,3 +88,10 @@ pub use self::platform::platform_init;
 
 #[cfg(feature = "smp")]
 pub use self::platform::platform_init_secondary;
+
+/// A cmdline buf for x86_64
+///
+/// The Multiboot information structure may be placed anywhere in memory by the boot loader,
+/// so we should save cmdline in a buf before this memory is set free
+#[cfg(any(target_arch = "x86", target_arch = "x86_64"))]
+pub static mut COMLINE_BUF: [u8; 256] = [0; 256];

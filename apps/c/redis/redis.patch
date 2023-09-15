@@ -68,30 +68,10 @@ index e4f7d90..1b41e94 100644
  
  .PHONY: clean
 diff --git a/src/server.c b/src/server.c
-index b170cbb..f5dfde0 100644
+index b170cbb..a3960ce 100644
 --- a/src/server.c
 +++ b/src/server.c
-@@ -6854,6 +6854,19 @@ redisTestProc *getTestProcByName(const char *name) {
- #endif
- 
- int main(int argc, char **argv) {
-+    const char *cmdline = "./redis-server "
-+        "--bind 0.0.0.0 "
-+        "--port 5555 "
-+        "--save \"\" "
-+        "--appendonly no "
-+        "--protected-mode no "
-+#if defined (__arm64__)
-+        "--ignore-warnings ARM64-COW-BUG "
-+#endif
-+        ;
-+    printf("Run Redis with: %s\n", cmdline);
-+    argv = sdssplitargs(cmdline, &argc);
-+
-     struct timeval tv;
-     int j;
-     char config_from_stdin = 0;
-@@ -6900,7 +6913,7 @@ int main(int argc, char **argv) {
+@@ -6900,7 +6900,7 @@ int main(int argc, char **argv) {
  
      /* We need to initialize our libraries, and the server configuration. */
  #ifdef INIT_SETPROCTITLE_REPLACEMENT

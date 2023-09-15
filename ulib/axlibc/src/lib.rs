@@ -43,7 +43,8 @@
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
-
+#[cfg(feature = "alloc")]
+mod env;
 #[path = "."]
 mod ctypes {
     #[rustfmt::skip]
@@ -83,6 +84,7 @@ mod mktime;
 mod rand;
 mod resource;
 mod setjmp;
+mod string;
 mod sys;
 mod time;
 mod unistd;
@@ -96,17 +98,19 @@ pub use self::mktime::mktime;
 pub use self::rand::{rand, random, srand};
 pub use self::resource::{getrlimit, setrlimit};
 pub use self::setjmp::{longjmp, setjmp};
+pub use self::string::{strlen, strnlen};
 pub use self::sys::sysconf;
 pub use self::time::{clock_gettime, nanosleep};
 pub use self::unistd::{abort, exit, getpid};
 
 #[cfg(feature = "alloc")]
+pub use self::env::{getenv, setenv, unsetenv};
+#[cfg(feature = "fd")]
+pub use self::fd_ops::{ax_fcntl, close, dup, dup2, dup3};
+#[cfg(feature = "alloc")]
 pub use self::malloc::{free, malloc};
 #[cfg(feature = "alloc")]
 pub use self::strftime::strftime;
-
-#[cfg(feature = "fd")]
-pub use self::fd_ops::{ax_fcntl, close, dup, dup2, dup3};
 
 #[cfg(feature = "fs")]
 pub use self::fs::{ax_open, fstat, getcwd, lseek, lstat, rename, stat};

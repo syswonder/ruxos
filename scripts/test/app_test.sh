@@ -123,6 +123,7 @@ if [ -z "$1" ]; then
         "apps/c/pthread/sleep"
         "apps/c/pthread/pipe"
         "apps/c/pthread/parallel"
+		"apps/c/envtest"
     )
 else
     test_list="$@"
