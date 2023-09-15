@@ -10,6 +10,7 @@
 #ifndef __SYSINFO_H__
 #define __SYSINFO_H__
 
+#define SI_LOAD_SHIFT 16
 struct sysinfo {
     long uptime;             /* Seconds since boot */
     unsigned long loads[3];  /* 1, 5, and 15 minute load averages */
@@ -27,6 +28,6 @@ struct sysinfo {
     char _f[20 - 2 * sizeof(unsigned long) - sizeof(unsigned int)]; /* Padding: libc5 uses this.. */
 };
 
-extern int sys_sysinfo(struct sysinfo *__info);
+int sys_sysinfo(struct sysinfo *);
 
 #endif // __SYSINFO_H__

@@ -7,42 +7,29 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-#[cfg(feature = "irq")]
 use core::sync::atomic::{AtomicU64, Ordering};
 
-#[cfg(feature = "irq")]
-const FSHIFT: u64 = 11;
-#[cfg(feature = "irq")]
+use crate::AVENRUN;
+
+/// bits to shift fixed point
+const FSHIFT: u64 = 16;
+/// fixed point
 const FIXED_1: u64 = 1 << FSHIFT;
-#[cfg(feature = "irq")]
+/// update AVENRUN per 5 seconds
 const LOAD_FREQ: u64 = 5 * axhal::time::NANOS_PER_SEC + 1;
 
-#[cfg(feature = "irq")]
 /* 1/exp(5sec/1min) as fixed-point */
 /* 1/exp(5sec/5min) */
 /* 1/exp(5sec/15min) */
 const EXP: [u64; 3] = [1884, 2014, 2037];
 
-#[cfg(feature = "irq")]
+/// count of idle ticks
 static mut IDLE_CNT: AtomicU64 = AtomicU64::new(0);
-#[cfg(feature = "irq")]
+/// count of all ticks
 static mut ALL_CNT: AtomicU64 = AtomicU64::new(0);
-#[cfg(feature = "irq")]
+/// last update time
 static mut LAST_UPDATE: AtomicU64 = AtomicU64::new(0);
-// TODO: if irq is disabled, what value should AVENRUN be?
-static mut AVENRUN: [u64; 3] = [0, 0, 0];
 
-/// Get the load average
-pub fn get_avenrun(loads: &mut [u64; 3]) {
-    for i in 0..3 {
-        unsafe {
-            // TODO: disable irq for safety
-            loads[i] = AVENRUN[i];
-        }
-    }
-}
-
-#[cfg(feature = "irq")]
 /*
  * a1 = a0 * e + a * (1 - e)
  */
@@ -54,12 +41,10 @@ fn calc_load(load: u64, exp: u64, active: u64) -> u64 {
     newload / FIXED_1
 }
 
-#[cfg(feature = "irq")]
 /*
- * calc_load - update the avenrun load estimates 10 ticks after the
- * CPUs have updated calc_load_tasks.
+ * calc_load_tick - update the avenrun load
  *
- * Called from the global timer code.
+ * Called from the scheduler_timer_tick.
  */
 pub(crate) fn calc_load_tick(is_idle: bool) {
     if is_idle {

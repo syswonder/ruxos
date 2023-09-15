@@ -24,7 +24,7 @@ pub unsafe extern "C" fn sys_sysinfo(info: *mut ctypes::sysinfo) -> c_int {
         info_mut.loads = [0; 3];
         #[cfg(feature = "axtask")]
         {
-            axtask::loadavg::get_avenrun(&mut info_mut.loads);
+            axtask::get_avenrun(&mut info_mut.loads);
         }
 
         info_mut.sharedram = 0;

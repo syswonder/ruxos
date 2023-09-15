@@ -7,7 +7,8 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use arceos_posix_api::{config, ctypes, sys_getrlimit, PAGE_SIZE_4K};
+use crate::ctypes;
+use arceos_posix_api::{config, sys_getrlimit};
 use core::ffi::{c_int, c_long};
 
 /// Return system configuration infomation
@@ -23,16 +24,16 @@ pub unsafe extern "C" fn sysconf(name: c_int) -> c_long {
             rl.rlim_max as c_long
         }
         // Page size
-        ctypes::_SC_PAGE_SIZE => PAGE_SIZE_4K as c_long,
+        ctypes::_SC_PAGE_SIZE => config::PAGE_SIZE_4K as c_long,
         // Total physical pages
-        ctypes::_SC_PHYS_PAGES => (config::PHYS_MEMORY_SIZE / PAGE_SIZE_4K) as c_long,
+        ctypes::_SC_PHYS_PAGES => (config::PHYS_MEMORY_SIZE / config::PAGE_SIZE_4K) as c_long,
         // Number of processors in use
         ctypes::_SC_NPROCESSORS_ONLN => config::SMP as c_long,
         // Avaliable physical pages
         ctypes::_SC_AVPHYS_PAGES => {
-            let mut info: arceos_posix_api::ctypes::sysinfo = core::mem::zeroed();
+            let mut info: ctypes::sysinfo = core::mem::zeroed();
             arceos_posix_api::sys_sysinfo(&mut info);
-            (info.freeram / PAGE_SIZE_4K as u64) as c_long
+            (info.freeram / config::PAGE_SIZE_4K as u64) as c_long
         }
         // Maximum number of files per process
         #[cfg(feature = "fd")]
