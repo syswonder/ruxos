@@ -43,6 +43,7 @@ impl Condvar {
     }
 }
 
+/// Initialize a condition variable
 pub unsafe fn sys_pthread_cond_init(
     condvar: *mut ctypes::pthread_cond_t,
     _attr: *mut ctypes::pthread_condattr_t,
@@ -55,6 +56,7 @@ pub unsafe fn sys_pthread_cond_init(
     })
 }
 
+/// Wait for the condition variable to be signaled
 pub unsafe fn sys_pthread_cond_wait(
     condvar: *mut ctypes::pthread_cond_t,
     mutex: *mut ctypes::pthread_mutex_t,
@@ -69,6 +71,7 @@ pub unsafe fn sys_pthread_cond_wait(
     })
 }
 
+/// Restarts one of the threads that are waiting on the condition variable.
 pub unsafe fn sys_pthread_cond_signal(condvar: *mut ctypes::pthread_cond_t) -> c_int {
     debug!("sys_pthread_cond_signal <= {:#x}", condvar as usize);
     syscall_body!(sys_pthread_cond_signal, {
@@ -77,6 +80,7 @@ pub unsafe fn sys_pthread_cond_signal(condvar: *mut ctypes::pthread_cond_t) -> c
     })
 }
 
+/// Restarts all the threads that are waiting on the condition variable.
 pub unsafe fn sys_pthread_cond_broadcast(condvar: *mut ctypes::pthread_cond_t) -> c_int {
     debug!("sys_pthread_cond_broadcast <= {:#x}", condvar as usize);
     syscall_body!(sys_pthread_cond_broadcast, {

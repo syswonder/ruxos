@@ -147,10 +147,10 @@ void *second(void *arg)
     puts("Second want to continue,but need to wait A=1");
     pthread_mutex_lock(&lock);
     while (A == 0) {
-        printf("Second: A is {}", A);
+        printf("Second: A is %d\n", A);
         pthread_cond_wait(&condvar, &lock);
     }
-    printf("A is {}, Second can work now", A);
+    printf("A is %d, Second can work now\n", A);
     pthread_mutex_unlock(&lock);
     return NULL;
 }
