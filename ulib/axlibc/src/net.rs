@@ -188,6 +188,10 @@ pub unsafe extern "C" fn getpeername(
     e(sys_getpeername(sock_fd, addr, addrlen))
 }
 
+/// Send a message on a socket to the address connected.
+/// The  message is pointed to by the elements of the array msg.msg_iov.
+///
+/// Return the number of bytes sent if success.
 #[no_mangle]
 pub unsafe extern "C" fn ax_sendmsg(
     socket_fd: c_int,

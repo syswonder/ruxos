@@ -90,6 +90,7 @@ pub unsafe extern "C" fn unlink(pathname: *const c_char) -> c_int {
     e(sys_unlink(pathname))
 }
 
+/// Creates a new directory
 #[no_mangle]
 pub unsafe extern "C" fn mkdir(pathname: *const c_char, mode: ctypes::mode_t) -> c_int {
     e(sys_mkdir(pathname, mode))
