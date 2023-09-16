@@ -240,7 +240,7 @@ char *fgets(char *restrict s, int n, FILE *restrict f)
     while (cnt < n - 1) {
         char c;
         if (read(f->fd, (void *)&c, 1) > 0) {
-            if (c != '\0')
+            if (c != '\n')
                 s[cnt++] = c;
             else
                 break;

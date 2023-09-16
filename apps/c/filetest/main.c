@@ -2,7 +2,7 @@
 #include<fcntl.h>
 #include<unistd.h>
 #include<errno.h>
-
+#include<string.h>
 int main() {
     int ret;
     ret = rmdir("filetest");
@@ -24,7 +24,12 @@ int main() {
 	fd= open("filetest/a.txt", O_RDWR);
     fp = fdopen(fd, "r");
     fgets(s, 50, fp);
-	if(strcmp("1 2 3 4\n5 6 7 8\n", s)) {
+	if(strcmp("1 2 3 4", s)) {
+		perror("fdopen and freopen failed");
+		return -1;
+	}
+    fgets(s, 50, fp);
+	if(strcmp("5 6 7 8", s)) {
 		perror("fdopen and freopen failed");
 		return -1;
 	}
