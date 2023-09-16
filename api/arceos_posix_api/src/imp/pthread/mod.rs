@@ -17,8 +17,8 @@ use spin::RwLock;
 
 use crate::ctypes;
 
-pub mod mutex;
 pub mod condvar;
+pub mod mutex;
 
 lazy_static::lazy_static! {
     static ref TID_TO_PTHREAD: RwLock<BTreeMap<u64, ForceSendSync<ctypes::pthread_t>>> = {

@@ -24,6 +24,7 @@ net = ["axdriver", "axnet"]
 display = ["axdriver", "axdisplay"]
 
 [dependencies]
+cfg-if = "1.0"
 axhal = { path = "../axhal" }
 axlog = { path = "../axlog" }
 axconfig = { path = "../axconfig" }

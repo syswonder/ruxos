@@ -20,7 +20,7 @@ documentation = "https://rcore-os.github.io/arceos/axlibc/index.html"
 crate-type = ["staticlib"]
 
 [features]
-default = ["multitask"]
+default = []
 
 # Multicore
 smp = ["arceos_posix_api/smp"]

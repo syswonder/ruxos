@@ -14,20 +14,6 @@
 #include <stdio.h>
 #include <string.h>
 
-size_t strlen(const char *s)
-{
-    const char *a = s;
-    for (; *s; s++)
-        ;
-    return s - a;
-}
-
-size_t strnlen(const char *s, size_t n)
-{
-    const char *p = memchr(s, 0, n);
-    return p ? p - s : n;
-}
-
 int atoi(const char *s)
 {
     int n = 0, neg = 0;

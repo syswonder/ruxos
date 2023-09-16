@@ -9,8 +9,8 @@
 
 use arceos_posix_api::{
     sys_accept, sys_bind, sys_connect, sys_freeaddrinfo, sys_getaddrinfo, sys_getpeername,
-    sys_getsockname, sys_listen, sys_recv, sys_recvfrom, sys_send, sys_sendto, sys_shutdown,
-    sys_socket, sys_sendmsg
+    sys_getsockname, sys_listen, sys_recv, sys_recvfrom, sys_send, sys_sendmsg, sys_sendto,
+    sys_shutdown, sys_socket,
 };
 use core::ffi::{c_char, c_int, c_void};
 
@@ -194,5 +194,5 @@ pub extern "C" fn ax_sendmsg(
     msg: *const ctypes::msghdr,
     flags: c_int,
 ) -> ctypes::ssize_t {
-	e(sys_sendmsg(socket_fd, msg, flags) as _) as _
+    e(sys_sendmsg(socket_fd, msg, flags) as _) as _
 }

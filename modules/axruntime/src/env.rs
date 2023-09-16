@@ -14,16 +14,17 @@ use core::{ptr, usize};
 /// argv for C main function
 #[allow(non_upper_case_globals)]
 pub static mut argv: *mut *mut c_char = ptr::null_mut();
-#[allow(non_upper_case_globals)]
-static mut inner_argv: Vec<*mut c_char> = Vec::new();
 
-/// A pointer pointing to OUR_ENVIRON
+/// Save cmdline argments
+static mut RX_ARGV: Vec<*mut c_char> = Vec::new();
+
+/// A pointer pointing to RX_ENVIRON
 #[allow(non_upper_case_globals)]
 #[no_mangle]
 pub static mut environ: *mut *mut c_char = ptr::null_mut();
 
 /// Save environment variables
-pub static mut OUR_ENVIRON: Vec<*mut c_char> = Vec::new();
+pub static mut RX_ENVIRON: Vec<*mut c_char> = Vec::new();
 
 pub(crate) unsafe fn init_argv(args: Vec<&str>) {
     for arg in args {
@@ -34,10 +35,10 @@ pub(crate) unsafe fn init_argv(args: Vec<&str>) {
             *buf.add(i) = *arg.add(i) as i8;
         }
         *buf.add(len) = 0;
-        inner_argv.push(buf);
+        RX_ARGV.push(buf);
     }
-    inner_argv.push(ptr::null_mut());
-    argv = inner_argv.as_mut_ptr();
+    RX_ARGV.push(ptr::null_mut());
+    argv = RX_ARGV.as_mut_ptr();
 }
 
 /// Generate an iterator for environment variables
@@ -71,16 +72,18 @@ unsafe fn buf_alloc(size: usize) -> *mut c_char {
     alloc_ptr.add(1).cast()
 }
 
-pub(crate) unsafe fn boot_add_environ(env: &str) {
+pub(crate) fn boot_add_environ(env: &str) {
     let ptr = env.as_ptr() as *const i8;
-    let size = env.len() + 1; // 算上/0
+    let size = env.len() + 1;
     if size == 1 {
         return;
     }
-    let buf = buf_alloc(size);
-    for i in 0..size - 1 {
-        core::ptr::write(buf.add(i), *ptr.add(i));
+    unsafe {
+        let buf = buf_alloc(size);
+        for i in 0..size - 1 {
+            core::ptr::write(buf.add(i), *ptr.add(i));
+        }
+        core::ptr::write(buf.add(size - 1), 0);
+        RX_ENVIRON.push(buf);
     }
-    core::ptr::write(buf.add(size - 1), 0);
-    OUR_ENVIRON.push(buf);
 }

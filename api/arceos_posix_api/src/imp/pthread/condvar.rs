@@ -5,14 +5,11 @@ use axerrno::LinuxResult;
 use axtask::WaitQueue;
 use core::mem::size_of;
 
-static_assertions::const_assert_eq!(
-    size_of::<Condvar>(),
-    size_of::<ctypes::pthread_cond_t>()
-);
+static_assertions::const_assert_eq!(size_of::<Condvar>(), size_of::<ctypes::pthread_cond_t>());
 
 #[repr(C)]
 pub struct Condvar {
-    wq: WaitQueue, 
+    wq: WaitQueue,
 }
 
 impl Condvar {
@@ -22,26 +19,26 @@ impl Condvar {
         }
     }
 
-    fn wait(&self, mutex: *mut ctypes::pthread_mutex_t ) -> LinuxResult {
-		let ret = sys_pthread_mutex_unlock(mutex);
-		if  ret < 0 {
-			return Err(axerrno::LinuxError::try_from(ret).unwrap());
-		}
-		self.wq.wait();
-		let ret = sys_pthread_mutex_lock(mutex);
-		if  ret < 0 {
-			return Err(axerrno::LinuxError::try_from(ret).unwrap());
-		}
+    fn wait(&self, mutex: *mut ctypes::pthread_mutex_t) -> LinuxResult {
+        let ret = sys_pthread_mutex_unlock(mutex);
+        if ret < 0 {
+            return Err(axerrno::LinuxError::try_from(ret).unwrap());
+        }
+        self.wq.wait();
+        let ret = sys_pthread_mutex_lock(mutex);
+        if ret < 0 {
+            return Err(axerrno::LinuxError::try_from(ret).unwrap());
+        }
         Ok(())
     }
 
     fn notify_one(&self) -> LinuxResult {
-		self.wq.notify_one(true);
+        self.wq.notify_one(true);
         Ok(())
     }
 
     fn notify_all(&self) -> LinuxResult {
-		self.wq.notify_all(true);
+        self.wq.notify_all(true);
         Ok(())
     }
 }

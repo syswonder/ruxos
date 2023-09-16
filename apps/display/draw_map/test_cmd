@@ -1,0 +1,1 @@
+make A=apps/display/draw_map GRAPHIC=y run

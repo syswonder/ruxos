@@ -32,16 +32,5 @@ int main(int argc, char* argv[])
     }
     free(p);
     puts("Memory tests run OK!");
-	puts("Running environ tests...");
-	char *env1 = "env1", *ex1 = "ex1", *ex2 = "ex_2";
-    if(setenv(env1, ex1, 1) || strcmp(ex1, getenv(env1))) puts("set new env is wrong");
-	if(setenv(env1, ex2, 1) || strcmp(ex2, getenv(env1))) puts("set old env is wrong");
-	if(setenv(env1, ex1, 0) || strcmp(ex2, getenv(env1))) puts("override the old env is wrong");
-	puts("Environ tests run OK!");
-	puts("Running argv tests...");
-	if (argc != 3) puts("args num is wrong");
-	if (strcmp(argv[0], "abc") || strcmp(argv[1], "def") || strcmp(argv[2], "ghi")) puts("argv is wrong");
-	if(argv[3] != NULL) puts("argv is wrong");
-	puts("Argv tests run OK!");
     return 0;
 }

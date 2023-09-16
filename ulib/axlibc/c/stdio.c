@@ -69,7 +69,7 @@ static int out(FILE *f, const char *s, size_t l)
     for (size_t i = 0; i < l; i++) {
         char c = s[i];
         f->buf[f->buffer_len++] = c;
-        if (f->buffer_len == FILE_BUF_SIZE || c == '\n') {
+        if (f->buffer_len == FILE_BUF_SIZE || c == '\n' || i == l - 1) {
             int r = __write_buffer(f);
             __clear_buffer(f);
             if (r < 0)
@@ -240,7 +240,7 @@ char *fgets(char *restrict s, int n, FILE *restrict f)
     while (cnt < n - 1) {
         char c;
         if (read(f->fd, (void *)&c, 1) > 0) {
-            if (c != '\n')
+            if (c != '\0')
                 s[cnt++] = c;
             else
                 break;

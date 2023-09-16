@@ -6,11 +6,11 @@
  *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  *   See the Mulan PSL v2 for more details.
  */
-use arceos_posix_api::{environ, environ_iter, OUR_ENVIRON};
+use arceos_posix_api::{environ, environ_iter, RX_ENVIRON};
 use core::ffi::{c_char, c_int, c_void};
 
 use crate::malloc::{free, malloc};
-
+use crate::string::strlen;
 unsafe fn find_env(search: *const c_char) -> Option<(usize, *mut c_char)> {
     for (i, mut item) in environ_iter().enumerate() {
         let mut search = search;
@@ -40,33 +40,18 @@ unsafe fn find_env(search: *const c_char) -> Option<(usize, *mut c_char)> {
 unsafe fn put_new_env(insert: *mut c_char) {
     // XXX: Another problem is that `environ` can be set to any pointer, which means there is a
     // chance of a memory leak. But we can check if it was the same as before, like musl does.
-    if environ == OUR_ENVIRON.as_mut_ptr() {
-        *OUR_ENVIRON.last_mut().unwrap() = insert;
-        OUR_ENVIRON.push(core::ptr::null_mut());
+    if environ == RX_ENVIRON.as_mut_ptr() {
+        *RX_ENVIRON.last_mut().unwrap() = insert;
+        RX_ENVIRON.push(core::ptr::null_mut());
         // Likely a no-op but is needed due to Stacked Borrows.
-        environ = OUR_ENVIRON.as_mut_ptr();
+        environ = RX_ENVIRON.as_mut_ptr();
     } else {
-        OUR_ENVIRON.clear();
-        OUR_ENVIRON.extend(environ_iter());
-        OUR_ENVIRON.push(insert);
-        OUR_ENVIRON.push(core::ptr::null_mut());
-        environ = OUR_ENVIRON.as_mut_ptr();
+        RX_ENVIRON.clear();
+        RX_ENVIRON.extend(environ_iter());
+        RX_ENVIRON.push(insert);
+        RX_ENVIRON.push(core::ptr::null_mut());
+        environ = RX_ENVIRON.as_mut_ptr();
     }
-}
-
-unsafe fn strlen(s: *const c_char) -> usize {
-    strnlen(s, usize::MAX)
-}
-
-unsafe fn strnlen(s: *const c_char, size: usize) -> usize {
-    let mut i = 0;
-    while i < size {
-        if *s.add(i) == 0 {
-            break;
-        }
-        i += 1;
-    }
-    i
 }
 
 unsafe fn copy_kv(
@@ -120,27 +105,27 @@ pub unsafe extern "C" fn setenv(
 #[no_mangle]
 pub unsafe extern "C" fn unsetenv(key: *const c_char) -> c_int {
     if let Some((i, _)) = find_env(key) {
-        if environ == OUR_ENVIRON.as_mut_ptr() {
+        if environ == RX_ENVIRON.as_mut_ptr() {
             // No need to worry about updating the pointer, this does not
             // reallocate in any way. And the final null is already shifted back.
-            let rm = OUR_ENVIRON.remove(i);
+            let rm = RX_ENVIRON.remove(i);
             free(rm as *mut c_void);
             // My UB paranoia.
-            environ = OUR_ENVIRON.as_mut_ptr();
+            environ = RX_ENVIRON.as_mut_ptr();
         } else {
-            let len = OUR_ENVIRON.len();
+            let len = RX_ENVIRON.len();
             for _ in 0..len {
-                let rm = OUR_ENVIRON.pop().unwrap();
+                let rm = RX_ENVIRON.pop().unwrap();
                 free(rm as *mut c_void);
             }
-            OUR_ENVIRON.extend(
+            RX_ENVIRON.extend(
                 environ_iter()
                     .enumerate()
                     .filter(|&(j, _)| j != i)
                     .map(|(_, v)| v),
             );
-            OUR_ENVIRON.push(core::ptr::null_mut());
-            environ = OUR_ENVIRON.as_mut_ptr();
+            RX_ENVIRON.push(core::ptr::null_mut());
+            environ = RX_ENVIRON.as_mut_ptr();
         }
     }
     0

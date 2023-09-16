@@ -13,10 +13,18 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <sys/uio.h>
 
 const char request[] = "\
 GET / HTTP/1.1\r\n\
 Host: ident.me\r\n\
+Accept: */*\r\n\
+\r\n";
+
+char request1[] = "\
+GET / HTTP/1.1\r\n";
+
+char request2[] = "Host: ident.me\r\n\
 Accept: */*\r\n\
 \r\n";
 
@@ -58,7 +66,20 @@ int main()
     }
     rebuf[l] = '\0';
     printf("%s\n", rebuf);
-
+	// test sendmsg
+	struct iovec iovs[2] = {        
+							{ .iov_base = request1, .iov_len = strlen(request1)},
+							{ .iov_base = request2, .iov_len = strlen(request2)}
+						};
+    struct msghdr mg = {
+        .msg_iov = iovs,
+        .msg_iovlen = 2
+    };
+    int num = sendmsg(sock, &mg, 0);
+	if (num == -1) {
+		perror("sendmsg() error");
+        return -1;
+	}
     freeaddrinfo(res);
 
     return 0;

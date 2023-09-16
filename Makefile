@@ -6,6 +6,8 @@
 #     - `MODE`: Build mode: release, debug
 #     - `LOG:` Logging level: warn, error, info, debug, trace
 #     - `V`: Verbose level: (empty), 1, 2
+#	  - `ARGS`: Command-line arguments separated by comma. Only available when feature `alloc` is enabled.
+#	  - `ENVS`: Environment variables, separated by comma between key value pairs. Only available when feature `alloc` is enabled.
 # * App options:
 #     - `A` or `APP`: Path to the application
 #     - `FEATURES`: Features os ArceOS modules to be enabled.
@@ -53,7 +55,7 @@ NET_DEV ?= user
 IP ?= 10.0.2.15
 GW ?= 10.0.2.2
 
-#args and env
+# args and envs
 ARGS ?= 
 ENVS ?= 
 

@@ -591,17 +591,10 @@ pub unsafe fn sys_getpeername(
 
 /// Send a message on a socket to the address connected.
 /// The  message is pointed to by the elements of the array msg.msg_iov.
-/// 
+///
 /// Return the number of bytes sent if success.
-pub fn sys_sendmsg(
-    socket_fd: c_int,
-    msg: *const ctypes::msghdr,
-    flags: c_int,
-) -> ctypes::ssize_t {
-    debug!(
-        "sys_sendmsg <= {} {:#x} {}",
-        socket_fd, msg as usize, flags
-    );
+pub fn sys_sendmsg(socket_fd: c_int, msg: *const ctypes::msghdr, flags: c_int) -> ctypes::ssize_t {
+    debug!("sys_sendmsg <= {} {:#x} {}", socket_fd, msg as usize, flags);
     syscall_body!(sys_sendmsg, {
         if msg.is_null() {
             return Err(LinuxError::EFAULT);
@@ -618,9 +611,13 @@ pub fn sys_sendmsg(
             if iov.iov_base.is_null() {
                 return Err(LinuxError::EFAULT);
             }
-            let buf = unsafe { core::slice::from_raw_parts(iov.iov_base as *const u8, iov.iov_len) };
+            let buf =
+                unsafe { core::slice::from_raw_parts(iov.iov_base as *const u8, iov.iov_len) };
             ret += match &socket as &Socket {
-                Socket::Udp(udpsocket) => udpsocket.lock().send_to(buf, from_sockaddr(msg.msg_name as *const ctypes::sockaddr, msg.msg_namelen)?)?,
+                Socket::Udp(udpsocket) => udpsocket.lock().send_to(
+                    buf,
+                    from_sockaddr(msg.msg_name as *const ctypes::sockaddr, msg.msg_namelen)?,
+                )?,
                 Socket::Tcp(tcpsocket) => tcpsocket.lock().send(buf)?,
             };
         }

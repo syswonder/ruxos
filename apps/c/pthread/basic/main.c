@@ -126,6 +126,47 @@ void test_mutex()
     assert(data == NUM_THREADS);
 }
 
+// test condition variable
+pthread_cond_t condvar;
+int A = 0;
+
+void *first(void *arg)
+{
+    sleep(5);
+    puts("First work, Change A --> 1 and wakeup Second");
+    pthread_mutex_lock(&lock);
+    A = 1;
+    pthread_cond_signal(&condvar);
+    pthread_mutex_unlock(&lock);
+    return NULL;
+
+}
+
+void *second(void *arg)
+{
+    puts("Second want to continue,but need to wait A=1");
+    pthread_mutex_lock(&lock);
+    while (A == 0) {
+        printf("Second: A is {}", A);
+        pthread_cond_wait(&condvar, &lock);
+    }
+    printf("A is {}, Second can work now", A);
+    pthread_mutex_unlock(&lock);
+    return NULL;
+}
+
+void test_condvar()
+{
+    pthread_t t1, t2;
+    pthread_cond_init(&condvar, NULL);
+
+    pthread_create(&t1, NULL, first, NULL);
+    pthread_create(&t2, NULL, second, NULL);
+
+    pthread_join(t1, NULL);
+    pthread_join(t2, NULL);
+}
+
 int main()
 {
     pthread_t main_thread = pthread_self();

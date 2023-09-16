@@ -247,7 +247,7 @@ pub fn sys_unlink(pathname: *const c_char) -> c_int {
 
 /// Creates a new, empty directory at the provided path.
 pub fn sys_mkdir(pathname: *const c_char, mode: ctypes::mode_t) -> c_int {
-	// TODO: implement mode
+    // TODO: implement mode
     syscall_body!(sys_mkdir, {
         let path = char_ptr_to_str(pathname)?;
         debug!("ax_mkdir <= path: {:?}, mode: {:?}", path, mode);
