@@ -69,7 +69,7 @@ static int out(FILE *f, const char *s, size_t l)
     for (size_t i = 0; i < l; i++) {
         char c = s[i];
         f->buf[f->buffer_len++] = c;
-        if (f->buffer_len == FILE_BUF_SIZE || c == '\n' || i == l - 1) {
+        if (f->buffer_len == FILE_BUF_SIZE || c == '\n') {
             int r = __write_buffer(f);
             __clear_buffer(f);
             if (r < 0)

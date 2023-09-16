@@ -189,7 +189,7 @@ pub unsafe extern "C" fn getpeername(
 }
 
 #[no_mangle]
-pub extern "C" fn ax_sendmsg(
+pub unsafe extern "C" fn ax_sendmsg(
     socket_fd: c_int,
     msg: *const ctypes::msghdr,
     flags: c_int,

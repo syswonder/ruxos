@@ -593,17 +593,21 @@ pub unsafe fn sys_getpeername(
 /// The  message is pointed to by the elements of the array msg.msg_iov.
 ///
 /// Return the number of bytes sent if success.
-pub fn sys_sendmsg(socket_fd: c_int, msg: *const ctypes::msghdr, flags: c_int) -> ctypes::ssize_t {
+pub unsafe fn sys_sendmsg(
+    socket_fd: c_int,
+    msg: *const ctypes::msghdr,
+    flags: c_int,
+) -> ctypes::ssize_t {
     debug!("sys_sendmsg <= {} {:#x} {}", socket_fd, msg as usize, flags);
     syscall_body!(sys_sendmsg, {
         if msg.is_null() {
             return Err(LinuxError::EFAULT);
         }
-        let msg = unsafe { *msg };
+        let msg = *msg;
         if msg.msg_iov.is_null() {
             return Err(LinuxError::EFAULT);
         }
-        let iovs = unsafe { core::slice::from_raw_parts(msg.msg_iov, msg.msg_iovlen as usize) };
+        let iovs = core::slice::from_raw_parts(msg.msg_iov, msg.msg_iovlen as usize);
         let socket = Socket::from_fd(socket_fd)?;
         let mut ret = 0;
 
@@ -611,8 +615,7 @@ pub fn sys_sendmsg(socket_fd: c_int, msg: *const ctypes::msghdr, flags: c_int) -
             if iov.iov_base.is_null() {
                 return Err(LinuxError::EFAULT);
             }
-            let buf =
-                unsafe { core::slice::from_raw_parts(iov.iov_base as *const u8, iov.iov_len) };
+            let buf = core::slice::from_raw_parts(iov.iov_base as *const u8, iov.iov_len);
             ret += match &socket as &Socket {
                 Socket::Udp(udpsocket) => udpsocket.lock().send_to(
                     buf,
