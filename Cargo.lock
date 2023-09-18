@@ -152,6 +152,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "arceos-systime"
+version = "0.1.0"
+dependencies = [
+ "axstd",
+]
+
+[[package]]
 name = "arceos-tls"
 version = "0.1.0"
 dependencies = [

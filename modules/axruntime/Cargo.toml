@@ -10,8 +10,7 @@ repository = "https://github.com/rcore-os/arceos/tree/main/modules/axruntime"
 documentation = "https://rcore-os.github.io/arceos/axruntime/index.html"
 
 [features]
-default = ["axhal/rtc"]
-#default = []
+default = []
 
 smp = ["axhal/smp"]
 irq = ["axhal/irq", "axtask?/irq", "percpu", "kernel_guard"]
