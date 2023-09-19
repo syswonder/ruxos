@@ -57,6 +57,8 @@ typedef struct {{
             "pthread_attr_t",
             "pthread_mutex_t",
             "pthread_mutexattr_t",
+            "pollfd",
+            "nfds_t",
             "epoll_event",
             "iovec",
             "clockid_t",

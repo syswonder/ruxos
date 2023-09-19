@@ -11,7 +11,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-int main()
+int main(int argc, char* argv[])
 {
     puts("Running memory tests...");
     uintptr_t *brk = (uintptr_t *)malloc(0);

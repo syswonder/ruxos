@@ -11,6 +11,8 @@ use crate::{ctypes, utils::e};
 
 use core::ffi::c_int;
 
+#[cfg(feature = "poll")]
+use arceos_posix_api::sys_poll;
 #[cfg(feature = "select")]
 use arceos_posix_api::sys_select;
 #[cfg(feature = "epoll")]
@@ -60,4 +62,15 @@ pub unsafe extern "C" fn select(
     timeout: *mut ctypes::timeval,
 ) -> c_int {
     e(sys_select(nfds, readfds, writefds, exceptfds, timeout))
+}
+
+/// Monitor multiple file descriptors, waiting until one or more of the file descriptors become "ready" for some class of I/O operation
+#[cfg(feature = "poll")]
+#[no_mangle]
+pub unsafe extern "C" fn poll(
+    fds: *mut ctypes::pollfd,
+    nfds: ctypes::nfds_t,
+    timeout: c_int,
+) -> c_int {
+    e(sys_poll(fds, nfds, timeout))
 }

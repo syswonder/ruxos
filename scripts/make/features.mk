@@ -14,7 +14,7 @@
 ifeq ($(APP_TYPE),c)
   ax_feat_prefix := axfeat/
   lib_feat_prefix := axlibc/
-  lib_features := fp_simd alloc multitask fs net fd pipe select epoll
+  lib_features := fp_simd alloc multitask fs net fd pipe select poll epoll random-hw
 else
   # TODO: it's better to use `axfeat/` as `ax_feat_prefix`, but all apps need to have `axfeat` as a dependency
   ax_feat_prefix := axstd/
@@ -28,7 +28,7 @@ ifeq ($(APP_TYPE), c)
   ifneq ($(wildcard $(APP)/features.txt),)    # check features.txt exists
     override FEATURES += $(shell cat $(APP)/features.txt)
   endif
-  ifneq ($(filter fs net pipe select epoll,$(FEATURES)),)
+  ifneq ($(filter fs net pipe select poll epoll,$(FEATURES)),)
     override FEATURES += fd
   endif
 endif
