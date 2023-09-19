@@ -34,6 +34,5 @@ part 13: ThreadId(17) \[1625000, 1750000)
 part 14: ThreadId(18) \[1750000, 1875000)
 part 15: ThreadId(19) \[1875000, 2000000)
 part 15: ThreadId(19) finished
-sum = 87362923216
 Parallel summation tests run OK!
 Shutting down...
