@@ -1,4 +1,5 @@
 use core::intrinsics::{volatile_load, volatile_store};
+use core::fmt;
 
 static RTC_DR: u32 = 0x000;
 static RTC_MR: u32 = 0x004;
@@ -28,16 +29,22 @@ pub struct Pl031rtc {
     pub address: usize,
 }
 
-pub const PHYS_OFFSET: usize = 0xffff_0000_0000_0000;
-pub const PHYS_RTC: usize = PHYS_OFFSET + 0x09010000;
+pub const PHYS_RTC: usize = axconfig::PHYS_VIRT_OFFSET + 0x09010000;
+
+impl fmt::Display for Pl031rtc {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f,"RTC DR: {}\n",unsafe { self.read(RTC_DR) } as u64)?;
+        writeln!(f,"RTC MR: {}\n",unsafe { self.read(RTC_MR) } as u64)?;
+        writeln!(f,"RTC LR: {}\n",unsafe { self.read(RTC_LR) } as u64)?;
+        writeln!(f,"RTC CR: {}\n",unsafe { self.read(RTC_CR) } as u64)?;
+        writeln!(f,"RTC_IMSC: {}\n",unsafe { self.read(RTC_IMSC) } as u64)
+    }
+}
 
 impl Pl031rtc {
     fn debug(&mut self) {
-        debug!("RTC DR: {}",unsafe { self.read(RTC_DR) } as u64);
-        debug!("RTC MR: {}",unsafe { self.read(RTC_MR) } as u64);
-        debug!("RTC LR: {}",unsafe { self.read(RTC_LR) } as u64);
-        debug!("RTC CR: {}",unsafe { self.read(RTC_CR) } as u64);
-        debug!("RTC_IMSC: {}",unsafe { self.read(RTC_IMSC) } as u64);
+        use axlog::ax_println;
+        ax_println!("{}",self);
     }
 
     fn init(&mut self) {
