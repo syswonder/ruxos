@@ -78,20 +78,6 @@ ssize_t readlink(const char *path, char *buf, size_t bufsiz)
 }
 
 // TODO:
-int unlink(const char *pathname)
-{
-    unimplemented();
-    return 0;
-}
-
-// TODO:
-int rmdir(const char *pathname)
-{
-    unimplemented();
-    return 0;
-}
-
-// TODO:
 int fsync(int fd)
 {
     unimplemented();
