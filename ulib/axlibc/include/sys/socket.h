@@ -329,6 +329,13 @@ int socketpair (int, int, int, int [2]);
 #define SO_RCVTIMEO SO_RCVTIMEO_OLD
 #define SO_SNDTIMEO SO_SNDTIMEO_OLD
 
+<<<<<<< HEAD
+=======
+#define __CMSG_LEN(cmsg) (((cmsg)->cmsg_len + sizeof(long) - 1) & ~(long)(sizeof(long) - 1))
+#define __CMSG_NEXT(cmsg) ((unsigned char *)(cmsg) + __CMSG_LEN(cmsg))
+#define __MHDR_END(mhdr) ((unsigned char *)(mhdr)->msg_control + (mhdr)->msg_controllen)
+
+>>>>>>> 5f9be66 (add some C functions)
 #define CMSG_DATA(cmsg) ((unsigned char *) (((struct cmsghdr *)(cmsg)) + 1))
 #define CMSG_NXTHDR(mhdr, cmsg) ((cmsg)->cmsg_len < sizeof (struct cmsghdr) || \
 	__CMSG_LEN(cmsg) + sizeof(struct cmsghdr) >= __MHDR_END(mhdr) - (unsigned char *)(cmsg) \
@@ -338,11 +345,8 @@ int socketpair (int, int, int, int [2]);
 #define CMSG_ALIGN(len) (((len) + sizeof (size_t) - 1) & (size_t) ~(sizeof (size_t) - 1))
 #define CMSG_SPACE(len) (CMSG_ALIGN (len) + CMSG_ALIGN (sizeof (struct cmsghdr)))
 #define CMSG_LEN(len)   (CMSG_ALIGN (sizeof (struct cmsghdr)) + (len))
-
 struct linger {
 	int l_onoff;
 	int l_linger;
 };
-
-
 #endif // __SOCKET_H__

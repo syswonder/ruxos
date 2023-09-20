@@ -225,10 +225,33 @@ pub fn sys_rename(old: *const c_char, new: *const c_char) -> c_int {
     })
 }
 
-/// pread
-pub fn sys_pread64(fd: c_int, buf: *const c_void, count: c_size_t, offset: off_t) -> c_ssize_t {
-    info!("sys_pread64");
-    syscall_body!(sys_pread64, {
+/// Remove a directory, which must be empty
+pub fn sys_rmdir(pathname: *const c_char) -> c_int {
+    syscall_body!(sys_rmdir, {
+        let path = char_ptr_to_str(pathname)?;
+        debug!("sys_rmdir <= path: {:?}", path);
+        axfs::api::remove_dir(path)?;
+        Ok(0)
+    })
+}
+
+/// Removes a file from the filesystem.
+pub fn sys_unlink(pathname: *const c_char) -> c_int {
+    syscall_body!(sys_unlink, {
+        let path = char_ptr_to_str(pathname)?;
+        debug!("ax_unlink <= path: {:?}", path);
+        axfs::api::remove_file(path)?;
+        Ok(0)
+    })
+}
+
+/// Creates a new, empty directory at the provided path.
+pub fn sys_mkdir(pathname: *const c_char, mode: ctypes::mode_t) -> c_int {
+    // TODO: implement mode
+    syscall_body!(sys_mkdir, {
+        let path = char_ptr_to_str(pathname)?;
+        debug!("ax_mkdir <= path: {:?}, mode: {:?}", path, mode);
+        axfs::api::create_dir(path)?;
         Ok(0)
     })
 }

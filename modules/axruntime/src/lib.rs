@@ -111,27 +111,6 @@ fn is_init_ok() -> bool {
     INITED_CPUS.load(Ordering::Acquire) == axconfig::SMP
 }
 
-#[cfg(feature = "alloc")]
-cfg_if::cfg_if! {
-    if #[cfg(any(target_arch = "x86", target_arch = "x86_64"))] {
-        fn get_boot_str() -> &'static str {
-            let cmdline_buf: &[u8] = unsafe { &axhal::COMLINE_BUF };
-            let mut len = 0;
-            for c in cmdline_buf.iter() {
-                if *c == 0 {
-                    break;
-                }
-                len += 1;
-            }
-            core::str::from_utf8(&cmdline_buf[..len]).unwrap()
-        }
-    } else {
-        fn get_boot_str() -> &'static str {
-            dtb::get_node("chosen").unwrap().prop("bootargs").str()
-        }
-    }
-}
-
 /// The main entry point of the ArceOS runtime.
 ///
 /// It is called from the bootstrapping code in [axhal]. `cpu_id` is the ID of
@@ -228,36 +207,17 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     while !is_init_ok() {
         core::hint::spin_loop();
     }
-    // environ initialization
+
+    let mut argc: c_int = 0;
+    // environ variables and Command line parameters initialization
     #[cfg(feature = "alloc")]
-    unsafe {
-        use alloc::vec::Vec;
-        let mut boot_str = get_boot_str();
-        (_, boot_str) = match boot_str.split_once(';') {
-            Some((a, b)) => (a, b),
-            None => ("", ""),
-        };
-        let (args, envs) = match boot_str.split_once(';') {
-            Some((a, e)) => (a, e),
-            None => ("", ""),
-        };
-        let envs: Vec<&str> = envs.split(',').collect();
-        for i in envs {
-            boot_add_environ(i);
-        }
-        RX_ENVIRON.push(core::ptr::null_mut());
-        environ = RX_ENVIRON.as_mut_ptr();
-        // set up argvs
-        let args: Vec<&str> = args.split(',').filter(|i| !i.is_empty()).collect();
-        let argc = args.len() as c_int;
-        init_argv(args);
+    init_cmdline(&mut argc);
 
+    unsafe {
+        #[cfg(feature = "alloc")]
         main(argc, argv);
-    }
-
-    #[cfg(not(feature = "alloc"))]
-    unsafe {
-        main(0, core::ptr::null_mut())
+        #[cfg(not(feature = "alloc"))]
+        main(argc, core::ptr::null_mut());
     };
 
     #[cfg(feature = "multitask")]
@@ -266,6 +226,55 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     {
         debug!("main task exited: exit_code={}", 0);
         axhal::misc::terminate();
+    }
+}
+
+#[cfg(feature = "alloc")]
+cfg_if::cfg_if! {
+    if #[cfg(any(target_arch = "x86", target_arch = "x86_64"))] {
+        fn get_boot_str() -> &'static str {
+            let cmdline_buf: &[u8] = unsafe { &axhal::COMLINE_BUF };
+            let mut len = 0;
+            for c in cmdline_buf.iter() {
+                if *c == 0 {
+                    break;
+                }
+                len += 1;
+            }
+            core::str::from_utf8(&cmdline_buf[..len]).unwrap()
+        }
+    } else {
+        fn get_boot_str() -> &'static str {
+            dtb::get_node("chosen").unwrap().prop("bootargs").str()
+        }
+    }
+}
+
+// initialize environ variables and Command line parameters
+#[cfg(feature = "alloc")]
+fn init_cmdline(argc: &mut c_int) {
+    use alloc::vec::Vec;
+    let mut boot_str = get_boot_str();
+    (_, boot_str) = match boot_str.split_once(';') {
+        Some((a, b)) => (a, b),
+        None => ("", ""),
+    };
+    let (args, envs) = match boot_str.split_once(';') {
+        Some((a, e)) => (a, e),
+        None => ("", ""),
+    };
+    // set env
+    let envs: Vec<&str> = envs.split(',').collect();
+    for i in envs {
+        boot_add_environ(i);
+    }
+    // set args
+    unsafe {
+        RX_ENVIRON.push(core::ptr::null_mut());
+        environ = RX_ENVIRON.as_mut_ptr();
+        let args: Vec<&str> = args.split(',').filter(|i| !i.is_empty()).collect();
+        *argc = args.len() as c_int;
+        init_argv(args);
     }
 }
 
