@@ -18,6 +18,7 @@ use spin::RwLock;
 use super::stdio::{stdin, stdout};
 use crate::ctypes;
 
+/// Maximum number of files per process
 pub const AX_FILE_LIMIT: usize = 1024;
 
 pub trait FileLike: Send + Sync {
