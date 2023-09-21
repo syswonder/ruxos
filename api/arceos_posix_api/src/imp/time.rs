@@ -64,7 +64,11 @@ pub unsafe fn sys_clock_settime(_clk: ctypes::clockid_t, ts: *mut ctypes::timesp
         }
         let new_tv = Duration::from(*ts);
         axhal::time::set_current_time(new_tv);
-        debug!("sys_clock_setttime: {}.{:09}s", new_tv.as_secs(), new_tv.as_nanos());
+        debug!(
+            "sys_clock_setttime: {}.{:09}s",
+            new_tv.as_secs(),
+            new_tv.as_nanos()
+        );
         Ok(0)
     })
 }

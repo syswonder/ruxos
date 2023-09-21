@@ -26,7 +26,7 @@ impl Instant {
     }
 
     /// return time value
-    pub fn current_time(&self) -> Duration{
+    pub fn current_time(&self) -> Duration {
         self.0
     }
 

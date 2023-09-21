@@ -9,30 +9,28 @@
 #![cfg_attr(feature = "axstd", no_std)]
 #![cfg_attr(feature = "axstd", no_main)]
 
-
 #[cfg(feature = "axstd")]
 use axstd::println;
 #[cfg(feature = "axstd")]
 use axstd::time::Instant;
 
-struct DateTime{
+struct DateTime {
     year: u64,
-    mon: u64, 
-    mday: u64, 
-    hour: u64, 
-    min: u64, 
+    mon: u64,
+    mday: u64,
+    hour: u64,
+    min: u64,
     sec: u64,
 }
 
 fn convert_unix_time(unix_time: u64) -> DateTime {
-
     let secs = unix_time;
 
     let t = secs;
     let mut tdiv = t / 86400;
     let mut tt = t % 86400;
     let hour = tt / 3600;
-    println!("{},{}",tt,hour);
+    println!("{},{}", tt, hour);
     tt %= 3600;
     let min = tt / 60;
     tt %= 60;
@@ -62,8 +60,14 @@ fn convert_unix_time(unix_time: u64) -> DateTime {
 
     let mday = tdiv + 1;
 
-    DateTime { year, mon, mday, hour, min, sec }
-
+    DateTime {
+        year,
+        mon,
+        mday,
+        hour,
+        min,
+        sec,
+    }
 }
 
 fn is_leap_year(year: u64) -> bool {
@@ -90,13 +94,13 @@ fn main() {
     println!("test systime");
     let instant1 = Instant::now();
     let time1 = instant1.current_time();
-    println!("time1 {:?}",time1);
+    println!("time1 {:?}", time1);
     let instant2 = Instant::now();
     let time2 = instant2.current_time();
-    println!("time2 {:?}",time2);
+    println!("time2 {:?}", time2);
     let instant3 = Instant::now();
     let time3 = instant3.current_time().as_secs();
-    println!("time3 {:?}",time3);
+    println!("time3 {:?}", time3);
     let date = convert_unix_time(time3);
     println!(
         "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",

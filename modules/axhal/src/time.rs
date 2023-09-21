@@ -24,7 +24,7 @@ pub use crate::platform::time::set_oneshot_timer;
 pub use crate::platform::time::{current_ticks, nanos_to_ticks, ticks_to_nanos};
 #[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
 #[cfg(feature = "rtc")]
-pub use crate::platform::time::{rtc_read_time,rtc_write_time};
+pub use crate::platform::time::{rtc_read_time, rtc_write_time};
 
 /// Number of milliseconds in a second.
 pub const MILLIS_PER_SEC: u64 = 1_000;
@@ -55,14 +55,13 @@ pub fn current_time() -> TimeValue {
 }
 
 /// set time value
-pub fn set_current_time(_new_tv:TimeValue){
+pub fn set_current_time(_new_tv: TimeValue) {
     #[cfg(any(target_arch = "x86", target_arch = "x86_64", target_arch = "aarch64"))]
     #[cfg(feature = "rtc")]
     {
         let new_sec = _new_tv.as_secs() as u32;
         rtc_write_time(new_sec);
     }
-    
 }
 
 /// Busy waiting for the given duration.

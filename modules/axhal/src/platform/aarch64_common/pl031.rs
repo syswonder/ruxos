@@ -1,5 +1,5 @@
-use core::intrinsics::{volatile_load, volatile_store};
 use core::fmt;
+use core::intrinsics::{volatile_load, volatile_store};
 
 static RTC_DR: u32 = 0x000;
 static RTC_MR: u32 = 0x004;
@@ -10,18 +10,16 @@ static RTC_RIS: u32 = 0x014;
 static RTC_MIS: u32 = 0x018;
 static RTC_ICR: u32 = 0x01c;
 
-pub static mut PL031_RTC: Pl031rtc = Pl031rtc {
-    address: 0,
-};
+pub static mut PL031_RTC: Pl031rtc = Pl031rtc { address: 0 };
 
 pub fn init() {
     info!("pl031 init begin");
-    unsafe{
+    unsafe {
         PL031_RTC.init();
         let x = rtc_read_time();
-        debug!("{}",x);
+        debug!("{}", x);
         let x = rtc_read_time();
-        debug!("{}",x);
+        debug!("{}", x);
     }
 }
 
@@ -33,25 +31,25 @@ pub const PHYS_RTC: usize = axconfig::PHYS_VIRT_OFFSET + 0x09010000;
 
 impl fmt::Display for Pl031rtc {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f,"RTC DR: {}\n",unsafe { self.read(RTC_DR) } as u64)?;
-        writeln!(f,"RTC MR: {}\n",unsafe { self.read(RTC_MR) } as u64)?;
-        writeln!(f,"RTC LR: {}\n",unsafe { self.read(RTC_LR) } as u64)?;
-        writeln!(f,"RTC CR: {}\n",unsafe { self.read(RTC_CR) } as u64)?;
-        writeln!(f,"RTC_IMSC: {}\n",unsafe { self.read(RTC_IMSC) } as u64)
+        writeln!(f, "RTC DR: {}\n", unsafe { self.read(RTC_DR) } as u64)?;
+        writeln!(f, "RTC MR: {}\n", unsafe { self.read(RTC_MR) } as u64)?;
+        writeln!(f, "RTC LR: {}\n", unsafe { self.read(RTC_LR) } as u64)?;
+        writeln!(f, "RTC CR: {}\n", unsafe { self.read(RTC_CR) } as u64)?;
+        writeln!(f, "RTC_IMSC: {}\n", unsafe { self.read(RTC_IMSC) } as u64)
     }
 }
 
 impl Pl031rtc {
     fn debug(&mut self) {
         use axlog::ax_println;
-        ax_println!("{}",self);
+        ax_println!("{}", self);
     }
 
     fn init(&mut self) {
         self.address = PHYS_RTC;
-        unsafe{
+        unsafe {
             if self.read(RTC_CR) != 1 {
-                self.write(RTC_CR,1);
+                self.write(RTC_CR, 1);
             }
         }
         self.debug();
@@ -71,14 +69,10 @@ impl Pl031rtc {
     }
 }
 
-pub fn rtc_read_time() -> u64{
-    unsafe {
-        PL031_RTC.time()
-    }
+pub fn rtc_read_time() -> u64 {
+    unsafe { PL031_RTC.time() }
 }
 
-pub fn rtc_write_time(seconds:u32){
-    unsafe { 
-        PL031_RTC.write(RTC_LR,seconds) 
-    };
+pub fn rtc_write_time(seconds: u32) {
+    unsafe { PL031_RTC.write(RTC_LR, seconds) };
 }
