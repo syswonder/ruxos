@@ -18,24 +18,56 @@ pub unsafe fn sys_getrlimit(resource: c_int, rlimits: *mut ctypes::rlimit) -> c_
     debug!("sys_getrlimit <= {} {:#x}", resource, rlimits as usize);
     syscall_body!(sys_getrlimit, {
         match resource as u32 {
+            ctypes::RLIMIT_CPU => {}
+            ctypes::RLIMIT_FSIZE => {}
             ctypes::RLIMIT_DATA => {}
             ctypes::RLIMIT_STACK => {}
+            ctypes::RLIMIT_CORE => {}
+            ctypes::RLIMIT_RSS => {}
+            ctypes::RLIMIT_NPROC => {}
             ctypes::RLIMIT_NOFILE => {}
+            ctypes::RLIMIT_MEMLOCK => {}
+            ctypes::RLIMIT_AS => {}
+            ctypes::RLIMIT_LOCKS => {}
+            ctypes::RLIMIT_SIGPENDING => {}
+            ctypes::RLIMIT_MSGQUEUE => {}
+            ctypes::RLIMIT_NICE => {}
+            ctypes::RLIMIT_RTPRIO => {}
+            ctypes::RLIMIT_RTTIME => {}
+            ctypes::RLIMIT_NLIMITS => {}
             _ => return Err(LinuxError::EINVAL),
         }
         if rlimits.is_null() {
             return Ok(0);
         }
         match resource as u32 {
+            ctypes::RLIMIT_CPU => {}
+            ctypes::RLIMIT_FSIZE => {}
+            ctypes::RLIMIT_DATA => {}
             ctypes::RLIMIT_STACK => unsafe {
                 (*rlimits).rlim_cur = axconfig::TASK_STACK_SIZE as _;
                 (*rlimits).rlim_max = axconfig::TASK_STACK_SIZE as _;
+            },
+            ctypes::RLIMIT_CORE => {}
+            ctypes::RLIMIT_RSS => {}
+            ctypes::RLIMIT_NPROC => unsafe {
+                (*rlimits).rlim_cur = 1;
+                (*rlimits).rlim_max = 1;
             },
             #[cfg(feature = "fd")]
             ctypes::RLIMIT_NOFILE => unsafe {
                 (*rlimits).rlim_cur = super::fd_ops::AX_FILE_LIMIT as _;
                 (*rlimits).rlim_max = super::fd_ops::AX_FILE_LIMIT as _;
             },
+            ctypes::RLIMIT_MEMLOCK => {}
+            ctypes::RLIMIT_AS => {}
+            ctypes::RLIMIT_LOCKS => {}
+            ctypes::RLIMIT_SIGPENDING => {}
+            ctypes::RLIMIT_MSGQUEUE => {}
+            ctypes::RLIMIT_NICE => {}
+            ctypes::RLIMIT_RTPRIO => {}
+            ctypes::RLIMIT_RTTIME => {}
+            ctypes::RLIMIT_NLIMITS => {}
             _ => {}
         }
         Ok(0)
