@@ -94,6 +94,7 @@ typedef struct {{
             "msghdr",
             "pthread_cond_t",
             "pthread_condattr_t",
+            "sysinfo",
         ];
         let allow_vars = [
             "O_.*",
