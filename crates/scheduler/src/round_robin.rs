@@ -8,6 +8,7 @@
  */
 
 use alloc::{collections::VecDeque, sync::Arc};
+use core::fmt::Debug;
 use core::ops::Deref;
 use core::sync::atomic::{AtomicIsize, Ordering};
 
@@ -49,6 +50,12 @@ impl<T, const S: usize> Deref for RRTask<T, S> {
     #[inline]
     fn deref(&self) -> &Self::Target {
         &self.inner
+    }
+}
+
+impl<T: Debug, const S: usize> Debug for RRTask<T, S> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:?}", &self.inner)
     }
 }
 

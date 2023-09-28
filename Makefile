@@ -56,6 +56,7 @@ NET ?= n
 GRAPHIC ?= n
 V9P ?= n
 BUS ?= mmio
+RISCV_BIOS ?= $(shell realpath ./platforms/riscv/fw_dynamic.bin)
 
 DISK_IMG ?= disk.img
 QEMU_LOG ?= n
@@ -182,7 +183,8 @@ build: $(OUT_DIR) $(OUT_BIN)
 disasm:
 	$(OBJDUMP) $(OUT_ELF) | less
 
-run: build justrun
+run: build
+	$(call run_qemu)
 
 justrun:
 	$(call run_qemu)

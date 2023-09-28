@@ -212,6 +212,8 @@ pub mod fs {
         pub fn ax_read_dir(dir: &mut AxDirHandle, dirents: &mut [AxDirEntry]) -> AxResult<usize>;
         /// Creates a new, empty directory at the provided path.
         pub fn ax_create_dir(path: &str) -> AxResult;
+        /// Creates a new, empty directory at the provided path, recursively creates all parents.
+        pub fn ax_create_dir_all(path: &str) -> AxResult;
         /// Removes an empty directory.
         ///
         /// If the directory is not empty, it will return an error.

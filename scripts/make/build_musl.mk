@@ -60,9 +60,11 @@ app-objs := $(addprefix $(APP)/,$(app-objs))
 $(APP)/%.o: $(APP)/%.c build_musl
 	$(call run_cmd,$(CC),$(CFLAGS) $(APP_CFLAGS) -c -o $@ $<)
 
+$(rust_lib): _cargo_build
+
 $(OUT_ELF): $(c_lib) $(rust_lib) $(libgcc) $(app-objs)
 	@printf "    $(CYAN_C)Linking$(END_C) $(OUT_ELF)\n"
-	$(call run_cmd,$(LD),$(LDFLAGS) $^ -o $@)
+	$(call run_cmd,$(LD),$(LDFLAGS) $(c_lib) $(rust_lib) $(libgcc) $(app-objs) -o $@)
 
 $(APP)/axbuild.mk: ;
 

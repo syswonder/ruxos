@@ -146,18 +146,16 @@ impl DirBuilder {
 
     /// Creates the specified directory with the options configured in this
     /// builder.
-    pub fn create(&self, path: &str) -> Result<()> {
+    pub fn create<P: AsRef<str>>(&self, path: P) -> Result<()> {
         if self.recursive {
             self.create_dir_all(path)
         } else {
-            api::ax_create_dir(path)
+            api::ax_create_dir(path.as_ref())
         }
     }
 
-    fn create_dir_all(&self, _path: &str) -> Result<()> {
-        axerrno::ax_err!(
-            Unsupported,
-            "Recursive directory creation is not supported yet"
-        )
+    /// Creates a new, empty directory at the provided path, recursively creates all parents.
+    pub fn create_dir_all<P: AsRef<str>>(&self, path: P) -> Result<()> {
+        api::ax_create_dir_all(path.as_ref())
     }
 }

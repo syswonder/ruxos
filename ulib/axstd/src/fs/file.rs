@@ -74,8 +74,8 @@ impl OpenOptions {
     }
 
     /// Opens a file at `path` with the options specified by `self`.
-    pub fn open(&self, path: &str) -> Result<File> {
-        api::ax_open_file(path, &self.0).map(|inner| File { inner })
+    pub fn open<P: AsRef<str>>(&self, path: P) -> Result<File> {
+        api::ax_open_file(path.as_ref(), &self.0).map(|inner| File { inner })
     }
 }
 
@@ -134,12 +134,12 @@ impl fmt::Debug for Metadata {
 
 impl File {
     /// Attempts to open a file in read-only mode.
-    pub fn open(path: &str) -> Result<Self> {
+    pub fn open<P: AsRef<str>>(path: P) -> Result<Self> {
         OpenOptions::new().read(true).open(path)
     }
 
     /// Opens a file in write-only mode.
-    pub fn create(path: &str) -> Result<Self> {
+    pub fn create<P: AsRef<str>>(path: P) -> Result<Self> {
         OpenOptions::new()
             .write(true)
             .create(true)
@@ -148,7 +148,7 @@ impl File {
     }
 
     /// Creates a new file in read-write mode; error if the file exists.
-    pub fn create_new(path: &str) -> Result<Self> {
+    pub fn create_new<P: AsRef<str>>(path: P) -> Result<Self> {
         OpenOptions::new()
             .read(true)
             .write(true)

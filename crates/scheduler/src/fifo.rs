@@ -8,7 +8,7 @@
  */
 
 use alloc::sync::Arc;
-use core::ops::Deref;
+use core::{fmt::Debug, ops::Deref};
 
 use linked_list::{Adapter, Links, List};
 
@@ -51,6 +51,12 @@ impl<T> Deref for FifoTask<T> {
     #[inline]
     fn deref(&self) -> &Self::Target {
         &self.inner
+    }
+}
+
+impl<T: Debug> Debug for FifoTask<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:?}", &self.inner)
     }
 }
 
