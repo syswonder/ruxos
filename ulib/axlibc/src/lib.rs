@@ -113,18 +113,24 @@ pub use self::malloc::{free, malloc};
 pub use self::strftime::strftime;
 
 #[cfg(feature = "fs")]
-pub use self::fs::{ax_open, fstat, getcwd, lseek, lstat, rename, stat};
+pub use self::fs::{ax_open, fstat, getcwd, lseek, lstat, mkdir, rename, rmdir, stat, unlink};
 
 #[cfg(feature = "net")]
 pub use self::net::{
-    accept, bind, connect, freeaddrinfo, getaddrinfo, getpeername, getsockname, listen, recv,
-    recvfrom, send, sendto, shutdown, socket,
+    accept, ax_sendmsg, bind, connect, freeaddrinfo, getaddrinfo, getpeername, getsockname, listen,
+    recv, recvfrom, send, sendto, shutdown, socket,
 };
 
 #[cfg(feature = "multitask")]
+pub use self::pthread::{
+    pthread_cond_broadcast, pthread_cond_init, pthread_cond_signal, pthread_cond_wait,
+};
+#[cfg(feature = "multitask")]
 pub use self::pthread::{pthread_create, pthread_exit, pthread_join, pthread_self};
 #[cfg(feature = "multitask")]
-pub use self::pthread::{pthread_mutex_init, pthread_mutex_lock, pthread_mutex_unlock};
+pub use self::pthread::{
+    pthread_mutex_init, pthread_mutex_lock, pthread_mutex_trylock, pthread_mutex_unlock,
+};
 
 #[cfg(feature = "pipe")]
 pub use self::pipe::pipe;

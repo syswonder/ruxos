@@ -124,6 +124,7 @@ if [ -z "$1" ]; then
         "apps/c/pthread/pipe"
         "apps/c/pthread/parallel"
 		"apps/c/envtest"
+		"apps/c/filetest"
     )
 else
     test_list="$@"

@@ -17,6 +17,7 @@ use spin::RwLock;
 
 use crate::ctypes;
 
+pub mod condvar;
 pub mod mutex;
 
 lazy_static::lazy_static! {
