@@ -430,6 +430,7 @@ dependencies = [
  "axfeat",
  "axio",
  "bindgen",
+ "log",
 ]
 
 [[package]]

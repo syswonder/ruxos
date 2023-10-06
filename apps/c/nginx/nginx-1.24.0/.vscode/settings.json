@@ -1,0 +1,15 @@
+{
+    "files.associations": {
+        "syscall.h": "c",
+        "ngx_event.h": "c",
+        "ngx_config.h": "c",
+        "ngx_auto_headers.h": "c",
+        "ngx_core.h": "c",
+        "select.h": "c",
+        "ngx_channel.h": "c",
+        "ngx_socket.h": "c",
+        "ngx_linux_config.h": "c",
+        "socket.h": "c",
+        "sockaddr.h": "c"
+    }
+}

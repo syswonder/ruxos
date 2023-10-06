@@ -50,6 +50,7 @@ epoll = ["arceos_posix_api/epoll"]
 random-hw = []
 
 [dependencies]
+log = "0.4"
 axfeat = { path = "../../api/axfeat" }
 arceos_posix_api = { path = "../../api/arceos_posix_api" }
 axio = { path = "../../crates/axio" }

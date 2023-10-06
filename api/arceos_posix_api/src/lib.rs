@@ -17,6 +17,7 @@
 #![feature(doc_cfg)]
 #![feature(doc_auto_cfg)]
 #![allow(clippy::missing_safety_doc)]
+#![feature(c_size_t)]
 
 #[macro_use]
 extern crate axlog;
@@ -53,7 +54,7 @@ pub use imp::time::{sys_clock_gettime, sys_clock_settime, sys_nanosleep};
 #[cfg(feature = "fd")]
 pub use imp::fd_ops::{sys_close, sys_dup, sys_dup2, sys_fcntl};
 #[cfg(feature = "fs")]
-pub use imp::fs::{sys_fstat, sys_getcwd, sys_lseek, sys_lstat, sys_open, sys_rename, sys_stat};
+pub use imp::fs::{sys_fstat, sys_getcwd, sys_lseek, sys_lstat, sys_open, sys_rename, sys_stat, sys_pread64};
 #[cfg(feature = "poll")]
 pub use imp::io_mpx::sys_poll;
 #[cfg(feature = "select")]

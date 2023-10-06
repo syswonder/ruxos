@@ -6,9 +6,9 @@
  *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  *   See the Mulan PSL v2 for more details.
  */
-
 use alloc::sync::Arc;
-use core::ffi::{c_char, c_int};
+use core::ffi::{c_char, c_int, c_ssize_t, c_size_t, c_void};
+use crate::ctypes::off_t;
 
 use axerrno::{LinuxError, LinuxResult};
 use axfs::fops::OpenOptions;
@@ -221,6 +221,14 @@ pub fn sys_rename(old: *const c_char, new: *const c_char) -> c_int {
         let new_path = char_ptr_to_str(new)?;
         debug!("sys_rename <= old: {:?}, new: {:?}", old_path, new_path);
         axfs::api::rename(old_path, new_path)?;
+        Ok(0)
+    })
+}
+
+/// pread
+pub fn sys_pread64(fd: c_int, buf: *const c_void, count: c_size_t, offset: off_t) -> c_ssize_t {
+    info!("sys_pread64");
+    syscall_body!(sys_pread64, {
         Ok(0)
     })
 }

@@ -22,6 +22,11 @@ create_test_img() {
 	echo "Rust is cool!" >>"mnt/very/long/path/test.txt"
 	mkdir -p "mnt/very-long-dir-name"
 	echo "Rust is cool!" >>"mnt/very-long-dir-name/very-long-file-name.txt"
+	mkdir -p "mnt/nginx/logs"
+	echo "" >> "mnt/nginx/logs/error.log"
+	mkdir -p "mnt/nginx/conf"
+	cp "/nginx/conf/nginx.conf" "mnt/nginx/conf/nginx.conf"
+	cp "mnt/nginx/conf/nginx.conf" "/home/oslab/Desktop/rukos/nginx.conf"
 
 	sudo umount mnt
 }

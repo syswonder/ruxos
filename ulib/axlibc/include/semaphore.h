@@ -11,6 +11,7 @@ extern "C" {
 #include <bits/alltypes.h>
 
 #include <fcntl.h>
+#include <sys/time.h>
 
 #define SEM_FAILED ((sem_t *)0)
 

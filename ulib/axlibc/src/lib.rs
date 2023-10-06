@@ -40,6 +40,7 @@
 #![feature(naked_functions)]
 #![feature(thread_local)]
 #![allow(clippy::missing_safety_doc)]
+#![feature(c_size_t)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -101,7 +102,7 @@ pub use self::setjmp::{longjmp, setjmp};
 pub use self::string::{strlen, strnlen};
 pub use self::sys::sysconf;
 pub use self::time::{clock_gettime, nanosleep};
-pub use self::unistd::{abort, exit, getpid};
+pub use self::unistd::{abort, exit, getpid, pread64};
 
 #[cfg(feature = "alloc")]
 pub use self::env::{getenv, setenv, unsetenv};

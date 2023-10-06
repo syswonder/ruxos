@@ -14,6 +14,7 @@
 #include <sys/types.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/utsname.h>
 
 // TODO:
 pid_t getppid(void)
@@ -74,8 +75,8 @@ int getpagesize(void)
 // TODO
 ssize_t pread(int fd, void *buf, size_t count, off_t offset)
 {
-    unimplemented();
-    return 0;
+    ssize_t res = pread64(fd,buf,count,offset);
+    return res;
 }
 
 // TODO
@@ -86,10 +87,15 @@ ssize_t pwrite(int fd, const void *buf, size_t count, off_t offset)
 }
 
 // TODO
-int gethostname(char *hostname, size_t size)
+int gethostname(char *name, size_t len)
 {
-    unimplemented();
-    return 0;
+    size_t i;
+	struct utsname uts;
+	if (uname(&uts)) return -1;
+	if (len > sizeof uts.nodename) len = sizeof uts.nodename;
+	for (i=0; i<len && (name[i] = uts.nodename[i]); i++);
+	if (i && i==len) name[i-1] = 0;
+	return 0;
 }
 
 // TODO
