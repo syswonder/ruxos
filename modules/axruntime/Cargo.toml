@@ -15,7 +15,7 @@ default = []
 smp = ["axhal/smp"]
 irq = ["axhal/irq", "axtask?/irq", "percpu", "kernel_guard"]
 tls = ["axhal/tls", "axtask?/tls"]
-alloc = ["axalloc"]
+alloc = ["axalloc", "dtb"]
 paging = ["axhal/paging", "lazy_init"]
 
 multitask = ["axtask/multitask"]
@@ -24,6 +24,7 @@ net = ["axdriver", "axnet"]
 display = ["axdriver", "axdisplay"]
 
 [dependencies]
+cfg-if = "1.0"
 axhal = { path = "../axhal" }
 axlog = { path = "../axlog" }
 axconfig = { path = "../axconfig" }
@@ -38,3 +39,4 @@ crate_interface = { path = "../../crates/crate_interface" }
 percpu = { path = "../../crates/percpu", optional = true }
 kernel_guard = { path = "../../crates/kernel_guard", optional = true }
 lazy_init = { path = "../../crates/lazy_init", optional = true }
+dtb = { path = "../../crates/dtb", optional = true}

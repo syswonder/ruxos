@@ -41,6 +41,16 @@ mod mp;
 #[cfg(feature = "smp")]
 pub use self::mp::rust_main_secondary;
 
+#[cfg(feature = "alloc")]
+extern crate alloc;
+#[cfg(feature = "alloc")]
+mod env;
+#[cfg(feature = "alloc")]
+pub use self::env::{argv, environ, environ_iter, RX_ENVIRON};
+#[cfg(feature = "alloc")]
+use self::env::{boot_add_environ, init_argv};
+use core::ffi::{c_char, c_int};
+
 const LOGO: &str = r#"
        d8888                            .d88888b.   .d8888b.
       d88888                           d88P" "Y88b d88P  Y88b
@@ -53,7 +63,7 @@ d88P     888 888      "Y8888P  "Y8888   "Y88888P"   "Y8888P"
 "#;
 
 extern "C" {
-    fn main();
+    fn main(argc: c_int, argv: *mut *mut c_char);
 }
 
 struct LogIfImpl;
@@ -198,7 +208,17 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
         core::hint::spin_loop();
     }
 
-    unsafe { main() };
+    let mut argc: c_int = 0;
+    // environ variables and Command line parameters initialization
+    #[cfg(feature = "alloc")]
+    init_cmdline(&mut argc);
+
+    unsafe {
+        #[cfg(feature = "alloc")]
+        main(argc, argv);
+        #[cfg(not(feature = "alloc"))]
+        main(argc, core::ptr::null_mut());
+    };
 
     #[cfg(feature = "multitask")]
     axtask::exit(0);
@@ -206,6 +226,55 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     {
         debug!("main task exited: exit_code={}", 0);
         axhal::misc::terminate();
+    }
+}
+
+#[cfg(feature = "alloc")]
+cfg_if::cfg_if! {
+    if #[cfg(any(target_arch = "x86", target_arch = "x86_64"))] {
+        fn get_boot_str() -> &'static str {
+            let cmdline_buf: &[u8] = unsafe { &axhal::COMLINE_BUF };
+            let mut len = 0;
+            for c in cmdline_buf.iter() {
+                if *c == 0 {
+                    break;
+                }
+                len += 1;
+            }
+            core::str::from_utf8(&cmdline_buf[..len]).unwrap()
+        }
+    } else {
+        fn get_boot_str() -> &'static str {
+            dtb::get_node("chosen").unwrap().prop("bootargs").str()
+        }
+    }
+}
+
+// initialize environ variables and Command line parameters
+#[cfg(feature = "alloc")]
+fn init_cmdline(argc: &mut c_int) {
+    use alloc::vec::Vec;
+    let mut boot_str = get_boot_str();
+    (_, boot_str) = match boot_str.split_once(';') {
+        Some((a, b)) => (a, b),
+        None => ("", ""),
+    };
+    let (args, envs) = match boot_str.split_once(';') {
+        Some((a, e)) => (a, e),
+        None => ("", ""),
+    };
+    // set env
+    let envs: Vec<&str> = envs.split(',').collect();
+    for i in envs {
+        boot_add_environ(i);
+    }
+    // set args
+    unsafe {
+        RX_ENVIRON.push(core::ptr::null_mut());
+        environ = RX_ENVIRON.as_mut_ptr();
+        let args: Vec<&str> = args.split(',').filter(|i| !i.is_empty()).collect();
+        *argc = args.len() as c_int;
+        init_argv(args);
     }
 }
 

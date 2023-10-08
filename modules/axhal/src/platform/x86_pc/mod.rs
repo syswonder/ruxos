@@ -41,7 +41,22 @@ fn current_cpu_id() -> usize {
     }
 }
 
-unsafe extern "C" fn rust_entry(magic: usize, _mbi: usize) {
+use crate::COMLINE_BUF;
+// find cmdline in multiboot info and save it in COMLINE_BUF
+unsafe fn parse_cmdline(mbi: usize) {
+    let mbi = mbi as *const u32;
+    let flag = mbi.read();
+    if (flag & (1 << 2)) > 0 {
+        let cmdline = *mbi.add(4) as *const u8;
+        let mut len = 0;
+        while cmdline.add(len).read() != 0 {
+            COMLINE_BUF[len] = cmdline.add(len).read();
+            len += 1;
+        }
+    }
+}
+
+unsafe extern "C" fn rust_entry(magic: usize, mbi: usize) {
     // TODO: handle multiboot info
     if magic == self::boot::MULTIBOOT_BOOTLOADER_MAGIC {
         crate::mem::clear_bss();
@@ -49,6 +64,7 @@ unsafe extern "C" fn rust_entry(magic: usize, _mbi: usize) {
         self::uart16550::init();
         self::dtables::init_primary();
         self::time::init_early();
+        parse_cmdline(mbi);
         rust_main(current_cpu_id(), 0);
     }
 }

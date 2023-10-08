@@ -9,8 +9,8 @@
 
 use arceos_posix_api::{
     sys_accept, sys_bind, sys_connect, sys_freeaddrinfo, sys_getaddrinfo, sys_getpeername,
-    sys_getsockname, sys_listen, sys_recv, sys_recvfrom, sys_send, sys_sendto, sys_shutdown,
-    sys_socket,
+    sys_getsockname, sys_listen, sys_recv, sys_recvfrom, sys_send, sys_sendmsg, sys_sendto,
+    sys_shutdown, sys_socket,
 };
 use core::ffi::{c_char, c_int, c_void};
 
@@ -186,4 +186,17 @@ pub unsafe extern "C" fn getpeername(
     addrlen: *mut ctypes::socklen_t,
 ) -> c_int {
     e(sys_getpeername(sock_fd, addr, addrlen))
+}
+
+/// Send a message on a socket to the address connected.
+/// The  message is pointed to by the elements of the array msg.msg_iov.
+///
+/// Return the number of bytes sent if success.
+#[no_mangle]
+pub unsafe extern "C" fn ax_sendmsg(
+    socket_fd: c_int,
+    msg: *const ctypes::msghdr,
+    flags: c_int,
+) -> ctypes::ssize_t {
+    e(sys_sendmsg(socket_fd, msg, flags) as _) as _
 }
