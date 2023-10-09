@@ -387,6 +387,7 @@ dependencies = [
  "crate_interface",
  "dtb",
  "dw_apb_uart",
+ "embedded-hal",
  "handler_table",
  "kernel_guard",
  "lazy_init",

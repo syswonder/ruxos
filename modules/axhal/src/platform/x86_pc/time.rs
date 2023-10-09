@@ -15,6 +15,9 @@ const LAPIC_TICKS_PER_SEC: u64 = 1_000_000_000; // TODO: need to calibrate
 #[cfg(feature = "irq")]
 static mut NANOS_TO_LAPIC_TICKS_RATIO: ratio::Ratio = ratio::Ratio::zero();
 
+#[cfg(feature = "rtc")]
+pub use crate::platform::x86_pc::rtc::*;
+
 static mut INIT_TICK: u64 = 0;
 static mut CPU_FREQ_MHZ: u64 = axconfig::TIMER_FREQUENCY as u64 / 1_000_000;
 

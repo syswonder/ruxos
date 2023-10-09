@@ -49,7 +49,7 @@ pub use imp::io::{sys_read, sys_write, sys_writev};
 pub use imp::resources::{sys_getrlimit, sys_setrlimit};
 pub use imp::sys::sys_sysinfo;
 pub use imp::task::{sys_exit, sys_getpid, sys_sched_yield};
-pub use imp::time::{sys_clock_gettime, sys_nanosleep};
+pub use imp::time::{sys_clock_gettime, sys_clock_settime, sys_nanosleep};
 
 #[cfg(feature = "fd")]
 pub use imp::fd_ops::{sys_close, sys_dup, sys_dup2, sys_fcntl};
