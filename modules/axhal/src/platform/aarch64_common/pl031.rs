@@ -1,76 +1,72 @@
-use core::fmt;
-use core::intrinsics::{volatile_load, volatile_store};
+/* Copyright (c) [2023] [Syswonder Community]
+ *   [Rukos] is licensed under Mulan PSL v2.
+ *   You can use this software according to the terms and conditions of the Mulan PSL v2.
+ *   You may obtain a copy of Mulan PSL v2 at:
+ *               http://license.coscl.org.cn/MulanPSL2
+ *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ *   See the Mulan PSL v2 for more details.
+ */
 
-static RTC_DR: u32 = 0x000;
-static RTC_MR: u32 = 0x004;
-static RTC_LR: u32 = 0x008;
-static RTC_CR: u32 = 0x00c;
-static RTC_IMSC: u32 = 0x010;
-static RTC_RIS: u32 = 0x014;
-static RTC_MIS: u32 = 0x018;
-static RTC_ICR: u32 = 0x01c;
+//! PL031 RTC.
 
-pub static mut PL031_RTC: Pl031rtc = Pl031rtc { address: 0 };
+static RTC_DR: u32 = 0x000; //Data Register
+static RTC_MR: u32 = 0x004; //Match Register
+static RTC_LR: u32 = 0x008; //Load Register
+static RTC_CR: u32 = 0x00c; //Control Register
+static RTC_IMSC: u32 = 0x010; //Interrupt Mask Set or Clear register
+
+const PHYS_RTC: usize = axconfig::PHYS_VIRT_OFFSET + 0x09010000;
+
+static PL031_RTC: Pl031rtc = Pl031rtc { address: PHYS_RTC };
 
 pub fn init() {
-    info!("pl031 init begin");
-    unsafe {
-        PL031_RTC.init();
-        let x = rtc_read_time();
-        debug!("{}", x);
-        let x = rtc_read_time();
-        debug!("{}", x);
-    }
+    info!("Initialize pl031 rtc...");
+    PL031_RTC.init();
+    debug!("{}", rtc_read_time());
 }
 
-pub struct Pl031rtc {
-    pub address: usize,
+struct Pl031rtc {
+    address: usize,
 }
 
-pub const PHYS_RTC: usize = axconfig::PHYS_VIRT_OFFSET + 0x09010000;
-
-impl fmt::Display for Pl031rtc {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        writeln!(f, "RTC DR: {}\n", unsafe { self.read(RTC_DR) } as u64)?;
-        writeln!(f, "RTC MR: {}\n", unsafe { self.read(RTC_MR) } as u64)?;
-        writeln!(f, "RTC LR: {}\n", unsafe { self.read(RTC_LR) } as u64)?;
-        writeln!(f, "RTC CR: {}\n", unsafe { self.read(RTC_CR) } as u64)?;
-        writeln!(f, "RTC_IMSC: {}\n", unsafe { self.read(RTC_IMSC) } as u64)
+impl core::fmt::Display for Pl031rtc {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(
+            f,
+            "RTC DR: {}\nRTC MR: {}\nRTC LR: {}\nRTC CR: {}\nRTC_IMSC: {}",
+            unsafe { self.read(RTC_DR) } as u64,
+            unsafe { self.read(RTC_MR) } as u64,
+            unsafe { self.read(RTC_LR) } as u64,
+            unsafe { self.read(RTC_CR) } as u64,
+            unsafe { self.read(RTC_IMSC) } as u64
+        )
     }
 }
 
 impl Pl031rtc {
-    fn debug(&mut self) {
-        use axlog::ax_println;
-        ax_println!("{}", self);
-    }
-
-    fn init(&mut self) {
-        self.address = PHYS_RTC;
+    fn init(&self) {
         unsafe {
             if self.read(RTC_CR) != 1 {
                 self.write(RTC_CR, 1);
             }
         }
-        self.debug();
     }
 
     pub unsafe fn read(&self, reg: u32) -> u32 {
-        volatile_load((PHYS_RTC + reg as usize) as *const u32)
+        core::ptr::read_volatile((PHYS_RTC + reg as usize) as *const u32)
     }
 
-    pub unsafe fn write(&mut self, reg: u32, value: u32) {
-        volatile_store((PHYS_RTC + reg as usize) as *mut u32, value);
-        self.debug();
+    pub unsafe fn write(&self, reg: u32, value: u32) {
+        core::ptr::write_volatile((PHYS_RTC + reg as usize) as *mut u32, value);
     }
 
-    pub fn time(&mut self) -> u64 {
-        (unsafe { self.read(RTC_DR) } as u64)
+    pub fn time(&self) -> u64 {
+        unsafe { self.read(RTC_DR) as u64 }
     }
 }
 
 pub fn rtc_read_time() -> u64 {
-    unsafe { PL031_RTC.time() }
+    PL031_RTC.time()
 }
 
 pub fn rtc_write_time(seconds: u32) {

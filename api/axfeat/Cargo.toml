@@ -21,7 +21,7 @@ fp_simd = ["axhal/fp_simd"]
 # Interrupts
 irq = ["axhal/irq", "axruntime/irq", "axtask?/irq"]
 
-# real time clock
+# Real time clock
 rtc = ["axhal/rtc", "axruntime/rtc"]
 
 # Memory

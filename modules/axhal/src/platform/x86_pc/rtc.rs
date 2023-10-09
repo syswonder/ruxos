@@ -1,3 +1,12 @@
+/* Copyright (c) [2023] [Syswonder Community]
+ *   [Rukos] is licensed under Mulan PSL v2.
+ *   You can use this software according to the terms and conditions of the Mulan PSL v2.
+ *   You may obtain a copy of Mulan PSL v2 at:
+ *               http://license.coscl.org.cn/MulanPSL2
+ *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ *   See the Mulan PSL v2 for more details.
+ */
+
 use core::arch::asm;
 use core::cmp::PartialEq;
 use core::marker::PhantomData;
@@ -115,7 +124,7 @@ impl Io for Pio<u32> {
     }
 }
 
-pub static mut X86_RTC: LazyInit<Rtc> = LazyInit::new();
+static mut X86_RTC: LazyInit<Rtc> = LazyInit::new();
 
 fn cvt_bcd(value: usize) -> usize {
     (value & 0xF) + ((value / 16) * 10)
@@ -172,25 +181,14 @@ impl Rtc {
     }
 
     /// Get time without waiting
-    pub unsafe fn time_no_wait(&mut self) -> u64 {
-        /*let century_register = if let Some(ref fadt) = acpi::ACPI_TABLE.lock().fadt {
-            Some(fadt.century)
-        } else {
-            None
-        };*/
-
+    unsafe fn time_no_wait(&mut self) -> u64 {
         let mut second = self.read(0) as usize;
         let mut minute = self.read(2) as usize;
         let mut hour = self.read(4) as usize;
         let mut day = self.read(7) as usize;
         let mut month = self.read(8) as usize;
         let mut year = self.read(9) as usize;
-        let mut century = /* TODO: Fix invalid value from VirtualBox
-        if let Some(century_reg) = century_register {
-            self.read(century_reg) as usize
-        } else */ {
-            20
-        };
+        let century = 20;
         let register_b = self.read(0xB);
 
         if register_b & 4 != 4 {
@@ -200,12 +198,6 @@ impl Rtc {
             day = cvt_bcd(day);
             month = cvt_bcd(month);
             year = cvt_bcd(year);
-            century = /* TODO: Fix invalid value from VirtualBox
-            if century_register.is_some() {
-                cvt_bcd(century)
-            } else */ {
-                century
-            };
         }
 
         if register_b & 2 != 2 || hour & 0x80 == 0x80 {
@@ -247,7 +239,7 @@ impl Rtc {
     }
 
     /// Get time
-    pub fn time(&mut self) -> u64 {
+    fn time(&mut self) -> u64 {
         loop {
             unsafe {
                 self.wait(false);
@@ -261,37 +253,12 @@ impl Rtc {
         }
     }
 
-    pub unsafe fn write_time_no_wait(&mut self, unix_time: u32) {
-        let second = self.read(0) as usize;
-        let minute = self.read(2) as usize;
-        let hour = self.read(4) as usize;
-        let day = self.read(7) as usize;
-        let month = self.read(8) as usize;
-        let year = self.read(9) as usize;
-        let _century = /* TODO: Fix invalid value from VirtualBox
-        if let Some(century_reg) = century_register {
-            self.read(century_reg) as usize
-        } else */ {
-            20
-        };
+    unsafe fn write_time_no_wait(&mut self, unix_time: u32) {
         let register_b = self.read(0xB);
 
-        debug!(
-            "{}, {}, {}, {}, {}, {}, {}, {}",
-            second,
-            minute,
-            hour,
-            day,
-            month,
-            year,
-            register_b,
-            register_b & 4
-        );
-
         let secs = unix_time;
-        let _nsecs = 0;
 
-        // 计算日期和时间
+        // Calculate date and time
         let t = secs;
         let mut tdiv = t / 86400;
         let mut tt = t % 86400;
@@ -303,7 +270,6 @@ impl Rtc {
         let mut year = 1970;
         let mut mon = 1;
 
-        // 计算年、月和日
         while tdiv >= 365 {
             let days = if is_leap_year(year) { 366 } else { 365 };
             if tdiv >= days {
@@ -343,7 +309,6 @@ impl Rtc {
         bcd_value |= tens << 4;
         hour = bcd_value;
 
-        debug!("{}, {}, {}, {}, {}, {}", sec, min, hour, mday, mon, year);
         self.write(0, sec as u8);
         self.write(2, min as u8);
         self.write(4, hour as u8);
@@ -379,7 +344,6 @@ pub fn rtc_read_time() -> u64 {
             X86_RTC.init_by(Rtc::new());
         }
         let rtc: &mut Rtc = X86_RTC.get_mut_unchecked();
-        /*let mut rtc = Rtc::new();*/
         rtc.time()
     }
 }
@@ -391,7 +355,6 @@ pub fn rtc_write_time(seconds: u32) {
             X86_RTC.init_by(Rtc::new());
         }
         let rtc: &mut Rtc = X86_RTC.get_mut_unchecked();
-        /*let mut rtc = Rtc::new();*/
         rtc.write_time_no_wait(seconds);
     }
 }

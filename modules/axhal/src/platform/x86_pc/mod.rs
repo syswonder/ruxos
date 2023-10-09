@@ -14,6 +14,7 @@ mod uart16550;
 
 pub mod mem;
 pub mod misc;
+#[cfg(feature = "rtc")]
 pub mod rtc;
 pub mod time;
 

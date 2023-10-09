@@ -21,7 +21,7 @@ int main()
     printf("now time: %ld : %ld\n", tv.tv_sec,tv.tv_usec);
 
     struct timeval new_time;
-    new_time.tv_sec = 1731110400; 
+    new_time.tv_sec = 1731110400;
     new_time.tv_usec = 0;
 
     if (settimeofday(&new_time, NULL) != 0 ) {
