@@ -74,6 +74,7 @@ int fchdir(int);
 char *getcwd(char *, size_t);
 
 unsigned alarm(unsigned);
+unsigned ualarm(unsigned, unsigned);
 unsigned sleep(unsigned);
 int pause(void);
 int usleep(unsigned);

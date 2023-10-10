@@ -11,6 +11,8 @@ mod stdio;
 
 pub mod io;
 pub mod resources;
+#[cfg(feature = "signal")]
+pub mod signal;
 pub mod sys;
 pub mod task;
 pub mod time;

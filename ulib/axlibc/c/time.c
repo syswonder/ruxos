@@ -195,13 +195,6 @@ void tzset()
 }
 
 // TODO
-int setitimer(int _which, const struct itimerval *restrict _new, struct itimerval *restrict _old)
-{
-    unimplemented();
-    return 0;
-}
-
-// TODO
 char *ctime_r(const time_t *t, char *buf)
 {
     unimplemented();

@@ -24,6 +24,7 @@
 //! - Upperlayer stacks
 //!     - `fs`: Enable file system support.
 //!     - `net`: Enable networking support.
+//!     - `signal`: Enable signal support.
 //! - Lib C functions
 //!     - `fd`: Enable file descriptor table.
 //!     - `pipe`: Enable pipe support.
@@ -85,6 +86,7 @@ mod mktime;
 mod rand;
 mod resource;
 mod setjmp;
+mod signal;
 mod string;
 mod sys;
 mod time;
@@ -102,7 +104,11 @@ pub use self::setjmp::{longjmp, setjmp};
 pub use self::string::{strlen, strnlen};
 pub use self::sys::sysconf;
 pub use self::time::{clock_gettime, nanosleep};
+#[cfg(feature = "signal")]
+pub use self::time::{getitimer, setitimer};
 pub use self::unistd::{abort, exit, getpid};
+#[cfg(feature = "signal")]
+pub use self::unistd::{alarm, ualarm};
 
 #[cfg(feature = "alloc")]
 pub use self::env::{getenv, setenv, unsetenv};

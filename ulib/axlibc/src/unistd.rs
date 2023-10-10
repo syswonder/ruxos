@@ -7,9 +7,14 @@
  *   See the Mulan PSL v2 for more details.
  */
 use arceos_posix_api::{sys_exit, sys_getpid};
-use core::ffi::{c_int, c_ssize_t, c_size_t, c_void};
-use crate::ctypes::off_t;
-use log::info;
+use core::ffi::c_int;
+#[cfg(feature = "signal")]
+use {
+    crate::getitimer,
+    crate::{ctypes, utils::e},
+    arceos_posix_api::sys_setitimer,
+    core::ffi::c_uint,
+};
 
 /// Get current thread ID.
 #[no_mangle]
@@ -29,3 +34,47 @@ pub unsafe extern "C" fn exit(exit_code: c_int) -> ! {
     sys_exit(exit_code)
 }
 
+/// Set an alarm clock for delivery of a signal
+#[cfg(feature = "signal")]
+#[no_mangle]
+pub unsafe extern "C" fn alarm(seconds: c_uint) -> c_uint {
+    let it = ctypes::itimerval {
+        it_interval: ctypes::timeval {
+            tv_sec: 0,
+            tv_usec: 0,
+        },
+        it_value: ctypes::timeval {
+            tv_sec: seconds as i64,
+            tv_usec: 0,
+        },
+    };
+    let mut old = ctypes::itimerval::default();
+    if getitimer(ctypes::ITIMER_REAL as c_int, &mut old) < 0 {
+        e(sys_setitimer(ctypes::ITIMER_REAL as c_int, &it)) as c_uint
+    } else {
+        old.it_value.tv_sec as c_uint
+    }
+}
+
+/// Schedule signal after given number of microseconds
+#[cfg(feature = "signal")]
+#[no_mangle]
+pub unsafe extern "C" fn ualarm(useconds: c_uint, interval: c_uint) -> c_uint {
+    let it = ctypes::itimerval {
+        it_interval: ctypes::timeval {
+            tv_sec: 0,
+            tv_usec: interval as i64,
+        },
+        it_value: ctypes::timeval {
+            tv_sec: 0,
+            tv_usec: useconds as i64,
+        },
+    };
+    let mut old = ctypes::itimerval::default();
+    if getitimer(ctypes::ITIMER_REAL as i32, &mut old) < 0 {
+        e(sys_setitimer(ctypes::ITIMER_REAL as i32, &it));
+        0
+    } else {
+        core::time::Duration::from(old.it_value).as_micros() as c_uint
+    }
+}

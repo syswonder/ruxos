@@ -80,6 +80,7 @@ typedef struct {{
             "sock.*",
             "fd_set",
             "timeval",
+            "itimerval",
             "pthread_t",
             "pthread_attr_t",
             "pthread_mutex_t",
@@ -95,6 +96,8 @@ typedef struct {{
             "pthread_cond_t",
             "pthread_condattr_t",
             "sysinfo",
+            "sigaction",
+            "k_sigaction",
         ];
         let allow_vars = [
             "O_.*",
@@ -110,6 +113,9 @@ typedef struct {{
             "EAI_.*",
             "MAXADDRS",
             "FIO.*"
+            "ITIMER_.*",
+            "SIG.*",
+            "EINVAL",
         ];
 
         #[derive(Debug)]
