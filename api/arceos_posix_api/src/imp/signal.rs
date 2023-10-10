@@ -7,25 +7,18 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-mod stdio;
+use crate::ctypes::k_sigaction;
+use axruntime::{rx_sigaction, Signal};
 
-pub mod io;
-pub mod resources;
-#[cfg(feature = "signal")]
-pub mod signal;
-pub mod sys;
-pub mod task;
-pub mod time;
-
-#[cfg(feature = "fd")]
-pub mod fd_ops;
-#[cfg(feature = "fs")]
-pub mod fs;
-#[cfg(any(feature = "select", feature = "poll", feature = "epoll"))]
-pub mod io_mpx;
-#[cfg(feature = "net")]
-pub mod net;
-#[cfg(feature = "pipe")]
-pub mod pipe;
-#[cfg(feature = "multitask")]
-pub mod pthread;
+/// Set signal handler
+pub fn sys_sigaction(
+    signum: u8,
+    sigaction: Option<&k_sigaction>,
+    oldact: Option<&mut k_sigaction>,
+) {
+    Signal::sigaction(
+        signum,
+        sigaction.map(|act| act as *const k_sigaction as *const rx_sigaction),
+        oldact.map(|old| old as *mut k_sigaction as *mut rx_sigaction),
+    );
+}
