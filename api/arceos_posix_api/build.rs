@@ -84,6 +84,7 @@ typedef struct {{
             "pthread_attr_t",
             "pthread_mutex_t",
             "pthread_mutexattr_t",
+            "pthread_key_t",
             "pollfd",
             "nfds_t",
             "epoll_event",
