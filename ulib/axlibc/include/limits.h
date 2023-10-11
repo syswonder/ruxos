@@ -41,4 +41,6 @@
 #define SSIZE_MAX LONG_MAX
 #define CHAR_MAX  127
 
+#define PTHREAD_KEYS_MAX 1024
+
 #endif

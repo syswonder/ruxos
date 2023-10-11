@@ -40,6 +40,25 @@ impl Condvar {
         Ok(())
     }
 
+    fn timedwait(
+        &self,
+        mutex: *mut ctypes::pthread_mutex_t,
+        abstime: *const ctypes::timespec,
+    ) -> LinuxResult {
+        let ret = sys_pthread_mutex_unlock(mutex);
+        if ret < 0 {
+            return Err(axerrno::LinuxError::try_from(ret).unwrap());
+        }
+        self.wq
+            .wait_timeout(core::time::Duration::from(unsafe { *abstime }));
+
+        let ret = sys_pthread_mutex_lock(mutex);
+        if ret < 0 {
+            return Err(axerrno::LinuxError::try_from(ret).unwrap());
+        }
+        Ok(())
+    }
+
     fn notify_one(&self) -> LinuxResult {
         self.wq.notify_one(true);
         Ok(())
@@ -59,6 +78,31 @@ pub unsafe fn sys_pthread_cond_init(
     debug!("sys_pthread_cond_init <= {:#x}", condvar as usize);
     syscall_body!(sys_pthread_cond_init, {
         condvar.cast::<Condvar>().write(Condvar::new());
+        Ok(0)
+    })
+}
+
+/// Destroy a condition variable
+pub unsafe fn sys_pthread_cond_destroy(condvar: *mut ctypes::pthread_cond_t) -> c_int {
+    debug!("sys_pthread_cond_destroy <= {:#x}", condvar as usize);
+    syscall_body!(sys_pthread_cond_destroy, {
+        condvar.cast::<Condvar>().drop_in_place();
+        Ok(0)
+    })
+}
+
+/// Wait for the condition variable to be signaled or timeout
+pub unsafe fn sys_pthread_cond_timedwait(
+    condvar: *mut ctypes::pthread_cond_t,
+    mutex: *mut ctypes::pthread_mutex_t,
+    abstime: *const ctypes::timespec,
+) -> c_int {
+    debug!(
+        "sys_pthread_cond_timedwait <= {:#x}, {:#x}, {:#x}",
+        condvar as usize, mutex as usize, abstime as usize
+    );
+    syscall_body!(sys_pthread_cond_timedwait, {
+        (*condvar.cast::<Condvar>()).timedwait(mutex, abstime)?;
         Ok(0)
     })
 }

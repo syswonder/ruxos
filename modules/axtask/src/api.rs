@@ -15,6 +15,7 @@ pub(crate) use crate::run_queue::{AxRunQueue, RUN_QUEUE};
 
 #[doc(cfg(feature = "multitask"))]
 pub use crate::task::{CurrentTask, TaskId, TaskInner};
+use crate::tsd;
 #[doc(cfg(feature = "multitask"))]
 pub use crate::wait_queue::WaitQueue;
 
@@ -77,6 +78,7 @@ pub fn init_scheduler() {
     crate::run_queue::init();
     #[cfg(feature = "irq")]
     crate::timers::init();
+    tsd::init();
 
     info!("  use {} scheduler.", Scheduler::scheduler_name());
 }

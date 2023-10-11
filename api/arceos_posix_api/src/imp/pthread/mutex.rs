@@ -64,6 +64,18 @@ pub fn sys_pthread_mutex_init(
     })
 }
 
+/// Destroy the given mutex.
+pub fn sys_pthread_mutex_destroy(mutex: *mut ctypes::pthread_mutex_t) -> c_int {
+    debug!("sys_pthread_mutex_destroy <= {:#x}", mutex as usize);
+    syscall_body!(sys_pthread_mutex_destroy, {
+        check_null_mut_ptr(mutex)?;
+        unsafe {
+            mutex.cast::<PthreadMutex>().drop_in_place();
+        }
+        Ok(0)
+    })
+}
+
 /// Lock the given mutex.
 pub fn sys_pthread_mutex_lock(mutex: *mut ctypes::pthread_mutex_t) -> c_int {
     debug!("sys_pthread_mutex_lock <= {:#x}", mutex as usize);
