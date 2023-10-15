@@ -26,10 +26,13 @@ create_test_img() {
 	echo "" >> "mnt/nginx/logs/error.log"
 	mkdir -p "mnt/nginx/conf"
 	cp "/nginx/conf/nginx.conf" "mnt/nginx/conf/nginx.conf"
-	cp "mnt/nginx/conf/nginx.conf" "/home/oslab/Desktop/rukos/nginx.conf"
+	cp "/nginx/conf/mime.types" "mnt/nginx/conf/mime.types"
+	cp "/home/oslab/Desktop/nginx-1.24.0/output.txt" "mnt/testread.txt"
 
 	sudo umount mnt
 }
 
 create_test_img "$CUR_DIR/fat16.img" 2500 16
-create_test_img "$CUR_DIR/fat32.img" 34000 32
+create_test_img "$CUR_DIR/fat32.img" 40000 32
+rm -f /home/oslab/Desktop/rukos/disk.img
+cp fat32.img /home/oslab/Desktop/rukos/disk.img

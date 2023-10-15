@@ -69,6 +69,7 @@ ngx_init_modules(ngx_cycle_t *cycle)
 
     for (i = 0; cycle->modules[i]; i++) {
         if (cycle->modules[i]->init_module) {
+            printf("        lhw debug in ngx init modules name:%s func:%p i:%d\n",cycle->modules[i]->name, cycle->modules[i]->init_module,i);
             if (cycle->modules[i]->init_module(cycle) != NGX_OK) {
                 return NGX_ERROR;
             }

@@ -102,7 +102,7 @@ pub use self::setjmp::{longjmp, setjmp};
 pub use self::string::{strlen, strnlen};
 pub use self::sys::sysconf;
 pub use self::time::{clock_gettime, nanosleep};
-pub use self::unistd::{abort, exit, getpid, pread64};
+pub use self::unistd::{abort, exit, getpid};
 
 #[cfg(feature = "alloc")]
 pub use self::env::{getenv, setenv, unsetenv};

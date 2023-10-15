@@ -71,6 +71,7 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
         return NULL;
     }
     pool->log = log;
+    printf("    lhw debug after ngx create pool\n");
 
     cycle = ngx_pcalloc(pool, sizeof(ngx_cycle_t));
     if (cycle == NULL) {
@@ -359,6 +360,7 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
     if (ngx_log_open_default(cycle) != NGX_OK) {
         goto failed;
     }
+    printf("    lhw debug after ngx log open default\n");
 
     /* open the new files */
 
@@ -397,6 +399,7 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
         }
 
 #if !(NGX_WIN32)
+        printf("lhw debug fcntl argv: fd: %d cmd: %d %d\n",file[i].fd, F_SETFD, FD_CLOEXEC);
         if (fcntl(file[i].fd, F_SETFD, FD_CLOEXEC) == -1) {
             ngx_log_error(NGX_LOG_EMERG, log, ngx_errno,
                           "fcntl(FD_CLOEXEC) \"%s\" failed",
@@ -618,24 +621,26 @@ ngx_init_cycle(ngx_cycle_t *old_cycle)
     if (ngx_open_listening_sockets(cycle) != NGX_OK) {
         goto failed;
     }
+    printf("    lhw debug after ngx open listening sockets\n");
 
     if (!ngx_test_config) {
         ngx_configure_listening_sockets(cycle);
     }
-
+    
 
     /* commit the new cycle configuration */
 
     if (!ngx_use_stderr) {
         (void) ngx_log_redirect_stderr(cycle);
     }
-
+    printf("    lhw debug after ngx log redirect stderr\n");
     pool->log = cycle->log;
 
     if (ngx_init_modules(cycle) != NGX_OK) {
         /* fatal */
         exit(1);
     }
+    printf("    lhw debug after ngx init modules\n");
 
 
     /* close and delete stuff that lefts from an old cycle */

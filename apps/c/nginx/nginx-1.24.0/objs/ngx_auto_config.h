@@ -225,7 +225,7 @@
 #endif
 
 #ifndef NGX_HAVE_PREAD
-#define NGX_HAVE_PREAD  1
+#define NGX_HAVE_PREAD  0
 #endif
 
 #ifndef NGX_HAVE_PWRITE

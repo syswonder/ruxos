@@ -9,6 +9,20 @@
 
 #include <stdio.h>
 #include <grp.h>
+#include <pwd.h>
+#include <string.h>
+#include <errno.h>
+
+/* Group members */
+static char *g_members__[] = { AX_DEFAULT_USER, NULL };
+
+/* Default group */
+static struct group g__ = {
+	.gr_name = AX_DEFAULT_GROUP,
+	.gr_passwd = AX_DEFAULT_PASS,
+	.gr_gid = AX_DEFAULT_GID,
+	.gr_mem = g_members__,
+};
 
 // TODO
 int initgroups(const char *user, gid_t group)
@@ -17,9 +31,16 @@ int initgroups(const char *user, gid_t group)
     return 0;
 }
 
-// TODO
 struct group *getgrnam(const char *name)
 {
-    unimplemented();
-    return 0;
+	struct group *res;
+
+	if (name && !strcmp(name, g__.gr_name))
+		res = &g__;
+	else {
+		res = NULL;
+		errno = ENOENT;
+	}
+
+	return res;
 }

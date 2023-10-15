@@ -43,7 +43,9 @@ impl File {
 
 impl FileLike for File {
     fn read(&self, buf: &mut [u8]) -> LinuxResult<usize> {
-        Ok(self.inner.lock().read(buf)?)
+        let read_len = self.inner.lock().read(buf)?;
+        info!("read in posix_api fs read {} bytes from file of {} bytes",read_len,buf.len());
+        Ok(read_len)
     }
 
     fn write(&self, buf: &[u8]) -> LinuxResult<usize> {

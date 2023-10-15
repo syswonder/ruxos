@@ -494,7 +494,7 @@ ngx_open_listening_sockets(ngx_cycle_t *cycle)
                               ngx_socket_n " %V failed", &ls[i].addr_text);
                 return NGX_ERROR;
             }
-
+            printf("lhw debug in ngx_connection.c find ioctl0\n");
             if (ls[i].type != SOCK_DGRAM || !ngx_test_config) {
 
                 if (setsockopt(s, SOL_SOCKET, SO_REUSEADDR,
@@ -514,7 +514,7 @@ ngx_open_listening_sockets(ngx_cycle_t *cycle)
                     return NGX_ERROR;
                 }
             }
-
+            printf("lhw debug in ngx_connection.c find ioctl1\n");
 #if (NGX_HAVE_REUSEPORT)
 
             if (ls[i].reuseport && !ngx_test_config) {
@@ -581,7 +581,6 @@ ngx_open_listening_sockets(ngx_cycle_t *cycle)
             }
 #endif
             /* TODO: close on exit */
-
             if (!(ngx_event_flags & NGX_USE_IOCP_EVENT)) {
                 if (ngx_nonblocking(s) == -1) {
                     ngx_log_error(NGX_LOG_EMERG, log, ngx_socket_errno,
@@ -597,6 +596,7 @@ ngx_open_listening_sockets(ngx_cycle_t *cycle)
                     return NGX_ERROR;
                 }
             }
+            printf("lhw debug in ngx_connection.c find ioctl2\n");
 
             ngx_log_debug2(NGX_LOG_DEBUG_CORE, log, 0,
                            "bind() %V #%d ", &ls[i].addr_text, s);

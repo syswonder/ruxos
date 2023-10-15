@@ -235,7 +235,7 @@ main(int argc, char *const *argv)
     if (log == NULL) {
         return 1;
     }
-
+    printf("lhw debug after ngx log init\n");
     /* STUB */
 #if (NGX_OPENSSL)
     ngx_ssl_init(log);
@@ -254,6 +254,7 @@ main(int argc, char *const *argv)
     if (init_cycle.pool == NULL) {
         return 1;
     }
+    printf("lhw debug after ngx create pool\n");
 
     if (ngx_save_argv(&init_cycle, argc, argv) != NGX_OK) {
         return 1;
@@ -266,6 +267,7 @@ main(int argc, char *const *argv)
     if (ngx_os_init(log) != NGX_OK) {
         return 1;
     }
+    printf("lhw debug after ngx os init\n");
 
     /*
      * ngx_crc32_table_init() requires ngx_cacheline_size set in ngx_os_init()
@@ -288,8 +290,10 @@ main(int argc, char *const *argv)
     if (ngx_preinit_modules() != NGX_OK) {
         return 1;
     }
+    printf("lhw debug after ngx preinit modules\n");
 
     cycle = ngx_init_cycle(&init_cycle);
+    printf("lhw debug after ngx init cycle\n");
     if (cycle == NULL) {
         if (ngx_test_config) {
             ngx_log_stderr(0, "configuration file %s test failed",
@@ -298,6 +302,7 @@ main(int argc, char *const *argv)
 
         return 1;
     }
+    
 
     if (ngx_test_config) {
         if (!ngx_quiet_mode) {
@@ -1140,6 +1145,7 @@ ngx_core_module_init_conf(ngx_cycle_t *cycle, void *conf)
         ngx_set_errno(0);
         pwd = getpwnam(NGX_USER);
         if (pwd == NULL) {
+            printf("getpwnam first failed in main\n");
             ngx_log_error(NGX_LOG_EMERG, cycle->log, ngx_errno,
                           "getpwnam(\"" NGX_USER "\") failed");
             return NGX_CONF_ERROR;

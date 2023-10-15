@@ -75,8 +75,8 @@ int getpagesize(void)
 // TODO
 ssize_t pread(int fd, void *buf, size_t count, off_t offset)
 {
-    ssize_t res = pread64(fd,buf,count,offset);
-    return res;
+    unimplemented();
+    return 0;
 }
 
 // TODO

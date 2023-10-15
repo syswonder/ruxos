@@ -481,6 +481,7 @@ ngx_event_module_init(ngx_cycle_t *cycle)
     ngx_core_conf_t     *ccf;
     ngx_event_conf_t    *ecf;
 
+    printf("lhw debug in ngx_event.c ngx event moudle init\n");
     cf = ngx_get_conf(cycle->conf_ctx, ngx_events_module);
     ecf = (*cf)[ngx_event_core_module.ctx_index];
 
@@ -553,9 +554,11 @@ ngx_event_module_init(ngx_cycle_t *cycle)
     ngx_str_set(&shm.name, "nginx_shared_zone");
     shm.log = cycle->log;
 
+    printf("lhw debug in ngx_event.c: before ngx shm alloc\n");
     if (ngx_shm_alloc(&shm) != NGX_OK) {
         return NGX_ERROR;
     }
+    printf("lhw debug in ngx_event.c: after ngx shm alloc\n");
 
     shared = shm.addr;
 
@@ -568,14 +571,17 @@ ngx_event_module_init(ngx_cycle_t *cycle)
     {
         return NGX_ERROR;
     }
+    printf("lhw debug in ngx_event.c: after ngx shmtx create\n");
 
     ngx_connection_counter = (ngx_atomic_t *) (shared + 1 * cl);
 
     (void) ngx_atomic_cmp_set(ngx_connection_counter, 0, 1);
+    printf("lhw debug in ngx_event.c: after ngx atomic cmp set\n");
 
     ngx_log_debug2(NGX_LOG_DEBUG_EVENT, cycle->log, 0,
                    "counter: %p, %uA",
                    ngx_connection_counter, *ngx_connection_counter);
+    printf("lhw debug in ngx_event.c: after ngx log debug2\n");
 
     ngx_temp_number = (ngx_atomic_t *) (shared + 2 * cl);
 
