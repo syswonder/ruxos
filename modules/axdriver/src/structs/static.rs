@@ -7,6 +7,8 @@
  *   See the Mulan PSL v2 for more details.
  */
 
+#[cfg(feature = "_9p")]
+pub use crate::drivers::Ax9pDevice;
 #[cfg(feature = "block")]
 pub use crate::drivers::AxBlockDevice;
 #[cfg(feature = "display")]
@@ -31,6 +33,12 @@ impl super::AxDeviceEnum {
     #[cfg(feature = "display")]
     pub const fn from_display(dev: AxDisplayDevice) -> Self {
         Self::Display(dev)
+    }
+
+    /// Constructs a display device.
+    #[cfg(feature = "_9p")]
+    pub const fn from_9p(dev: Ax9pDevice) -> Self {
+        Self::_9P(dev)
     }
 }
 

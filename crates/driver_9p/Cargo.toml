@@ -1,0 +1,18 @@
+[package]
+name = "driver_9p"
+version = "0.1.0"
+edition = "2021"
+authors = ["Zheng Wu <hello_weekday@163.com>"]
+description = "Common traits and types for block storage drivers"
+license = "GPL-3.0-or-later OR Apache-2.0"
+homepage = "https://github.com/rcore-os/arceos"
+repository = "https://github.com/rcore-os/arceos/tree/main/crates/driver_common"
+documentation = "https://rcore-os.github.io/arceos/driver_common/index.html"
+
+[features]
+default = []
+
+[dependencies]
+log = "0.4"
+spin = "0.9"
+driver_common = { path = "../driver_common" }

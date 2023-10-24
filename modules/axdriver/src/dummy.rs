@@ -109,3 +109,31 @@ cfg_if! {
         }
     }
 }
+
+cfg_if! {
+    if #[cfg(_9p_dev = "dummy")] {
+        pub struct Dummy9pDev;
+        pub struct Dummy9pDriver;
+        register_9p_driver!(Dummy9pDriver, Dummy9pDev);
+
+        impl BaseDriverOps for Dummy9pDev {
+            fn device_type(&self) -> DeviceType {
+                DeviceType::_9P
+            }
+            fn device_name(&self) -> &str {
+                "dummy-9p"
+            }
+        }
+
+        impl _9pDriverOps for Dummy9pDev {
+            fn init(&self) -> Result<(), u8>{
+                Err(0)
+            }
+
+            #[allow(unused_variables)]
+            fn send_with_recv(&mut self, inputs: &[u8], outputs: &mut [u8]) -> Result<u32, u8>{
+                Err(0)
+            }
+        }
+    }
+}

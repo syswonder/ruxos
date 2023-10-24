@@ -24,12 +24,12 @@ int main() {
 	fd= open("filetest/a.txt", O_RDWR);
     fp = fdopen(fd, "r");
     fgets(s, 50, fp);
-	if(strcmp("1 2 3 4", s)) {
+	if(strcmp("1 2 3 4\n", s)) {
 		perror("fdopen and freopen failed");
 		return -1;
 	}
     fgets(s, 50, fp);
-	if(strcmp("5 6 7 8", s)) {
+	if(strcmp("5 6 7 8\n", s)) {
 		perror("fdopen and freopen failed");
 		return -1;
 	}

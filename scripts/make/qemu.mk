@@ -34,6 +34,10 @@ qemu_args-$(BLK) += \
 qemu_args-$(NET) += \
   -device virtio-net-$(vdev-suffix),netdev=net0
 
+qemu_args-$(V9P) += \
+  -fsdev local,id=myid,path=${V9P_PATH},security_model=none \
+  -device virtio-9p-$(vdev-suffix),fsdev=myid,mount_tag=rootfs
+
 ifeq ($(NET_DEV), user)
   qemu_args-$(NET) += -netdev user,id=net0,hostfwd=tcp::5555-:5555,hostfwd=udp::5555-:5555
 else ifeq ($(NET_DEV), tap)

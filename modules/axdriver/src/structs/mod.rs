@@ -27,6 +27,9 @@ pub enum AxDeviceEnum {
     /// Graphic display device.
     #[cfg(feature = "display")]
     Display(AxDisplayDevice),
+    /// Plan-9 protocol device.
+    #[cfg(feature = "_9p")]
+    _9P(Ax9pDevice),
 }
 
 impl BaseDriverOps for AxDeviceEnum {
@@ -40,6 +43,8 @@ impl BaseDriverOps for AxDeviceEnum {
             Self::Block(_) => DeviceType::Block,
             #[cfg(feature = "display")]
             Self::Display(_) => DeviceType::Display,
+            #[cfg(feature = "_9p")]
+            Self::_9P(_) => DeviceType::_9P,
             _ => unreachable!(),
         }
     }
@@ -54,6 +59,8 @@ impl BaseDriverOps for AxDeviceEnum {
             Self::Block(dev) => dev.device_name(),
             #[cfg(feature = "display")]
             Self::Display(dev) => dev.device_name(),
+            #[cfg(feature = "_9p")]
+            Self::_9P(dev) => dev.device_name(),
             _ => unreachable!(),
         }
     }

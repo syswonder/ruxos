@@ -41,6 +41,7 @@ sched_cfs = ["axtask/sched_cfs", "irq"]
 # File system
 fs = ["alloc", "paging", "axdriver/virtio-blk", "dep:axfs", "axruntime/fs"] # TODO: try to remove "paging"
 myfs = ["axfs?/myfs"]
+9pfs = []
 
 # Networking
 net = ["alloc", "paging", "axdriver/virtio-net", "dep:axnet", "axruntime/net"]
@@ -50,6 +51,10 @@ display = ["alloc", "paging", "axdriver/virtio-gpu", "dep:axdisplay", "axruntime
 
 # Signal
 signal = ["axruntime/signal"]
+
+# 9P
+virtio-9p = ["9pfs", "axdriver/virtio-9p", "ax9p/virtio-9p", "axruntime/virtio-9p"]
+net-9p = ["9pfs", "net", "ax9p/net-9p", "axruntime/net-9p"]
 
 # Device drivers
 bus-mmio = ["axdriver?/bus-mmio"]
@@ -73,6 +78,7 @@ axlog = { path = "../../modules/axlog" }
 axalloc = { path = "../../modules/axalloc", optional = true }
 axdriver = { path = "../../modules/axdriver", optional = true }
 axfs = { path = "../../modules/axfs", optional = true }
+ax9p = { path = "../../modules/ax9p", optional = true }
 axnet = { path = "../../modules/axnet", optional = true }
 axdisplay = { path = "../../modules/axdisplay", optional = true }
 axsync = { path = "../../modules/axsync", optional = true }
