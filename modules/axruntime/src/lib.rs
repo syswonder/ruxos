@@ -22,6 +22,8 @@
 //! - `fs`: Enable filesystem support.
 //! - `net`: Enable networking support.
 //! - `display`: Enable graphics support.
+//! - `virtio-9p`: Enable virtio-based 9pfs support.
+//! - `net-9p`: Enable net-based 9pfs support.
 //!
 //! All the features are optional and disabled by default.
 
@@ -181,11 +183,37 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
         #[allow(unused_variables)]
         let all_devices = axdriver::init_drivers();
 
-        #[cfg(feature = "fs")]
-        axfs::init_filesystems(all_devices.block);
-
         #[cfg(feature = "net")]
         axnet::init_network(all_devices.net);
+
+        #[cfg(feature = "fs")]
+        {
+            extern crate alloc;
+            use alloc::vec::Vec;
+            // By default, mount_points[0] will be rootfs
+            let mut mount_points: Vec<axfs::MountPoint> = Vec::new();
+
+            // setup and initialize blkfs as one mountpoint for rootfs
+            mount_points.push(axfs::init_blkfs(all_devices.block));
+            axfs::prepare_commonfs(&mut mount_points);
+
+            // setup and initialize 9pfs as mountpoint
+            #[cfg(feature = "virtio-9p")]
+            mount_points.push(ax9p::init_virtio_9pfs(
+                all_devices._9p,
+                option_env!("AX_ANAME_9P").unwrap_or(""),
+                option_env!("AX_PROTOCOL_9P").unwrap_or(""),
+            ));
+            #[cfg(feature = "net-9p")]
+            mount_points.push(ax9p::init_net_9pfs(
+                option_env!("AX_9P_ADDR").unwrap_or(""),
+                option_env!("AX_ANAME_9P").unwrap_or(""),
+                option_env!("AX_PROTOCOL_9P").unwrap_or(""),
+            ));
+
+            // setup and initialize rootfs
+            axfs::init_filesystems(mount_points);
+        }
 
         #[cfg(feature = "display")]
         axdisplay::init_display(all_devices.display);

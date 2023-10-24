@@ -11,18 +11,19 @@
 //!
 //! TODO: it doesn't work very well if the mount points have containment relationships.
 
-use alloc::{string::String, sync::Arc, vec::Vec};
+use alloc::{format, string::String, sync::Arc, vec::Vec};
 use axerrno::{ax_err, AxError, AxResult};
 use axfs_vfs::{VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps, VfsResult};
 use axsync::Mutex;
 use lazy_init::LazyInit;
 
-use crate::{api::FileType, fs, mounts};
+use crate::api::FileType;
 
 static CURRENT_DIR_PATH: Mutex<String> = Mutex::new(String::new());
 static CURRENT_DIR: LazyInit<Mutex<VfsNodeRef>> = LazyInit::new();
 
-struct MountPoint {
+/// mount point information
+pub struct MountPoint {
     path: &'static str,
     fs: Arc<dyn VfsOps>,
 }
@@ -35,6 +36,7 @@ struct RootDirectory {
 static ROOT_DIR: LazyInit<Arc<RootDirectory>> = LazyInit::new();
 
 impl MountPoint {
+    /// create new MountPoint from data
     pub fn new(path: &'static str, fs: Arc<dyn VfsOps>) -> Self {
         Self { path, fs }
     }
@@ -152,41 +154,17 @@ impl VfsNodeOps for RootDirectory {
     }
 }
 
-pub(crate) fn init_rootfs(disk: crate::dev::Disk) {
-    cfg_if::cfg_if! {
-        if #[cfg(feature = "myfs")] { // override the default filesystem
-            let main_fs = fs::myfs::new_myfs(disk);
-        } else if #[cfg(feature = "fatfs")] {
-            static FAT_FS: LazyInit<Arc<fs::fatfs::FatFileSystem>> = LazyInit::new();
-            FAT_FS.init_by(Arc::new(fs::fatfs::FatFileSystem::new(disk)));
-            FAT_FS.init();
-            let main_fs = FAT_FS.clone();
-        }
-    }
-
+pub(crate) fn init_rootfs(mount_points: Vec<MountPoint>) {
+    let main_fs = mount_points.get(0).expect("No filesystem found").fs.clone();
     let mut root_dir = RootDirectory::new(main_fs);
 
-    #[cfg(feature = "devfs")]
-    root_dir
-        .mount("/dev", mounts::devfs())
-        .expect("failed to mount devfs at /dev");
-
-    #[cfg(feature = "ramfs")]
-    root_dir
-        .mount("/tmp", mounts::ramfs())
-        .expect("failed to mount ramfs at /tmp");
-
-    // Mount another ramfs as procfs
-    #[cfg(feature = "procfs")]
-    root_dir // should not fail
-        .mount("/proc", mounts::procfs().unwrap())
-        .expect("fail to mount procfs at /proc");
-
-    // Mount another ramfs as sysfs
-    #[cfg(feature = "sysfs")]
-    root_dir // should not fail
-        .mount("/sys", mounts::sysfs().unwrap())
-        .expect("fail to mount sysfs at /sys");
+    for mp in mount_points.iter().skip(1) {
+        let path = mp.path;
+        let vfsops = mp.fs.clone();
+        let message = format!("failed to mount filesystem at {}", path);
+        info!("mounting {}", path);
+        root_dir.mount(path, vfsops).expect(&message);
+    }
 
     ROOT_DIR.init_by(Arc::new(root_dir));
     CURRENT_DIR.init_by(Mutex::new(ROOT_DIR.clone()));

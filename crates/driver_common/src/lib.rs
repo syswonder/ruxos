@@ -36,6 +36,8 @@ pub enum DeviceType {
     Net,
     /// Graphic display device (e.g., GPU)
     Display,
+    /// Plan-9 device (e.g. 9pfs)
+    _9P,
 }
 
 /// The error type for device operation failures.

@@ -21,6 +21,9 @@ pub type AxBlockDevice = Box<dyn BlockDriverOps>;
 /// The unified type of the graphics display devices.
 #[cfg(feature = "display")]
 pub type AxDisplayDevice = Box<dyn DisplayDriverOps>;
+/// The unified type of the 9p devices.
+#[cfg(feature = "_9p")]
+pub type Ax9pDevice = Box<dyn _9pDriverOps>;
 
 impl super::AxDeviceEnum {
     /// Constructs a network device.
@@ -39,6 +42,12 @@ impl super::AxDeviceEnum {
     #[cfg(feature = "display")]
     pub fn from_display(dev: impl DisplayDriverOps + 'static) -> Self {
         Self::Display(Box::new(dev))
+    }
+
+    /// Constructs a 9p device.
+    #[cfg(feature = "_9p")]
+    pub fn from_9p(dev: impl _9pDriverOps + 'static) -> Self {
+        Self::_9P(Box::new(dev))
     }
 }
 

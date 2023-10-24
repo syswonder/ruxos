@@ -11,6 +11,8 @@
 
 pub use driver_common::{BaseDriverOps, DevError, DevResult, DeviceType};
 
+#[cfg(feature = "_9p")]
+pub use {crate::structs::Ax9pDevice, driver_9p::_9pDriverOps};
 #[cfg(feature = "block")]
 pub use {crate::structs::AxBlockDevice, driver_block::BlockDriverOps};
 #[cfg(feature = "display")]
