@@ -10,7 +10,7 @@
 #	  - `ENVS`: Environment variables, separated by comma between key value pairs. Only available when feature `alloc` is enabled.
 # * App options:
 #     - `A` or `APP`: Path to the application
-#     - `FEATURES`: Features os ArceOS modules to be enabled.
+#     - `FEATURES`: Features of ArceOS modules to be enabled.
 #     - `APP_FEATURES`: Features of (rust) apps to be enabled.
 # * QEMU options:
 #     - `BLK`: Enable storage devices (virtio-blk)

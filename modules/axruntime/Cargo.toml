@@ -23,6 +23,7 @@ multitask = ["axtask/multitask"]
 fs = ["axdriver", "axfs"]
 net = ["axdriver", "axnet"]
 display = ["axdriver", "axdisplay"]
+signal = []
 
 [dependencies]
 cfg-if = "1.0"

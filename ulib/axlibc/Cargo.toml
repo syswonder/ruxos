@@ -41,6 +41,9 @@ fs = ["arceos_posix_api/fs", "fd"]
 # Networking
 net = ["arceos_posix_api/net", "fd"]
 
+# Signal
+signal = ["arceos_posix_api/signal"]
+
 # Libc features
 fd = []
 pipe = ["arceos_posix_api/pipe"]

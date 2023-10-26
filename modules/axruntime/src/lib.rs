@@ -33,6 +33,8 @@ extern crate axlog;
 
 #[cfg(all(target_os = "none", not(test)))]
 mod lang_items;
+#[cfg(feature = "signal")]
+mod signal;
 mod trap;
 
 #[cfg(feature = "smp")]
@@ -40,6 +42,9 @@ mod mp;
 
 #[cfg(feature = "smp")]
 pub use self::mp::rust_main_secondary;
+
+#[cfg(feature = "signal")]
+pub use self::signal::{rx_sigaction, Signal};
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -355,8 +360,41 @@ fn init_interrupt() {
         axhal::time::set_oneshot_timer(deadline);
     }
 
+    #[cfg(feature = "signal")]
+    fn do_signal() {
+        let now_ns = axhal::time::current_time_nanos();
+        // timer signal num
+        let timers = [14, 26, 27];
+        for (which, timer) in timers.iter().enumerate() {
+            let mut ddl = Signal::timer_deadline(which, None).unwrap();
+            let interval = Signal::timer_interval(which, None).unwrap();
+            if ddl != 0 && now_ns >= ddl {
+                Signal::signal(*timer, true);
+                if interval == 0 {
+                    ddl = 0;
+                } else {
+                    ddl += interval;
+                }
+                Signal::timer_deadline(which, Some(ddl));
+            }
+        }
+        let signal = Signal::signal(-1, true).unwrap();
+        for signum in 0..32 {
+            if signal & (1 << signum) != 0
+            /* TODO: && support mask */
+            {
+                Signal::sigaction(signum as u8, None, None);
+                Signal::signal(signum as i8, false);
+            }
+        }
+    }
+
     axhal::irq::register_handler(TIMER_IRQ_NUM, || {
         update_timer();
+        #[cfg(feature = "signal")]
+        if axhal::cpu::this_cpu_is_bsp() {
+            do_signal();
+        }
         #[cfg(feature = "multitask")]
         axtask::on_timer_tick();
     });
