@@ -78,13 +78,18 @@ pub use imp::net::{
 pub use imp::pipe::sys_pipe;
 #[cfg(feature = "multitask")]
 pub use imp::pthread::condvar::{
-    sys_pthread_cond_broadcast, sys_pthread_cond_init, sys_pthread_cond_signal,
-    sys_pthread_cond_wait,
+    sys_pthread_cond_broadcast, sys_pthread_cond_destroy, sys_pthread_cond_init,
+    sys_pthread_cond_signal, sys_pthread_cond_timedwait, sys_pthread_cond_wait,
 };
 #[cfg(feature = "multitask")]
 pub use imp::pthread::mutex::{
-    sys_pthread_mutex_init, sys_pthread_mutex_lock, sys_pthread_mutex_trylock,
-    sys_pthread_mutex_unlock,
+    sys_pthread_mutex_destroy, sys_pthread_mutex_init, sys_pthread_mutex_lock,
+    sys_pthread_mutex_trylock, sys_pthread_mutex_unlock,
+};
+#[cfg(feature = "multitask")]
+pub use imp::pthread::tsd::{
+    sys_pthread_getspecific, sys_pthread_key_create, sys_pthread_key_delete,
+    sys_pthread_setspecific,
 };
 #[cfg(feature = "multitask")]
 pub use imp::pthread::{sys_pthread_create, sys_pthread_exit, sys_pthread_join, sys_pthread_self};

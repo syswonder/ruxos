@@ -51,6 +51,8 @@ cfg_if::cfg_if! {
         #[cfg(feature = "irq")]
         /// load average
         pub mod loadavg;
+        /// specific key-value storage for each task
+        pub mod tsd;
         /// TODO: if irq is disabled, what value should AVENRUN be?
         /// average run load, same as in linux kernel
         static mut AVENRUN: [u64; 3] = [0, 0, 0];
