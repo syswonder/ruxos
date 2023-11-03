@@ -65,7 +65,7 @@ use memory_addr::align_up;
 use core::alloc::Layout;
 use core::ptr::NonNull;
 
-const TLS_ALIGN: usize = 0x10;
+const TLS_ALIGN: usize = 8;
 
 cfg_if::cfg_if! {
     if #[cfg(target_arch = "x86_64")] {

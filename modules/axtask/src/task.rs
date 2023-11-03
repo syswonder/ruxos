@@ -383,7 +383,7 @@ struct TaskStack {
 
 impl TaskStack {
     pub fn alloc(size: usize) -> Self {
-        let layout = Layout::from_size_align(size, 16).unwrap();
+        let layout = Layout::from_size_align(size, 8).unwrap();
         debug!("taskStack::layout = {:?}", layout);
         Self {
             ptr: NonNull::new(unsafe { alloc::alloc::alloc(layout) }).unwrap(),

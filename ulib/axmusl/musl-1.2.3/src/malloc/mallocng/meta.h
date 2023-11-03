@@ -144,8 +144,7 @@ static inline struct meta *get_meta(const unsigned char *p)
 	assert(!(meta->avail_mask & (1u<<index)));
 	assert(!(meta->freed_mask & (1u<<index)));
 	const struct meta_area *area = (void *)((uintptr_t)meta & -4096);
-	// printf("get_meta 6, check = %d, secret = %d, area = %p, meta = %p\n", area->check, ctx.secret, area, meta);
-	// assert(area->check == ctx.secret);
+	assert(area->check == ctx.secret);
 	if (meta->sizeclass < 48) {
 		assert(offset >= size_classes[meta->sizeclass]*index);
 		assert(offset < size_classes[meta->sizeclass]*(index+1));

@@ -124,20 +124,33 @@ impl Pthread {
         unsafe { core::ptr::NonNull::new(Self::current_ptr()).map(|ptr| ptr.as_ref()) }
     }
 
+
+    fn exit_musl(retcode: usize) -> ! {
+        info!("Exit_musl");
+        let tid = Self::current().expect("fail to get current thread").inner.id().as_u64();
+        let thread = {TID_TO_PTHREAD.read().get(&tid).unwrap().0};
+        let thread = unsafe { Box::from_raw(thread as *mut Pthread) };
+        TID_TO_PTHREAD.write().remove(&tid);
+        drop(thread);
+        axtask::exit(0)
+    }
+
     fn exit_current(retval: *mut c_void) -> ! {
-        {
+        info!("Exit_current");
+        let tid = {
             let thread = Self::current().expect("fail to get current thread");
             unsafe { *thread.retval.result.get() = retval };
-        }
-
+            thread.inner.id().as_u64()
+        };
         #[cfg(feature = "musl")]
         {
-            let tid = axtask::current().id().as_u64();
             let thread = { TID_TO_PTHREAD.read().get(&tid).unwrap().0 };
             let thread = unsafe { Box::from_raw(thread as *mut Pthread) };
 
             TID_TO_PTHREAD.write().remove(&tid);
+            
             drop(thread);
+            // core::mem::forget(thread);
         }
 
         axtask::exit(0);
@@ -192,7 +205,8 @@ pub fn sys_pthread_exit(retval: *mut c_void) -> ! {
         axtask::current().as_task_ref().free_thread_list_lock();
     }
     // retval is exit code for musl
-    Pthread::exit_current(retval);
+    // Pthread::exit_current(retval);
+    Pthread::exit_musl(retval as usize);
 }
 
 /// Waits for the given thread to exit, and stores the return value in `retval`.

@@ -34,7 +34,7 @@ pub fn sys_mmap(
             debug!("Do not support explicitly specifying start addr");
             return Ok(core::ptr::null_mut());
         }
-        let layout = Layout::from_size_align(len, 16).unwrap();
+        let layout = Layout::from_size_align(len, 8).unwrap();
         unsafe {
             let ptr = alloc(layout).cast::<c_void>();
             (ptr as *mut u8).write_bytes(0, len);
@@ -51,7 +51,7 @@ pub fn sys_munmap(start: *mut c_void, len: ctypes::size_t) -> c_int {
         if start.is_null() {
             return Err(LinuxError::EINVAL);
         }
-        let layout = Layout::from_size_align(len, 16).unwrap();
+        let layout = Layout::from_size_align(len, 8).unwrap();
         unsafe { dealloc(start.cast(), layout) }
         Ok(0)
     })
