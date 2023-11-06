@@ -9,7 +9,7 @@
 
 use core::ffi::{c_int, c_void};
 
-use arceos_posix_api::{sys_read, sys_write, sys_writev};
+use arceos_posix_api::{sys_read, sys_write, sys_writev, sys_ioctl};
 
 use crate::{ctypes, utils::e};
 
@@ -38,4 +38,13 @@ pub unsafe extern "C" fn writev(
     iocnt: c_int,
 ) -> ctypes::ssize_t {
     e(sys_writev(fd, iov, iocnt) as _) as _
+}
+
+use log::info;
+/// Manipulate file descriptor.
+///
+/// TODO: `SET/GET` command is ignored
+#[no_mangle]
+pub unsafe extern "C" fn ax_ioctl(fd: c_int, req: c_int, arg: usize) -> c_int {
+    e(sys_ioctl(fd, req, arg))
 }

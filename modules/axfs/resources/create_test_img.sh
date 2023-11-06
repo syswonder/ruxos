@@ -25,9 +25,12 @@ create_test_img() {
 	mkdir -p "mnt/nginx/logs"
 	echo "" >> "mnt/nginx/logs/error.log"
 	mkdir -p "mnt/nginx/conf"
-	cp "/nginx/conf/nginx.conf" "mnt/nginx/conf/nginx.conf"
-	cp "/nginx/conf/mime.types" "mnt/nginx/conf/mime.types"
+	cp "/home/oslab/Desktop/nginx.conf" "mnt/nginx/conf/nginx.conf"
+	cp "/home/oslab/Desktop/mime.types" "mnt/nginx/conf/mime.types"
 	cp "/home/oslab/Desktop/nginx-1.24.0/output.txt" "mnt/testread.txt"
+	mkdir -p "mnt/html"
+	cp "/home/oslab/Desktop/rukos/apps/c/nginx/nginx-1.24.0/html/50x.html" "mnt/html/50x.html"
+	cp "/home/oslab/Desktop/rukos/apps/c/nginx/nginx-1.24.0/html/index.html" "mnt/html/index.html"
 
 	sudo umount mnt
 }

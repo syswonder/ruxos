@@ -446,6 +446,7 @@ ngx_log_redirect_stderr(ngx_cycle_t *cycle)
 
     /* file log always exists when we are called */
     fd = ngx_log_get_file_log(cycle->log)->file->fd;
+    printf("lhw debug after ngx log get file log\n");
 
     if (fd != ngx_stderr) {
         if (ngx_set_stderr(fd) == NGX_FILE_ERROR) {

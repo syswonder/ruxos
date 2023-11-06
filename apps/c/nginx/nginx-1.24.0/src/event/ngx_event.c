@@ -204,7 +204,6 @@ ngx_process_events_and_timers(ngx_cycle_t *cycle)
     } else {
         timer = ngx_event_find_timer();
         flags = NGX_UPDATE_TIME;
-
 #if (NGX_WIN32)
 
         /* handle signals from master in case of network inactivity */
@@ -215,6 +214,7 @@ ngx_process_events_and_timers(ngx_cycle_t *cycle)
 
 #endif
     }
+    printf("lhw debug after define timer\n");
 
     if (ngx_use_accept_mutex) {
         if (ngx_accept_disabled > 0) {
@@ -237,15 +237,20 @@ ngx_process_events_and_timers(ngx_cycle_t *cycle)
             }
         }
     }
+    printf("lhw debug after use accept mutex\n");
 
     if (!ngx_queue_empty(&ngx_posted_next_events)) {
         ngx_event_move_posted_next(cycle);
         timer = 0;
     }
 
+    printf("lhw debug before ngx_process_events\n");
+
     delta = ngx_current_msec;
 
     (void) ngx_process_events(cycle, timer, flags);
+
+    printf("lhw debug after ngx process events\n");
 
     delta = ngx_current_msec - delta;
 
@@ -261,6 +266,7 @@ ngx_process_events_and_timers(ngx_cycle_t *cycle)
     ngx_event_expire_timers();
 
     ngx_event_process_posted(cycle, &ngx_posted_events);
+    printf("lhw debug process event and timers end\n");
 }
 
 
@@ -571,9 +577,14 @@ ngx_event_module_init(ngx_cycle_t *cycle)
     {
         return NGX_ERROR;
     }
-    printf("lhw debug in ngx_event.c: after ngx shmtx create\n");
+    printf("lhw debug in ngx_event.c: after ngx shmtx create: shared: %p\n",shared);
+    int *test1 = shared;
+    printf("test1 malloc for map shared: %d",*test1);
+    int *test2 = (shared + 1 * cl);
+    printf("test2 malloc for map shared: %d",*test2);
 
     ngx_connection_counter = (ngx_atomic_t *) (shared + 1 * cl);
+    printf("lhw debug in ngx_event.c: before ngx atomic cmp set: cl: %d ngx_connection_counter: %p\n",cl,ngx_connection_counter);
 
     (void) ngx_atomic_cmp_set(ngx_connection_counter, 0, 1);
     printf("lhw debug in ngx_event.c: after ngx atomic cmp set\n");

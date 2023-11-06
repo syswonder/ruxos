@@ -14,6 +14,7 @@ ngx_daemon(ngx_log_t *log)
 {
     int  fd;
 
+    printf("lhw debug fork in ngx daemon\n");
     switch (fork()) {
     case -1:
         ngx_log_error(NGX_LOG_EMERG, log, ngx_errno, "fork() failed");

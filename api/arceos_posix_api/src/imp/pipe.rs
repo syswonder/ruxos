@@ -197,6 +197,10 @@ impl FileLike for Pipe {
     fn set_nonblocking(&self, _nonblocking: bool) -> LinuxResult {
         Ok(())
     }
+
+    fn set_closeonexec(&self, _closeonexec: bool) -> LinuxResult {
+        Ok(())
+    }
 }
 
 /// Create a pipe

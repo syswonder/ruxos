@@ -366,6 +366,7 @@ ngx_epoll_init(ngx_cycle_t *cycle, ngx_msec_t timer)
 
     ngx_io = ngx_os_io;
 
+    printf("lhw debug ngx_event_actions = ngx_epoll_module_ctx.actions;\n");
     ngx_event_actions = ngx_epoll_module_ctx.actions;
 
 #if (NGX_HAVE_CLEAR_EVENT)
@@ -467,11 +468,13 @@ ngx_epoll_test_rdhup(ngx_cycle_t *cycle)
     int                 s[2], events;
     struct epoll_event  ee;
 
+    printf("lhw debug socketpair in ngx epoll test rdhup\n");
     if (socketpair(AF_UNIX, SOCK_STREAM, 0, s) == -1) {
         ngx_log_error(NGX_LOG_ALERT, cycle->log, ngx_errno,
                       "socketpair() failed");
         return;
     }
+    printf("lhw debug after socketpair %d\n",s[0]);
 
     ee.events = EPOLLET|EPOLLIN|EPOLLRDHUP;
 
@@ -480,6 +483,7 @@ ngx_epoll_test_rdhup(ngx_cycle_t *cycle)
                       "epoll_ctl() failed");
         goto failed;
     }
+    printf("lhw debug after epoll ctl\n");
 
     if (close(s[1]) == -1) {
         ngx_log_error(NGX_LOG_ALERT, cycle->log, ngx_errno,
@@ -793,17 +797,20 @@ ngx_epoll_process_events(ngx_cycle_t *cycle, ngx_msec_t timer, ngx_uint_t flags)
     ngx_connection_t  *c;
 
     /* NGX_TIMER_INFINITE == INFTIM */
+    printf("lhw debug in ngx_epoll_process_events\n");
 
     ngx_log_debug1(NGX_LOG_DEBUG_EVENT, cycle->log, 0,
                    "epoll timer: %M", timer);
 
     events = epoll_wait(ep, event_list, (int) nevents, timer);
+    printf("lhw debug after epoll wait\n");
 
     err = (events == -1) ? ngx_errno : 0;
 
     if (flags & NGX_UPDATE_TIME || ngx_event_timer_alarm) {
         ngx_time_update();
     }
+    printf("lhw debug after time update\n");
 
     if (err) {
         if (err == NGX_EINTR) {

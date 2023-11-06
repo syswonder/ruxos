@@ -285,6 +285,7 @@ ngx_single_process_cycle(ngx_cycle_t *cycle)
         exit(2);
     }
 
+    printf("lhw debug before init process\n");
     for (i = 0; cycle->modules[i]; i++) {
         if (cycle->modules[i]->init_process) {
             if (cycle->modules[i]->init_process(cycle) == NGX_ERROR) {
@@ -293,14 +294,17 @@ ngx_single_process_cycle(ngx_cycle_t *cycle)
             }
         }
     }
-
+    printf("lhw debug after init process\n");
     for ( ;; ) {
+        printf("lhw debug in cycle\n");
         ngx_log_debug0(NGX_LOG_DEBUG_EVENT, cycle->log, 0, "worker cycle");
 
+        printf("lhw debug before process event and timers\n");
         ngx_process_events_and_timers(cycle);
 
         if (ngx_terminate || ngx_quit) {
 
+            printf("lhw debug before exit process\n");
             for (i = 0; cycle->modules[i]; i++) {
                 if (cycle->modules[i]->exit_process) {
                     cycle->modules[i]->exit_process(cycle);
@@ -309,6 +313,7 @@ ngx_single_process_cycle(ngx_cycle_t *cycle)
 
             ngx_master_process_exit(cycle);
         }
+        printf("lhw debug after exit process\n");
 
         if (ngx_reconfigure) {
             ngx_reconfigure = 0;

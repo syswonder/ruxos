@@ -46,7 +46,7 @@ pub mod config {
 #[allow(dead_code, non_snake_case, non_camel_case_types, non_upper_case_globals, clippy::upper_case_acronyms, missing_docs)]
 pub mod ctypes;
 
-pub use imp::io::{sys_read, sys_write, sys_writev};
+pub use imp::io::{sys_read, sys_write, sys_writev, sys_ioctl};
 pub use imp::resources::{sys_getrlimit, sys_setrlimit};
 pub use imp::sys::sys_sysinfo;
 pub use imp::task::{sys_exit, sys_getpid, sys_sched_yield};

@@ -125,6 +125,7 @@ ngx_iocp_init(ngx_cycle_t *cycle, ngx_msec_t timer)
 
     ngx_io = ngx_iocp_io;
 
+    printf("lhw debug ngx_event_actions = ngx_iocp_module_ctx.actions;\n");
     ngx_event_actions = ngx_iocp_module_ctx.actions;
 
     ngx_event_flags = NGX_USE_IOCP_EVENT;

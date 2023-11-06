@@ -26,7 +26,7 @@ use arceos_posix_api::{sys_epoll_create, sys_epoll_ctl, sys_epoll_wait};
 pub unsafe extern "C" fn epoll_create(size: c_int) -> c_int {
     e(sys_epoll_create(size))
 }
-
+use log::info;
 /// Control interface for an epoll file descriptor
 #[cfg(feature = "epoll")]
 #[no_mangle]
@@ -36,6 +36,7 @@ pub unsafe extern "C" fn epoll_ctl(
     fd: c_int,
     event: *mut ctypes::epoll_event,
 ) -> c_int {
+    info!("lhw debug in epoll_ctl {} {} {}",epfd, op, fd);
     e(sys_epoll_ctl(epfd, op, fd, event))
 }
 

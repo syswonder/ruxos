@@ -1059,6 +1059,7 @@ name = "flatten_objects"
 version = "0.1.0"
 dependencies = [
  "bitmaps",
+ "log",
 ]
 
 [[package]]

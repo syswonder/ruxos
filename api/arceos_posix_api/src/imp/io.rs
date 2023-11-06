@@ -79,3 +79,20 @@ pub unsafe fn sys_writev(fd: c_int, iov: *const ctypes::iovec, iocnt: c_int) -> 
         Ok(ret)
     })
 }
+
+/// ioctl
+pub fn sys_ioctl(fd: c_int, cmd: c_int, arg: usize) -> c_int {
+    debug!("sys_ioctl <= fd: {} cmd: {} arg: {}", fd, cmd, arg);
+    syscall_body!(sys_fcntl, {
+        match cmd as u32 {
+            ctypes::FIONBIO => {
+                get_file_like(fd)?.set_nonblocking(arg & (ctypes::O_NONBLOCK as usize) > 0)?;
+                Ok(0)
+            }
+            _ => {
+                warn!("unsupported fcntl parameters: cmd {}", cmd);
+                Ok(0)
+            }
+        }
+    })
+}

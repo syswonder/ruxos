@@ -9,10 +9,18 @@
 
 #include <stdio.h>
 #include <sys/ioctl.h>
+#include <stdarg.h>
+
+int ax_ioctl(int fd, int cmd, size_t arg);
 
 // TODO
-int ioctl(int __fd, int __request, ...)
+int ioctl(int fd, int request, ...)
 {
-    unimplemented();
-    return 0;
+    unsigned long arg;
+    va_list ap;
+    va_start(ap, request);
+    arg = va_arg(ap, unsigned long);
+    va_end(ap);
+
+    return ax_ioctl(fd, request, arg);
 }

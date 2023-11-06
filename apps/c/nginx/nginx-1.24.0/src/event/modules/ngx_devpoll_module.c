@@ -183,6 +183,7 @@ ngx_devpoll_init(ngx_cycle_t *cycle, ngx_msec_t timer)
 
     ngx_io = ngx_os_io;
 
+    printf("lhw debug ngx_event_actions = ngx_devpoll_module_ctx.actions\n");
     ngx_event_actions = ngx_devpoll_module_ctx.actions;
 
     ngx_event_flags = NGX_USE_LEVEL_EVENT|NGX_USE_FD_EVENT;

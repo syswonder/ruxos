@@ -144,6 +144,10 @@ impl FileLike for EpollInstance {
     fn set_nonblocking(&self, _nonblocking: bool) -> LinuxResult {
         Ok(())
     }
+
+    fn set_closeonexec(&self, _closeonexec: bool) -> LinuxResult {
+        Ok(())
+    }
 }
 
 /// Creates a new epoll instance.
@@ -183,6 +187,7 @@ pub unsafe fn sys_epoll_wait(
     maxevents: c_int,
     timeout: c_int,
 ) -> c_int {
+    info!("lhw debug sys epoll wait");
     debug!(
         "sys_epoll_wait <= epfd: {}, maxevents: {}, timeout: {}",
         epfd, maxevents, timeout

@@ -303,7 +303,7 @@ main(int argc, char *const *argv)
         return 1;
     }
     
-
+    printf("lhw debug before ngx write fd\n");
     if (ngx_test_config) {
         if (!ngx_quiet_mode) {
             ngx_log_stderr(0, "configuration file %s test is successful",
@@ -326,13 +326,14 @@ main(int argc, char *const *argv)
                 ngx_write_stdout(NGX_LINEFEED);
             }
         }
-
+        printf("lhw debug in ngx write fd normal return\n");
         return 0;
     }
 
     if (ngx_signal) {
         return ngx_signal_process(cycle, ngx_signal);
     }
+    printf("lhw debug after ngx signal process\n");
 
     ngx_os_status(cycle->log);
 
@@ -361,6 +362,7 @@ main(int argc, char *const *argv)
     if (ngx_inherited) {
         ngx_daemonized = 1;
     }
+    printf("lhw debug after deal daemon\n");
 
 #endif
 
@@ -368,9 +370,12 @@ main(int argc, char *const *argv)
         return 1;
     }
 
+    printf("lhw debug after ngx create pidfile2\n");
+
     if (ngx_log_redirect_stderr(cycle) != NGX_OK) {
         return 1;
     }
+    printf("lhw debug after ngx log redirect stderr\n");
 
     if (log->file->fd != ngx_stderr) {
         if (ngx_close_file(log->file->fd) == NGX_FILE_ERROR) {
@@ -382,11 +387,15 @@ main(int argc, char *const *argv)
     ngx_use_stderr = 0;
 
     if (ngx_process == NGX_PROCESS_SINGLE) {
+        printf("lhw debug before ngx single process cycle\n");
         ngx_single_process_cycle(cycle);
 
     } else {
+        printf("lhw debug before ngx master process cycle\n");
         ngx_master_process_cycle(cycle);
     }
+    printf("lhw debug normal return\n");
+
 
     return 0;
 }

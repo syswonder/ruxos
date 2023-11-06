@@ -45,7 +45,7 @@
 #endif
 
 #ifndef NGX_HAVE_EPOLLRDHUP
-#define NGX_HAVE_EPOLLRDHUP  1
+#define NGX_HAVE_EPOLLRDHUP  0
 #endif
 
 #ifndef NGX_HAVE_EPOLLEXCLUSIVE
@@ -228,9 +228,9 @@
 #define NGX_HAVE_PREAD  0
 #endif
 
-#ifndef NGX_HAVE_PWRITE
+/*#ifndef NGX_HAVE_PWRITE
 #define NGX_HAVE_PWRITE  1
-#endif
+#endif*/
 
 #ifndef NGX_HAVE_PWRITEV
 #define NGX_HAVE_PWRITEV  1

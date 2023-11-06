@@ -93,6 +93,7 @@ ngx_poll_init(ngx_cycle_t *cycle, ngx_msec_t timer)
 
     ngx_io = ngx_os_io;
 
+    printf("lhw debug ngx_event_actions = ngx_poll_module_ctx.actions;\n");
     ngx_event_actions = ngx_poll_module_ctx.actions;
 
     ngx_event_flags = NGX_USE_LEVEL_EVENT|NGX_USE_FD_EVENT;
@@ -246,6 +247,7 @@ ngx_poll_process_events(ngx_cycle_t *cycle, ngx_msec_t timer, ngx_uint_t flags)
     ngx_connection_t   *c;
 
     /* NGX_TIMER_INFINITE == INFTIM */
+    printf("lhw debug in ngx_poll_process_events\n");
 
 #if (NGX_DEBUG0)
     if (cycle->log->log_level & NGX_LOG_DEBUG_ALL) {

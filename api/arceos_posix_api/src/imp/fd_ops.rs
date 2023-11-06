@@ -28,6 +28,7 @@ pub trait FileLike: Send + Sync {
     fn into_any(self: Arc<Self>) -> Arc<dyn core::any::Any + Send + Sync>;
     fn poll(&self) -> LinuxResult<PollState>;
     fn set_nonblocking(&self, nonblocking: bool) -> LinuxResult;
+    fn set_closeonexec(&self, closeonexec: bool) -> LinuxResult;
 }
 
 lazy_static::lazy_static! {
@@ -100,6 +101,9 @@ pub fn sys_dup2(old_fd: c_int, new_fd: c_int) -> c_int {
             return Err(LinuxError::EBADF);
         }
 
+        info!("lhw debug sys close new fd: {}",new_fd);
+        close_file_like(new_fd).map(|_| 0);
+
         let f = get_file_like(old_fd)?;
         FD_TABLE
             .write()
@@ -121,6 +125,10 @@ pub fn sys_fcntl(fd: c_int, cmd: c_int, arg: usize) -> c_int {
             ctypes::F_DUPFD_CLOEXEC => {
                 // TODO: Change fd flags
                 dup_fd(fd)
+            }
+            ctypes::F_SETFD => {
+                get_file_like(fd)?.set_closeonexec(arg & (ctypes::O_CLOEXEC as usize) > 0)?;
+                Ok(0)
             }
             ctypes::F_SETFL => {
                 if fd == 0 || fd == 1 || fd == 2 {
