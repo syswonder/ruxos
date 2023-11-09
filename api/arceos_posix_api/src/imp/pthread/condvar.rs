@@ -50,7 +50,7 @@ impl Condvar {
             return Err(axerrno::LinuxError::try_from(ret).unwrap());
         }
         self.wq
-            .wait_timeout(core::time::Duration::from(unsafe { *abstime }));
+            .wait_timeout_absolutely(core::time::Duration::from(unsafe { *abstime }));
 
         let ret = sys_pthread_mutex_lock(mutex);
         if ret < 0 {
