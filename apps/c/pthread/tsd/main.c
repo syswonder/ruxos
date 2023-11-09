@@ -35,7 +35,7 @@ int res = 0;
 void destr_func(void *arg)
 {
     res += *(int *)arg;
-    char *buf[100];
+    char buf[100];
     sprintf(buf, "destr_func, *arg = 0x%x", *(int *)arg);
     puts(buf);
     free(arg);
