@@ -35,6 +35,14 @@ macro_rules! register_display_driver {
     };
 }
 
+macro_rules! register_9p_driver {
+    ($driver_type:ty, $device_type:ty) => {
+        /// The unified type of the NIC devices.
+        #[cfg(not(feature = "dyn"))]
+        pub type Ax9pDevice = $device_type;
+    };
+}
+
 macro_rules! for_each_drivers {
     (type $drv_type:ident, $code:block) => {{
         #[allow(unused_imports)]
@@ -56,6 +64,11 @@ macro_rules! for_each_drivers {
         #[cfg(display_dev = "virtio-gpu")]
         {
             type $drv_type = <virtio::VirtIoGpu as VirtIoDevMeta>::Driver;
+            $code
+        }
+        #[cfg(_9p_dev = "virtio-9p")]
+        {
+            type $drv_type = <virtio::VirtIo9p as VirtIoDevMeta>::Driver;
             $code
         }
         #[cfg(block_dev = "ramdisk")]

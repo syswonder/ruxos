@@ -13,7 +13,17 @@
      ```
      make A=apps/c/redis/ LOG=error NET=y BLK=y ARCH=x86_64 SMP=4 ARGS="./redis-server,--bind,0.0.0.0,--port,5555,--save,\"\",--appendonly,no,--protected-mode,no" run
      ```
-  
+
+  - version 3 for aarch64(using 9pfs)
+     ```
+     make A=apps/c/redis/ LOG=error NET=y V9P=y BLK=y V9P_PATH=apps/c/redis ARCH=aarch64 SMP=4 ARGS="./redis-server,/v9fs/redis.conf" run
+     ```  
+
+  - version 3 for x86_64(using 9pfs)
+     ```
+     make A=apps/c/redis/ LOG=error NET=y V9P=y BLK=y V9P_PATH=apps/c/redis ARCH=x86_64 SMP=4 ARGS="./redis-server,/v9fs/redis.conf" run
+     ```  
+
 
 # How to test?
 - Use `redis-cli -p 5555` to connect to redis-server, and enjoy ArceOS-Redis world!
@@ -342,3 +352,4 @@ LRANGE_500 (first 450 elements): 16485.33 requests per second
 LRANGE_600 (first 600 elements): 13159.63 requests per second
 MSET (10 keys): 72780.20 requests per second
 ```
+
