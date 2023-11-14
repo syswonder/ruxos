@@ -101,7 +101,6 @@ impl AxRunQueue {
             EXITED_TASKS.lock().clear();
             axhal::misc::terminate();
         } else {
-            curr.destroy_keys();
             curr.set_state(TaskState::Exited);
             curr.notify_exit(exit_code, self);
             EXITED_TASKS.lock().push_back(curr.clone());

@@ -21,7 +21,9 @@ void *specific_func(void *arg)
     int *p = (int *)malloc(sizeof(int));
     *p = *(int *)arg;
     pthread_setspecific(p_key, p);
-    sleep(1);
+    if (*p == 0x5678) {
+        sleep(1);
+    }
     int *tmp = (int *)pthread_getspecific(p_key);
     assert(*tmp == *(int *)arg);
     assert(pthread_getspecific(999999) == NULL);
@@ -33,11 +35,10 @@ int res = 0;
 void destr_func(void *arg)
 {
     res += *(int *)arg;
+    char buf[100];
+    sprintf(buf, "destr_func, *arg = 0x%x", *(int *)arg);
+    puts(buf);
     free(arg);
-    // It seems that printing in destr_func will cause deadlock
-    // char *buf[100];
-    // sprintf(buf, "destr_func: %d", *(int *)arg);
-    // puts(buf);
 }
 
 void test_specific()
