@@ -66,7 +66,11 @@ pub enum SyscallId {
     CLOCK_SETTIME = 112,
     CLOCK_GETTIME = 113,
     SCHED_YIELD = 124,
+    #[cfg(feature = "signal")]
+    SIGALTSTACK = 132,
+    #[cfg(feature = "signal")]
     RT_SIGACTION = 134,
+    #[cfg(feature = "signal")]
     RT_SIGPROCMASK = 135,
     UNAME = 160,
     GETRLIMIT = 163,
@@ -102,6 +106,8 @@ pub enum SyscallId {
     SENDMSG = 211,
     #[cfg(feature = "alloc")]
     MUNMAP = 215,
+    #[cfg(feature = "alloc")]
+    MREMAP = 216,
     #[cfg(feature = "multitask")]
     CLONE = 220,
     #[cfg(feature = "alloc")]
