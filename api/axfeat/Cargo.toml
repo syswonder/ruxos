@@ -39,7 +39,8 @@ sched_rr = ["axtask/sched_rr", "irq"]
 sched_cfs = ["axtask/sched_cfs", "irq"]
 
 # File system
-fs = ["alloc", "paging", "axdriver/virtio-blk", "dep:axfs", "axruntime/fs"] # TODO: try to remove "paging"
+fs = ["alloc", "paging", "dep:axfs", "axruntime/fs"] # TODO: try to remove "paging"
+blkfs = ["axdriver/virtio-blk", "axruntime/blkfs"]
 myfs = ["axfs?/myfs"]
 9pfs = []
 

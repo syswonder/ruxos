@@ -2,5 +2,6 @@ alloc
 paging
 net
 fs
+blkfs
 select
 fp_simd

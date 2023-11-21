@@ -4,6 +4,7 @@ fp_simd
 irq
 multitask
 fs
+blkfs
 net
 pipe
 epoll

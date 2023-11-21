@@ -57,6 +57,12 @@ cfg_if::cfg_if! {
 
 pub use root::MountPoint;
 
+/// Initialize an empty filesystems by ramfs.
+#[cfg(not(any(feature = "blkfs", feature = "virtio-9p", feature = "net-9p")))]
+pub fn init_tempfs() -> MountPoint {
+    MountPoint::new("/", mounts::ramfs())
+}
+
 /// Initializes filesystems by block devices.
 pub fn init_blkfs(mut blk_devs: AxDeviceContainer<AxBlockDevice>) -> MountPoint {
     info!("Initialize filesystems...");
