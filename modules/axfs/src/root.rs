@@ -13,7 +13,7 @@
 
 use alloc::{format, string::String, sync::Arc, vec::Vec};
 use axerrno::{ax_err, AxError, AxResult};
-use axfs_vfs::{VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps, VfsResult};
+use axfs_vfs::{VfsError, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps, VfsResult};
 use axsync::Mutex;
 use lazy_init::LazyInit;
 
@@ -67,7 +67,14 @@ impl RootDirectory {
             return ax_err!(InvalidInput, "mount point already exists");
         }
         // create the mount point in the main filesystem if it does not exist
-        self.main_fs.root_dir().create(path, FileType::Dir)?;
+        match self.main_fs.root_dir().lookup(path) {
+            Ok(_) => {}
+            Err(err_code) => {
+                if err_code == VfsError::NotFound {
+                    self.main_fs.root_dir().create(path, FileType::Dir)?;
+                }
+            }
+        }
         fs.mount(path, self.main_fs.root_dir().lookup(path)?)?;
         self.mounts.push(MountPoint::new(path, fs));
         Ok(())

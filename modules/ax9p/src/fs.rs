@@ -111,7 +111,6 @@ pub struct DirNode {
     fid: Arc<u32>,
     protocol: Arc<String>,
     parent: RwLock<Weak<dyn VfsNodeOps>>,
-    children: RwLock<BTreeMap<String, VfsNodeRef>>,
 }
 
 impl DirNode {
@@ -145,7 +144,6 @@ impl DirNode {
             fid: Arc::new(fid),
             protocol,
             parent: RwLock::new(parent.unwrap_or_else(|| Weak::<Self>::new())),
-            children: RwLock::new(BTreeMap::new()),
         })
     }
 
@@ -245,19 +243,16 @@ impl DirNode {
     /// Update nodes from host filesystem
     fn read_nodes(&self) -> Result<BTreeMap<String, VfsNodeRef>, VfsError> {
         let mut node_map: BTreeMap<String, VfsNodeRef> = BTreeMap::new();
-        // TODO: the length of dir content can only support as large as MAX_LENGTH.
-        const OFFSET: u64 = 0;
-        const MAX_LENGTH: u32 = 1024;
         debug!("reading nodes");
         let dirents = match self.protocol.as_str() {
-            "9P2000.L" => match self.inner.write().treaddir(*self.fid, OFFSET, MAX_LENGTH) {
+            "9P2000.L" => match self.inner.write().treaddir(*self.fid) {
                 Ok(contents) => contents,
                 Err(errcode) => {
                     error!("9pfs treaddir failed! error code: {}", errcode);
                     return Err(VfsError::BadState);
                 }
             },
-            "9P2000.u" => match self.inner.write().u_treaddir(*self.fid, OFFSET, MAX_LENGTH) {
+            "9P2000.u" => match self.inner.write().u_treaddir(*self.fid) {
                 Ok(contents) => contents,
                 Err(errcode) => {
                     error!("9pfs u_treaddir failed! error code: {}", errcode);
@@ -378,12 +373,7 @@ impl VfsNodeOps for DirNode {
                 match name {
                     "" | "." => Ok(self.clone() as VfsNodeRef),
                     ".." => self.parent().ok_or(VfsError::NotFound),
-                    _ => self
-                        .children
-                        .read()
-                        .get(name)
-                        .cloned()
-                        .ok_or(VfsError::NotFound),
+                    _ => Err(VfsError::NotFound),
                 }?
             }
         };
@@ -404,21 +394,14 @@ impl VfsNodeOps for DirNode {
                 return Err(VfsError::BadState);
             }
         };
-        let children: spin::RwLockReadGuard<'_, BTreeMap<String, Arc<dyn VfsNodeOps>>> =
-            self.children.read();
 
-        // merge mounted tree with 9p's node tree.
-        let mut children = children
-            .iter()
-            .chain(_9p_map.iter())
-            .skip(start_idx.max(2) - 2);
-
+        let mut item_iter = _9p_map.iter().skip(start_idx.max(2) - 2);
         for (i, ent) in dirents.iter_mut().enumerate() {
             match i + start_idx {
                 0 => *ent = VfsDirEntry::new(".", VfsNodeType::Dir),
                 1 => *ent = VfsDirEntry::new("..", VfsNodeType::Dir),
                 _ => {
-                    if let Some((name, node)) = children.next() {
+                    if let Some((name, node)) = item_iter.next() {
                         let attr = node.get_attr();
                         let file_type = match attr {
                             Ok(attr) => attr.file_type(),
@@ -446,8 +429,7 @@ impl VfsNodeOps for DirNode {
                 ".." => self.parent().ok_or(VfsError::NotFound)?.create(rest, ty),
                 _ => {
                     let subdir = self
-                        .children
-                        .read()
+                        .read_nodes()?
                         .get(name)
                         .ok_or(VfsError::NotFound)?
                         .clone();
@@ -594,25 +576,45 @@ impl VfsNodeOps for FileNode {
     /// Read data from the file at the given offset.
     fn read_at(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
         let mut dev = self.inner.write();
-        match dev.tread(*self.fid, offset, buf.len() as u32) {
-            Ok(content) => {
-                // should be more effient
-                for (i, byte) in content.iter().enumerate() {
-                    buf[i] = *byte;
+        let mut read_len = buf.len();
+        let mut offset_ptr = 0;
+        while read_len > 0 {
+            let target_buf = &mut buf[offset_ptr..];
+            let rlen = match dev.tread(*self.fid, offset + offset_ptr as u64, read_len as u32) {
+                Ok(content) => {
+                    let read_len = content.len();
+                    target_buf[..read_len].copy_from_slice(&content);
+                    read_len
                 }
-                Ok(content.len())
+                Err(_) => return Err(VfsError::BadState),
+            };
+            if rlen == 0 {
+                return Ok(offset_ptr);
             }
-            Err(_) => Err(VfsError::BadState),
+            read_len -= rlen;
+            offset_ptr += rlen;
         }
+        Ok(buf.len())
     }
 
     /// Write data to the file at the given offset.
     fn write_at(&self, offset: u64, buf: &[u8]) -> VfsResult<usize> {
         let mut dev = self.inner.write();
-        match dev.twrite(*self.fid, offset, buf) {
-            Ok(_) => Ok(buf.len()),
-            Err(_) => Err(VfsError::BadState),
+        let mut write_len = buf.len();
+        let mut offset_ptr = 0;
+        while write_len > 0 {
+            let target_buf = &buf[offset_ptr..];
+            let wlen = match dev.twrite(*self.fid, offset + offset_ptr as u64, target_buf) {
+                Ok(writed_length) => writed_length as usize,
+                Err(_) => return Err(VfsError::BadState),
+            };
+            if wlen == 0 {
+                return Ok(offset_ptr);
+            }
+            write_len -= wlen;
+            offset_ptr += wlen;
         }
+        Ok(buf.len())
     }
 
     /// Flush the file, synchronize the data to disk.
