@@ -22,6 +22,9 @@ use crate_interface::{call_interface, def_interface};
 pub trait TrapHandler {
     /// Handles interrupt requests for the given IRQ number.
     fn handle_irq(irq_num: usize);
+    /// Handles system call from user app.
+    #[cfg(feature = "musl")]
+    fn handle_syscall(syscall_id: usize, args: [usize; 6]) -> isize;
     // more e.g.: handle_page_fault();
 }
 
@@ -29,4 +32,11 @@ pub trait TrapHandler {
 #[allow(dead_code)]
 pub(crate) fn handle_irq_extern(irq_num: usize) {
     call_interface!(TrapHandler::handle_irq, irq_num);
+}
+
+/// Call the external syscall handler.
+#[allow(dead_code)]
+#[cfg(feature = "musl")]
+pub(crate) fn handle_syscall(syscall_id: usize, args: [usize; 6]) -> isize {
+    call_interface!(TrapHandler::handle_syscall, syscall_id, args)
 }

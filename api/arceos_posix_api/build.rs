@@ -99,6 +99,10 @@ typedef struct {{
             "sysinfo",
             "sigaction",
             "k_sigaction",
+            "pid_t",
+            "sigset_t",
+            "sigaction",
+            "kstat",
         ];
         let allow_vars = [
             "O_.*",
@@ -116,6 +120,8 @@ typedef struct {{
             "ITIMER_.*",
             "SIG.*",
             "EINVAL",
+            "CLONE_.*",
+            "AT_.*",
         ];
 
         #[derive(Debug)]
