@@ -212,9 +212,13 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
             // By default, mount_points[0] will be rootfs
             let mut mount_points: Vec<axfs::MountPoint> = Vec::new();
 
+            //setup ramfs as rootfs if no other filesystem can be mounted
+            #[cfg(not(any(feature = "blkfs", feature = "virtio-9p", feature = "net-9p")))]
+            mount_points.push(axfs::init_tempfs());
+
             // setup and initialize blkfs as one mountpoint for rootfs
+            #[cfg(feature = "blkfs")]
             mount_points.push(axfs::init_blkfs(all_devices.block));
-            axfs::prepare_commonfs(&mut mount_points);
 
             // setup and initialize 9pfs as mountpoint
             #[cfg(feature = "virtio-9p")]
@@ -229,6 +233,7 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
                 option_env!("AX_ANAME_9P").unwrap_or(""),
                 option_env!("AX_PROTOCOL_9P").unwrap_or(""),
             ));
+            axfs::prepare_commonfs(&mut mount_points);
 
             // setup and initialize rootfs
             axfs::init_filesystems(mount_points);

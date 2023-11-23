@@ -14,10 +14,11 @@ use axdriver::prelude::*;
 use log::*;
 use spin::RwLock;
 
-const UNDEFINED_ERROR: u8 = 0;
+const EIO: u8 = 5;
+const EINVAL: u8 = 90;
 const _9P_LEAST_QLEN: u32 = 7; // size[4] type_id[1] tag[2]
-const _9P_MAX_QSIZE: u32 = 8192 + 1; // it should larger than 8192, or virtio-9p may raise a warning.
-const _9P_MAX_PSIZE: u32 = 8192 + 1; // it should larger than 8192, or virtio-9p may raise a warning.
+pub const _9P_MAX_QSIZE: u32 = 8192 + 1; // it should larger than 8192, or virtio-9p may raise a warning.
+pub const _9P_MAX_PSIZE: u32 = 8192 + 1; // it should larger than 8192, or virtio-9p may raise a warning.
 const _9P_NONUNAME: u32 = 0;
 
 pub const _9P_SETATTR_MODE: u64 = 0x00000001;
@@ -55,6 +56,9 @@ impl Drv9pOps {
 
     // Send request and receive response
     pub fn request(&mut self, request: &[u8], response: &mut [u8]) -> Result<(), u8> {
+        if request.len() as u32 > _9P_MAX_QSIZE {
+            return Err(EINVAL);
+        }
         let enqueue_try = self.transport.write().send_with_recv(request, response);
         match enqueue_try {
             Ok(_) => {
@@ -72,7 +76,7 @@ impl Drv9pOps {
                     _ => Ok(()),
                 }
             }
-            Err(_) => Err(UNDEFINED_ERROR),
+            Err(_) => Err(EIO),
         }
     }
 
@@ -166,6 +170,7 @@ impl Drv9pOps {
         self.request(&request.buffer, &mut response_buffer)
     }
 
+    /// `twalk()`: Pay attention to the max_size of request buffer, wnames should not be too long usually.
     pub fn twalk(&mut self, fid: u32, newfid: u32, nwname: u16, wnames: &[&str]) -> Result<(), u8> {
         let mut request = _9PReq::new(_9PType::Twalk);
         let mut response_buffer: [u8; _9P_MAX_PSIZE as usize] = [0; _9P_MAX_PSIZE as usize];
@@ -282,12 +287,19 @@ impl Drv9pOps {
 
     /// read perform I/O on the file represented by fid.
     /// Note that in v9fs, a read(2) or write(2) system call for a chunk of the file that won't fit in a single request is broken up into multiple requests.
+    /// `tread()` can only read _9P_MAX_PSIZE-25 bytes if counter is larger than _9P_MAX_PSIZE.
     pub fn tread(&mut self, fid: u32, offset: u64, count: u32) -> Result<Vec<u8>, u8> {
+        // check if `count` larger than MAX_READ_LEN
+        const MAX_READ_LEN: u32 = _9P_MAX_PSIZE - 32;
+        let mut reading_len = count;
+        if reading_len > MAX_READ_LEN {
+            reading_len = MAX_READ_LEN;
+        }
         let mut request = _9PReq::new(_9PType::Tread);
         let mut response_buffer: [u8; _9P_MAX_PSIZE as usize] = [0; _9P_MAX_PSIZE as usize];
         request.write_u32(fid);
         request.write_u64(offset);
-        request.write_u32(count);
+        request.write_u32(reading_len);
         request.finish();
         match self.request(&request.buffer, &mut response_buffer) {
             Ok(_) => {
@@ -300,54 +312,113 @@ impl Drv9pOps {
         }
     }
 
-    /// read directory represented by fid in 9P2000.u. In 9P2000.L, using treaddir() instead.
-    pub fn u_treaddir(&mut self, fid: u32, offset: u64, count: u32) -> Result<Vec<DirEntry>, u8> {
-        let mut request = _9PReq::new(_9PType::Tread);
-        let mut response_buffer: [u8; _9P_MAX_PSIZE as usize] = [0; _9P_MAX_PSIZE as usize];
-        request.write_u32(fid);
-        request.write_u64(offset);
-        request.write_u32(count);
-        request.finish();
-        match self.request(&request.buffer, &mut response_buffer) {
-            Ok(_) => {
-                const COUNT_START: usize = 7;
-                const COUNT_END: usize = 11;
-                let length: u64 = lbytes2u64(&response_buffer[COUNT_START..COUNT_START + 4]);
+    pub fn treaddir(&mut self, fid: u32) -> Result<Vec<DirEntry>, u8> {
+        let mut dir_entries: Vec<DirEntry> = Vec::new();
+        let mut offptr = 0_u64;
+        loop {
+            // check if `count` larger than MAX_READ_LEN
+            const MAX_READ_LEN: u32 = _9P_MAX_PSIZE - 32;
 
-                let mut dir_entries: Vec<DirEntry> = Vec::new();
-                let mut resp_ptr = COUNT_END;
-                while resp_ptr < length as usize {
-                    // qid[13] offset[8] type[1] name[s]
-                    let state = UStatFs::parse_u_from(&response_buffer[resp_ptr..]);
-                    let dir_entry = DirEntry {
-                        qid: state.get_qid(),
-                        offset: resp_ptr as u64,
-                        dtype: state.get_ftype(),
-                        name: state.get_name(),
-                    };
-                    resp_ptr += state.get_self_length();
-                    dir_entries.push(dir_entry);
+            let mut request = _9PReq::new(_9PType::Treaddir);
+            let mut response_buffer: [u8; _9P_MAX_PSIZE as usize] = [0; _9P_MAX_PSIZE as usize];
+            request.write_u32(fid);
+            request.write_u64(offptr);
+            request.write_u32(MAX_READ_LEN);
+            request.finish();
+            match self.request(&request.buffer, &mut response_buffer) {
+                Ok(_) => {
+                    const COUNT_START: usize = 7;
+                    const COUNT_END: usize = 11;
+                    let length: u64 = lbytes2u64(&response_buffer[COUNT_START..COUNT_START + 4]);
+                    if length == 0 {
+                        break;
+                    }
+
+                    let mut resp_ptr = COUNT_END;
+                    while resp_ptr < length as usize {
+                        // qid[13] offset[8] type[1] name[s]
+                        let dir_entry = DirEntry {
+                            qid: _9PQid::new(&response_buffer[resp_ptr..resp_ptr + 13]),
+                            offset: lbytes2u64(&response_buffer[resp_ptr + 13..resp_ptr + 21]),
+                            dtype: response_buffer[resp_ptr + 21],
+                            name: lbytes2str(&response_buffer[resp_ptr + 22..]),
+                        };
+                        resp_ptr += 24 + dir_entry.name.len();
+                        offptr = dir_entry.offset;
+                        dir_entries.push(dir_entry);
+                    }
                 }
-
-                Ok(dir_entries)
+                Err(err_code) => return Err(err_code),
             }
-            Err(err_code) => Err(err_code),
         }
+        Ok(dir_entries)
+    }
+
+    /// read directory represented by fid in 9P2000.u. In 9P2000.L, using treaddir() instead.
+    pub fn u_treaddir(&mut self, fid: u32) -> Result<Vec<DirEntry>, u8> {
+        let mut dir_entries: Vec<DirEntry> = Vec::new();
+        let mut offptr = 0_u64;
+        loop {
+            // check if `count` larger than MAX_READ_LEN
+            const MAX_READ_LEN: u32 = _9P_MAX_PSIZE - 32;
+
+            let mut request = _9PReq::new(_9PType::Tread);
+            let mut response_buffer: [u8; _9P_MAX_PSIZE as usize] = [0; _9P_MAX_PSIZE as usize];
+            request.write_u32(fid);
+            request.write_u64(offptr);
+            request.write_u32(MAX_READ_LEN);
+            request.finish();
+            match self.request(&request.buffer, &mut response_buffer) {
+                Ok(_) => {
+                    const COUNT_START: usize = 7;
+                    const COUNT_END: usize = 11;
+                    let length: u64 = lbytes2u64(&response_buffer[COUNT_START..COUNT_START + 4]);
+                    if length == 0 {
+                        break;
+                    }
+
+                    let mut resp_ptr = COUNT_END;
+                    while resp_ptr < length as usize {
+                        // qid[13] offset[8] type[1] name[s]
+                        let state = UStatFs::parse_u_from(&response_buffer[resp_ptr..]);
+                        let dir_entry = DirEntry {
+                            qid: state.get_qid(),
+                            offset: resp_ptr as u64,
+                            dtype: state.get_ftype(),
+                            name: state.get_name(),
+                        };
+                        resp_ptr += state.get_self_length();
+                        offptr = dir_entry.offset;
+                        dir_entries.push(dir_entry);
+                    }
+                }
+                Err(err_code) => return Err(err_code),
+            }
+        }
+        Ok(dir_entries)
     }
 
     /// write perform I/O on the file represented by fid.
     /// Note that in v9fs, a read(2) or write(2) system call for a chunk of the file that won't fit in a single request is broken up into multiple requests.
-    pub fn twrite(&mut self, fid: u32, offset: u64, data: &[u8]) -> Result<(), u8> {
+    pub fn twrite(&mut self, fid: u32, offset: u64, data: &[u8]) -> Result<u8, u8> {
+        const MAX_READ_LEN: u32 = _9P_MAX_PSIZE - 32;
+        let mut writing_len = data.len() as u32;
+        if writing_len > MAX_READ_LEN {
+            writing_len = MAX_READ_LEN;
+        }
         let mut request = _9PReq::new(_9PType::Twrite);
         let mut response_buffer: [u8; _9P_MAX_PSIZE as usize] = [0; _9P_MAX_PSIZE as usize];
         request.write_u32(fid);
         request.write_u64(offset);
-        request.write_u32(data.len() as u32);
-        for value in data {
+        request.write_u32(writing_len);
+        for value in &data[..writing_len as usize] {
             request.write_u8(*value);
         }
         request.finish();
-        self.request(&request.buffer, &mut response_buffer)
+        match self.request(&request.buffer, &mut response_buffer) {
+            Ok(_) => Ok(lbytes2u64(&response_buffer[7..11]) as u8), // index from 7 to 11 corresponing to total count of writed byte
+            Err(ecode) => Err(ecode),
+        }
     }
 
     pub fn tmkdir(&mut self, dfid: u32, name: &str, mode: u32, gid: u32) -> Result<(), u8> {
@@ -359,39 +430,6 @@ impl Drv9pOps {
         request.write_u32(gid);
         request.finish();
         self.request(&request.buffer, &mut response_buffer)
-    }
-
-    pub fn treaddir(&mut self, fid: u32, offset: u64, count: u32) -> Result<Vec<DirEntry>, u8> {
-        let mut request = _9PReq::new(_9PType::Treaddir);
-        let mut response_buffer: [u8; _9P_MAX_PSIZE as usize] = [0; _9P_MAX_PSIZE as usize];
-        request.write_u32(fid);
-        request.write_u64(offset);
-        request.write_u32(count);
-        request.finish();
-        match self.request(&request.buffer, &mut response_buffer) {
-            Ok(_) => {
-                const COUNT_START: usize = 7;
-                const COUNT_END: usize = 11;
-                let length: u64 = lbytes2u64(&response_buffer[COUNT_START..COUNT_START + 4]);
-
-                let mut dir_entries: Vec<DirEntry> = Vec::new();
-                let mut resp_ptr = COUNT_END;
-                while resp_ptr < length as usize {
-                    // qid[13] offset[8] type[1] name[s]
-                    let dir_entry = DirEntry {
-                        qid: _9PQid::new(&response_buffer[resp_ptr..resp_ptr + 13]),
-                        offset: lbytes2u64(&response_buffer[resp_ptr + 13..resp_ptr + 21]),
-                        dtype: response_buffer[resp_ptr + 21],
-                        name: lbytes2str(&response_buffer[resp_ptr + 22..]),
-                    };
-                    resp_ptr += 24 + dir_entry.name.len();
-                    dir_entries.push(dir_entry);
-                }
-
-                Ok(dir_entries)
-            }
-            Err(err_code) => Err(err_code),
-        }
     }
 
     pub fn tremove(&mut self, fid: u32) -> Result<(), u8> {

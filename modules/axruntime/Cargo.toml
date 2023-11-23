@@ -21,6 +21,7 @@ rtc = ["axhal/rtc"]
 
 multitask = ["axtask/multitask"]
 fs = ["axdriver", "axfs"]
+blkfs = ["fs"]
 virtio-9p = ["fs", "ax9p"]
 net-9p = ["fs", "ax9p"]
 net = ["axdriver", "axnet"]
