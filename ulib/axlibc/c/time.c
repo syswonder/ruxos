@@ -3,8 +3,9 @@
  *   You can use this software according to the terms and conditions of the Mulan PSL v2.
  *   You may obtain a copy of Mulan PSL v2 at:
  *               http://license.coscl.org.cn/MulanPSL2
- *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
- *   See the Mulan PSL v2 for more details.
+ *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A
+ * PARTICULAR PURPOSE. See the Mulan PSL v2 for more details.
  */
 
 #include <errno.h>
@@ -169,6 +170,16 @@ int gettimeofday(struct timeval *tv, struct timezone *tz)
     return 0;
 }
 
+int settimeofday(const struct timeval *tv, const struct timezone *_tz)
+{
+    if (!tv)
+        return 0;
+    if (tv->tv_usec >= 1000000ULL)
+        return -EINVAL;
+    return clock_settime(CLOCK_REALTIME,
+                         &((struct timespec){.tv_sec = tv->tv_sec, .tv_nsec = tv->tv_usec * 1000}));
+}
+
 // TODO:
 int utimes(const char *filename, const struct timeval times[2])
 {
@@ -181,13 +192,6 @@ void tzset()
 {
     unimplemented();
     return;
-}
-
-// TODO
-int setitimer(int _which, const struct itimerval *restrict _new, struct itimerval *restrict _old)
-{
-    unimplemented();
-    return 0;
 }
 
 // TODO

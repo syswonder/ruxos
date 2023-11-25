@@ -13,13 +13,22 @@
 
 ifeq ($(APP_TYPE),c)
   ax_feat_prefix := axfeat/
-  lib_feat_prefix := axlibc/
-  lib_features := fp_simd alloc multitask fs net fd pipe select poll epoll random-hw
+  ifeq ($(MUSL), y)
+    lib_feat_prefix := axmusl/
+  else
+    lib_feat_prefix := axlibc/
+  endif
+  lib_features := fp_simd alloc multitask fs net fd pipe select poll epoll random-hw signal
 else
   # TODO: it's better to use `axfeat/` as `ax_feat_prefix`, but all apps need to have `axfeat` as a dependency
   ax_feat_prefix := axstd/
   lib_feat_prefix := axstd/
   lib_features :=
+endif
+ifeq ($(APP_TYPE),c)
+  ifeq ($(MUSL), y)
+    lib_features += irq musl sched_rr
+  endif
 endif
 
 override FEATURES := $(shell echo $(FEATURES) | tr ',' ' ')
@@ -30,6 +39,12 @@ ifeq ($(APP_TYPE), c)
   endif
   ifneq ($(filter fs net pipe select poll epoll,$(FEATURES)),)
     override FEATURES += fd
+  endif
+  ifeq ($(AX_MUSL), y)
+    override FEATURES += musl
+    override FEATURES += fp_simd
+    override FEATURES += fd
+    override FEATURES += tls
   endif
 endif
 

@@ -18,7 +18,23 @@ use spin::RwLock;
 use crate::ctypes;
 
 pub mod condvar;
+pub mod futex;
 pub mod mutex;
+
+#[cfg(feature = "musl")]
+pub mod dummy;
+#[cfg(not(feature = "musl"))]
+pub mod tsd;
+#[cfg(feature = "musl")]
+pub use dummy::{
+    sys_pthread_getspecific, sys_pthread_key_create, sys_pthread_key_delete,
+    sys_pthread_setspecific,
+};
+#[cfg(not(feature = "musl"))]
+pub use tsd::{
+    sys_pthread_getspecific, sys_pthread_key_create, sys_pthread_key_delete,
+    sys_pthread_setspecific,
+};
 
 lazy_static::lazy_static! {
     static ref TID_TO_PTHREAD: RwLock<BTreeMap<u64, ForceSendSync<ctypes::pthread_t>>> = {
@@ -80,6 +96,39 @@ impl Pthread {
         Ok(ptr)
     }
 
+    /// Posix create, used by musl libc
+    #[cfg(feature = "musl")]
+    fn pcreate(
+        _attr: *const ctypes::pthread_attr_t,
+        start_routine: extern "C" fn(arg: *mut c_void) -> *mut c_void,
+        arg: *mut c_void,
+        tls: *mut c_void,
+        set_tid: core::sync::atomic::AtomicU64,
+        tl: core::sync::atomic::AtomicU64,
+    ) -> LinuxResult<(u64, AxTaskRef)> {
+        let arg_wrapper = ForceSendSync(arg);
+
+        let my_packet: Arc<Packet<*mut c_void>> = Arc::new(Packet {
+            result: UnsafeCell::new(core::ptr::null_mut()),
+        });
+
+        let main = move || {
+            let arg = arg_wrapper;
+            start_routine(arg.0);
+        };
+
+        let task_inner = axtask::pspawn(main, tls as usize, set_tid, tl);
+
+        let tid = task_inner.id().as_u64();
+        let thread = Pthread {
+            inner: task_inner.clone(),
+            retval: my_packet,
+        };
+        let ptr = Box::into_raw(Box::new(thread)) as *mut c_void;
+        TID_TO_PTHREAD.write().insert(tid, ForceSendSync(ptr));
+        Ok((tid, task_inner))
+    }
+
     fn current_ptr() -> *mut Pthread {
         let tid = axtask::current().id().as_u64();
         match TID_TO_PTHREAD.read().get(&tid) {
@@ -92,6 +141,22 @@ impl Pthread {
         unsafe { core::ptr::NonNull::new(Self::current_ptr()).map(|ptr| ptr.as_ref()) }
     }
 
+    #[cfg(feature = "musl")]
+    fn exit_musl(_retcode: usize) -> ! {
+        let tid = Self::current()
+            .expect("fail to get current thread")
+            .inner
+            .id()
+            .as_u64();
+        let thread = { TID_TO_PTHREAD.read().get(&tid).unwrap().0 };
+        let thread = unsafe { Box::from_raw(thread as *mut Pthread) };
+        TID_TO_PTHREAD.write().remove(&tid);
+        debug!("Exit_musl, tid: {}", tid);
+        drop(thread);
+        axtask::exit(0)
+    }
+
+    #[cfg(not(feature = "musl"))]
     fn exit_current(retval: *mut c_void) -> ! {
         let thread = Self::current().expect("fail to get current thread");
         unsafe { *thread.retval.result.get() = retval };
@@ -142,6 +207,16 @@ pub unsafe fn sys_pthread_create(
 /// Exits the current thread. The value `retval` will be returned to the joiner.
 pub fn sys_pthread_exit(retval: *mut c_void) -> ! {
     debug!("sys_pthread_exit <= {:#x}", retval as usize);
+    #[cfg(feature = "musl")]
+    {
+        let id = axtask::current().as_task_ref().id().as_u64();
+        if id != 2u64 {
+            axtask::current().as_task_ref().free_thread_list_lock();
+        }
+        // retval is exit code for musl
+        Pthread::exit_musl(retval as usize);
+    }
+    #[cfg(not(feature = "musl"))]
     Pthread::exit_current(retval);
 }
 
@@ -162,3 +237,67 @@ struct ForceSendSync<T>(T);
 
 unsafe impl<T> Send for ForceSendSync<T> {}
 unsafe impl<T> Sync for ForceSendSync<T> {}
+
+/// Create new thread by `sys_clone`, return new thread ID
+#[cfg(feature = "musl")]
+pub unsafe fn sys_clone(
+    flags: c_int,
+    stack: *mut c_void,
+    ptid: *mut ctypes::pid_t,
+    tls: *mut c_void,
+    ctid: *mut ctypes::pid_t,
+) -> c_int {
+    debug!(
+        "sys_clone <= flags: {:x}, stack: {:p}, ctid: {:x}",
+        flags, stack, ctid as usize
+    );
+
+    syscall_body!(sys_clone, {
+        if (flags as u32 & ctypes::CLONE_THREAD) == 0 {
+            debug!("ONLY support thread");
+            return Err(LinuxError::EINVAL);
+        }
+
+        let func = unsafe {
+            core::mem::transmute::<*const (), extern "C" fn(arg: *mut c_void) -> *mut c_void>(
+                (*(stack as *mut usize)) as *const (),
+            )
+        };
+        let args = unsafe { *((stack as usize + 8) as *mut usize) } as *mut c_void;
+
+        let set_tid = if (flags as u32 & ctypes::CLONE_CHILD_SETTID) != 0 {
+            core::sync::atomic::AtomicU64::new(ctid as _)
+        } else {
+            core::sync::atomic::AtomicU64::new(0)
+        };
+
+        let (tid, task_inner) = Pthread::pcreate(
+            core::ptr::null(),
+            func,
+            args,
+            tls,
+            set_tid,
+            core::sync::atomic::AtomicU64::from(ctid as u64),
+        )?;
+
+        // write tid to ptid
+        if (flags as u32 & ctypes::CLONE_PARENT_SETTID) != 0 {
+            unsafe { *ptid = tid as c_int };
+        }
+
+        axtask::put_task(task_inner);
+
+        Ok(tid)
+    })
+}
+
+/// Set child tid address
+#[cfg(feature = "musl")]
+pub fn sys_set_tid_address(tid: usize) -> c_int {
+    syscall_body!(sys_set_tid_address, {
+        debug!("set_tid_address <= addr: {:#x}", tid);
+        let id = axtask::current().id().as_u64() as c_int;
+        axtask::current().as_task_ref().set_child_tid(tid);
+        Ok(id)
+    })
+}

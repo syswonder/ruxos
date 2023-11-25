@@ -33,6 +33,7 @@
 //!     - `myfs`: Allow users to define their custom filesystems to override the default.
 //!     - `net`: Enable networking support.
 //!     - `display`: Enable graphics support.
+//!     - `signal`: Enable signal support.
 //! - Device drivers
 //!     - `bus-mmio`: Use device tree to probe all MMIO devices.
 //!     - `bus-pci`: Use PCI bus to probe all PCI devices.

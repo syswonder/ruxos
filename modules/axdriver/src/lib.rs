@@ -43,6 +43,7 @@
 //! | Block | `virtio-blk` | VirtIO block device |
 //! | Network | `virtio-net` | VirtIO network device |
 //! | Display | `virtio-gpu` | VirtIO graphics device |
+//! | 9p | `virtio-9p`、`net-9p` | VirtIO/Net 9pfs device |
 //!
 //! # Other Cargo Features
 //!
@@ -57,6 +58,7 @@
 //!    features, a dummy struct is used for [`AxNetDevice`].
 //! - `block`: use block storage devices. Similar to the `net` feature.
 //! - `display`: use graphics display devices. Similar to the `net` feature.
+//! - `_9p`: use 9pfs devices. Similar to the `net` feature.
 //!
 //! [`VirtioNetDev`]: driver_virtio::VirtIoNetDev
 //! [`Box<dyn NetDriverOps>`]: driver_net::NetDriverOps
@@ -93,6 +95,8 @@ pub mod prelude;
 use self::prelude::*;
 pub use self::structs::{AxDeviceContainer, AxDeviceEnum};
 
+#[cfg(feature = "_9p")]
+pub use self::structs::Ax9pDevice;
 #[cfg(feature = "block")]
 pub use self::structs::AxBlockDevice;
 #[cfg(feature = "display")]
@@ -112,6 +116,9 @@ pub struct AllDevices {
     /// All graphics device drivers.
     #[cfg(feature = "display")]
     pub display: AxDeviceContainer<AxDisplayDevice>,
+    /// All 9p device drivers.
+    #[cfg(feature = "_9p")]
+    pub _9p: AxDeviceContainer<Ax9pDevice>,
 }
 
 impl AllDevices {
@@ -152,6 +159,8 @@ impl AllDevices {
             AxDeviceEnum::Block(dev) => self.block.push(dev),
             #[cfg(feature = "display")]
             AxDeviceEnum::Display(dev) => self.display.push(dev),
+            #[cfg(feature = "_9p")]
+            AxDeviceEnum::_9P(dev) => self._9p.push(dev),
         }
     }
 }
@@ -186,6 +195,14 @@ pub fn init_drivers() -> AllDevices {
         for (i, dev) in all_devs.display.iter().enumerate() {
             assert_eq!(dev.device_type(), DeviceType::Display);
             debug!("  graphics device {}: {:?}", i, dev.device_name());
+        }
+    }
+    #[cfg(feature = "_9p")]
+    {
+        debug!("number of 9p devices: {}", all_devs._9p.len());
+        for (i, dev) in all_devs._9p.iter().enumerate() {
+            assert_eq!(dev.device_type(), DeviceType::_9P);
+            debug!("  9p device {}: {:?}", i, dev.device_name());
         }
     }
 

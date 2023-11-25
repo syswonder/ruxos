@@ -242,10 +242,16 @@ char *fgets(char *restrict s, int n, FILE *restrict f)
         if (read(f->fd, (void *)&c, 1) > 0) {
             if (c != '\n')
                 s[cnt++] = c;
-            else
+            else{
+                s[cnt++] = c;
                 break;
+            }
+                
         } else
             break;
+    }
+    if(cnt==0){
+        return NULL;
     }
     s[cnt] = '\0';
     return s;

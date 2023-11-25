@@ -7,7 +7,7 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use core::ffi::c_int;
+use core::ffi::{c_int, c_void};
 
 use axerrno::{LinuxError, LinuxResult};
 use axhal::time::current_time;
@@ -157,6 +157,21 @@ pub unsafe fn sys_select(
             crate::sys_sched_yield();
         }
     })
+}
+
+/// allows  a  program  to  monitor  multiple  file descriptors, waiting until one or more of the file descriptors become
+/// "ready" for some class of I/O operation (e.g., input possible)
+///
+/// TODO: signal is ignored currently
+pub unsafe fn sys_pselect6(
+    nfds: c_int,
+    readfds: *mut ctypes::fd_set,
+    writefds: *mut ctypes::fd_set,
+    exceptfds: *mut ctypes::fd_set,
+    timeout: *mut ctypes::timeval,
+    _sigs: *const c_void,
+) -> c_int {
+    sys_select(nfds, readfds, writefds, exceptfds, timeout)
 }
 
 unsafe fn zero_fd_set(fds: *mut ctypes::fd_set, nfds: usize) {

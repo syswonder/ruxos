@@ -3,8 +3,9 @@
  *   You can use this software according to the terms and conditions of the Mulan PSL v2.
  *   You may obtain a copy of Mulan PSL v2 at:
  *               http://license.coscl.org.cn/MulanPSL2
- *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
- *   See the Mulan PSL v2 for more details.
+ *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A
+ * PARTICULAR PURPOSE. See the Mulan PSL v2 for more details.
  */
 
 #ifndef __TIME_H__
@@ -48,5 +49,6 @@ void tzset(void);
 
 int nanosleep(const struct timespec *requested_time, struct timespec *remaining);
 int clock_gettime(clockid_t _clk, struct timespec *ts);
+int clock_settime(clockid_t, const struct timespec *);
 
 #endif // __TIME_H__

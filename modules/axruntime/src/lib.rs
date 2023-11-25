@@ -22,6 +22,8 @@
 //! - `fs`: Enable filesystem support.
 //! - `net`: Enable networking support.
 //! - `display`: Enable graphics support.
+//! - `virtio-9p`: Enable virtio-based 9pfs support.
+//! - `net-9p`: Enable net-based 9pfs support.
 //!
 //! All the features are optional and disabled by default.
 
@@ -33,6 +35,10 @@ extern crate axlog;
 
 #[cfg(all(target_os = "none", not(test)))]
 mod lang_items;
+#[cfg(feature = "signal")]
+mod signal;
+
+#[cfg(not(feature = "musl"))]
 mod trap;
 
 #[cfg(feature = "smp")]
@@ -40,6 +46,9 @@ mod mp;
 
 #[cfg(feature = "smp")]
 pub use self::mp::rust_main_secondary;
+
+#[cfg(feature = "signal")]
+pub use self::signal::{rx_sigaction, Signal};
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -62,8 +71,25 @@ const LOGO: &str = r#"
 d88P     888 888      "Y8888P  "Y8888   "Y88888P"   "Y8888P"
 "#;
 
+#[no_mangle]
+extern "C" fn init_dummy() {}
+
+#[no_mangle]
+extern "C" fn fini_dummy() {}
+
+#[no_mangle]
+extern "C" fn ldso_dummy() {}
+
 extern "C" {
-    fn main(argc: c_int, argv: *mut *mut c_char);
+    fn main(argc: c_int, argv: *mut *mut c_char) -> c_int;
+    fn __libc_start_main(
+        main: unsafe extern "C" fn(argc: c_int, argv: *mut *mut c_char) -> c_int,
+        argc: c_int,
+        argv: *mut *mut c_char,
+        init_dummy: extern "C" fn(),
+        fini_dummy: extern "C" fn(),
+        ldso_dummy: extern "C" fn(),
+    ) -> c_int;
 }
 
 struct LogIfImpl;
@@ -176,11 +202,42 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
         #[allow(unused_variables)]
         let all_devices = axdriver::init_drivers();
 
-        #[cfg(feature = "fs")]
-        axfs::init_filesystems(all_devices.block);
-
         #[cfg(feature = "net")]
         axnet::init_network(all_devices.net);
+
+        #[cfg(feature = "fs")]
+        {
+            extern crate alloc;
+            use alloc::vec::Vec;
+            // By default, mount_points[0] will be rootfs
+            let mut mount_points: Vec<axfs::MountPoint> = Vec::new();
+
+            //setup ramfs as rootfs if no other filesystem can be mounted
+            #[cfg(not(any(feature = "blkfs", feature = "virtio-9p", feature = "net-9p")))]
+            mount_points.push(axfs::init_tempfs());
+
+            // setup and initialize blkfs as one mountpoint for rootfs
+            #[cfg(feature = "blkfs")]
+            mount_points.push(axfs::init_blkfs(all_devices.block));
+
+            // setup and initialize 9pfs as mountpoint
+            #[cfg(feature = "virtio-9p")]
+            mount_points.push(ax9p::init_virtio_9pfs(
+                all_devices._9p,
+                option_env!("AX_ANAME_9P").unwrap_or(""),
+                option_env!("AX_PROTOCOL_9P").unwrap_or(""),
+            ));
+            #[cfg(feature = "net-9p")]
+            mount_points.push(ax9p::init_net_9pfs(
+                option_env!("AX_9P_ADDR").unwrap_or(""),
+                option_env!("AX_ANAME_9P").unwrap_or(""),
+                option_env!("AX_PROTOCOL_9P").unwrap_or(""),
+            ));
+            axfs::prepare_commonfs(&mut mount_points);
+
+            // setup and initialize rootfs
+            axfs::init_filesystems(mount_points);
+        }
 
         #[cfg(feature = "display")]
         axdisplay::init_display(all_devices.display);
@@ -211,13 +268,29 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     let mut argc: c_int = 0;
     // environ variables and Command line parameters initialization
     #[cfg(feature = "alloc")]
-    init_cmdline(&mut argc);
-
     unsafe {
-        #[cfg(feature = "alloc")]
+        init_cmdline(&mut argc);
+        #[cfg(not(feature = "musl"))]
         main(argc, argv);
-        #[cfg(not(feature = "alloc"))]
-        main(argc, core::ptr::null_mut());
+
+        #[cfg(feature = "musl")]
+        __libc_start_main(main, argc, argv, init_dummy, fini_dummy, ldso_dummy);
+    }
+
+    #[cfg(not(feature = "alloc"))]
+    unsafe {
+        #[cfg(not(feature = "musl"))]
+        main(0, core::ptr::null_mut());
+
+        #[cfg(feature = "musl")]
+        __libc_start_main(
+            main,
+            0,
+            core::ptr::null_mut(),
+            init_dummy,
+            fini_dummy,
+            ldso_dummy,
+        )
     };
 
     #[cfg(feature = "multitask")]
@@ -355,8 +428,41 @@ fn init_interrupt() {
         axhal::time::set_oneshot_timer(deadline);
     }
 
+    #[cfg(feature = "signal")]
+    fn do_signal() {
+        let now_ns = axhal::time::current_time_nanos();
+        // timer signal num
+        let timers = [14, 26, 27];
+        for (which, timer) in timers.iter().enumerate() {
+            let mut ddl = Signal::timer_deadline(which, None).unwrap();
+            let interval = Signal::timer_interval(which, None).unwrap();
+            if ddl != 0 && now_ns >= ddl {
+                Signal::signal(*timer, true);
+                if interval == 0 {
+                    ddl = 0;
+                } else {
+                    ddl += interval;
+                }
+                Signal::timer_deadline(which, Some(ddl));
+            }
+        }
+        let signal = Signal::signal(-1, true).unwrap();
+        for signum in 0..32 {
+            if signal & (1 << signum) != 0
+            /* TODO: && support mask */
+            {
+                Signal::sigaction(signum as u8, None, None);
+                Signal::signal(signum as i8, false);
+            }
+        }
+    }
+
     axhal::irq::register_handler(TIMER_IRQ_NUM, || {
         update_timer();
+        #[cfg(feature = "signal")]
+        if axhal::cpu::this_cpu_is_bsp() {
+            do_signal();
+        }
         #[cfg(feature = "multitask")]
         axtask::on_timer_tick();
     });

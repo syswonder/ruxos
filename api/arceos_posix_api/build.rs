@@ -80,10 +80,12 @@ typedef struct {{
             "sock.*",
             "fd_set",
             "timeval",
+            "itimerval",
             "pthread_t",
             "pthread_attr_t",
             "pthread_mutex_t",
             "pthread_mutexattr_t",
+            "pthread_key_t",
             "pollfd",
             "nfds_t",
             "epoll_event",
@@ -95,6 +97,12 @@ typedef struct {{
             "pthread_cond_t",
             "pthread_condattr_t",
             "sysinfo",
+            "sigaction",
+            "k_sigaction",
+            "pid_t",
+            "sigset_t",
+            "sigaction",
+            "kstat",
         ];
         let allow_vars = [
             "O_.*",
@@ -109,6 +117,11 @@ typedef struct {{
             "RLIMIT_.*",
             "EAI_.*",
             "MAXADDRS",
+            "ITIMER_.*",
+            "SIG.*",
+            "EINVAL",
+            "CLONE_.*",
+            "AT_.*",
         ];
 
         #[derive(Debug)]

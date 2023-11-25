@@ -21,6 +21,9 @@ pub unsafe extern "C" fn getrlimit(resource: c_int, rlimits: *mut crate::ctypes:
 
 /// Set resource limitations
 #[no_mangle]
-pub unsafe extern "C" fn setrlimit(resource: c_int, rlimits: *mut crate::ctypes::rlimit) -> c_int {
+pub unsafe extern "C" fn setrlimit(
+    resource: c_int,
+    rlimits: *const crate::ctypes::rlimit,
+) -> c_int {
     e(sys_setrlimit(resource, rlimits))
 }

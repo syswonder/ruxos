@@ -42,6 +42,8 @@ pub unsafe extern "C" fn sysconf(name: c_int) -> c_long {
             sys_getrlimit(ctypes::RLIMIT_NOFILE.try_into().unwrap(), &mut rl);
             rl.rlim_max as c_long
         }
+        // Maximum number of keys per thread
+        ctypes::_SC_THREAD_KEYS_MAX => config::PTHREAD_KEY_MAX as c_long,
         _ => 0,
     }
 }

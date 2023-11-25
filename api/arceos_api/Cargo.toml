@@ -13,6 +13,7 @@ documentation = "https://rcore-os.github.io/arceos/arceos_api/index.html"
 default = []
 
 irq = ["axfeat/irq"]
+rtc = ["axfeat/rtc"]
 alloc = ["dep:axalloc", "axfeat/alloc"]
 multitask = ["axtask/multitask", "axfeat/multitask"]
 fs = ["dep:axfs", "axfeat/fs"]

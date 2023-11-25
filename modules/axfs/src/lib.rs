@@ -43,13 +43,70 @@ mod root;
 pub mod api;
 pub mod fops;
 
+use alloc::vec::Vec;
+
 use axdriver::{prelude::*, AxDeviceContainer};
 
+cfg_if::cfg_if! {
+    if #[cfg(feature = "myfs")] {
+    } else if #[cfg(feature = "fatfs")] {
+        use lazy_init::LazyInit;
+        use alloc::sync::Arc;
+    }
+}
+
+pub use root::MountPoint;
+
+/// Initialize an empty filesystems by ramfs.
+#[cfg(not(any(feature = "blkfs", feature = "virtio-9p", feature = "net-9p")))]
+pub fn init_tempfs() -> MountPoint {
+    MountPoint::new("/", mounts::ramfs())
+}
+
 /// Initializes filesystems by block devices.
-pub fn init_filesystems(mut blk_devs: AxDeviceContainer<AxBlockDevice>) {
+pub fn init_blkfs(mut blk_devs: AxDeviceContainer<AxBlockDevice>) -> MountPoint {
     info!("Initialize filesystems...");
 
     let dev = blk_devs.take_one().expect("No block device found!");
     info!("  use block device 0: {:?}", dev.device_name());
-    self::root::init_rootfs(self::dev::Disk::new(dev));
+
+    let disk = self::dev::Disk::new(dev);
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "myfs")] { // override the default filesystem
+            let blk_fs = fs::myfs::new_myfs(disk);
+        } else if #[cfg(feature = "fatfs")] {
+            static FAT_FS: LazyInit<Arc<fs::fatfs::FatFileSystem>> = LazyInit::new();
+            FAT_FS.init_by(Arc::new(fs::fatfs::FatFileSystem::new(disk)));
+            FAT_FS.init();
+            let blk_fs = FAT_FS.clone();
+        }
+    }
+
+    MountPoint::new("/", blk_fs)
+}
+
+/// Initializes common filesystems.
+pub fn prepare_commonfs(mount_points: &mut Vec<self::root::MountPoint>) {
+    #[cfg(feature = "devfs")]
+    let mount_point = MountPoint::new("/dev", mounts::devfs());
+    mount_points.push(mount_point);
+
+    #[cfg(feature = "ramfs")]
+    let mount_point = MountPoint::new("/tmp", mounts::ramfs());
+    mount_points.push(mount_point);
+
+    // Mount another ramfs as procfs
+    #[cfg(feature = "procfs")]
+    let mount_point = MountPoint::new("/proc", mounts::procfs().unwrap());
+    mount_points.push(mount_point);
+
+    // Mount another ramfs as sysfs
+    #[cfg(feature = "sysfs")]
+    let mount_point = MountPoint::new("/sys", mounts::sysfs().unwrap());
+    mount_points.push(mount_point);
+}
+
+/// Initializes root filesystems.
+pub fn init_filesystems(mount_points: Vec<self::root::MountPoint>) {
+    self::root::init_rootfs(mount_points);
 }

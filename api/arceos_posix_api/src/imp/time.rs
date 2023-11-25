@@ -8,6 +8,8 @@
  */
 
 use axerrno::LinuxError;
+#[cfg(feature = "signal")]
+use axruntime::Signal;
 use core::ffi::{c_int, c_long};
 use core::time::Duration;
 
@@ -56,6 +58,23 @@ pub unsafe fn sys_clock_gettime(_clk: ctypes::clockid_t, ts: *mut ctypes::timesp
     })
 }
 
+/// Get clock time since booting
+pub unsafe fn sys_clock_settime(_clk: ctypes::clockid_t, ts: *mut ctypes::timespec) -> c_int {
+    syscall_body!(sys_clock_setttime, {
+        if ts.is_null() {
+            return Err(LinuxError::EFAULT);
+        }
+        let new_tv = Duration::from(*ts);
+        debug!(
+            "sys_clock_setttime: {}.{:09}s",
+            new_tv.as_secs(),
+            new_tv.as_nanos()
+        );
+        axhal::time::set_current_time(new_tv);
+        Ok(0)
+    })
+}
+
 /// Sleep some nanoseconds
 ///
 /// TODO: should be woken by signals, and set errno
@@ -88,6 +107,45 @@ pub unsafe fn sys_nanosleep(req: *const ctypes::timespec, rem: *mut ctypes::time
             }
             return Err(LinuxError::EINTR);
         }
+        Ok(0)
+    })
+}
+
+#[cfg(feature = "signal")]
+/// Set a timer to send a signal to the current process after a specified time
+pub unsafe fn sys_setitimer(which: c_int, new: *const ctypes::itimerval) -> c_int {
+    syscall_body!(sys_setitimer, {
+        let which = which as usize;
+        let new_interval = Duration::from((*new).it_interval).as_nanos() as u64;
+        Signal::timer_interval(which, Some(new_interval));
+
+        let new_ddl =
+            axhal::time::current_time_nanos() + Duration::from((*new).it_value).as_nanos() as u64;
+        Signal::timer_deadline(which, Some(new_ddl));
+        Ok(0)
+    })
+}
+
+#[cfg(feature = "signal")]
+/// Get timer to send signal after some time
+pub unsafe fn sys_getitimer(which: c_int, curr_value: *mut ctypes::itimerval) -> c_int {
+    syscall_body!(sys_getitimer, {
+        let ddl = Duration::from_nanos(Signal::timer_deadline(which as usize, None).unwrap());
+        if ddl.as_nanos() == 0 {
+            return Err(LinuxError::EINVAL);
+        }
+        let mut now: ctypes::timespec = ctypes::timespec::default();
+        unsafe {
+            sys_clock_gettime(0, &mut now);
+        }
+        let now = Duration::from(now);
+        if ddl > now {
+            (*curr_value).it_value = ctypes::timeval::from(ddl - now);
+        } else {
+            (*curr_value).it_value = ctypes::timeval::from(Duration::new(0, 0));
+        }
+        (*curr_value).it_interval =
+            Duration::from_nanos(Signal::timer_interval(which as usize, None).unwrap()).into();
         Ok(0)
     })
 }

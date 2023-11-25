@@ -18,3 +18,6 @@ pub mod gic;
 
 #[cfg(not(platform_family = "aarch64-bsta1000b"))]
 pub mod pl011;
+
+#[cfg(feature = "rtc")]
+pub mod pl031;

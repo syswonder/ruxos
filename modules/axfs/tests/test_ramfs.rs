@@ -55,7 +55,16 @@ fn test_ramfs() {
     println!("Testing ramfs ...");
 
     axtask::init_scheduler(); // call this to use `axsync::Mutex`.
-    axfs::init_filesystems(AxDeviceContainer::from_one(RamDisk::default())); // dummy disk, actually not used.
+                              // By default, mount_points[0] will be rootfs
+    let mut mount_points: Vec<axfs::MountPoint> = Vec::new();
+    // setup and initialize blkfs as one mountpoint for rootfs
+    mount_points.push(axfs::init_blkfs(AxDeviceContainer::from_one(
+        RamDisk::default(),
+    )));
+    axfs::prepare_commonfs(&mut mount_points);
+
+    // setup and initialize rootfs
+    axfs::init_filesystems(mount_points);
 
     if let Err(e) = create_init_files() {
         log::warn!("failed to create init files: {:?}", e);

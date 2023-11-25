@@ -4,7 +4,10 @@ fp_simd
 irq
 multitask
 fs
+blkfs
 net
 pipe
 epoll
 poll
+virtio-9p
+rtc

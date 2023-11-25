@@ -125,6 +125,19 @@ pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> 
     })
 }
 
+/// Open a file under a specific dir
+///
+/// TODO: Currently only support openat root directory
+pub fn sys_openat(_fd: usize, path: *const c_char, flags: c_int, mode: ctypes::mode_t) -> c_int {
+    let path = char_ptr_to_str(path);
+    debug!("sys_openat <= {:?}, {:#o} {:#o}", path, flags, mode);
+    syscall_body!(sys_openat, {
+        let options = flags_to_options(flags, mode);
+        let file = axfs::fops::File::open(path?, &options)?;
+        File::new(file).add_to_fd_table()
+    })
+}
+
 /// Set the position of the file indicated by `fd`.
 ///
 /// Return its position after seek.
@@ -140,6 +153,12 @@ pub fn sys_lseek(fd: c_int, offset: ctypes::off_t, whence: c_int) -> ctypes::off
         let off = File::from_fd(fd)?.inner.lock().seek(pos)?;
         Ok(off)
     })
+}
+
+/// `fsync`
+pub unsafe fn sys_fsync(fd: c_int) -> c_int {
+    debug!("sys_fsync <= fd: {}", fd);
+    syscall_body!(sys_fsync, Ok(0))
 }
 
 /// Get the file metadata by `path` and write into `buf`.
@@ -161,18 +180,36 @@ pub unsafe fn sys_stat(path: *const c_char, buf: *mut ctypes::stat) -> c_int {
     })
 }
 
-/// Get file metadata by `fd` and write into `buf`.
-///
-/// Return 0 if success.
-pub unsafe fn sys_fstat(fd: c_int, buf: *mut ctypes::stat) -> c_int {
-    debug!("sys_fstat <= {} {:#x}", fd, buf as usize);
+/// retrieve information about the file pointed by `fd`
+pub unsafe fn sys_fstat(fd: c_int, kst: *mut core::ffi::c_void) -> c_int {
+    debug!("sys_fstat <= {} {:#x}", fd, kst as usize);
     syscall_body!(sys_fstat, {
-        if buf.is_null() {
+        if kst.is_null() {
             return Err(LinuxError::EFAULT);
         }
-
-        unsafe { *buf = get_file_like(fd)?.stat()? };
-        Ok(0)
+        #[cfg(not(feature = "musl"))]
+        {
+            let buf = kst as *mut ctypes::stat;
+            unsafe { *buf = get_file_like(fd)?.stat()? };
+            Ok(0)
+        }
+        #[cfg(feature = "musl")]
+        {
+            let st = get_file_like(fd)?.stat()?;
+            let kst = kst as *mut ctypes::kstat;
+            unsafe {
+                (*kst).st_dev = st.st_dev;
+                (*kst).st_ino = st.st_dev;
+                (*kst).st_mode = st.st_mode;
+                (*kst).st_nlink = st.st_nlink;
+                (*kst).st_uid = st.st_uid;
+                (*kst).st_gid = st.st_gid;
+                (*kst).st_size = st.st_size;
+                (*kst).st_blocks = st.st_blocks;
+                (*kst).st_blksize = st.st_blksize;
+            }
+            Ok(0)
+        }
     })
 }
 
@@ -191,12 +228,48 @@ pub unsafe fn sys_lstat(path: *const c_char, buf: *mut ctypes::stat) -> ctypes::
     })
 }
 
+/// `newfstatat` used by A64
+pub unsafe fn sys_newfstatat(
+    _fd: c_int,
+    path: *const c_char,
+    kst: *mut ctypes::kstat,
+    flag: c_int,
+) -> c_int {
+    let path = char_ptr_to_str(path);
+    debug!(
+        "sys_newfstatat <= fd: {}, path: {:?}, flag: {:x}",
+        _fd, path, flag
+    );
+    assert_eq!(_fd, ctypes::AT_FDCWD as c_int);
+    syscall_body!(sys_newfstatat, {
+        if kst.is_null() {
+            return Err(LinuxError::EFAULT);
+        }
+        let mut options = OpenOptions::new();
+        options.read(true);
+        let file = axfs::fops::File::open(path?, &options)?;
+        let st = File::new(file).stat()?;
+        unsafe {
+            (*kst).st_dev = st.st_dev;
+            (*kst).st_ino = st.st_dev;
+            (*kst).st_mode = st.st_mode;
+            (*kst).st_nlink = st.st_nlink;
+            (*kst).st_uid = st.st_uid;
+            (*kst).st_gid = st.st_gid;
+            (*kst).st_size = st.st_size;
+            (*kst).st_blocks = st.st_blocks;
+            (*kst).st_blksize = st.st_blksize;
+        }
+        Ok(0)
+    })
+}
+
 /// Get the path of the current directory.
-pub fn sys_getcwd(buf: *mut c_char, size: usize) -> *mut c_char {
+pub fn sys_getcwd(buf: *mut c_char, size: usize) -> c_int {
     debug!("sys_getcwd <= {:#x} {}", buf as usize, size);
     syscall_body!(sys_getcwd, {
         if buf.is_null() {
-            return Ok(core::ptr::null::<c_char>() as _);
+            return Err(LinuxError::EINVAL);
         }
         let dst = unsafe { core::slice::from_raw_parts_mut(buf as *mut u8, size as _) };
         let cwd = axfs::api::current_dir()?;
@@ -204,7 +277,7 @@ pub fn sys_getcwd(buf: *mut c_char, size: usize) -> *mut c_char {
         if cwd.len() < size {
             dst[..cwd.len()].copy_from_slice(cwd);
             dst[cwd.len()] = 0;
-            Ok(buf)
+            Ok(cwd.len() + 1)
         } else {
             Err(LinuxError::ERANGE)
         }
@@ -245,6 +318,20 @@ pub fn sys_unlink(pathname: *const c_char) -> c_int {
     })
 }
 
+/// deletes a name from the filesystem
+pub fn sys_unlinkat(fd: c_int, pathname: *const c_char, flags: c_int) -> c_int {
+    debug!(
+        "sys_unlinkat <= fd: {}, pathname: {:?}, flags: {}",
+        fd,
+        char_ptr_to_str(pathname),
+        flags
+    );
+    if flags as u32 & ctypes::AT_REMOVEDIR != 0 {
+        return sys_rmdir(pathname);
+    }
+    sys_unlink(pathname)
+}
+
 /// Creates a new, empty directory at the provided path.
 pub fn sys_mkdir(pathname: *const c_char, mode: ctypes::mode_t) -> c_int {
     // TODO: implement mode
@@ -254,4 +341,17 @@ pub fn sys_mkdir(pathname: *const c_char, mode: ctypes::mode_t) -> c_int {
         axfs::api::create_dir(path)?;
         Ok(0)
     })
+}
+
+/// attempts to create a directory named pathname under directory pointed by `fd`
+///
+/// TODO: currently fd is not used
+pub fn sys_mkdirat(fd: c_int, pathname: *const c_char, mode: ctypes::mode_t) -> c_int {
+    debug!(
+        "sys_mkdirat <= fd: {}, pathname: {:?}, mode: {:x?}",
+        fd,
+        char_ptr_to_str(pathname),
+        mode
+    );
+    sys_mkdir(pathname, mode)
 }

@@ -65,7 +65,7 @@ use memory_addr::align_up;
 use core::alloc::Layout;
 use core::ptr::NonNull;
 
-const TLS_ALIGN: usize = 0x10;
+const TLS_ALIGN: usize = 8;
 
 cfg_if::cfg_if! {
     if #[cfg(target_arch = "x86_64")] {
@@ -89,11 +89,13 @@ extern "C" {
 /// The memory region for thread-local storage.
 pub struct TlsArea {
     base: NonNull<u8>,
+    #[allow(dead_code)]
     layout: Layout,
 }
 
 impl Drop for TlsArea {
     fn drop(&mut self) {
+        #[cfg(not(feature = "musl"))]
         unsafe {
             alloc::alloc::dealloc(self.base.as_ptr(), self.layout);
         }
@@ -106,6 +108,14 @@ impl TlsArea {
     /// One should set the hardware thread pointer register to this value.
     pub fn tls_ptr(&self) -> *mut u8 {
         unsafe { self.base.as_ptr().add(tp_offset()) }
+    }
+
+    /// Generate TlsArea with given address
+    #[cfg(feature = "tls")]
+    pub fn new_with_addr(tls: usize) -> Self {
+        let layout = Layout::from_size_align(tls_area_size(), TLS_ALIGN).unwrap();
+        let base = NonNull::new(tls as *mut u8).unwrap();
+        Self { base, layout }
     }
 
     /// Allocates the memory region for TLS, and initializes it.
