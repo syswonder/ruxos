@@ -20,10 +20,10 @@ spin = "0.9"
 driver_net = { path = "../../crates/driver_net" }
 lazy_init = { path = "../../crates/lazy_init" }
 axerrno = { path = "../../crates/axerrno" }
-axhal = { path = "../axhal" }
+ruxhal = { path = "../ruxhal" }
 axsync = { path = "../axsync" }
-axtask = { path = "../axtask" }
-axdriver = { path = "../axdriver", features = ["net"] }
+ruxtask = { path = "../ruxtask" }
+ruxdriver = { path = "../ruxdriver", features = ["net"] }
 axio = { path = "../../crates/axio" }
 
 [dependencies.smoltcp]

@@ -1,7 +1,7 @@
-rust_lib_name := axlibc
+rust_lib_name := ruxlibc
 rust_lib := target/$(TARGET)/$(MODE)/lib$(rust_lib_name).a
 
-ulib_dir := ulib/axlibc
+ulib_dir := ulib/ruxlibc
 src_dir := $(ulib_dir)/c
 obj_dir := $(ulib_dir)/build_$(ARCH)
 inc_dir := $(ulib_dir)/include
@@ -14,8 +14,8 @@ ulib_src := $(wildcard $(src_dir)/*.c)
 ulib_hdr := $(wildcard $(inc_dir)/*.h)
 ulib_obj := $(patsubst $(src_dir)/%.c,$(obj_dir)/%.o,$(ulib_src))
 
-CFLAGS += $(addprefix -DAX_CONFIG_,$(shell echo $(lib_feat) | tr 'a-z' 'A-Z' | tr '-' '_'))
-CFLAGS += -DAX_LOG_$(shell echo $(LOG) | tr 'a-z' 'A-Z')
+CFLAGS += $(addprefix -DRUX_CONFIG_,$(shell echo $(lib_feat) | tr 'a-z' 'A-Z' | tr '-' '_'))
+CFLAGS += -DRUX_LOG_$(shell echo $(LOG) | tr 'a-z' 'A-Z')
 
 CFLAGS += -nostdinc -fno-builtin -ffreestanding -Wall
 CFLAGS += -I$(CURDIR)/$(inc_dir)

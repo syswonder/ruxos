@@ -61,89 +61,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3a30da5c5f2d5e72842e00bcb57657162cdabef0931f40e2deb9b4140440cecd"
 
 [[package]]
-name = "arceos-bwbench"
-version = "0.1.0"
-dependencies = [
- "axnet",
- "axstd",
-]
-
-[[package]]
-name = "arceos-display-basic-painting"
-version = "0.1.0"
-dependencies = [
- "axstd",
- "embedded-graphics",
-]
-
-[[package]]
-name = "arceos-display-draw-map"
-version = "0.1.0"
-dependencies = [
- "axstd",
- "embedded-graphics",
- "tinybmp",
-]
-
-[[package]]
-name = "arceos-echoserver"
-version = "0.1.0"
-dependencies = [
- "axstd",
-]
-
-[[package]]
-name = "arceos-exception"
-version = "0.1.0"
-dependencies = [
- "axstd",
-]
-
-[[package]]
-name = "arceos-helloworld"
-version = "0.1.0"
-dependencies = [
- "axstd",
-]
-
-[[package]]
-name = "arceos-httpclient"
-version = "0.1.0"
-dependencies = [
- "axstd",
-]
-
-[[package]]
-name = "arceos-httpserver"
-version = "0.1.0"
-dependencies = [
- "axstd",
-]
-
-[[package]]
-name = "arceos-memtest"
-version = "0.1.0"
-dependencies = [
- "axstd",
- "rand",
-]
-
-[[package]]
-name = "arceos-parallel"
-version = "0.1.0"
-dependencies = [
- "axstd",
- "rand",
-]
-
-[[package]]
-name = "arceos-priority"
-version = "0.1.0"
-dependencies = [
- "axstd",
-]
-
-[[package]]
 name = "arceos-shell"
 version = "0.1.0"
 dependencies = [
@@ -154,73 +71,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "arceos-sleep"
-version = "0.1.0"
-dependencies = [
- "axstd",
-]
-
-[[package]]
-name = "arceos-tls"
-version = "0.1.0"
-dependencies = [
- "axstd",
-]
-
-[[package]]
-name = "arceos-udpserver"
-version = "0.1.0"
-dependencies = [
- "axstd",
-]
-
-[[package]]
-name = "arceos-yield"
-version = "0.1.0"
-dependencies = [
- "axstd",
-]
-
-[[package]]
 name = "arceos_api"
 version = "0.1.0"
 dependencies = [
  "axalloc",
- "axconfig",
- "axdisplay",
  "axerrno",
- "axfeat",
- "axfs",
- "axhal",
  "axio",
  "axlog",
  "axnet",
- "axruntime",
- "axtask",
-]
-
-[[package]]
-name = "arceos_posix_api"
-version = "0.1.0"
-dependencies = [
- "axalloc",
- "axconfig",
- "axerrno",
- "axfeat",
- "axfs",
- "axhal",
- "axio",
- "axlog",
- "axnet",
- "axruntime",
- "axsync",
- "axtask",
- "bindgen",
- "flatten_objects",
- "lazy_static",
- "memory_addr",
- "spin 0.9.8",
- "static_assertions",
+ "ruxconfig",
+ "ruxdisplay",
+ "ruxfeat",
+ "ruxfs",
+ "ruxhal",
+ "ruxruntime",
+ "ruxtask",
 ]
 
 [[package]]
@@ -253,20 +118,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
-name = "ax9p"
-version = "0.1.0"
-dependencies = [
- "axdriver",
- "axfs",
- "axfs_vfs",
- "axnet",
- "driver_9p",
- "driver_common",
- "log",
- "spin 0.9.8",
-]
-
-[[package]]
 name = "axalloc"
 version = "0.1.0"
 dependencies = [
@@ -279,85 +130,9 @@ dependencies = [
 ]
 
 [[package]]
-name = "axconfig"
-version = "0.1.0"
-dependencies = [
- "serde",
- "toml_edit",
-]
-
-[[package]]
-name = "axdisplay"
-version = "0.1.0"
-dependencies = [
- "axdriver",
- "axsync",
- "driver_display",
- "lazy_init",
- "log",
-]
-
-[[package]]
-name = "axdriver"
-version = "0.1.0"
-dependencies = [
- "axalloc",
- "axconfig",
- "axhal",
- "cfg-if",
- "driver_9p",
- "driver_block",
- "driver_common",
- "driver_display",
- "driver_net",
- "driver_pci",
- "driver_virtio",
- "log",
-]
-
-[[package]]
 name = "axerrno"
 version = "0.1.0"
 dependencies = [
- "log",
-]
-
-[[package]]
-name = "axfeat"
-version = "0.1.0"
-dependencies = [
- "ax9p",
- "axalloc",
- "axdisplay",
- "axdriver",
- "axfs",
- "axhal",
- "axlog",
- "axnet",
- "axruntime",
- "axsync",
- "axtask",
- "spinlock",
-]
-
-[[package]]
-name = "axfs"
-version = "0.1.0"
-dependencies = [
- "axdriver",
- "axerrno",
- "axfs_devfs",
- "axfs_ramfs",
- "axfs_vfs",
- "axio",
- "axsync",
- "axtask",
- "capability",
- "cfg-if",
- "crate_interface",
- "driver_block",
- "fatfs",
- "lazy_init",
  "log",
 ]
 
@@ -389,57 +164,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "axhal"
-version = "0.1.0"
-dependencies = [
- "aarch64-cpu",
- "arm_gic",
- "arm_pl011",
- "axalloc",
- "axconfig",
- "axlog",
- "bitflags 2.4.0",
- "cfg-if",
- "crate_interface",
- "dtb",
- "dw_apb_uart",
- "embedded-hal",
- "handler_table",
- "kernel_guard",
- "lazy_init",
- "log",
- "memory_addr",
- "page_table",
- "page_table_entry",
- "percpu",
- "ratio",
- "raw-cpuid 11.0.1",
- "riscv",
- "sbi-rt",
- "spinlock",
- "static_assertions",
- "tock-registers",
- "x2apic",
- "x86",
- "x86_64",
-]
-
-[[package]]
 name = "axio"
 version = "0.1.0"
 dependencies = [
  "axerrno",
-]
-
-[[package]]
-name = "axlibc"
-version = "0.1.0"
-dependencies = [
- "arceos_posix_api",
- "axerrno",
- "axfeat",
- "axio",
- "bindgen",
 ]
 
 [[package]]
@@ -455,56 +183,21 @@ dependencies = [
 ]
 
 [[package]]
-name = "axmusl"
-version = "0.1.0"
-dependencies = [
- "arceos_posix_api",
- "axfeat",
- "axhal",
- "axlog",
- "crate_interface",
- "kernel_guard",
- "num_enum",
-]
-
-[[package]]
 name = "axnet"
 version = "0.1.0"
 dependencies = [
- "axdriver",
  "axerrno",
- "axhal",
  "axio",
  "axsync",
- "axtask",
  "cfg-if",
  "driver_net",
  "lazy_init",
  "log",
+ "ruxdriver",
+ "ruxhal",
+ "ruxtask",
  "smoltcp",
  "spin 0.9.8",
-]
-
-[[package]]
-name = "axruntime"
-version = "0.1.0"
-dependencies = [
- "ax9p",
- "axalloc",
- "axconfig",
- "axdisplay",
- "axdriver",
- "axfs",
- "axhal",
- "axlog",
- "axnet",
- "axtask",
- "cfg-if",
- "crate_interface",
- "dtb",
- "kernel_guard",
- "lazy_init",
- "percpu",
 ]
 
 [[package]]
@@ -513,8 +206,8 @@ version = "0.1.0"
 dependencies = [
  "arceos_api",
  "axerrno",
- "axfeat",
  "axio",
+ "ruxfeat",
  "spinlock",
 ]
 
@@ -523,29 +216,9 @@ name = "axsync"
 version = "0.1.0"
 dependencies = [
  "axsync",
- "axtask",
  "rand",
+ "ruxtask",
  "spinlock",
-]
-
-[[package]]
-name = "axtask"
-version = "0.1.0"
-dependencies = [
- "axconfig",
- "axhal",
- "axtask",
- "cfg-if",
- "crate_interface",
- "kernel_guard",
- "lazy_init",
- "log",
- "memory_addr",
- "percpu",
- "rand",
- "scheduler",
- "spinlock",
- "timer_list",
 ]
 
 [[package]]
@@ -1752,6 +1425,239 @@ name = "rustversion"
 version = "1.0.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7ffc183a10b4478d04cbbbfc96d0873219d962dd5accaff2ffbd4ceb7df837f4"
+
+[[package]]
+name = "rux9p"
+version = "0.1.0"
+dependencies = [
+ "axfs_vfs",
+ "axnet",
+ "driver_9p",
+ "driver_common",
+ "log",
+ "ruxdriver",
+ "ruxfs",
+ "spin 0.9.8",
+]
+
+[[package]]
+name = "ruxconfig"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "toml_edit",
+]
+
+[[package]]
+name = "ruxdisplay"
+version = "0.1.0"
+dependencies = [
+ "axsync",
+ "driver_display",
+ "lazy_init",
+ "log",
+ "ruxdriver",
+]
+
+[[package]]
+name = "ruxdriver"
+version = "0.1.0"
+dependencies = [
+ "axalloc",
+ "cfg-if",
+ "driver_9p",
+ "driver_block",
+ "driver_common",
+ "driver_display",
+ "driver_net",
+ "driver_pci",
+ "driver_virtio",
+ "log",
+ "ruxconfig",
+ "ruxhal",
+]
+
+[[package]]
+name = "ruxfeat"
+version = "0.1.0"
+dependencies = [
+ "axalloc",
+ "axlog",
+ "axnet",
+ "axsync",
+ "rux9p",
+ "ruxdisplay",
+ "ruxdriver",
+ "ruxfs",
+ "ruxhal",
+ "ruxruntime",
+ "ruxtask",
+ "spinlock",
+]
+
+[[package]]
+name = "ruxfs"
+version = "0.1.0"
+dependencies = [
+ "axerrno",
+ "axfs_devfs",
+ "axfs_ramfs",
+ "axfs_vfs",
+ "axio",
+ "axsync",
+ "capability",
+ "cfg-if",
+ "crate_interface",
+ "driver_block",
+ "fatfs",
+ "lazy_init",
+ "log",
+ "ruxdriver",
+ "ruxtask",
+]
+
+[[package]]
+name = "ruxhal"
+version = "0.1.0"
+dependencies = [
+ "aarch64-cpu",
+ "arm_gic",
+ "arm_pl011",
+ "axalloc",
+ "axlog",
+ "bitflags 2.4.0",
+ "cfg-if",
+ "crate_interface",
+ "dtb",
+ "dw_apb_uart",
+ "embedded-hal",
+ "handler_table",
+ "kernel_guard",
+ "lazy_init",
+ "log",
+ "memory_addr",
+ "page_table",
+ "page_table_entry",
+ "percpu",
+ "ratio",
+ "raw-cpuid 11.0.1",
+ "riscv",
+ "ruxconfig",
+ "sbi-rt",
+ "spinlock",
+ "static_assertions",
+ "tock-registers",
+ "x2apic",
+ "x86",
+ "x86_64",
+]
+
+[[package]]
+name = "ruxlibc"
+version = "0.1.0"
+dependencies = [
+ "axerrno",
+ "axio",
+ "bindgen",
+ "ruxfeat",
+ "ruxos_posix_api",
+]
+
+[[package]]
+name = "ruxmusl"
+version = "0.1.0"
+dependencies = [
+ "axlog",
+ "crate_interface",
+ "kernel_guard",
+ "num_enum",
+ "ruxfeat",
+ "ruxhal",
+ "ruxos_posix_api",
+]
+
+[[package]]
+name = "ruxos-display-basic-painting"
+version = "0.1.0"
+dependencies = [
+ "axstd",
+ "embedded-graphics",
+]
+
+[[package]]
+name = "ruxos-display-draw-map"
+version = "0.1.0"
+dependencies = [
+ "axstd",
+ "embedded-graphics",
+ "tinybmp",
+]
+
+[[package]]
+name = "ruxos_posix_api"
+version = "0.1.0"
+dependencies = [
+ "axalloc",
+ "axerrno",
+ "axio",
+ "axlog",
+ "axnet",
+ "axsync",
+ "bindgen",
+ "flatten_objects",
+ "lazy_static",
+ "memory_addr",
+ "ruxconfig",
+ "ruxfeat",
+ "ruxfs",
+ "ruxhal",
+ "ruxruntime",
+ "ruxtask",
+ "spin 0.9.8",
+ "static_assertions",
+]
+
+[[package]]
+name = "ruxruntime"
+version = "0.1.0"
+dependencies = [
+ "axalloc",
+ "axlog",
+ "axnet",
+ "cfg-if",
+ "crate_interface",
+ "dtb",
+ "kernel_guard",
+ "lazy_init",
+ "percpu",
+ "rux9p",
+ "ruxconfig",
+ "ruxdisplay",
+ "ruxdriver",
+ "ruxfs",
+ "ruxhal",
+ "ruxtask",
+]
+
+[[package]]
+name = "ruxtask"
+version = "0.1.0"
+dependencies = [
+ "cfg-if",
+ "crate_interface",
+ "kernel_guard",
+ "lazy_init",
+ "log",
+ "memory_addr",
+ "percpu",
+ "rand",
+ "ruxconfig",
+ "ruxhal",
+ "ruxtask",
+ "scheduler",
+ "spinlock",
+ "timer_list",
+]
 
 [[package]]
 name = "ryu"

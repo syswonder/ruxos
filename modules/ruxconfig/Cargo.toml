@@ -1,0 +1,13 @@
+[package]
+name = "ruxconfig"
+version = "0.1.0"
+edition = "2021"
+authors = ["Yuekai Jia <equation618@gmail.com>"]
+description = "Platform-specific constants and parameters for Ruxos"
+license = "GPL-3.0-or-later OR Apache-2.0"
+homepage = "https://github.com/syswonder/ruxos"
+repository = "https://github.com/syswonder/ruxos/tree/main/modules/ruxconfig"
+
+[build-dependencies]
+toml_edit = "0.19"
+serde = "1.0"

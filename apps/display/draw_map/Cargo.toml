@@ -1,5 +1,5 @@
 [package]
-name = "arceos-display-draw-map"
+name = "ruxos-display-draw-map"
 version = "0.1.0"
 edition = "2021"
 authors = ["Shiping Yuan <robert_yuan@pku.edu.com>"]

@@ -1,35 +1,37 @@
-# ArceOS Architecture Overview
+# Ruxos Architecture Overview
 
 ## Rustdoc
 
-* https://rcore-os.github.io/arceos/
+* https://github.com/syswonder/ruxos
 
-## ArceOS Modules
+## Ruxos Modules
 
-* [axalloc](../modules/axalloc): ArceOS global memory allocator.
-* [axconfig](../modules/axconfig): Platform-specific constants and parameters for ArceOS.
-* [axdisplay](../modules/axdisplay): ArceOS graphics module.
-* [axdriver](../modules/axdriver): ArceOS device drivers.
-* [axfs](../modules/axfs): ArceOS filesystem module.
-* [axhal](../modules/axhal): ArceOS hardware abstraction layer, provides unified APIs for platform-specific operations.
-* [axlog](../modules/axlog): Macros for multi-level formatted logging used by ArceOS.
-* [axnet](../modules/axnet): ArceOS network module.
-* [axruntime](../modules/axruntime): Runtime library of ArceOS.
-* [axsync](../modules/axsync): ArceOS synchronization primitives.
-* [axtask](../modules/axtask): ArceOS task management module.
+* [rux9p](../modules/rux9p/): 9pfs integration for Ruxos.
+* [axalloc](../modules/axalloc): Ruxos global memory allocator.
+* [ruxconfig](../modules/ruxconfig): Platform-specific constants and parameters for Ruxos.
+* [ruxdisplay](../modules/ruxdisplay): Ruxos graphics module.
+* [ruxdriver](../modules/ruxdriver): Ruxos device drivers.
+* [ruxfs](../modules/ruxfs): Ruxos filesystem module.
+* [ruxhal](../modules/ruxhal): Ruxos hardware abstraction layer, provides unified APIs for platform-specific operations.
+* [axlog](../modules/axlog): Macros for multi-level formatted logging used by Ruxos.
+* [axnet](../modules/axnet): Ruxos network module.
+* [ruxruntime](../modules/ruxruntime): Runtime library of Ruxos.
+* [axsync](../modules/axsync): Ruxos synchronization primitives.
+* [ruxtask](../modules/ruxtask): Ruxos task management module.
 
 ## Crates
 
 * [allocator](../crates/allocator): Various allocator algorithms in a unified interface.
 * [arm_gic](../crates/arm_gic): ARM Generic Interrupt Controller (GIC) register definitions and basic operations.
-* [axerrno](../crates/axerrno): Error code definition used by ArceOS.
-* [axfs_devfs](../crates/axfs_devfs): Device filesystem used by ArceOS.
-* [axfs_vfs](../crates/axfs_vfs): Virtual filesystem interfaces used by ArceOS.
+* [axerrno](../crates/axerrno): Error code definition used by Ruxos.
+* [axfs_devfs](../crates/axfs_devfs): Device filesystem used by Ruxos.
+* [axfs_vfs](../crates/axfs_vfs): Virtual filesystem interfaces used by Ruxos.
 * [axio](../crates/axio): `std::io`-like I/O traits for `no_std` environment.
 * [capability](../crates/capability): Provide basic capability-based security.
 * [crate_interface](../crates/crate_interface): Provides a way to define an interface (trait) in a crate, but can implement or use it in any crate. [![Crates.io](https://img.shields.io/crates/v/crate_interface)](https://crates.io/crates/crate_interface)
+* [driver_9p](../crates/driver_9p/): Basic 9pfs operation traits for 9p protocol drivers.
 * [driver_block](../crates/driver_block): Common traits and types for block storage drivers.
-* [driver_common](../crates/driver_common): Device driver interfaces used by ArceOS.
+* [driver_common](../crates/driver_common): Device driver interfaces used by Ruxos.
 * [driver_display](../crates/driver_display): Common traits and types for graphics device drivers.
 * [driver_net](../crates/driver_net): Common traits and types for network device (NIC) drivers.
 * [driver_pci](../crates/driver_pci): Structures and functions for PCI bus operations.
@@ -58,25 +60,25 @@
 | [helloworld](../apps/helloworld/) | | | A minimal app that just prints a string |
 | [exception](../apps/exception/) | | paging | Exception handling test |
 | [memtest](../apps/memtest/) | axalloc | alloc, paging | Dynamic memory allocation test |
-| [display](../apps/display/) | axalloc, axdisplay | alloc, paging, display | Graphic/GUI test |
-| [yield](../apps/task/yield/) | axalloc, axtask | alloc, paging, multitask, sched_fifo | Multi-threaded yielding test |
-| [parallel](../apps/task/parallel/) | axalloc, axtask | alloc, paging, multitask, sched_fifo, irq | Parallel computing test (to test synchronization & mutex) |
-| [sleep](../apps/task/sleep/) | axalloc, axtask | alloc, paging, multitask, sched_fifo, irq | Thread sleeping test |
-| [priority](../apps/task/priority/) | axalloc, axtask | alloc, paging, multitask, sched_cfs | Thread priority test |
-| [shell](../apps/fs/shell/) | axalloc, axdriver, axfs | alloc, paging, fs | A simple shell that responds to filesystem operations |
-| [httpclient](../apps/net/httpclient/) | axalloc, axdriver, axnet | alloc, paging, net | A simple client that sends an HTTP request and then prints the response |
-| [echoserver](../apps/net/echoserver/) | axalloc, axdriver, axnet, axtask | alloc, paging, net, multitask | A multi-threaded TCP server that reverses messages sent by the client  |
-| [httpserver](../apps/net/httpserver/) | axalloc, axdriver, axnet, axtask | alloc, paging, net, multitask | A multi-threaded HTTP server that serves a static web page |
-| [udpserver](../apps/net/udpserver/) | axalloc, axdriver, axnet | alloc, paging, net | A simple echo server using UDP protocol |
+| [display](../apps/display/) | axalloc, ruxdisplay | alloc, paging, display | Graphic/GUI test |
+| [yield](../apps/task/yield/) | axalloc, ruxtask | alloc, paging, multitask, sched_fifo | Multi-threaded yielding test |
+| [parallel](../apps/task/parallel/) | axalloc, ruxtask | alloc, paging, multitask, sched_fifo, irq | Parallel computing test (to test synchronization & mutex) |
+| [sleep](../apps/task/sleep/) | axalloc, ruxtask | alloc, paging, multitask, sched_fifo, irq | Thread sleeping test |
+| [priority](../apps/task/priority/) | axalloc, ruxtask | alloc, paging, multitask, sched_cfs | Thread priority test |
+| [shell](../apps/fs/shell/) | axalloc, ruxdriver, ruxfs | alloc, paging, fs | A simple shell that responds to filesystem operations |
+| [httpclient](../apps/net/httpclient/) | axalloc, ruxdriver, axnet | alloc, paging, net | A simple client that sends an HTTP request and then prints the response |
+| [echoserver](../apps/net/echoserver/) | axalloc, ruxdriver, axnet, ruxtask | alloc, paging, net, multitask | A multi-threaded TCP server that reverses messages sent by the client  |
+| [httpserver](../apps/net/httpserver/) | axalloc, ruxdriver, axnet, ruxtask | alloc, paging, net, multitask | A multi-threaded HTTP server that serves a static web page |
+| [udpserver](../apps/net/udpserver/) | axalloc, ruxdriver, axnet | alloc, paging, net | A simple echo server using UDP protocol |
 
 ## Applications (C)
 | App | Extra modules | Enabled features | Description |
 |-|-|-|-|
 | [helloworld](../apps/c/helloworld/) | | | A minimal C app that just prints a string |
 | [memtest](../apps/c/memtest/) | axalloc | alloc, paging | Dynamic memory allocation test in C |
-| [sqlite3](../apps/c/sqlite3/) | axalloc, axdriver, axfs | alloc, paging, fp_simd, fs | Porting of [SQLite3](https://sqlite.org/index.html) |
-| [iperf](../apps/c/iperf/) | axalloc, axdriver, axfs, axnet | alloc, paging, fp_simd, fs, net, select | Porting of [iPerf3](https://iperf.fr/) |
-| [redis](../apps/c/redis/) | axalloc, axdriver, axtask, axfs, axnet | alloc, paging, fp_simd, irq, multitask, fs, net, pipe, epoll | Porting of [Redis](https://redis.io/) |
+| [sqlite3](../apps/c/sqlite3/) | axalloc, ruxdriver, ruxfs | alloc, paging, fp_simd, fs | Porting of [SQLite3](https://sqlite.org/index.html) |
+| [iperf](../apps/c/iperf/) | axalloc, ruxdriver, ruxfs, axnet | alloc, paging, fp_simd, fs, net, select | Porting of [iPerf3](https://iperf.fr/) |
+| [redis](../apps/c/redis/) | axalloc, ruxdriver, ruxtask, ruxfs, axnet | alloc, paging, fp_simd, irq, multitask, fs, net, pipe, epoll | Porting of [Redis](https://redis.io/) |
 
 ## Dependencies
 
@@ -86,7 +88,7 @@ subgraph "User Apps"
 A["Rust App"]
 C["C App"]
 end
-subgraph "ArceOS ulib"
+subgraph "Ruxos ulib"
 B["rust_libax"]
 D["c_libax"]
 E("rust_std")
@@ -105,18 +107,18 @@ H("linux")
 end
 B --> G;
 F --> H;
-subgraph "ArceOS modules"
-I[axruntime]
+subgraph "Ruxos modules"
+I[ruxruntime]
 J[axlog]
 K[axsync]
-L[axhal]
-M[axconfig]
+L[ruxhal]
+M[ruxconfig]
 N[axalloc]
-O[axtask]
-P[axdriver]
+O[ruxtask]
+P[ruxdriver]
 Q[axnet]
-Q1[axdisplay]
-M1[axfs]
+Q1[ruxdisplay]
+M1[ruxfs]
 end
 G --> I;
 H --> I;
@@ -194,7 +196,7 @@ M1 --> F1;
 M1 --> F2;
 M1 --> P;
 M1 --> K;
-subgraph "ArceOS crates"
+subgraph "Ruxos crates"
 R[allocator]
 IN12[arm_gic]
 IN13[axerrno]

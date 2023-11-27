@@ -1,0 +1,54 @@
+[package]
+name = "ruxruntime"
+version = "0.1.0"
+edition = "2021"
+authors = [
+    "Yuekai Jia <equation618@gmail.com>",
+    "yanjuguang <coolyanjg@163.com>",
+    "Zheng Wu <hello_weekday@163.com>",
+    "AuYang261 <xu_jyang@163.com>",
+]
+description = "Runtime library of Ruxos"
+license = "GPL-3.0-or-later OR Apache-2.0"
+homepage = "https://github.com/syswonder/ruxos"
+repository = "https://github.com/syswonder/ruxos/tree/main/modules/ruxruntime"
+
+[features]
+default = []
+
+smp = ["ruxhal/smp"]
+irq = ["ruxhal/irq", "ruxtask?/irq", "percpu", "kernel_guard"]
+tls = ["ruxhal/tls", "ruxtask?/tls"]
+alloc = ["axalloc", "dtb"]
+paging = ["ruxhal/paging", "lazy_init"]
+rtc = ["ruxhal/rtc"]
+
+multitask = ["ruxtask/multitask"]
+fs = ["ruxdriver", "ruxfs"]
+blkfs = ["fs"]
+virtio-9p = ["fs", "rux9p"]
+net-9p = ["fs", "rux9p"]
+net = ["ruxdriver", "axnet"]
+display = ["ruxdriver", "ruxdisplay"]
+signal = []
+
+musl = []
+
+[dependencies]
+cfg-if = "1.0"
+ruxhal = { path = "../ruxhal" }
+axlog = { path = "../axlog" }
+ruxconfig = { path = "../ruxconfig" }
+axalloc = { path = "../axalloc", optional = true }
+ruxdriver = { path = "../ruxdriver", optional = true }
+ruxfs = { path = "../ruxfs", optional = true }
+rux9p = { path = "../rux9p", optional = true }
+axnet = { path = "../axnet", optional = true }
+ruxdisplay = { path = "../ruxdisplay", optional = true }
+ruxtask = { path = "../ruxtask", optional = true }
+
+crate_interface = { path = "../../crates/crate_interface" }
+percpu = { path = "../../crates/percpu", optional = true }
+kernel_guard = { path = "../../crates/kernel_guard", optional = true }
+lazy_init = { path = "../../crates/lazy_init", optional = true }
+dtb = { path = "../../crates/dtb", optional = true}

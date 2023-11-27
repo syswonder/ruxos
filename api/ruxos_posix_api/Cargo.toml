@@ -1,0 +1,59 @@
+[package]
+name = "ruxos_posix_api"
+version = "0.1.0"
+edition = "2021"
+authors = [
+    "Yuekai Jia <equation618@gmail.com>",
+    "yanjuguang <coolyanjg@163.com>",
+    "wudashuai <wu-ds20@mails.tsinghua.edu.cn>",
+    "yfblock <321353225@qq.com>",
+    "scPointer <bhy18@mails.tsinghua.edu.cn>",
+    "Shiping Yuan <robert_yuan@pku.edu.com>",
+]
+description = "POSIX-compatible APIs for Ruxos modules"
+license = "GPL-3.0-or-later OR Apache-2.0"
+repository = "https://github.com/syswonder/ruxos/tree/main/api/ruxos_posix_api"
+
+[features]
+default = []
+
+smp = ["ruxfeat/smp"]
+alloc = ["dep:axalloc", "ruxfeat/alloc"]
+multitask = ["ruxfeat/multitask", "ruxtask/multitask"]
+fd = ["alloc"]
+fs = ["dep:ruxfs", "ruxfeat/fs", "fd"]
+net = ["dep:axnet", "ruxfeat/net", "fd"]
+signal = ["ruxruntime/signal"]
+pipe = ["fd"]
+select = ["fd"]
+epoll = ["fd"]
+poll = ["fd"]
+tls = ["ruxfeat/tls"]
+irq = ["ruxfeat/irq"]
+
+musl = ["ruxhal/musl", "ruxruntime/musl", "axalloc/slab", "ruxtask/musl"]
+
+[dependencies]
+# Ruxos modules
+ruxfeat = { path = "../ruxfeat" }
+ruxruntime = { path = "../../modules/ruxruntime" }
+ruxconfig = { path = "../../modules/ruxconfig" }
+axlog = { path = "../../modules/axlog" }
+ruxhal = { path = "../../modules/ruxhal" }
+axsync = { path = "../../modules/axsync" }
+axalloc = { path = "../../modules/axalloc", optional = true }
+ruxtask = { path = "../../modules/ruxtask", optional = true }
+ruxfs = { path = "../../modules/ruxfs", optional = true }
+axnet = { path = "../../modules/axnet", optional = true }
+
+# Other crates
+axio = { path = "../../crates/axio" }
+axerrno = { path = "../../crates/axerrno" }
+memory_addr = { path = "../../crates/memory_addr" }
+static_assertions = "1.1.0"
+spin = { version = "0.9" }
+lazy_static = { version = "1.4", features = ["spin_no_std"] }
+flatten_objects = { path = "../../crates/flatten_objects" }
+
+[build-dependencies]
+bindgen ={ version = "0.66" }
