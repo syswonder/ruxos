@@ -12,17 +12,7 @@
 #include <stddef.h>
 #include <stdio.h>
 
-int sigaction_helper(int signum, const struct sigaction *act, struct sigaction *oldact,
-                     size_t sigsetsize)
-{
-    if (signum == SIGKILL || signum == SIGSTOP)
-        return -EINVAL;
-
-    if (oldact)
-        *oldact = (struct sigaction){0};
-
-    return 0;
-}
+extern int sigaction_inner(int, const struct sigaction *, struct sigaction *);
 
 void (*signal(int signum, void (*handler)(int)))(int)
 {
@@ -31,7 +21,7 @@ void (*signal(int signum, void (*handler)(int)))(int)
         .sa_handler = handler, .sa_flags = SA_RESTART, /* BSD signal semantics */
     };
 
-    if (sigaction_helper(signum, &act, &old, sizeof(sigset_t)) < 0)
+    if (sigaction_inner(signum, &act, &old) < 0)
         return SIG_ERR;
 
     return (old.sa_flags & SA_SIGINFO) ? NULL : old.sa_handler;
@@ -39,7 +29,7 @@ void (*signal(int signum, void (*handler)(int)))(int)
 
 int sigaction(int sig, const struct sigaction *restrict act, struct sigaction *restrict oact)
 {
-    return sigaction_helper(sig, act, oact, sizeof(sigset_t));
+    return sigaction_inner(sig, act, oact);
 }
 
 // TODO

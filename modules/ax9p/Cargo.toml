@@ -1,0 +1,26 @@
+[package]
+name = "ax9p"
+version = "0.1.0"
+edition = "2021"
+authors = ["Zheng Wu <hello_weekday@163.com>"]
+description = "RukOS Plan-9 filesystem module"
+license = "GPL-3.0-or-later OR Apache-2.0"
+homepage = "https://github.com/rcore-os/rukos"
+repository = "https://github.com/rcore-os/rukos/tree/main/modules/ax9p"
+documentation = "https://rcore-os.github.io/rukos/ax9p/index.html"
+
+[features]
+virtio-9p = ["axdriver/virtio-9p", "axdriver/virtio-9p"]
+net-9p = ["axnet", "driver_common", "axdriver/dyn" , "axdriver/_9p"]
+need_auth = []
+
+[dependencies]
+log = "0.4"
+spin = "0.9"
+driver_9p = { path = "../../crates/driver_9p"}
+axfs_vfs = { path = "../../crates/axfs_vfs"}
+driver_common = { path = "../../crates/driver_common", optional = true}
+
+axfs = { path = "../axfs"}
+axnet = { path = "../axnet", optional = true}
+axdriver = { path = "../axdriver"}

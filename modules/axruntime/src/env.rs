@@ -1,7 +1,18 @@
+/* Copyright (c) [2023] [Syswonder Community]
+ *   [Rukos] is licensed under Mulan PSL v2.
+ *   You can use this software according to the terms and conditions of the Mulan PSL v2.
+ *   You may obtain a copy of Mulan PSL v2 at:
+ *               http://license.coscl.org.cn/MulanPSL2
+ *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ *   See the Mulan PSL v2 for more details.
+ */
 extern crate alloc;
 use alloc::vec::Vec;
+use axhal::mem::PAGE_SIZE_4K;
 use core::ffi::c_char;
 use core::{ptr, usize};
+
+pub const AT_PAGESIZE: usize = 6;
 
 /// argv for C main function
 #[allow(non_upper_case_globals)]
@@ -29,7 +40,18 @@ pub(crate) unsafe fn init_argv(args: Vec<&str>) {
         *buf.add(len) = 0;
         RX_ARGV.push(buf);
     }
+    // end of argv
     RX_ARGV.push(ptr::null_mut());
+
+    for e in &RX_ENVIRON {
+        RX_ARGV.push(*e);
+    }
+
+    RX_ARGV.push(AT_PAGESIZE as *mut c_char);
+    RX_ARGV.push(PAGE_SIZE_4K as *mut c_char);
+    // end of auxv
+    RX_ARGV.push(ptr::null_mut());
+
     argv = RX_ARGV.as_mut_ptr();
 }
 

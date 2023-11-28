@@ -48,6 +48,25 @@ cfg_if::cfg_if! {
         mod task;
         mod api;
         mod wait_queue;
+        #[cfg(feature = "irq")]
+        /// load average
+        pub mod loadavg;
+        /// specific key-value storage for each task
+        #[cfg(not(feature = "musl"))]
+        pub mod tsd;
+        /// TODO: if irq is disabled, what value should AVENRUN be?
+        /// average run load, same as in linux kernel
+        static mut AVENRUN: [u64; 3] = [0, 0, 0];
+
+        /// Get the load average
+        pub fn get_avenrun(loads: &mut [u64; 3]) {
+            for i in 0..3 {
+                unsafe {
+                    // TODO: disable irq for safety
+                    loads[i] = AVENRUN[i];
+                }
+            }
+        }
 
         #[cfg(feature = "irq")]
         mod timers;
@@ -55,6 +74,7 @@ cfg_if::cfg_if! {
         #[doc(cfg(feature = "multitask"))]
         pub use self::api::*;
         pub use self::api::{sleep, sleep_until, yield_now};
+        pub use task::TaskState;
     } else {
         mod api_s;
         pub use self::api_s::{sleep, sleep_until, yield_now};

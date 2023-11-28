@@ -55,6 +55,7 @@ members = [
 
     "ulib/axstd",
     "ulib/axlibc",
+    "ulib/axmusl",
 
     "apps/display/basic_painting",
     "apps/display/draw_map",

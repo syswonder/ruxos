@@ -107,14 +107,20 @@ impl WaitQueue {
     /// notify it, or the given duration has elapsed.
     #[cfg(feature = "irq")]
     pub fn wait_timeout(&self, dur: core::time::Duration) -> bool {
+        let deadline = dur + axhal::time::current_time();
+        self.wait_timeout_absolutely(deadline)
+    }
+    /// Blocks the current task and put it into the wait queue, until other tasks
+    /// notify it, or the given deadling has elapsed.
+    pub fn wait_timeout_absolutely(&self, _deadline: core::time::Duration) -> bool {
         let curr = crate::current();
-        let deadline = axhal::time::current_time() + dur;
         debug!(
             "task wait_timeout: {} deadline={:?}",
             curr.id_name(),
-            deadline
+            _deadline
         );
-        crate::timers::set_alarm_wakeup(deadline, curr.clone());
+        #[cfg(feature = "irq")]
+        crate::timers::set_alarm_wakeup(_deadline, curr.clone());
 
         RUN_QUEUE.lock().block_current(|task| {
             task.set_in_wait_queue(true);
@@ -194,7 +200,7 @@ impl WaitQueue {
     ///
     /// If `resched` is true, the current task will be preempted when the
     /// preemption is enabled.
-    pub fn notify_task(&mut self, resched: bool, task: &AxTaskRef) -> bool {
+    pub fn notify_task(&self, resched: bool, task: &AxTaskRef) -> bool {
         let mut rq = RUN_QUEUE.lock();
         let mut wq = self.queue.lock();
         if let Some(index) = wq.iter().position(|t| Arc::ptr_eq(t, task)) {

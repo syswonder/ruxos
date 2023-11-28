@@ -29,6 +29,8 @@ mod blk;
 mod gpu;
 #[cfg(feature = "net")]
 mod net;
+#[cfg(feature = "v9p")]
+mod v9p;
 
 #[cfg(feature = "block")]
 pub use self::blk::VirtIoBlkDev;
@@ -36,6 +38,8 @@ pub use self::blk::VirtIoBlkDev;
 pub use self::gpu::VirtIoGpuDev;
 #[cfg(feature = "net")]
 pub use self::net::VirtIoNetDev;
+#[cfg(feature = "v9p")]
+pub use self::v9p::VirtIo9pDev;
 
 pub use virtio_drivers::transport::pci::bus as pci;
 pub use virtio_drivers::transport::{mmio::MmioTransport, pci::PciTransport, Transport};
@@ -84,6 +88,7 @@ const fn as_dev_type(t: VirtIoDevType) -> Option<DeviceType> {
         Block => Some(DeviceType::Block),
         Network => Some(DeviceType::Net),
         GPU => Some(DeviceType::Display),
+        _9P => Some(DeviceType::_9P),
         _ => None,
     }
 }

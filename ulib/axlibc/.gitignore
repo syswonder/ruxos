@@ -1,3 +1,4 @@
 src/libctypes_gen.rs
 include/ax_pthread_mutex.h
+include/ax_pthread_cond.h
 build_*

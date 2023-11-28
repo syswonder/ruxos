@@ -154,6 +154,10 @@ typedef void (*sighandler_t)(int);
 #define SIG_ERR ((void (*)(int)) - 1)
 #define SIG_DFL ((void (*)(int))0)
 #define SIG_IGN ((void (*)(int))1)
+// Macros above cannot convert to rust variables by build.rs with type-converter
+#define SIGERR -1l
+#define SIGDFL 0l
+#define SIGIGN 1l
 
 typedef struct __sigset_t {
     unsigned long __bits[128 / sizeof(long)];

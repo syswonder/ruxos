@@ -3,8 +3,9 @@
  *   You can use this software according to the terms and conditions of the Mulan PSL v2.
  *   You may obtain a copy of Mulan PSL v2 at:
  *               http://license.coscl.org.cn/MulanPSL2
- *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
- *   See the Mulan PSL v2 for more details.
+ *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A
+ * PARTICULAR PURPOSE. See the Mulan PSL v2 for more details.
  */
 
 #include <assert.h>
@@ -56,6 +57,7 @@ void test_create_join()
     char *s = "Main thread pass message";
     void *thread_result;
     pthread_t t1, t2;
+    
     res = pthread_create(&t1, NULL, ThreadFunc1, NULL);
     if (res != 0) {
         puts("fail to create thread1");
@@ -126,6 +128,82 @@ void test_mutex()
     assert(data == NUM_THREADS);
 }
 
+// test condition variable
+pthread_cond_t condvar;
+int A = 0;
+
+void *first(void *arg)
+{
+    sleep(5);
+    puts("First work, Change A --> 1 and wakeup Second or Third");
+    pthread_mutex_lock(&lock);
+    A = 1;
+    pthread_cond_signal(&condvar);
+    pthread_mutex_unlock(&lock);
+    return NULL;
+}
+
+void *second(void *arg)
+{
+    puts("Second want to continue,but need to wait A=1");
+    pthread_mutex_lock(&lock);
+    while (A == 0) {
+        printf("Second: A is %d\n", A);
+        pthread_cond_wait(&condvar, &lock);
+    }
+    printf("A is %d, Second can work now\n", A);
+    pthread_mutex_unlock(&lock);
+    return NULL;
+}
+
+void *third(void *arg)
+{
+    struct timespec ts;
+    ts.tv_nsec = 0;
+    puts("Third want to continue,but need to wait A=1");
+    pthread_mutex_lock(&lock);
+    int cnt = 0;
+    while (A == 0) {
+        cnt++;
+        printf("Third: A is %d, awake count: %d\n", A, cnt);
+        ts.tv_sec = time(NULL) + 2;
+        pthread_cond_timedwait(&condvar, &lock, &ts);
+    }
+    // condvar should be signaled three times for three 2s intervals in 5s total
+    if (cnt != 3) {
+        puts("Third: pthread_cond_timedwait fail");
+    } else {
+        puts("Third: pthread_cond_timedwait success");
+    }
+    printf("A is %d, Third can work now\n", A);
+    pthread_mutex_unlock(&lock);
+    return NULL;
+}
+
+void test_condvar()
+{
+    pthread_t t1, t2;
+    pthread_cond_init(&condvar, NULL);
+
+    pthread_create(&t1, NULL, first, NULL);
+    pthread_create(&t2, NULL, second, NULL);
+
+    pthread_join(t1, NULL);
+    pthread_join(t2, NULL);
+    pthread_cond_destroy(&condvar);
+
+    A = 0;
+
+    pthread_cond_init(&condvar, NULL);
+
+    pthread_create(&t1, NULL, first, NULL);
+    pthread_create(&t2, NULL, third, NULL);
+
+    pthread_join(t1, NULL);
+    pthread_join(t2, NULL);
+    pthread_cond_destroy(&condvar);
+}
+
 int main()
 {
     pthread_t main_thread = pthread_self();
@@ -134,6 +212,9 @@ int main()
     test_create_join();
     test_create_exit();
     test_mutex();
+    test_condvar();
+    pthread_mutex_destroy(&lock);
+
     puts("(C)Pthread basic tests run OK!");
 
     return 0;

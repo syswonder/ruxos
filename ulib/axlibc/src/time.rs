@@ -8,6 +8,11 @@
  */
 
 use arceos_posix_api::{sys_clock_gettime, sys_clock_settime, sys_nanosleep};
+<<<<<<< HEAD
+=======
+#[cfg(feature = "signal")]
+use arceos_posix_api::{sys_getitimer, sys_setitimer};
+>>>>>>> other-person/dev
 use core::ffi::c_int;
 
 use crate::{ctypes, utils::e};
@@ -33,4 +38,40 @@ pub unsafe extern "C" fn nanosleep(
     rem: *mut ctypes::timespec,
 ) -> c_int {
     e(sys_nanosleep(req, rem))
+}
+
+/// Set timer to send signal after some time
+#[no_mangle]
+pub unsafe extern "C" fn setitimer(
+    _which: c_int,
+    _new: *const ctypes::itimerval,
+    _old: *mut ctypes::itimerval,
+) -> c_int {
+    #[cfg(feature = "signal")]
+    {
+        if !_old.is_null() {
+            let res = e(sys_getitimer(_which, _old));
+            if res != 0 {
+                return res;
+            }
+        }
+        e(sys_setitimer(_which, _new))
+    }
+    #[cfg(not(feature = "signal"))]
+    {
+        e(0)
+    }
+}
+
+/// Set timer to send signal after some time
+#[no_mangle]
+pub unsafe extern "C" fn getitimer(_which: c_int, _curr_value: *mut ctypes::itimerval) -> c_int {
+    #[cfg(feature = "signal")]
+    {
+        e(sys_getitimer(_which, _curr_value))
+    }
+    #[cfg(not(feature = "signal"))]
+    {
+        e(0)
+    }
 }

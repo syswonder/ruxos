@@ -24,6 +24,7 @@
 //! - Upperlayer stacks
 //!     - `fs`: Enable file system support.
 //!     - `net`: Enable networking support.
+//!     - `signal`: Enable signal support.
 //! - Lib C functions
 //!     - `fd`: Enable file descriptor table.
 //!     - `pipe`: Enable pipe support.
@@ -84,6 +85,7 @@ mod mktime;
 mod rand;
 mod resource;
 mod setjmp;
+mod signal;
 mod string;
 mod sys;
 mod time;
@@ -101,7 +103,11 @@ pub use self::setjmp::{longjmp, setjmp};
 pub use self::string::{strlen, strnlen};
 pub use self::sys::sysconf;
 pub use self::time::{clock_gettime, nanosleep};
+#[cfg(feature = "signal")]
+pub use self::time::{getitimer, setitimer};
 pub use self::unistd::{abort, exit, getpid};
+#[cfg(feature = "signal")]
+pub use self::unistd::{alarm, ualarm};
 
 #[cfg(feature = "alloc")]
 pub use self::env::{getenv, setenv, unsetenv};
@@ -113,18 +119,24 @@ pub use self::malloc::{free, malloc};
 pub use self::strftime::strftime;
 
 #[cfg(feature = "fs")]
-pub use self::fs::{ax_open, fstat, getcwd, lseek, lstat, rename, stat};
+pub use self::fs::{ax_open, fstat, getcwd, lseek, lstat, mkdir, rename, rmdir, stat, unlink};
 
 #[cfg(feature = "net")]
 pub use self::net::{
-    accept, bind, connect, freeaddrinfo, getaddrinfo, getpeername, getsockname, listen, recv,
-    recvfrom, send, sendto, shutdown, socket,
+    accept, ax_sendmsg, bind, connect, freeaddrinfo, getaddrinfo, getpeername, getsockname, listen,
+    recv, recvfrom, send, sendto, shutdown, socket,
 };
 
 #[cfg(feature = "multitask")]
+pub use self::pthread::{
+    pthread_cond_broadcast, pthread_cond_init, pthread_cond_signal, pthread_cond_wait,
+};
+#[cfg(feature = "multitask")]
 pub use self::pthread::{pthread_create, pthread_exit, pthread_join, pthread_self};
 #[cfg(feature = "multitask")]
-pub use self::pthread::{pthread_mutex_init, pthread_mutex_lock, pthread_mutex_unlock};
+pub use self::pthread::{
+    pthread_mutex_init, pthread_mutex_lock, pthread_mutex_trylock, pthread_mutex_unlock,
+};
 
 #[cfg(feature = "pipe")]
 pub use self::pipe::pipe;

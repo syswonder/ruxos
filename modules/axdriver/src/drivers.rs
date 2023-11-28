@@ -60,6 +60,12 @@ register_display_driver!(
     <virtio::VirtIoGpu as VirtIoDevMeta>::Device
 );
 
+#[cfg(_9p_dev = "virtio-9p")]
+register_9p_driver!(
+    <virtio::VirtIo9p as VirtIoDevMeta>::Driver,
+    <virtio::VirtIo9p as VirtIoDevMeta>::Device
+);
+
 cfg_if::cfg_if! {
     if #[cfg(block_dev = "ramdisk")] {
         pub struct RamDiskDriver;

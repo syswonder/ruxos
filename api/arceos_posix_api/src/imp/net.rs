@@ -256,6 +256,23 @@ pub fn sys_socket(domain: c_int, socktype: c_int, protocol: c_int) -> c_int {
     })
 }
 
+/// `setsockopt`, currently ignored
+///
+/// TODO: implement this
+pub fn sys_setsockopt(
+    fd: c_int,
+    level: c_int,
+    optname: c_int,
+    _optval: *const c_void,
+    optlen: ctypes::socklen_t,
+) -> c_int {
+    debug!(
+        "sys_setsockopt <= fd: {}, level: {}, optname: {}, optlen: {}, IGNORED",
+        fd, level, optname, optlen
+    );
+    syscall_body!(sys_setsockopt, Ok(0))
+}
+
 /// Bind a address to a socket.
 ///
 /// Return 0 if success.
@@ -309,6 +326,10 @@ pub fn sys_sendto(
         "sys_sendto <= {} {:#x} {} {} {:#x} {}",
         socket_fd, buf_ptr as usize, len, flag, socket_addr as usize, addrlen
     );
+    if socket_addr.is_null() {
+        return sys_send(socket_fd, buf_ptr, len, flag);
+    }
+
     syscall_body!(sys_sendto, {
         if buf_ptr.is_null() {
             return Err(LinuxError::EFAULT);
@@ -356,8 +377,12 @@ pub unsafe fn sys_recvfrom(
         "sys_recvfrom <= {} {:#x} {} {} {:#x} {:#x}",
         socket_fd, buf_ptr as usize, len, flag, socket_addr as usize, addrlen as usize
     );
+    if socket_addr.is_null() {
+        return sys_recv(socket_fd, buf_ptr, len, flag);
+    }
+
     syscall_body!(sys_recvfrom, {
-        if buf_ptr.is_null() || socket_addr.is_null() || addrlen.is_null() {
+        if buf_ptr.is_null() || addrlen.is_null() {
             return Err(LinuxError::EFAULT);
         }
         let socket = Socket::from_fd(socket_fd)?;
@@ -586,5 +611,44 @@ pub unsafe fn sys_getpeername(
             (*addr, *addrlen) = into_sockaddr(Socket::from_fd(sock_fd)?.peer_addr()?);
         }
         Ok(0)
+    })
+}
+
+/// Send a message on a socket to the address connected.
+/// The  message is pointed to by the elements of the array msg.msg_iov.
+///
+/// Return the number of bytes sent if success.
+pub unsafe fn sys_sendmsg(
+    socket_fd: c_int,
+    msg: *const ctypes::msghdr,
+    flags: c_int,
+) -> ctypes::ssize_t {
+    debug!("sys_sendmsg <= {} {:#x} {}", socket_fd, msg as usize, flags);
+    syscall_body!(sys_sendmsg, {
+        if msg.is_null() {
+            return Err(LinuxError::EFAULT);
+        }
+        let msg = *msg;
+        if msg.msg_iov.is_null() {
+            return Err(LinuxError::EFAULT);
+        }
+        let iovs = core::slice::from_raw_parts(msg.msg_iov, msg.msg_iovlen as usize);
+        let socket = Socket::from_fd(socket_fd)?;
+        let mut ret = 0;
+
+        for iov in iovs.iter() {
+            if iov.iov_base.is_null() {
+                return Err(LinuxError::EFAULT);
+            }
+            let buf = core::slice::from_raw_parts(iov.iov_base as *const u8, iov.iov_len);
+            ret += match &socket as &Socket {
+                Socket::Udp(udpsocket) => udpsocket.lock().send_to(
+                    buf,
+                    from_sockaddr(msg.msg_name as *const ctypes::sockaddr, msg.msg_namelen)?,
+                )?,
+                Socket::Tcp(tcpsocket) => tcpsocket.lock().send(buf)?,
+            };
+        }
+        Ok(ret)
     })
 }

@@ -15,6 +15,8 @@ pub(crate) use crate::run_queue::{AxRunQueue, RUN_QUEUE};
 
 #[doc(cfg(feature = "multitask"))]
 pub use crate::task::{CurrentTask, TaskId, TaskInner};
+#[cfg(not(feature = "musl"))]
+use crate::tsd;
 #[doc(cfg(feature = "multitask"))]
 pub use crate::wait_queue::WaitQueue;
 
@@ -77,6 +79,8 @@ pub fn init_scheduler() {
     crate::run_queue::init();
     #[cfg(feature = "irq")]
     crate::timers::init();
+    #[cfg(not(feature = "musl"))]
+    tsd::init();
 
     info!("  use {} scheduler.", Scheduler::scheduler_name());
 }
@@ -108,6 +112,22 @@ where
     task
 }
 
+/// Used by musl
+#[cfg(feature = "musl")]
+pub fn pspawn_raw<F>(
+    f: F,
+    name: String,
+    stack_size: usize,
+    tls: usize,
+    set_tid: core::sync::atomic::AtomicU64,
+    tl: core::sync::atomic::AtomicU64,
+) -> AxTaskRef
+where
+    F: FnOnce() + Send + 'static,
+{
+    TaskInner::new_musl(f, name, stack_size, tls, set_tid, tl)
+}
+
 /// Spawns a new task with the default parameters.
 ///
 /// The default task name is an empty string. The default task stack size is
@@ -119,6 +139,27 @@ where
     F: FnOnce() + Send + 'static,
 {
     spawn_raw(f, "".into(), axconfig::TASK_STACK_SIZE)
+}
+
+/// Used by musl
+#[cfg(feature = "musl")]
+pub fn pspawn<F>(
+    f: F,
+    tls: usize,
+    set_tid: core::sync::atomic::AtomicU64,
+    tl: core::sync::atomic::AtomicU64,
+) -> AxTaskRef
+where
+    F: FnOnce() + Send + 'static,
+{
+    pspawn_raw(f, "".into(), axconfig::TASK_STACK_SIZE, tls, set_tid, tl)
+}
+
+/// Used by musl
+///
+/// Put new thread into run_queue
+pub fn put_task(task: AxTaskRef) {
+    RUN_QUEUE.lock().add_task(task);
 }
 
 /// Set the priority for current task.
@@ -159,6 +200,8 @@ pub fn sleep_until(deadline: axhal::time::TimeValue) {
 
 /// Exits the current task.
 pub fn exit(exit_code: i32) -> ! {
+    #[cfg(not(feature = "musl"))]
+    current().destroy_keys();
     RUN_QUEUE.lock().exit_current(exit_code)
 }
 
@@ -168,7 +211,10 @@ pub fn exit(exit_code: i32) -> ! {
 pub fn run_idle() -> ! {
     loop {
         yield_now();
-        debug!("idle task: waiting for IRQs...");
+        debug!(
+            "idle task[{}]: waiting for IRQs...",
+            current().id().as_u64()
+        );
         #[cfg(feature = "irq")]
         axhal::arch::wait_for_irqs();
     }

@@ -242,10 +242,16 @@ char *fgets(char *restrict s, int n, FILE *restrict f)
         if (read(f->fd, (void *)&c, 1) > 0) {
             if (c != '\n')
                 s[cnt++] = c;
-            else
+            else{
+                s[cnt++] = c;
                 break;
+            }
+                
         } else
             break;
+    }
+    if(cnt==0){
+        return NULL;
     }
     s[cnt] = '\0';
     return s;
@@ -335,11 +341,34 @@ int ferror(FILE *f)
     return 0;
 }
 
-// TODO
+
 FILE *freopen(const char *restrict filename, const char *restrict mode, FILE *restrict f)
 {
-    unimplemented();
-    return 0;
+    int fl = __fmodeflags(mode);
+	FILE *f2;
+
+	fflush(f);
+	
+	if (!filename) {
+		if (fl&O_CLOEXEC)
+            fcntl(f->fd, F_SETFD, FD_CLOEXEC);
+		fl &= ~(O_CREAT|O_EXCL|O_CLOEXEC);
+        if(fcntl(f->fd, F_SETFL, fl) < 0)
+            goto fail;
+	} else {
+		f2 = fopen(filename, mode);
+		if (!f2) goto fail;
+		if (f2->fd == f->fd) f2->fd = -1; /* avoid closing in fclose */
+		else if (dup3(f2->fd, f->fd, fl&O_CLOEXEC)<0) goto fail2;
+		fclose(f2);
+	}
+	return f;
+
+fail2:
+	fclose(f2);
+fail:
+	fclose(f);
+	return NULL;
 }
 
 // TODO
@@ -362,10 +391,11 @@ int getc(FILE *f)
     return 0;
 }
 
-// TODO
 int remove(const char *path)
 {
-    unimplemented();
+    if(unlink(path) < 0) {
+        return rmdir(path);
+    }
     return 0;
 }
 
@@ -414,8 +444,26 @@ int getc_unlocked(FILE *f)
 
 FILE *fdopen(int fd, const char *mode)
 {
-    unimplemented();
-    return NULL;
+    FILE *f;
+    if (!strchr("rwa", *mode)) {
+        errno = EINVAL;
+        return 0;
+    }
+
+    if (!(f=malloc(sizeof *f))) return 0;
+    f->buffer_len = 0;
+
+    /* Apply close-on-exec flag */
+	if (strchr(mode, 'e')) fcntl(fd, F_SETFD, FD_CLOEXEC);
+
+    /* Set append mode on fd if opened for append */
+    if (*mode == 'a') {
+        int flags = fcntl(fd, F_GETFL);
+        if (!(flags & O_APPEND))
+            fcntl(fd, F_SETFL, flags | O_APPEND);
+    }
+    f->fd = fd;
+    return f;
 }
 
 #endif // AX_CONFIG_FS

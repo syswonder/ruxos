@@ -18,6 +18,7 @@ irq = []
 rtc = []
 tls = ["alloc"]
 default = []
+musl = []
 
 [dependencies]
 log = "0.4"

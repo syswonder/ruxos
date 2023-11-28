@@ -22,5 +22,16 @@ test_create_join: Child thread return message
 A message before call pthread_exit
 test_create_exit: Exit message
 test_mutex: data = 100
+Second want to continue,but need to wait A=1
+Second: A is 0
+First work, Change A --> 1 and wakeup Second or Third
+A is 1, Second can work now
+Third want to continue,but need to wait A=1
+Third: A is 0, awake count: 1
+Third: A is 0, awake count: 2
+Third: A is 0, awake count: 3
+First work, Change A --> 1 and wakeup Second or Third
+Third: pthread_cond_timedwait success
+A is 1, Third can work now
 (C)Pthread basic tests run OK!
 Shutting down...
