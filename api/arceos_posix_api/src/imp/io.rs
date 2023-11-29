@@ -62,7 +62,8 @@ pub fn sys_write(fd: c_int, buf: *const c_void, count: usize) -> ctypes::ssize_t
     })
 }
 
-/// Write a vector.
+/// Writes `iocnt` buffers of data described by `iov` to the file associated with the file
+/// descriptor `fd`
 pub unsafe fn sys_writev(fd: c_int, iov: *const ctypes::iovec, iocnt: c_int) -> ctypes::ssize_t {
     debug!("sys_writev <= fd: {}, iocnt: {}", fd, iocnt);
     syscall_body!(sys_writev, {
@@ -82,20 +83,23 @@ pub unsafe fn sys_writev(fd: c_int, iov: *const ctypes::iovec, iocnt: c_int) -> 
         Ok(ret)
     })
 }
-
-/// ioctl
-pub fn sys_ioctl(fd: c_int, cmd: c_int, arg: usize) -> c_int {
-    debug!("sys_ioctl <= fd: {} cmd: {} arg: {}", fd, cmd, arg);
-    syscall_body!(sys_fcntl, {
-        match cmd as u32 {
-            ctypes::FIONBIO => {
-                get_file_like(fd)?.set_nonblocking(arg & (ctypes::O_NONBLOCK as usize) > 0)?;
-                Ok(0)
-            }
-            _ => {
-                warn!("unsupported fcntl parameters: cmd {}", cmd);
-                Ok(0)
-            }
+/// Reads `iocnt` buffers from the file associated with the file descriptor `fd` into the
+/// buffers described by `iov`
+pub unsafe fn sys_readv(fd: c_int, iov: *const ctypes::iovec, iocnt: c_int) -> ctypes::ssize_t {
+    debug!("sys_readv <= fd: {}, iocnt: {}", fd, iocnt);
+    syscall_body!(sys_readv, {
+        if !(0..=1024).contains(&iocnt) {
+            return Err(LinuxError::EINVAL);
         }
+
+        let iovs = unsafe { core::slice::from_raw_parts(iov, iocnt as usize) };
+        let mut ret = 0;
+        for iov in iovs.iter() {
+            if iov.iov_base.is_null() {
+                continue;
+            }
+            ret += sys_read(fd, iov.iov_base, iov.iov_len);
+        }
+        Ok(ret)
     })
 }

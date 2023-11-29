@@ -101,7 +101,6 @@ pub fn sys_dup2(old_fd: c_int, new_fd: c_int) -> c_int {
             return Err(LinuxError::EBADF);
         }
 
-        info!("lhw debug sys close new fd: {}",new_fd);
         close_file_like(new_fd).map(|_| 0);
 
         let f = get_file_like(old_fd)?;

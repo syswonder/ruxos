@@ -9,7 +9,9 @@
 
 use core::ffi::{c_int, c_void};
 
-use arceos_posix_api::{sys_read, sys_write, sys_writev, sys_ioctl};
+use arceos_posix_api::{sys_read, sys_write, sys_writev};
+#[cfg(feature = "fd")]
+use arceos_posix_api::{sys_ioctl};
 
 use crate::{ctypes, utils::e};
 
@@ -44,6 +46,7 @@ use log::info;
 /// Manipulate file descriptor.
 ///
 /// TODO: `SET/GET` command is ignored
+#[cfg(feature = "fd")]
 #[no_mangle]
 pub unsafe extern "C" fn ax_ioctl(fd: c_int, req: c_int, arg: usize) -> c_int {
     e(sys_ioctl(fd, req, arg))

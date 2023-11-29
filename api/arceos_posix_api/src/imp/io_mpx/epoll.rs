@@ -203,7 +203,6 @@ pub unsafe fn sys_epoll_wait(
     maxevents: c_int,
     timeout: c_int,
 ) -> c_int {
-    info!("lhw debug sys epoll wait");
     debug!(
         "sys_epoll_wait <= epfd: {}, maxevents: {}, timeout: {}",
         epfd, maxevents, timeout

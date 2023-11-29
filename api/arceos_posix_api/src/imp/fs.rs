@@ -6,9 +6,9 @@
  *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  *   See the Mulan PSL v2 for more details.
  */
-use alloc::sync::Arc;
-use core::ffi::{c_char, c_int, c_ssize_t, c_size_t, c_void};
 use crate::ctypes::off_t;
+use alloc::sync::Arc;
+use core::ffi::{c_char, c_int, c_size_t, c_ssize_t, c_void};
 
 use axerrno::{LinuxError, LinuxResult};
 use axfs::fops::OpenOptions;
@@ -44,7 +44,6 @@ impl File {
 impl FileLike for File {
     fn read(&self, buf: &mut [u8]) -> LinuxResult<usize> {
         let read_len = self.inner.lock().read(buf)?;
-        info!("read in posix_api fs read {} bytes from file of {} bytes",read_len,buf.len());
         Ok(read_len)
     }
 
@@ -126,8 +125,32 @@ pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> 
     debug!("sys_open <= {:?} {:#o} {:#o}", filename, flags, mode);
     syscall_body!(sys_open, {
         let options = flags_to_options(flags, mode);
+<<<<<<< HEAD
         let file = axfs::fops::File::open(filename?, &options)?;
         File::new(file).add_to_fd_table()
+=======
+        /*let file = axfs::fops::File::open(filename?, &options)?;
+        File::new(file).add_to_fd_table()*/
+        let res = axfs::fops::File::open(filename?, &options);
+        match res {
+            Ok(file) => {
+                let add_res = File::new(file).add_to_fd_table();
+                match add_res {
+                    Ok(num) => {
+                        Ok(num)
+                    }
+                    Err(e) => {
+                        error!("sys_open failed in add {}", e);
+                        Err(e.into())
+                    }
+                }
+            }
+            Err(e) => {
+                error!("sys_open failed {}", e);
+                Err(e.into())
+            }
+        }
+>>>>>>> 2542a45 (reslove some format problem)
     })
 }
 
@@ -139,8 +162,27 @@ pub fn sys_openat(_fd: usize, path: *const c_char, flags: c_int, mode: ctypes::m
     debug!("sys_openat <= {:?}, {:#o} {:#o}", path, flags, mode);
     syscall_body!(sys_openat, {
         let options = flags_to_options(flags, mode);
-        let file = axfs::fops::File::open(path?, &options)?;
-        File::new(file).add_to_fd_table()
+        //let file = axfs::fops::File::open(path?, &options)?;
+        let res = axfs::fops::File::open(path?, &options);
+        match res {
+            Ok(file) => {
+                let add_res = File::new(file).add_to_fd_table();
+                match add_res {
+                    Ok(num) => {
+                        Ok(num)
+                    }
+                    Err(e) => {
+                        error!("sys_open failed in add {}", e);
+                        Err(e.into())
+                    }
+                }
+            }
+            Err(e) => {
+                error!("sys_open failed {}", e);
+                Err(e.into())
+            }
+        }
+        //File::new(file).add_to_fd_table()
     })
 }
 
@@ -161,10 +203,20 @@ pub fn sys_lseek(fd: c_int, offset: ctypes::off_t, whence: c_int) -> ctypes::off
     })
 }
 
-/// `fsync`
+/// Synchronize a file's in-core state with storage device
+///
+/// TODO
 pub unsafe fn sys_fsync(fd: c_int) -> c_int {
     debug!("sys_fsync <= fd: {}", fd);
     syscall_body!(sys_fsync, Ok(0))
+}
+
+/// Synchronize a file's in-core state with storage device
+///
+/// TODO
+pub unsafe fn sys_fdatasync(fd: c_int) -> c_int {
+    debug!("sys_fdatasync <= fd: {}", fd);
+    syscall_body!(sys_fdatasync, Ok(0))
 }
 
 /// Get the file metadata by `path` and write into `buf`.
@@ -300,6 +352,24 @@ pub fn sys_rename(old: *const c_char, new: *const c_char) -> c_int {
         let new_path = char_ptr_to_str(new)?;
         debug!("sys_rename <= old: {:?}, new: {:?}", old_path, new_path);
         axfs::api::rename(old_path, new_path)?;
+        Ok(0)
+    })
+}
+
+/// Rename at certain directory pointed by `oldfd`
+///
+/// TODO: only support `oldfd`, `newfd` equals to AT_FDCWD
+pub fn sys_renameat(oldfd: c_int, old: *const c_char, newfd: c_int, new: *const c_char) -> c_int {
+    let old_path = char_ptr_to_str(old);
+    let new_path = char_ptr_to_str(new);
+    debug!(
+        "sys_renameat <= oldfd: {}, old: {:?}, newfd: {}, new: {:?}",
+        oldfd, old_path, newfd, new_path
+    );
+    assert_eq!(oldfd, ctypes::AT_FDCWD as c_int);
+    assert_eq!(newfd, ctypes::AT_FDCWD as c_int);
+    syscall_body!(sys_renameat, {
+        axfs::api::rename(old_path?, new_path?)?;
         Ok(0)
     })
 }
