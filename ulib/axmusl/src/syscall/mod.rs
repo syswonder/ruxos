@@ -60,6 +60,13 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[2] as c_int,
             ) as _,
             #[cfg(feature = "fs")]
+            SyscallId::RENAMEAT => arceos_posix_api::sys_renameat(
+                args[0] as c_int,
+                args[1] as *const core::ffi::c_char,
+                args[2] as c_int,
+                args[3] as *const core::ffi::c_char,
+            ) as _,
+            #[cfg(feature = "fs")]
             SyscallId::OPENAT => arceos_posix_api::sys_openat(
                 args[0],
                 args[1] as *const core::ffi::c_char,
@@ -88,6 +95,12 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[0] as c_int,
                 args[1] as *mut core::ffi::c_void,
                 args[2],
+            ) as _,
+            #[cfg(feature = "fd")]
+            SyscallId::READV => arceos_posix_api::sys_readv(
+                args[0] as c_int,
+                args[1] as *const ctypes::iovec,
+                args[2] as c_int,
             ) as _,
             #[cfg(feature = "fd")]
             SyscallId::WRITEV => arceos_posix_api::sys_writev(
@@ -126,6 +139,8 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
             }
             #[cfg(feature = "fs")]
             SyscallId::FSYNC => arceos_posix_api::sys_fsync(args[0] as c_int) as _,
+            #[cfg(feature = "fs")]
+            SyscallId::FDATASYNC => arceos_posix_api::sys_fdatasync(args[0] as c_int) as _,
             #[allow(unreachable_code)]
             #[cfg(not(feature = "multitask"))]
             SyscallId::EXIT => arceos_posix_api::sys_exit(args[0] as c_int) as _,

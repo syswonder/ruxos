@@ -28,6 +28,8 @@ pub enum SyscallId {
     #[cfg(feature = "fs")]
     UNLINKAT = 35,
     #[cfg(feature = "fs")]
+    RENAMEAT = 38,
+    #[cfg(feature = "fs")]
     OPENAT = 56,
     #[cfg(feature = "fd")]
     CLOSE = 57,
@@ -37,6 +39,8 @@ pub enum SyscallId {
     LSEEK = 62,
     READ = 63,
     WRITE = 64,
+    #[cfg(feature = "fd")]
+    READV = 65,
     #[cfg(feature = "fd")]
     WRITEV = 66,
     #[cfg(feature = "select")]
@@ -49,6 +53,8 @@ pub enum SyscallId {
     FSTAT = 80,
     #[cfg(feature = "fs")]
     FSYNC = 82,
+    #[cfg(feature = "fs")]
+    FDATASYNC = 83,
     EXIT = 93,
     #[cfg(feature = "multitask")]
     SET_TID_ADDRESS = 96,
