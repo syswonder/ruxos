@@ -155,10 +155,20 @@ pub fn sys_lseek(fd: c_int, offset: ctypes::off_t, whence: c_int) -> ctypes::off
     })
 }
 
-/// `fsync`
+/// Synchronize a file's in-core state with storage device
+///
+/// TODO
 pub unsafe fn sys_fsync(fd: c_int) -> c_int {
     debug!("sys_fsync <= fd: {}", fd);
     syscall_body!(sys_fsync, Ok(0))
+}
+
+/// Synchronize a file's in-core state with storage device
+///
+/// TODO
+pub unsafe fn sys_fdatasync(fd: c_int) -> c_int {
+    debug!("sys_fdatasync <= fd: {}", fd);
+    syscall_body!(sys_fdatasync, Ok(0))
 }
 
 /// Get the file metadata by `path` and write into `buf`.
@@ -294,6 +304,24 @@ pub fn sys_rename(old: *const c_char, new: *const c_char) -> c_int {
         let new_path = char_ptr_to_str(new)?;
         debug!("sys_rename <= old: {:?}, new: {:?}", old_path, new_path);
         axfs::api::rename(old_path, new_path)?;
+        Ok(0)
+    })
+}
+
+/// Rename at certain directory pointed by `oldfd`
+///
+/// TODO: only support `oldfd`, `newfd` equals to AT_FDCWD
+pub fn sys_renameat(oldfd: c_int, old: *const c_char, newfd: c_int, new: *const c_char) -> c_int {
+    let old_path = char_ptr_to_str(old);
+    let new_path = char_ptr_to_str(new);
+    debug!(
+        "sys_renameat <= oldfd: {}, old: {:?}, newfd: {}, new: {:?}",
+        oldfd, old_path, newfd, new_path
+    );
+    assert_eq!(oldfd, ctypes::AT_FDCWD as c_int);
+    assert_eq!(newfd, ctypes::AT_FDCWD as c_int);
+    syscall_body!(sys_renameat, {
+        axfs::api::rename(old_path?, new_path?)?;
         Ok(0)
     })
 }
