@@ -219,7 +219,37 @@ pub unsafe fn sys_epoll_wait(
         loop {
             #[cfg(feature = "net")]
             axnet::poll_interfaces();
-            let events_num = epoll_instance.poll_all(events)?;
+            let poll_all_res = epoll_instance.poll_all(events);
+            let mut events_num = 0;
+            match poll_all_res {
+                Ok(num) => events_num = num,
+                Err(e) => {
+                    error!("sys epoll events err {:?}", e);
+                    if e == LinuxError::EBADF {
+                        let mut deleted_fd: usize = 0;
+                        {
+                            let mut ready_list = epoll_instance.events.lock();
+                            for (infd, ev) in ready_list.iter() {
+                                match get_file_like(*infd as c_int) {
+                                    Ok(_) => {}
+                                    Err(_) => {
+                                        error!("sys epoll deleted fd err {}", *infd);
+                                        deleted_fd = *infd;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        {
+                            let mut events = epoll_instance.events.lock();
+                            if let Entry::Occupied(ocp) = events.entry(deleted_fd) {
+                                ocp.remove_entry();
+                            }
+                        }
+                        return Ok(0);
+                    }
+                }
+            }
             if events_num > 0 {
                 return Ok(events_num as c_int);
             }

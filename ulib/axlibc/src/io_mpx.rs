@@ -36,7 +36,6 @@ pub unsafe extern "C" fn epoll_ctl(
     fd: c_int,
     event: *mut ctypes::epoll_event,
 ) -> c_int {
-    info!("lhw debug in epoll_ctl {} {} {}",epfd, op, fd);
     e(sys_epoll_ctl(epfd, op, fd, event))
 }
 

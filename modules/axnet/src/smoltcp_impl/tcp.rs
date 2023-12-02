@@ -280,6 +280,7 @@ impl TcpSocket {
 
     /// Receives data from the socket, stores it in the given buffer.
     pub fn recv(&self, buf: &mut [u8]) -> AxResult<usize> {
+        let no_block = self.is_nonblocking();
         if self.is_connecting() {
             return Err(AxError::WouldBlock);
         } else if !self.is_connected() {

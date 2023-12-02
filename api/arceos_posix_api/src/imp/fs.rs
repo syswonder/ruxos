@@ -136,9 +136,7 @@ pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> 
             Ok(file) => {
                 let add_res = File::new(file).add_to_fd_table();
                 match add_res {
-                    Ok(num) => {
-                        Ok(num)
-                    }
+                    Ok(num) => Ok(num),
                     Err(e) => {
                         error!("sys_open failed in add {}", e);
                         Err(e.into())
@@ -168,9 +166,7 @@ pub fn sys_openat(_fd: usize, path: *const c_char, flags: c_int, mode: ctypes::m
             Ok(file) => {
                 let add_res = File::new(file).add_to_fd_table();
                 match add_res {
-                    Ok(num) => {
-                        Ok(num)
-                    }
+                    Ok(num) => Ok(num),
                     Err(e) => {
                         error!("sys_open failed in add {}", e);
                         Err(e.into())

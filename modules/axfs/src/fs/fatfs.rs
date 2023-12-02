@@ -93,22 +93,21 @@ impl VfsNodeOps for FileWrapper<'static> {
     fn read_at(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
         let mut file = self.0.lock();
         file.seek(SeekFrom::Start(offset)).map_err(as_vfs_err)?;
-        //info!("before fatfs readat file of {} bytes", buf.len());
-    
+
         let mut total_read = 0;
         while total_read < buf.len() {
             let remaining = &mut buf[total_read..];
             let read_len = file.read(remaining).map_err(as_vfs_err)?;
-    
+
             if read_len == 0 {
                 break;
             }
-    
+
             total_read += read_len;
         }
-    
+
         //info!("read in fatfs readat read {} bytes file of {} bytes",total_read,buf.len());
-    
+
         Ok(total_read)
     }
 
@@ -120,22 +119,21 @@ impl VfsNodeOps for FileWrapper<'static> {
     fn write_at(&self, offset: u64, buf: &[u8]) -> VfsResult<usize> {
         let mut file = self.0.lock();
         file.seek(SeekFrom::Start(offset)).map_err(as_vfs_err)?; // TODO: more efficient
-        //info!("before fatfs readat file of {} bytes", buf.len());
-    
+
         let mut total_write = 0;
         while total_write < buf.len() {
             let remaining = &buf[total_write..];
             let write_len = file.write(remaining).map_err(as_vfs_err)?;
-    
+
             if write_len == 0 {
                 break;
             }
-    
+
             total_write += write_len;
         }
-    
+
         //info!("read in fatfs readat read {} bytes file of {} bytes",total_read,buf.len());
-    
+
         Ok(total_write)
     }
 

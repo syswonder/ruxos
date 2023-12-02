@@ -7,6 +7,8 @@
  *   See the Mulan PSL v2 for more details.
  */
 
+#[cfg(feature = "fd")]
+use crate::imp::fd_ops::get_file_like;
 use axerrno::LinuxError;
 use core::ffi::c_int;
 
@@ -34,6 +36,15 @@ pub fn sys_ioctl(fd: c_int, request: usize, data: usize) -> c_int {
     }
     syscall_body!(sys_ioctl, {
         match request {
+<<<<<<< HEAD
+=======
+            FIONBIO => {
+                unsafe {
+                    get_file_like(fd)?.set_nonblocking(*(data as *const i32) > 0)?;
+                }
+                Ok(0)
+            }
+>>>>>>> 4593931 (Standardize code)
             TIOCGWINSZ => {
                 let winsize = data as *mut ConsoleWinSize;
                 unsafe {

@@ -186,10 +186,8 @@ impl File {
     /// After the read, the cursor will be advanced by the number of bytes read.
     pub fn read(&mut self, buf: &mut [u8]) -> AxResult<usize> {
         let node = self.node.access(Cap::READ)?;
-        info!("before fops read");
         let read_len = node.read_at(self.offset, buf)?;
         self.offset += read_len as u64;
-        info!("read in fops read {} bytes from file of {} bytes",read_len,buf.len());
         Ok(read_len)
     }
 

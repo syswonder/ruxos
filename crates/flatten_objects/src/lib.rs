@@ -137,9 +137,7 @@ impl<T, const CAP: usize> FlattenObjects<T, CAP> {
     ///
     /// Returns the ID if it's not used by others. Otherwise, returns `None`.
     pub fn add_at(&mut self, id: usize, value: T) -> Option<usize> {
-        info!("lhw debug in add at");
         if self.is_assigned(id) {
-            info!("lhw debug in add at is assigned");
             return None;
         }
         self.count += 1;
@@ -157,7 +155,6 @@ impl<T, const CAP: usize> FlattenObjects<T, CAP> {
     /// object again.
     pub fn remove(&mut self, id: usize) -> Option<T> {
         if self.is_assigned(id) {
-            info!("lhw debug close opened file");
             self.id_bitmap.set(id, false);
             self.count -= 1;
             // SAFETY: the object at `id` should be initialized by `add` or
