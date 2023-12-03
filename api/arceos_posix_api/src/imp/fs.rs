@@ -125,30 +125,8 @@ pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> 
     debug!("sys_open <= {:?} {:#o} {:#o}", filename, flags, mode);
     syscall_body!(sys_open, {
         let options = flags_to_options(flags, mode);
-<<<<<<< HEAD
         let file = axfs::fops::File::open(filename?, &options)?;
         File::new(file).add_to_fd_table()
-=======
-        /*let file = axfs::fops::File::open(filename?, &options)?;
-        File::new(file).add_to_fd_table()*/
-        let res = axfs::fops::File::open(filename?, &options);
-        match res {
-            Ok(file) => {
-                let add_res = File::new(file).add_to_fd_table();
-                match add_res {
-                    Ok(num) => Ok(num),
-                    Err(e) => {
-                        error!("sys_open failed in add {}", e);
-                        Err(e.into())
-                    }
-                }
-            }
-            Err(e) => {
-                error!("sys_open failed {}", e);
-                Err(e.into())
-            }
-        }
->>>>>>> 2542a45 (reslove some format problem)
     })
 }
 
