@@ -177,6 +177,10 @@ impl FileLike for Socket {
         }
         Ok(())
     }
+
+    fn set_closeonexec(&self, _closeonexec: bool) -> LinuxResult {
+        Ok(())
+    }
 }
 
 impl From<SocketAddrV4> for ctypes::sockaddr_in {
@@ -412,6 +416,7 @@ pub fn sys_recv(
         socket_fd, buf_ptr as usize, len, flag
     );
     syscall_body!(sys_recv, {
+        info!("lhw debug in sys_recv");
         if buf_ptr.is_null() {
             return Err(LinuxError::EFAULT);
         }

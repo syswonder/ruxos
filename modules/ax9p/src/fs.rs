@@ -10,7 +10,7 @@
 //! 9P filesystem used by [RukOS](https://github.com/rcore-os/arceos).
 //!
 //! The implementation is based on [`axfs_vfs`].
-use crate::drv::{self, Drv9pOps};
+use crate::drv::{self, Drv9pOps, _9P_MAX_PSIZE, _9P_MAX_QSIZE};
 use alloc::{collections::BTreeMap, string::String, string::ToString, sync::Arc, sync::Weak};
 use axfs_vfs::{
     impl_vfs_non_dir_default, VfsDirEntry, VfsError, VfsNodeAttr, VfsNodeOps, VfsNodeRef,
@@ -506,6 +506,41 @@ impl FileNode {
             inner: dev,
             fid: Arc::new(fid),
             protocol,
+        }
+    }
+
+    /// Read data from the file at the given offset.
+    fn _read_at(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
+        let mut dev = self.inner.write();
+        let mut read_len = buf.len();
+        const MAX_READ_LEN: usize = (_9P_MAX_PSIZE - 32) as usize;
+        if read_len > MAX_READ_LEN {
+            read_len = MAX_READ_LEN;
+        }
+        match dev.tread(*self.fid, offset, read_len as u32) {
+            Ok(content) => {
+                // should be more effient
+                for (i, byte) in content.iter().enumerate() {
+                    buf[i] = *byte;
+                }
+                Ok(content.len())
+            }
+            Err(_) => Err(VfsError::BadState),
+        }
+    }
+
+    /// Write data to the file at the given offset.
+    fn _write_at(&self, offset: u64, buf: &[u8]) -> VfsResult<usize> {
+        let mut dev = self.inner.write();
+        let mut pbuf = buf;
+        let write_len = buf.len();
+        const MAX_WRITE_LEN: usize = (_9P_MAX_QSIZE - 32) as usize;
+        if write_len > MAX_WRITE_LEN {
+            pbuf = &buf[..write_len];
+        }
+        match dev.twrite(*self.fid, offset, pbuf) {
+            Ok(_) => Ok(pbuf.len()),
+            Err(_) => Err(VfsError::BadState),
         }
     }
 }

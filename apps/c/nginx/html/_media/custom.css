@@ -1,0 +1,49 @@
+.card {
+  box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+  max-width: 300px;
+  margin: auto;
+  text-align: center;
+  padding:16px;
+}
+
+/* Add rounded corners to the top left and the top right corner of the image */
+.card-img {
+  border-radius: 5px 5px 0 0;
+}
+
+/* Float four columns side by side */
+.card-column {
+  float: left;
+  width: 25%;
+  padding: 0px 10px;
+}
+
+/* Remove extra left and right margins, due to padding in columns */
+.card-row {margin: 0 -5px;}
+
+/* Clear floats after the columns */
+.card-row:after {
+  content: "";
+  display: table;
+  clear: both;
+}
+
+/* Responsive columns - one column layout (vertical) on small screens */
+@media screen and (max-width: 600px) {
+  .card-column {
+    width: 100%;
+    display: block;
+    margin-bottom: 20px;
+  }
+}
+
+.footer {
+    padding: 2.5rem;
+    border-top: 1px solid #eaecef;
+    text-align: center;
+    color:#4e6e8e
+}
+
+.sidebar>h1 a img{
+    max-width: 120px;
+}

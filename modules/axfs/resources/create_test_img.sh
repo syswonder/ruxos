@@ -22,9 +22,17 @@ create_test_img() {
 	echo "Rust is cool!" >>"mnt/very/long/path/test.txt"
 	mkdir -p "mnt/very-long-dir-name"
 	echo "Rust is cool!" >>"mnt/very-long-dir-name/very-long-file-name.txt"
-
+	mkdir -p "mnt/nginx/logs"
+	echo "" >> "mnt/nginx/logs/error.log"
+	mkdir -p "mnt/nginx/conf"
+	cp "/home/oslab/Desktop/rukos/apps/c/nginx/nginx.conf" "mnt/nginx/conf/nginx.conf"
+	cp "/home/oslab/Desktop/rukos/apps/c/nginx/mime.types" "mnt/nginx/conf/mime.types"
+	mkdir -p "mnt/html"
+	cp -r "/home/oslab/Desktop/rukos/apps/c/nginx/html" "mnt/"
 	sudo umount mnt
 }
 
 create_test_img "$CUR_DIR/fat16.img" 2500 16
-create_test_img "$CUR_DIR/fat32.img" 34000 32
+create_test_img "$CUR_DIR/fat32.img" 40000 32
+rm -f /home/oslab/Desktop/rukos/disk.img
+cp fat32.img /home/oslab/Desktop/rukos/disk.img

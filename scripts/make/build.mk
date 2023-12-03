@@ -48,6 +48,9 @@ else ifeq ($(APP_TYPE), c)
   endif
 endif
 
+$(info lhw print feat $(AX_FEAT) |||  $(LIB_FEAT))
+$(info lhw print out bin & elf $(OUT_BIN) |||  $(OUT_ELF))
+
 $(OUT_DIR):
 	$(call run_cmd,mkdir,-p $@)
 

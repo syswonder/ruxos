@@ -41,6 +41,7 @@
 #![feature(naked_functions)]
 #![feature(thread_local)]
 #![allow(clippy::missing_safety_doc)]
+#![feature(c_size_t)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;

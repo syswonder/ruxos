@@ -6,9 +6,9 @@
  *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  *   See the Mulan PSL v2 for more details.
  */
-
 use arceos_posix_api::{sys_exit, sys_getpid};
 use core::ffi::c_int;
+use log::info;
 #[cfg(feature = "signal")]
 use {
     crate::getitimer,
@@ -16,7 +16,6 @@ use {
     arceos_posix_api::sys_setitimer,
     core::ffi::c_uint,
 };
-
 /// Get current thread ID.
 #[no_mangle]
 pub unsafe extern "C" fn getpid() -> c_int {

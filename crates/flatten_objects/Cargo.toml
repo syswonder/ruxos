@@ -10,4 +10,5 @@ repository = "https://github.com/rcore-os/arceos/tree/main/crates/flatten_object
 documentation = "https://rcore-os.github.io/arceos/flatten_objects/index.html"
 
 [dependencies]
+log = "0.4"
 bitmaps = { version = "3.2", default-features = false }

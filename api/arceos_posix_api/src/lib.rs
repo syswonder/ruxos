@@ -17,6 +17,7 @@
 #![feature(doc_cfg)]
 #![feature(doc_auto_cfg)]
 #![allow(clippy::missing_safety_doc)]
+#![feature(c_size_t)]
 
 #[macro_use]
 extern crate axlog;

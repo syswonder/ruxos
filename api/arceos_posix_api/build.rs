@@ -117,6 +117,7 @@ typedef struct {{
             "RLIMIT_.*",
             "EAI_.*",
             "MAXADDRS",
+            "FIO.*",
             "ITIMER_.*",
             "SIG.*",
             "EINVAL",

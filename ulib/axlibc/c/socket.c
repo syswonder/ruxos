@@ -77,4 +77,18 @@ ssize_t sendmsg(int fd, const struct msghdr *msg, int flags)
     return ax_sendmsg(fd, msg, flags);
 }
 
+// TODO
+ssize_t recvmsg(int sockfd, struct msghdr *msg, int flags)
+{
+    unimplemented();
+    return 0;
+}
+
+// TODO
+int socketpair(int domain, int type, int protocol, int sv[2])
+{
+    unimplemented();
+    return 0;
+}
+
 #endif // AX_CONFIG_NET

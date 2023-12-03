@@ -55,9 +55,13 @@ $(obj_dir):
 
 $(obj_dir)/%.o: $(src_dir)/%.c $(last_cflags)
 	$(call run_cmd,$(CC),$(CFLAGS) -c -o $@ $<)
+$(info lhw $(obj_dir)/%.o:$(src_dir)/%.c $(last_cflags))
+$(info run_cmd,$(CC),$(CFLAGS) -c -o $@ $<)
 
 $(c_lib): $(obj_dir) _check_need_rebuild $(ulib_obj)
 	$(call run_cmd,$(AR),rcs $@ $(ulib_obj))
+$(info lhw $(c_lib): $(obj_dir) _check_need_rebuild $(ulib_obj))
+$(info run_cmd,$(AR),rcs $@ $(ulib_obj))
 
 app-objs := main.o
 
@@ -67,10 +71,15 @@ app-objs := $(addprefix $(APP)/,$(app-objs))
 
 $(APP)/%.o: $(APP)/%.c $(ulib_hdr)
 	$(call run_cmd,$(CC),$(CFLAGS) $(APP_CFLAGS) -c -o $@ $<)
+$(info lhw $(APP)/%.o: $(APP)/%.c $(ulib_hdr))
+$(info run_cmd,$(CC),$(CFLAGS) $(APP_CFLAGS) -c -o $@ $<)
+
 
 $(OUT_ELF): $(c_lib) $(rust_lib) $(libgcc) $(app-objs)
 	@printf "    $(CYAN_C)Linking$(END_C) $(OUT_ELF)\n"
 	$(call run_cmd,$(LD),$(LDFLAGS) $^ -o $@)
+$(info lhw $(OUT_ELF): $(c_lib) $(rust_lib) $(libgcc) $(app-objs))
+$(info run_cmd,$(LD),$(LDFLAGS) $^ -o $@)
 
 $(APP)/axbuild.mk: ;
 

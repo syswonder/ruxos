@@ -615,3 +615,103 @@ int system(const char *cmd)
     unimplemented();
     return 0;
 }
+
+// TODO
+char *realpath(const char *restrict path, char *restrict resolved_path)
+{
+    unimplemented();
+    return 0;
+}
+
+#define SIZE_ALIGN (4*sizeof(size_t))
+#define SIZE_MASK (-SIZE_ALIGN)
+#define OVERHEAD (2*sizeof(size_t))
+#define MMAP_THRESHOLD (0x1c00*SIZE_ALIGN)
+#define DONTCARE 16
+#define RECLAIM 163840
+
+#define CHUNK_SIZE(c) ((c)->csize & -2)
+#define CHUNK_PSIZE(c) ((c)->psize & -2)
+#define PREV_CHUNK(c) ((struct chunk *)((char *)(c) - CHUNK_PSIZE(c)))
+#define NEXT_CHUNK(c) ((struct chunk *)((char *)(c) + CHUNK_SIZE(c)))
+#define MEM_TO_CHUNK(p) (struct chunk *)((char *)(p) - OVERHEAD)
+#define CHUNK_TO_MEM(c) (void *)((char *)(c) + OVERHEAD)
+#define BIN_TO_CHUNK(i) (MEM_TO_CHUNK(&mal.bins[i].head))
+
+#define C_INUSE  ((size_t)1)
+
+#define IS_MMAPPED(c) !((c)->csize & (C_INUSE))
+
+struct chunk {
+	size_t psize, csize;
+	struct chunk *next, *prev;
+};
+
+void __bin_chunk(struct chunk *)
+{
+    unimplemented();
+    return;
+}
+
+void *aligned_alloc(size_t align, size_t len)
+{
+    unsigned char *mem, *new;
+
+	if ((align & -align) != align) {
+		errno = EINVAL;
+		return 0;
+	}
+
+	/*if (len > SIZE_MAX - align ||
+	    (__malloc_replaced && !__aligned_alloc_replaced)) {
+		errno = ENOMEM;
+		return 0;
+	}*/
+    if (len > SIZE_MAX - align) {
+		errno = ENOMEM;
+		return 0;
+	}
+
+	if (align <= SIZE_ALIGN)
+		return malloc(len);
+
+	if (!(mem = malloc(len + align-1)))
+		return 0;
+
+	new = (void *)((uintptr_t)mem + align-1 & -align);
+	if (new == mem) return mem;
+
+	struct chunk *c = MEM_TO_CHUNK(mem);
+	struct chunk *n = MEM_TO_CHUNK(new);
+
+	if (IS_MMAPPED(c)) {
+		/* Apply difference between aligned and original
+		 * address to the "extra" field of mmapped chunk. */
+		n->psize = c->psize + (new-mem);
+		n->csize = c->csize - (new-mem);
+		return new;
+	}
+
+	struct chunk *t = NEXT_CHUNK(c);
+
+	/* Split the allocated chunk into two chunks. The aligned part
+	 * that will be used has the size in its footer reduced by the
+	 * difference between the aligned and original addresses, and
+	 * the resulting size copied to its header. A new header and
+	 * footer are written for the split-off part to be freed. */
+	n->psize = c->csize = C_INUSE | (new-mem);
+	n->csize = t->psize -= new-mem;
+
+	__bin_chunk(c);
+	return new;
+}
+
+// TODO
+int posix_memalign(void **res, size_t align, size_t len)
+{
+    if (align < sizeof(void *)) return EINVAL;
+	void *mem = aligned_alloc(align, len);
+	if (!mem) return errno;
+	*res = mem;
+	return 0;
+}

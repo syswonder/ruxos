@@ -10,18 +10,28 @@
 #include <stddef.h>
 #include <stdio.h>
 #include <sys/mman.h>
+#include <stdlib.h>
 
 // TODO:
 void *mmap(void *addr, size_t len, int prot, int flags, int fildes, off_t off)
 {
-    unimplemented();
-    return MAP_FAILED;
+    //unimplemented();
+    //return MAP_FAILED;
+    int *res = malloc(len);
+     if (res == NULL) {
+        return NULL;
+    }
+    printf("use malloc imp mmap: addr: %p len: %d res: %p\n",addr,len,res);
+    printf("if i can acess res: %d",*res);
+    return res;
 }
 
 // TODO:
 int munmap(void *addr, size_t length)
 {
-    unimplemented();
+    //unimplemented();
+    //return 0;
+    free(addr);
     return 0;
 }
 

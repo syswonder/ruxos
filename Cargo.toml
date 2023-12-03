@@ -61,6 +61,7 @@ members = [
     "apps/display/draw_map",
     "apps/exception",
     "apps/helloworld",
+    "apps/systime",
     "apps/memtest",
     "apps/fs/shell",
     "apps/net/echoserver",

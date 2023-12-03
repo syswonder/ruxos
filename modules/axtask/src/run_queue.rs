@@ -171,6 +171,7 @@ impl AxRunQueue {
             // Safety: IRQs must be disabled at this time.
             IDLE_TASK.current_ref_raw().get_unchecked().clone()
         });
+        //info!("lhw debug task switch {} to {}",prev.as_task_ref() as *const AxTaskRef as usize, &next as *const AxTaskRef as usize);
         self.switch_to(prev, next);
     }
 

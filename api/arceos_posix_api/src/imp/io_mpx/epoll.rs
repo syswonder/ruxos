@@ -46,6 +46,7 @@ impl EpollInstance {
     }
 
     fn control(&self, op: usize, fd: usize, event: &ctypes::epoll_event) -> LinuxResult<usize> {
+        info!("lhw debug EpollInstance control");
         match get_file_like(fd as c_int) {
             Ok(_) => {}
             Err(e) => return Err(e),
@@ -53,6 +54,7 @@ impl EpollInstance {
 
         match op as u32 {
             ctypes::EPOLL_CTL_ADD => {
+                info!("lhw debug EpollInstance control add");
                 if let Entry::Vacant(e) = self.events.lock().entry(fd) {
                     e.insert(*event);
                 } else {
@@ -60,6 +62,7 @@ impl EpollInstance {
                 }
             }
             ctypes::EPOLL_CTL_MOD => {
+                info!("lhw debug EpollInstance control mod");
                 let mut events = self.events.lock();
                 if let Entry::Occupied(mut ocp) = events.entry(fd) {
                     ocp.insert(*event);
@@ -68,6 +71,7 @@ impl EpollInstance {
                 }
             }
             ctypes::EPOLL_CTL_DEL => {
+                info!("lhw debug EpollInstance control del");
                 let mut events = self.events.lock();
                 if let Entry::Occupied(ocp) = events.entry(fd) {
                     ocp.remove_entry();
@@ -85,10 +89,11 @@ impl EpollInstance {
     fn poll_all(&self, events: &mut [ctypes::epoll_event]) -> LinuxResult<usize> {
         let ready_list = self.events.lock();
         let mut events_num = 0;
-
         for (infd, ev) in ready_list.iter() {
+            //info!("lhw debug EpollInstance ready list loop {}",*infd);
             match get_file_like(*infd as c_int)?.poll() {
                 Err(_) => {
+                    info!("lhw debug err in poll all");
                     if (ev.events & ctypes::EPOLLERR) != 0 {
                         events[events_num].events = ctypes::EPOLLERR;
                         events[events_num].data = ev.data;
@@ -96,6 +101,7 @@ impl EpollInstance {
                     }
                 }
                 Ok(state) => {
+                    //info!("lhw debug EpollInstance poll all ok {} {} {} {}",state.readable , (ev.events & ctypes::EPOLLIN), state.readable ,(ev.events & ctypes::EPOLLIN));
                     if state.readable && (ev.events & ctypes::EPOLLIN != 0) {
                         events[events_num].events = ctypes::EPOLLIN;
                         events[events_num].data = ev.data;
@@ -109,7 +115,9 @@ impl EpollInstance {
                     }
                 }
             }
+            //info!("lhw debug EpollInstance ready list loop {} end",*infd);
         }
+        //info!("lhw debug EpollInstance poll all normal return");
         Ok(events_num)
     }
 }
@@ -142,6 +150,10 @@ impl FileLike for EpollInstance {
     }
 
     fn set_nonblocking(&self, _nonblocking: bool) -> LinuxResult {
+        Ok(())
+    }
+
+    fn set_closeonexec(&self, _closeonexec: bool) -> LinuxResult {
         Ok(())
     }
 }
@@ -215,7 +227,37 @@ pub unsafe fn sys_epoll_wait(
         loop {
             #[cfg(feature = "net")]
             axnet::poll_interfaces();
-            let events_num = epoll_instance.poll_all(events)?;
+            let poll_all_res = epoll_instance.poll_all(events);
+            let mut events_num = 0;
+            match poll_all_res {
+                Ok(num) => events_num = num,
+                Err(e) => {
+                    error!("sys epoll events err {:?}", e);
+                    if e == LinuxError::EBADF {
+                        let mut deleted_fd: usize = 0;
+                        {
+                            let mut ready_list = epoll_instance.events.lock();
+                            for (infd, ev) in ready_list.iter() {
+                                match get_file_like(*infd as c_int) {
+                                    Ok(_) => {}
+                                    Err(_) => {
+                                        error!("sys epoll deleted fd err {}", *infd);
+                                        deleted_fd = *infd;
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                        {
+                            let mut events = epoll_instance.events.lock();
+                            if let Entry::Occupied(ocp) = events.entry(deleted_fd) {
+                                ocp.remove_entry();
+                            }
+                        }
+                        return Ok(0);
+                    }
+                }
+            }
             if events_num > 0 {
                 return Ok(events_num as c_int);
             }

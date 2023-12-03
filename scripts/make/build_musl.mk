@@ -7,7 +7,9 @@ muslibc_dir := ulib/axmusl
 build_dir := $(muslibc_dir)/build_musl_$(ARCH)
 musl_dir := $(muslibc_dir)/musl-$(musl_version)
 inc_dir := $(muslibc_dir)/install/include
+#inc_dir := $(muslibc_dir)/musl-$(musl_version)/include
 c_lib := $(muslibc_dir)/install/lib/libc.a
+#c_lib := $(muslibc_dir)/musl-$(musl_version)/lib/libc.a
 libgcc :=
 
 CFLAGS += -nostdinc -fno-builtin -ffreestanding -Wall
@@ -46,6 +48,7 @@ ifeq ($(wildcard $(build_dir)),)
   endif
 	mkdir -p $(build_dir)
 	cd $(build_dir) && ../musl-1.2.3/configure --prefix=../install --exec-prefix=../ --syslibdir=../install/lib --disable-shared ARCH=$(AX_ARCH) CC=$(CC) CROSS_COMPILE=$(CROSS_COMPILE) CFLAGS=$(CFLAGS)
+#	cd $(build_dir) && ../musl-1.2.3/configure --prefix=../imusl-$(musl_version) --exec-prefix=../ --syslibdir=../musl-$(musl_version)/lib --disable-shared ARCH=$(AX_ARCH) CC=$(CC) CROSS_COMPILE=$(CROSS_COMPILE) CFLAGS=$(CFLAGS)
 	cd $(build_dir) && $(MAKE) -j && $(MAKE) install
 endif
 

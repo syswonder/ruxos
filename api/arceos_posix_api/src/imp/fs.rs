@@ -6,9 +6,9 @@
  *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  *   See the Mulan PSL v2 for more details.
  */
-
+use crate::ctypes::off_t;
 use alloc::sync::Arc;
-use core::ffi::{c_char, c_int};
+use core::ffi::{c_char, c_int, c_size_t, c_ssize_t, c_void};
 
 use axerrno::{LinuxError, LinuxResult};
 use axfs::fops::OpenOptions;
@@ -43,7 +43,8 @@ impl File {
 
 impl FileLike for File {
     fn read(&self, buf: &mut [u8]) -> LinuxResult<usize> {
-        Ok(self.inner.lock().read(buf)?)
+        let read_len = self.inner.lock().read(buf)?;
+        Ok(read_len)
     }
 
     fn write(&self, buf: &[u8]) -> LinuxResult<usize> {
@@ -80,6 +81,10 @@ impl FileLike for File {
     }
 
     fn set_nonblocking(&self, _nonblocking: bool) -> LinuxResult {
+        Ok(())
+    }
+
+    fn set_closeonexec(&self, _closeonexec: bool) -> LinuxResult {
         Ok(())
     }
 }
@@ -120,8 +125,25 @@ pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> 
     debug!("sys_open <= {:?} {:#o} {:#o}", filename, flags, mode);
     syscall_body!(sys_open, {
         let options = flags_to_options(flags, mode);
-        let file = axfs::fops::File::open(filename?, &options)?;
-        File::new(file).add_to_fd_table()
+        /*let file = axfs::fops::File::open(filename?, &options)?;
+        File::new(file).add_to_fd_table()*/
+        let res = axfs::fops::File::open(filename?, &options);
+        match res {
+            Ok(file) => {
+                let add_res = File::new(file).add_to_fd_table();
+                match add_res {
+                    Ok(num) => Ok(num),
+                    Err(e) => {
+                        error!("sys_open failed in add {}", e);
+                        Err(e.into())
+                    }
+                }
+            }
+            Err(e) => {
+                error!("sys_open failed {}", e);
+                Err(e.into())
+            }
+        }
     })
 }
 
@@ -133,8 +155,25 @@ pub fn sys_openat(_fd: usize, path: *const c_char, flags: c_int, mode: ctypes::m
     debug!("sys_openat <= {:?}, {:#o} {:#o}", path, flags, mode);
     syscall_body!(sys_openat, {
         let options = flags_to_options(flags, mode);
-        let file = axfs::fops::File::open(path?, &options)?;
-        File::new(file).add_to_fd_table()
+        //let file = axfs::fops::File::open(path?, &options)?;
+        let res = axfs::fops::File::open(path?, &options);
+        match res {
+            Ok(file) => {
+                let add_res = File::new(file).add_to_fd_table();
+                match add_res {
+                    Ok(num) => Ok(num),
+                    Err(e) => {
+                        error!("sys_open failed in add {}", e);
+                        Err(e.into())
+                    }
+                }
+            }
+            Err(e) => {
+                error!("sys_open failed {}", e);
+                Err(e.into())
+            }
+        }
+        //File::new(file).add_to_fd_table()
     })
 }
 

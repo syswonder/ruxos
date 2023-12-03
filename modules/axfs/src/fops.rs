@@ -122,6 +122,7 @@ impl OpenOptions {
 
 impl File {
     fn _open_at(dir: Option<&VfsNodeRef>, path: &str, opts: &OpenOptions) -> AxResult<Self> {
+        //info!("lhw debug in File openat begin");
         debug!("open file: {} {:?}", path, opts);
         if !opts.is_valid() {
             return ax_err!(InvalidInput);
@@ -145,6 +146,7 @@ impl File {
             // just open the existing
             node_option?
         };
+        //info!("lhw debug in File openat 1");
 
         let attr = node.get_attr()?;
         if attr.is_dir()
@@ -156,11 +158,13 @@ impl File {
         if !perm_to_cap(attr.perm()).contains(access_cap) {
             return ax_err!(PermissionDenied);
         }
-
+        //info!("lhw debug in File openat 2");
         node.open()?;
+        //info!("lhw debug in File openat 3");
         if opts.truncate {
             node.truncate(0)?;
         }
+        //info!("lhw debug in File openat 4");
         Ok(Self {
             node: WithCap::new(node, access_cap),
             is_append: opts.append,
@@ -196,6 +200,7 @@ impl File {
     /// It does not update the file cursor.
     pub fn read_at(&self, offset: u64, buf: &mut [u8]) -> AxResult<usize> {
         let node = self.node.access(Cap::READ)?;
+        info!("before fops readat");
         let read_len = node.read_at(offset, buf)?;
         Ok(read_len)
     }
@@ -349,6 +354,7 @@ impl Directory {
 
 impl Drop for File {
     fn drop(&mut self) {
+        info!("lhw debug drop File");
         unsafe { self.node.access_unchecked().release().ok() };
     }
 }

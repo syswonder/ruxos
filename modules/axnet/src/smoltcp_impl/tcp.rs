@@ -10,6 +10,7 @@
 use core::cell::UnsafeCell;
 use core::net::SocketAddr;
 use core::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use core::time::Duration;
 
 use axerrno::{ax_err, ax_err_type, AxError, AxResult};
 use axio::PollState;
@@ -172,6 +173,7 @@ impl TcpSocket {
             self.block_on(|| {
                 let PollState { writable, .. } = self.poll_connect()?;
                 if !writable {
+                    //info!("lhw debug block on connect");
                     Err(AxError::WouldBlock)
                 } else if self.get_state() == STATE_CONNECTED {
                     Ok(())
@@ -280,6 +282,8 @@ impl TcpSocket {
 
     /// Receives data from the socket, stores it in the given buffer.
     pub fn recv(&self, buf: &mut [u8]) -> AxResult<usize> {
+        let no_block = self.is_nonblocking();
+        //self.set_nonblocking(true);
         if self.is_connecting() {
             return Err(AxError::WouldBlock);
         } else if !self.is_connected() {
@@ -288,7 +292,7 @@ impl TcpSocket {
 
         // SAFETY: `self.handle` should be initialized in a connected socket.
         let handle = unsafe { self.handle.get().read().unwrap() };
-        self.block_on(|| {
+        let res = self.block_on(|| {
             SOCKET_SET.with_socket_mut::<tcp::Socket, _, _>(handle, |socket| {
                 if !socket.is_active() {
                     // not open
@@ -302,17 +306,23 @@ impl TcpSocket {
                     let len = socket
                         .recv_slice(buf)
                         .map_err(|_| ax_err_type!(BadState, "socket recv() failed"))?;
+                    //info!("Buffer content: {:x?}", &buf);
                     Ok(len)
                 } else {
                     // no more data
+                    //info!("lhw debug block on recv no data");
                     Err(AxError::WouldBlock)
                 }
             })
-        })
+        });
+        info!("lhw debug in smoltcp_impl recv end");
+        //self.set_nonblocking(no_block);
+        res
     }
 
     /// Transmits data in the given buffer.
     pub fn send(&self, buf: &[u8]) -> AxResult<usize> {
+        //info!("lhw debug in smoltcp_impl send");
         if self.is_connecting() {
             return Err(AxError::WouldBlock);
         } else if !self.is_connected() {
@@ -335,6 +345,7 @@ impl TcpSocket {
                     Ok(len)
                 } else {
                     // tx buffer is full
+                    //info!("lhw debug block on send buffer is full");
                     Err(AxError::WouldBlock)
                 }
             })
@@ -495,6 +506,7 @@ impl TcpSocket {
                 match f() {
                     Ok(t) => return Ok(t),
                     Err(AxError::WouldBlock) => axtask::yield_now(),
+                    //Err(AxError::WouldBlock) => axtask::sleep(Duration::from_nanos(100)),
                     Err(e) => return Err(e),
                 }
             }
@@ -504,6 +516,7 @@ impl TcpSocket {
 
 impl Drop for TcpSocket {
     fn drop(&mut self) {
+        info!("lhw debug drop tcp");
         self.shutdown().ok();
         // Safe because we have mut reference to `self`.
         if let Some(handle) = unsafe { self.handle.get().read() } {

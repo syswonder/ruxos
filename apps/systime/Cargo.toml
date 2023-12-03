@@ -1,0 +1,9 @@
+[package]
+name = "arceos-systime"
+version = "0.1.0"
+edition = "2021"
+authors = ["HwoWen Liu <1466397747@qq.com>"]
+
+
+[dependencies]
+axstd = { path = "../../ulib/axstd", optional = true ,features = ["rtc"]}
