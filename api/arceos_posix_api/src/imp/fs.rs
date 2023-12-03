@@ -182,6 +182,19 @@ pub fn sys_openat(_fd: usize, path: *const c_char, flags: c_int, mode: ctypes::m
     })
 }
 
+/// Open a file under a specific dir
+///
+/// TODO: Currently only support openat root directory
+pub fn sys_openat(_fd: usize, path: *const c_char, flags: c_int, mode: ctypes::mode_t) -> c_int {
+    let path = char_ptr_to_str(path);
+    debug!("sys_openat <= {:?}, {:#o} {:#o}", path, flags, mode);
+    syscall_body!(sys_openat, {
+        let options = flags_to_options(flags, mode);
+        let file = axfs::fops::File::open(path?, &options)?;
+        File::new(file).add_to_fd_table()
+    })
+}
+
 /// Set the position of the file indicated by `fd`.
 ///
 /// Return its position after seek.

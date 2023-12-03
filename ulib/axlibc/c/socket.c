@@ -75,9 +75,6 @@ ssize_t sendmsg(int fd, const struct msghdr *msg, int flags)
 	}
 #endif
     return ax_sendmsg(fd, msg, flags);
-}
-
-// TODO
 ssize_t recvmsg(int sockfd, struct msghdr *msg, int flags)
 {
     unimplemented();

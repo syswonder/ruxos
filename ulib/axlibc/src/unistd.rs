@@ -8,7 +8,6 @@
  */
 use arceos_posix_api::{sys_exit, sys_getpid};
 use core::ffi::c_int;
-use log::info;
 #[cfg(feature = "signal")]
 use {
     crate::getitimer,
