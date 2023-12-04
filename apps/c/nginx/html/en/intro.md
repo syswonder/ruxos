@@ -1,3 +1,0 @@
-# Syswonder UOS Research Plan
-
-
