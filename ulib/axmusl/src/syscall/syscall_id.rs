@@ -29,6 +29,7 @@ pub enum SyscallId {
     UNLINKAT = 35,
     #[cfg(feature = "fs")]
     RENAMEAT = 38,
+    FCHOWNAT = 54,
     #[cfg(feature = "fs")]
     OPENAT = 56,
     #[cfg(feature = "fd")]
@@ -66,11 +67,13 @@ pub enum SyscallId {
     SCHED_YIELD = 124,
     RT_SIGACTION = 134,
     RT_SIGPROCMASK = 135,
+    UNAME = 160,
     GETRLIMIT = 163,
     SETRLIMIT = 164,
     UMASK = 166,
     #[cfg(feature = "multitask")]
     GETPID = 172,
+    GETEUID = 175,
     SYSINFO = 179,
     #[cfg(feature = "net")]
     SOCKET = 198,
