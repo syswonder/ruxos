@@ -4,6 +4,14 @@
 
 ## <i class="fa-regular fa-calendar-check"></i> 社区活动
 
+<i class="fa-solid fa-user-group"></i> **20231117 Hypervisor讨论会**
+
+时间：2023年11月17日
+
+地点：计算所301会议室
+
+内容：[这里](https://maillist.syswonder.org/archives/list/hypervisor@syswonder.org/thread/EIY7DTV64QQNLL3PYE5YKDHYRKRBS56Q/)
+
 <i class="fa-solid fa-user-group"></i> **20231103 Hypervisor讨论会**
 
 时间：2023年11月3日
