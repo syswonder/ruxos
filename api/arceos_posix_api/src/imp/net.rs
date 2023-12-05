@@ -177,10 +177,6 @@ impl FileLike for Socket {
         }
         Ok(())
     }
-
-    fn set_closeonexec(&self, _closeonexec: bool) -> LinuxResult {
-        Ok(())
-    }
 }
 
 impl From<SocketAddrV4> for ctypes::sockaddr_in {

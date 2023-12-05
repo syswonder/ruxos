@@ -140,10 +140,6 @@ impl super::fd_ops::FileLike for Stdin {
     fn set_nonblocking(&self, _nonblocking: bool) -> LinuxResult {
         Ok(())
     }
-
-    fn set_closeonexec(&self, _closeonexec: bool) -> LinuxResult {
-        Ok(())
-    }
 }
 
 #[cfg(feature = "fd")]
@@ -178,10 +174,6 @@ impl super::fd_ops::FileLike for Stdout {
     }
 
     fn set_nonblocking(&self, _nonblocking: bool) -> LinuxResult {
-        Ok(())
-    }
-
-    fn set_closeonexec(&self, _closeonexec: bool) -> LinuxResult {
         Ok(())
     }
 }

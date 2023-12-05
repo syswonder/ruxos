@@ -88,13 +88,10 @@ impl VfsNodeOps for FileWrapper<'static> {
 
         let mut total_read = 0;
         while total_read < buf.len() {
-            let remaining = &mut buf[total_read..];
-            let read_len = file.read(remaining).map_err(as_vfs_err)?;
-
+            let read_len = file.read(&mut buf[total_read..]).map_err(as_vfs_err)?;
             if read_len == 0 {
                 break;
             }
-
             total_read += read_len;
         }
 
@@ -107,13 +104,10 @@ impl VfsNodeOps for FileWrapper<'static> {
 
         let mut total_write = 0;
         while total_write < buf.len() {
-            let remaining = &buf[total_write..];
-            let write_len = file.write(remaining).map_err(as_vfs_err)?;
-
+            let write_len = file.write(&buf[total_write..]).map_err(as_vfs_err)?;
             if write_len == 0 {
                 break;
             }
-
             total_write += write_len;
         }
 

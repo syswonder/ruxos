@@ -82,10 +82,6 @@ impl FileLike for File {
     fn set_nonblocking(&self, _nonblocking: bool) -> LinuxResult {
         Ok(())
     }
-
-    fn set_closeonexec(&self, _closeonexec: bool) -> LinuxResult {
-        Ok(())
-    }
 }
 
 /// Convert open flags to [`OpenOptions`].
@@ -386,4 +382,23 @@ pub fn sys_mkdirat(fd: c_int, pathname: *const c_char, mode: ctypes::mode_t) -> 
         mode
     );
     sys_mkdir(pathname, mode)
+}
+
+/// Changes the ownership of the file referred to by the open file descriptor fd
+pub fn sys_fchownat(
+    fd: c_int,
+    path: *const c_char,
+    uid: ctypes::uid_t,
+    gid: ctypes::gid_t,
+    flag: c_int,
+) -> c_int {
+    debug!(
+        "sys_fchownat <= fd: {}, path: {:?}, uid: {}, gid: {}, flag: {}",
+        fd,
+        char_ptr_to_str(path),
+        uid,
+        gid,
+        flag
+    );
+    syscall_body!(sys_fchownat, Ok(0))
 }

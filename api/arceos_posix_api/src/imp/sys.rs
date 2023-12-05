@@ -58,3 +58,9 @@ pub unsafe extern "C" fn sys_sysinfo(info: *mut ctypes::sysinfo) -> c_int {
         Ok(0)
     })
 }
+
+/// Print system information
+pub fn sys_uname(_uts: *mut core::ffi::c_void) -> c_int {
+    debug!("sys_uname not implemented");
+    syscall_body!(sys_uname, Ok(0))
+}

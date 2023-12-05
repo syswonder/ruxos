@@ -29,6 +29,7 @@ pub enum SyscallId {
     UNLINKAT = 35,
     #[cfg(feature = "fs")]
     RENAMEAT = 38,
+    #[cfg(feature = "fs")]
     FCHOWNAT = 54,
     #[cfg(feature = "fs")]
     OPENAT = 56,

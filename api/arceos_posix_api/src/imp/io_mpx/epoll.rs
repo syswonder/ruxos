@@ -144,10 +144,6 @@ impl FileLike for EpollInstance {
     fn set_nonblocking(&self, _nonblocking: bool) -> LinuxResult {
         Ok(())
     }
-
-    fn set_closeonexec(&self, _closeonexec: bool) -> LinuxResult {
-        Ok(())
-    }
 }
 
 /// Creates a new epoll instance.
@@ -219,37 +215,29 @@ pub unsafe fn sys_epoll_wait(
         loop {
             #[cfg(feature = "net")]
             axnet::poll_interfaces();
+
             let poll_all_res = epoll_instance.poll_all(events);
             let mut events_num = 0;
             match poll_all_res {
                 Ok(num) => events_num = num,
-                Err(e) => {
-                    error!("sys epoll events err {:?}", e);
-                    if e == LinuxError::EBADF {
-                        let mut deleted_fd: usize = 0;
-                        {
-                            let ready_list = epoll_instance.events.lock();
-                            for (infd, _ev) in ready_list.iter() {
-                                match get_file_like(*infd as c_int) {
-                                    Ok(_) => {}
-                                    Err(_) => {
-                                        warn!("sys epoll deleted fd err {}", *infd);
-                                        deleted_fd = *infd;
-                                        break;
-                                    }
-                                }
-                            }
+                Err(LinuxError::EBADF) => {
+                    error!("sys_epoll_wait a non-exist fd");
+                    let mut events = epoll_instance.events.lock();
+                    let del_fds = events
+                        .iter()
+                        .filter(|(&fd, _)| get_file_like(fd as _).is_err())
+                        .map(|(&fd, _)| fd)
+                        .collect::<alloc::vec::Vec<_>>();
+                    del_fds.iter().for_each(|&fd| {
+                        if let Entry::Occupied(ocp) = events.entry(fd) {
+                            ocp.remove_entry();
                         }
-                        {
-                            let mut events = epoll_instance.events.lock();
-                            if let Entry::Occupied(ocp) = events.entry(deleted_fd) {
-                                ocp.remove_entry();
-                            }
-                        }
-                        return Ok(0);
-                    }
+                    });
+                    return Ok(0);
                 }
+                Err(_) => {}
             }
+
             if events_num > 0 {
                 return Ok(events_num as c_int);
             }

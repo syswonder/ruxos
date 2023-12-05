@@ -14,3 +14,8 @@ pub fn sys_umask(mode: ctypes::mode_t) -> ctypes::mode_t {
     debug!("sys_umask <= mode: {:x}", mode);
     syscall_body!(sys_umask, Ok(0))
 }
+
+/// Returns the effective user ID of the calling process
+pub fn sys_geteuid() -> core::ffi::c_uint {
+    syscall_body!(sys_geteuid, Ok(0))
+}
