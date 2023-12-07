@@ -8,19 +8,25 @@
  */
 
 #include <stdio.h>
-#include <sys/ioctl.h>
-#include <stdarg.h>
-
-int ax_ioctl(int fd, int cmd, size_t arg);
+#include <sys/uio.h>
 
 // TODO
-int ioctl(int fd, int request, ...)
+ssize_t readv(int fd, const struct iovec *iov, int iovcnt)
 {
-    unsigned long arg;
-    va_list ap;
-    va_start(ap, request);
-    arg = va_arg(ap, unsigned long);
-    va_end(ap);
+    unimplemented();
+    return 0;
+}
 
-    return ax_ioctl(fd, request, arg);
+// TODO
+ssize_t preadv(int fd, const struct iovec *iov, int iovcnt, off_t offset)
+{
+    unimplemented();
+    return 0;
+}
+
+// TODO
+ssize_t pwritev(int fd, const struct iovec *iov, int iovcnt, off_t offset)
+{
+    unimplemented();
+    return 0;
 }

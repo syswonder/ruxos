@@ -38,6 +38,12 @@
 #define REQKEYLEN  2
 #define REQ_LEN    3
 
+#define AX_DEFAULT_USER "root"
+#define AX_DEFAULT_GROUP "root"
+#define AX_DEFAULT_PASS ""
+#define AX_DEFAULT_UID 0
+#define AX_DEFAULT_GID 0
+
 struct passwd {
     char *pw_name;
     char *pw_passwd;
@@ -50,5 +56,7 @@ struct passwd {
 
 int getpwuid_r(uid_t, struct passwd *, char *, size_t, struct passwd **);
 int getpwnam_r(const char *, struct passwd *, char *, size_t, struct passwd **);
+
+struct passwd *getpwnam (const char *);
 
 #endif // _PWD_H

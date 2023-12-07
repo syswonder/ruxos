@@ -62,4 +62,10 @@ int sync_file_range(int fd, off_t pos, off_t len, unsigned flags)
     return 0;
 }
 
+int openat(int dirfd, const char *pathname, int flags, ...)
+{
+    unimplemented();
+    return 0;
+}
+
 #endif // AX_CONFIG_FS

@@ -12,7 +12,11 @@
 
 #include <stddef.h>
 
+typedef char *caddr_t;
 typedef unsigned char u_char;
+typedef unsigned short u_short, ushort;
+typedef unsigned u_int, uint;
+typedef unsigned long u_long, ulong;
 
 typedef unsigned mode_t;
 typedef uint32_t nlink_t;

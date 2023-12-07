@@ -24,6 +24,9 @@
 #define SEEK_DATA 3
 #define SEEK_HOLE 4
 
+int getpagesize(void);
+int gethostname(char *, size_t);
+
 int pipe(int[2]);
 int pipe2(int[2], int);
 int close(int);

@@ -8,19 +8,39 @@
  */
 
 #include <stdio.h>
-#include <sys/ioctl.h>
-#include <stdarg.h>
+#include <grp.h>
+#include <pwd.h>
+#include <string.h>
+#include <errno.h>
 
-int ax_ioctl(int fd, int cmd, size_t arg);
+/* Group members */
+static char *g_members__[] = { AX_DEFAULT_USER, NULL };
+
+/* Default group */
+static struct group g__ = {
+	.gr_name = AX_DEFAULT_GROUP,
+	.gr_passwd = AX_DEFAULT_PASS,
+	.gr_gid = AX_DEFAULT_GID,
+	.gr_mem = g_members__,
+};
 
 // TODO
-int ioctl(int fd, int request, ...)
+int initgroups(const char *user, gid_t group)
 {
-    unsigned long arg;
-    va_list ap;
-    va_start(ap, request);
-    arg = va_arg(ap, unsigned long);
-    va_end(ap);
+    unimplemented();
+    return 0;
+}
 
-    return ax_ioctl(fd, request, arg);
+struct group *getgrnam(const char *name)
+{
+	struct group *res;
+
+	if (name && !strcmp(name, g__.gr_name))
+		res = &g__;
+	else {
+		res = NULL;
+		errno = ENOENT;
+	}
+
+	return res;
 }

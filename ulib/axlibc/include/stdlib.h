@@ -23,6 +23,9 @@
 #define EXIT_FAILURE 1
 #define EXIT_SUCCESS 0
 
+int posix_memalign (void **, size_t, size_t);
+char *realpath (const char *__restrict, char *__restrict);
+
 long long atoll(const char *nptr);
 
 float strtof(const char *__restrict, char **__restrict);

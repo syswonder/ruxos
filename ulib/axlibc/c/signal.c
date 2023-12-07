@@ -76,6 +76,18 @@ int pthread_sigmask(int __how, const sigset_t *restrict __newmask, sigset_t *res
     return 0;
 }
 
+// TODO
+int sigprocmask(int how, const sigset_t *__restrict set, sigset_t *__restrict oldset)
+{
+    unimplemented();
+    return 0;
+}
+int sigsuspend(const sigset_t *mask)
+{
+    unimplemented();
+    return 0;
+}
+
 #ifdef AX_CONFIG_MULTITASK
 // TODO
 int pthread_kill(pthread_t t, int sig)

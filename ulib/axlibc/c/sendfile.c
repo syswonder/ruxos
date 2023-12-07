@@ -8,19 +8,9 @@
  */
 
 #include <stdio.h>
-#include <sys/ioctl.h>
-#include <stdarg.h>
+#include <sys/sendfile.h>
 
-int ax_ioctl(int fd, int cmd, size_t arg);
-
-// TODO
-int ioctl(int fd, int request, ...)
-{
-    unsigned long arg;
-    va_list ap;
-    va_start(ap, request);
-    arg = va_arg(ap, unsigned long);
-    va_end(ap);
-
-    return ax_ioctl(fd, request, arg);
+ssize_t sendfile(int out_fd, int in_fd, off_t *offset, size_t count){
+    unimplemented();
+    return 0;
 }

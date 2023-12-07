@@ -16,6 +16,8 @@ use crate::{ctypes, utils::e};
 /// Read data from the file indicated by `fd`.
 ///
 /// Return the read size if success.
+#[cfg(feature = "fd")]
+use arceos_posix_api::sys_ioctl;
 #[no_mangle]
 pub unsafe extern "C" fn read(fd: c_int, buf: *mut c_void, count: usize) -> ctypes::ssize_t {
     e(sys_read(fd, buf, count) as _) as _
@@ -38,4 +40,13 @@ pub unsafe extern "C" fn writev(
     iocnt: c_int,
 ) -> ctypes::ssize_t {
     e(sys_writev(fd, iov, iocnt) as _) as _
+}
+
+/// Manipulate file descriptor.
+///
+/// TODO: `SET/GET` command is ignored
+#[cfg(feature = "fd")]
+#[no_mangle]
+pub unsafe extern "C" fn ax_ioctl(fd: c_int, req: c_int, arg: usize) -> c_int {
+    e(sys_ioctl(fd, req.try_into().unwrap(), arg))
 }

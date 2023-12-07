@@ -18,10 +18,17 @@ ifneq ($(V),)
   nginx-build-args += V=$(V)
 endif
 
+ifeq ($(V9P),y)
+  DISK_ARG = 9p
+else
+  DISK_ARG = no_9p
+endif
+
+
 disk.img:
 	ls
 	echo "nginx makefile create_nginx_img"
-	./$(APP)/create_nginx_img.sh
+	./$(APP)/create_nginx_img.sh $(DISK_ARG)
 
 $(nginx-dir):
 	git clone https://github.com/lhw2002426/nginx-app.git $(APP)/nginx-app

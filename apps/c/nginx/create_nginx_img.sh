@@ -1,10 +1,17 @@
 #!/bin/bash
 
 # From https://github.com/rafalh/rust-fatfs/blob/master/scripts/create-test-img.sh
-
-CUR_DIR=`dirname $0`
+CUR_DIR=$(dirname $0)
 
 echo $OUT_DIR
+
+if [ $# -lt 1 ]; then
+  CONF = "$CUR_DIR/nginx.conf"
+elif [ "$arg1" = "9p" ]; then
+  CONF = "$CUR_DIR/nginx_9p.conf"
+else
+  CONF = "$CUR_DIR/nginx.conf"
+fi
 
 create_test_img() {
 	local name=$1
@@ -21,7 +28,7 @@ create_test_img() {
 	echo "root:x:0:" >> "mnt/etc/group"
 #	echo "" >> "mnt/nginx/logs/error.log"
 	mkdir -p "mnt/nginx/conf"
-	cp "$CUR_DIR/nginx.conf" "mnt/nginx/conf/nginx.conf"
+	cp "$CONF" "mnt/nginx/conf/nginx.conf"
 	cp "$CUR_DIR/mime.types" "mnt/nginx/conf/mime.types"
 	mkdir -p "mnt/html"
 	cp -r "$CUR_DIR/html" "mnt/"

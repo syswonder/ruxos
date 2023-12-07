@@ -10,6 +10,8 @@
 #ifndef __SYS_IOCTL_H__
 #define __SYS_IOCTL_H__
 
+#define FIOASYNC 0x5452
+
 #define TCGETS       0x5401
 #define TCSETS       0x5402
 #define TCSETSW      0x5403

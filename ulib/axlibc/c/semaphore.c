@@ -8,19 +8,32 @@
  */
 
 #include <stdio.h>
-#include <sys/ioctl.h>
-#include <stdarg.h>
-
-int ax_ioctl(int fd, int cmd, size_t arg);
+#include <semaphore.h>
 
 // TODO
-int ioctl(int fd, int request, ...)
+int sem_destroy(sem_t *sem)
 {
-    unsigned long arg;
-    va_list ap;
-    va_start(ap, request);
-    arg = va_arg(ap, unsigned long);
-    va_end(ap);
+    unimplemented();
+    return 0;
+}
 
-    return ax_ioctl(fd, request, arg);
+// TODO
+int sem_init(sem_t *sem, int pshared, unsigned int value)
+{
+    unimplemented();
+    return 0;
+}
+
+// TODO
+int sem_post(sem_t *sem)
+{
+    unimplemented();
+    return 0;
+}
+
+// TODO
+int sem_wait(sem_t *sem)
+{
+    unimplemented();
+    return 0;
 }

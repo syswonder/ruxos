@@ -17,3 +17,9 @@ int getrusage(int __who, struct rusage *__usage)
     unimplemented();
     return 0;
 }
+
+int setpriority(int which, id_t who, int prio)
+{
+    unimplemented();
+    return 0;
+}

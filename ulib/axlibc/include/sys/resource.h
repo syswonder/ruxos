@@ -10,7 +10,9 @@
 #ifndef _SYS_RESOURCE_H
 #define _SYS_RESOURCE_H
 
+#define __NEED_id_t
 #include <sys/time.h>
+#include <bits/alltypes.h>
 
 typedef unsigned long long rlim_t;
 
@@ -18,6 +20,10 @@ struct rlimit {
     rlim_t rlim_cur;
     rlim_t rlim_max;
 };
+
+#define PRIO_PROCESS 0
+#define PRIO_PGRP    1
+#define PRIO_USER    2
 
 #define RLIMIT_CPU   0
 #define RLIMIT_FSIZE 1
@@ -68,5 +74,7 @@ int setrlimit(int __resource, struct rlimit *__rlimits);
 int getrlimit(int __resource, struct rlimit *__rlimits);
 
 int getrusage(int __who, struct rusage *__usage);
+
+int setpriority (int, id_t, int);
 
 #endif
