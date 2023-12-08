@@ -6,11 +6,16 @@ CUR_DIR=$(dirname $0)
 echo $OUT_DIR
 
 if [ $# -lt 1 ]; then
-  CONF = "$CUR_DIR/nginx.conf"
-elif [ "$arg1" = "9p" ]; then
-  CONF = "$CUR_DIR/nginx_9p.conf"
+  CONF="$CUR_DIR/nginx.conf"
+  echo "not us 9p"
+elif [ "$1" == "9p" ]; then
+  CONF="$CUR_DIR/nginx_9p.conf"
+  echo "use 9p"
+  echo "$1"
 else
-  CONF = "$CUR_DIR/nginx.conf"
+  CONF="$CUR_DIR/nginx.conf"
+  echo "not use 9p"
+  echo "$1"
 fi
 
 create_test_img() {
@@ -38,6 +43,7 @@ create_test_img() {
 create_test_img "$CUR_DIR/fat16.img" 2500 16
 create_test_img "$CUR_DIR/fat32.img" 40000 32
 echo $CUR_DIR
+cat "$CUR_DIR/html/community.md"
 echo "nginx create disk"
 rm -f disk.img
 cp $CUR_DIR/fat32.img disk.img

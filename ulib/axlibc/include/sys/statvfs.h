@@ -1,10 +1,6 @@
 #ifndef	_SYS_STATVFS_H
 #define	_SYS_STATVFS_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 #include <features.h>
 
 #define __NEED_fsblkcnt_t
@@ -28,29 +24,5 @@ struct statvfs {
 
 int statvfs (const char *__restrict, struct statvfs *__restrict);
 int fstatvfs (int, struct statvfs *);
-
-#define ST_RDONLY 1
-#define ST_NOSUID 2
-#define ST_NODEV  4
-#define ST_NOEXEC 8
-#define ST_SYNCHRONOUS 16
-#define ST_MANDLOCK    64
-#define ST_WRITE       128
-#define ST_APPEND      256
-#define ST_IMMUTABLE   512
-#define ST_NOATIME     1024
-#define ST_NODIRATIME  2048
-#define ST_RELATIME    4096
-
-#if defined(_LARGEFILE64_SOURCE) || defined(_GNU_SOURCE)
-#define statvfs64 statvfs
-#define fstatvfs64 fstatvfs
-#define fsblkcnt64_t fsblkcnt_t
-#define fsfilcnt64_t fsfilcnt_t
-#endif
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif

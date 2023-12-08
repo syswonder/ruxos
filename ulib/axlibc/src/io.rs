@@ -7,6 +7,8 @@
  *   See the Mulan PSL v2 for more details.
  */
 
+ #[cfg(feature = "fd")]
+use arceos_posix_api::sys_ioctl;
 use core::ffi::{c_int, c_void};
 
 use arceos_posix_api::{sys_read, sys_write, sys_writev};
@@ -16,8 +18,6 @@ use crate::{ctypes, utils::e};
 /// Read data from the file indicated by `fd`.
 ///
 /// Return the read size if success.
-#[cfg(feature = "fd")]
-use arceos_posix_api::sys_ioctl;
 #[no_mangle]
 pub unsafe extern "C" fn read(fd: c_int, buf: *mut c_void, count: usize) -> ctypes::ssize_t {
     e(sys_read(fd, buf, count) as _) as _
