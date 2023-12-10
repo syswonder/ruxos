@@ -1,8 +1,8 @@
-#nginx-version := 1.24.0
-#nginx-dir := $(APP)/nginx-$(nginx-version)
-#nginx-objs := nginx-$(nginx-version)/objs/nginx_app.o
-nginx-dir := $(APP)/nginx-app
-nginx-objs := nginx-app/objs/nginx_app.o
+nginx-version := 1.24.0
+nginx-dir := $(APP)/nginx-$(nginx-version)
+nginx-objs := nginx-$(nginx-version)/objs/nginx_app.o
+#nginx-dir := $(APP)/nginx-app
+#nginx-objs := nginx-app/objs/nginx_app.o
 
 app-objs := $(nginx-objs)
 
@@ -31,8 +31,11 @@ disk.img:
 	./$(APP)/create_nginx_img.sh $(DISK_ARG)
 
 $(nginx-dir):
-	git clone https://github.com/lhw2002426/nginx-app.git $(APP)/nginx-app
 	@echo "Download nginx source code"
+	wget https://nginx.org/download/nginx-$(nginx-version).tar.gz -P $(APP)
+	tar -zxvf $(APP)/nginx-$(nginx-version).tar.gz -C $(APP) && rm -f $(APP)/nginx-$(nginx-version).tar.gz
+	cd $(nginx-dir) && git init && git add .
+	patch -p1 -N -d $(nginx-dir) --no-backup-if-mismatch -r - < $(APP)/nginx.patch
 
 $(APP)/$(nginx-objs): build_nginx
 

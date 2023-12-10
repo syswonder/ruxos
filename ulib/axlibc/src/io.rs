@@ -7,7 +7,7 @@
  *   See the Mulan PSL v2 for more details.
  */
 
- #[cfg(feature = "fd")]
+#[cfg(feature = "fd")]
 use arceos_posix_api::sys_ioctl;
 use core::ffi::{c_int, c_void};
 
