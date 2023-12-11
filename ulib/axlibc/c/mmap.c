@@ -10,17 +10,24 @@
 
 #include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/mman.h>
 
 // TODO:
 void *mmap(void *addr, size_t len, int prot, int flags, int fildes, off_t off)
 {
+    if (fildes != -1) {
+        unimplemented();
+        return MAP_FAILED;
+    }
     return malloc(len);
 }
 
 // TODO:
 int munmap(void *addr, size_t length)
 {
+    if (addr == NULL)
+        return 0;
     free(addr);
     return 0;
 }
