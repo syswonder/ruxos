@@ -11,6 +11,10 @@
 #ifndef _SIGNAL_H
 #define _SIGNAL_H
 
+typedef struct __sigset_t {
+    unsigned long __bits[128 / sizeof(long)];
+} sigset_t;
+
 #include <pthread.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -161,9 +165,6 @@ typedef void (*sighandler_t)(int);
 #define SIGDFL 0l
 #define SIGIGN 1l
 
-typedef struct __sigset_t {
-    unsigned long __bits[128 / sizeof(long)];
-} sigset_t;
 
 struct sigaction {
     union {

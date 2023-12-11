@@ -12,15 +12,17 @@
 #define __STDDEF_H__
 
 #include <stdint.h>
+typedef long clock_t;
+typedef int clockid_t;
+
+typedef uintptr_t size_t;
 #include <sys/types.h>
 
 /* size_t is used for memory object sizes */
-typedef uintptr_t size_t;
 typedef intptr_t ssize_t;
 typedef ssize_t ptrdiff_t;
 
-typedef long clock_t;
-typedef int clockid_t;
+
 
 #define _Int64 long
 

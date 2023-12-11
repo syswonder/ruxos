@@ -12,6 +12,8 @@
 #define _PTHREAD_H
 
 #include <features.h>
+
+typedef void *pthread_t;
 #include <time.h>
 
 #define PTHREAD_CANCEL_ENABLE  0
@@ -42,7 +44,6 @@ typedef struct {
 #define _a_guardsize __u.__s[1]
 #define _a_stackaddr __u.__s[2]
 
-typedef void *pthread_t;
 
 #define PTHREAD_CANCELED ((void *)-1)
 #define SIGCANCEL        33

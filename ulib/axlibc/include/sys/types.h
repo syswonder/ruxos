@@ -32,4 +32,6 @@ typedef int pid_t;
 typedef unsigned uid_t;
 typedef unsigned gid_t;
 
+#include <sys/select.h>
+
 #endif // __SYS_TYPES_H__
