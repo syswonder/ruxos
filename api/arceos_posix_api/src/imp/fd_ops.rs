@@ -99,7 +99,7 @@ pub fn sys_dup2(old_fd: c_int, new_fd: c_int) -> c_int {
         if new_fd as usize >= AX_FILE_LIMIT {
             return Err(LinuxError::EBADF);
         }
-        let _ = close_file_like(new_fd)?;
+        close_file_like(new_fd)?;
 
         let f = get_file_like(old_fd)?;
         FD_TABLE

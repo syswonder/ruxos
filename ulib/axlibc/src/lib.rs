@@ -93,7 +93,7 @@ mod unistd;
 
 #[cfg(not(test))]
 pub use self::io::write;
-pub use self::io::{read, rux_ioctl, writev};
+pub use self::io::{read, writev};
 
 pub use self::errno::strerror;
 pub use self::mktime::mktime;
@@ -103,30 +103,30 @@ pub use self::setjmp::{longjmp, setjmp};
 pub use self::string::{strlen, strnlen};
 pub use self::sys::sysconf;
 pub use self::time::{clock_gettime, nanosleep};
-#[cfg(feature = "signal")]
-pub use self::time::{getitimer, setitimer};
-pub use self::unistd::{abort, exit, getpid};
-#[cfg(feature = "signal")]
-pub use self::unistd::{alarm, ualarm};
 
 #[cfg(feature = "alloc")]
 pub use self::env::{getenv, setenv, unsetenv};
 #[cfg(feature = "fd")]
 pub use self::fd_ops::{ax_fcntl, close, dup, dup2, dup3};
-#[cfg(feature = "alloc")]
-pub use self::malloc::{free, malloc};
-#[cfg(feature = "alloc")]
-pub use self::strftime::strftime;
-
 #[cfg(feature = "fs")]
 pub use self::fs::{ax_open, fstat, getcwd, lseek, lstat, mkdir, rename, rmdir, stat, unlink};
-
+#[cfg(feature = "fd")]
+pub use self::io::rux_ioctl;
+#[cfg(feature = "poll")]
+pub use self::io_mpx::poll;
+#[cfg(feature = "select")]
+pub use self::io_mpx::select;
+#[cfg(feature = "epoll")]
+pub use self::io_mpx::{epoll_create, epoll_ctl, epoll_wait};
+#[cfg(feature = "alloc")]
+pub use self::malloc::{free, malloc};
 #[cfg(feature = "net")]
 pub use self::net::{
     accept, ax_sendmsg, bind, connect, freeaddrinfo, getaddrinfo, getpeername, getsockname, listen,
     recv, recvfrom, send, sendto, shutdown, socket,
 };
-
+#[cfg(feature = "pipe")]
+pub use self::pipe::pipe;
 #[cfg(feature = "multitask")]
 pub use self::pthread::{
     pthread_cond_broadcast, pthread_cond_init, pthread_cond_signal, pthread_cond_wait,
@@ -137,16 +137,12 @@ pub use self::pthread::{pthread_create, pthread_exit, pthread_join, pthread_self
 pub use self::pthread::{
     pthread_mutex_init, pthread_mutex_lock, pthread_mutex_trylock, pthread_mutex_unlock,
 };
-
-#[cfg(feature = "pipe")]
-pub use self::pipe::pipe;
-
-#[cfg(feature = "poll")]
-pub use self::io_mpx::poll;
-#[cfg(feature = "select")]
-pub use self::io_mpx::select;
-#[cfg(feature = "epoll")]
-pub use self::io_mpx::{epoll_create, epoll_ctl, epoll_wait};
-
+#[cfg(feature = "alloc")]
+pub use self::strftime::strftime;
 #[cfg(feature = "fp_simd")]
 pub use self::strtod::{strtod, strtof};
+#[cfg(feature = "signal")]
+pub use self::time::{getitimer, setitimer};
+pub use self::unistd::{abort, exit, getpid};
+#[cfg(feature = "signal")]
+pub use self::unistd::{alarm, ualarm};
