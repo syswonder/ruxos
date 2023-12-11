@@ -1,6 +1,7 @@
-nginx-version := 1.24.0
-nginx-dir := $(APP)/nginx-$(nginx-version)
-nginx-objs := nginx-$(nginx-version)/objs/nginx_app.o
+nginx-version = 1.24.0
+nginx-src := $(APP)/nginx-$(nginx-version)
+nginx-dir := $(APP)/objs
+nginx-objs := objs/nginx_app.o
 
 app-objs := $(nginx-objs)
 
@@ -27,20 +28,20 @@ disk.img:
 	echo "nginx makefile create_nginx_img"
 	./$(APP)/create_nginx_img.sh $(DISK_ARG)
 
-$(nginx-dir):
+$(nginx-src):
 	@echo "Download nginx source code"
 	wget https://nginx.org/download/nginx-$(nginx-version).tar.gz -P $(APP)
 	tar -zxvf $(APP)/nginx-$(nginx-version).tar.gz -C $(APP) && rm -f $(APP)/nginx-$(nginx-version).tar.gz
-	cd $(nginx-dir) && git init && git add .
-	patch -p1 -N -d $(nginx-dir) --no-backup-if-mismatch -r - < $(APP)/nginx.patch
+	cd $(nginx-src) && git init && git add .
+#	patch -p1 -N -d $(nginx-dir) --no-backup-if-mismatch -r - < $(APP)/nginx.patch
 
 $(APP)/$(nginx-objs): build_nginx
 
-build_nginx: $(nginx-dir) disk.img
+clean_c::
+	find . -type f \( -name "*.o" -o -name "*.elf" -o -name "*.bin" \) -exec rm -f {} +
+
+build_nginx: $(nginx-src) disk.img
 	cd $(nginx-dir) && $(MAKE) $(nginx-build-args)
 
-# TODO: make this right
-# clean_c::
-# 	$(MAKE) -C $(nginx-dir) distclean
 
 .PHONY: build_nginx

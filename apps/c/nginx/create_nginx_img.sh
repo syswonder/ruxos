@@ -39,7 +39,6 @@ create_test_img() {
 
 create_test_img "$CUR_DIR/fat32.img" 40000 32
 echo $CUR_DIR
-cat "$CUR_DIR/html/community.md"
 echo "nginx create disk"
 rm -f disk.img
 cp $CUR_DIR/fat32.img disk.img

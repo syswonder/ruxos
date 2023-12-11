@@ -2246,3 +2246,15 @@ index 0000000..0fb06cc
 +    NULL
 +};
 +
+diff --git a/src/os/unix/ngx_linux_config.h b/src/os/unix/ngx_linux_config.h
+index 88fef47..81df64c 100644
+--- a/src/os/unix/ngx_linux_config.h
++++ b/src/os/unix/ngx_linux_config.h
+@@ -47,6 +47,7 @@
+ #include <arpa/inet.h>
+ #include <netdb.h>
+ #include <sys/un.h>
++#include <sys/select.h>
+ 
+ #include <time.h>               /* tzset() */
+ #include <malloc.h>             /* memalign() */
