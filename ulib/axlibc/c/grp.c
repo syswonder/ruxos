@@ -14,13 +14,13 @@
 #include <errno.h>
 
 /* Group members */
-static char *g_members__[] = { AX_DEFAULT_USER, NULL };
+static char *g_members__[] = { RUX_DEFAULT_USER, NULL };
 
 /* Default group */
 static struct group g__ = {
-	.gr_name = AX_DEFAULT_GROUP,
-	.gr_passwd = AX_DEFAULT_PASS,
-	.gr_gid = AX_DEFAULT_GID,
+	.gr_name = RUX_DEFAULT_GROUP,
+	.gr_passwd = RUX_DEFAULT_PASS,
+	.gr_gid = RUX_DEFAULT_GID,
 	.gr_mem = g_members__,
 };
 

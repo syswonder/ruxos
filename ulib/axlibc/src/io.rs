@@ -47,6 +47,6 @@ pub unsafe extern "C" fn writev(
 /// TODO: `SET/GET` command is ignored
 #[cfg(feature = "fd")]
 #[no_mangle]
-pub unsafe extern "C" fn ax_ioctl(fd: c_int, req: c_int, arg: usize) -> c_int {
+pub unsafe extern "C" fn rux_ioctl(fd: c_int, req: c_int, arg: usize) -> c_int {
     e(sys_ioctl(fd, req.try_into().unwrap(), arg))
 }

@@ -38,11 +38,11 @@
 #define REQKEYLEN  2
 #define REQ_LEN    3
 
-#define AX_DEFAULT_USER "root"
-#define AX_DEFAULT_GROUP "root"
-#define AX_DEFAULT_PASS ""
-#define AX_DEFAULT_UID 0
-#define AX_DEFAULT_GID 0
+#define RUX_DEFAULT_USER "root"
+#define RUX_DEFAULT_GROUP "root"
+#define RUX_DEFAULT_PASS ""
+#define RUX_DEFAULT_UID 0
+#define RUX_DEFAULT_GID 0
 
 struct passwd {
     char *pw_name;

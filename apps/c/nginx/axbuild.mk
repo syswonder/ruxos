@@ -1,8 +1,6 @@
 nginx-version := 1.24.0
 nginx-dir := $(APP)/nginx-$(nginx-version)
 nginx-objs := nginx-$(nginx-version)/objs/nginx_app.o
-#nginx-dir := $(APP)/nginx-app
-#nginx-objs := nginx-app/objs/nginx_app.o
 
 app-objs := $(nginx-objs)
 
@@ -26,7 +24,6 @@ endif
 
 
 disk.img:
-	ls
 	echo "nginx makefile create_nginx_img"
 	./$(APP)/create_nginx_img.sh $(DISK_ARG)
 
@@ -42,7 +39,8 @@ $(APP)/$(nginx-objs): build_nginx
 build_nginx: $(nginx-dir) disk.img
 	cd $(nginx-dir) && $(MAKE) $(nginx-build-args)
 
-clean_c::
-	$(MAKE) -C $(nginx-dir) distclean
+# TODO: make this right
+# clean_c::
+# 	$(MAKE) -C $(nginx-dir) distclean
 
-.PHONY: build_nginx clean_c
+.PHONY: build_nginx

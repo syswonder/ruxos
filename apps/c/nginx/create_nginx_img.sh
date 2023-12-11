@@ -11,11 +11,9 @@ if [ $# -lt 1 ]; then
 elif [ "$1" == "9p" ]; then
   CONF="$CUR_DIR/nginx_9p.conf"
   echo "use 9p"
-  echo "$1"
 else
   CONF="$CUR_DIR/nginx.conf"
   echo "not use 9p"
-  echo "$1"
 fi
 
 create_test_img() {
@@ -31,7 +29,6 @@ create_test_img() {
 	echo "" >> "mnt/etc/localtime"
 	echo "root:x:0:0:root:/root:/bin/bash" >> "mnt/etc/passwd"
 	echo "root:x:0:" >> "mnt/etc/group"
-#	echo "" >> "mnt/nginx/logs/error.log"
 	mkdir -p "mnt/nginx/conf"
 	cp "$CONF" "mnt/nginx/conf/nginx.conf"
 	cp "$CUR_DIR/mime.types" "mnt/nginx/conf/mime.types"
@@ -40,7 +37,6 @@ create_test_img() {
 	sudo umount mnt
 }
 
-create_test_img "$CUR_DIR/fat16.img" 2500 16
 create_test_img "$CUR_DIR/fat32.img" 40000 32
 echo $CUR_DIR
 cat "$CUR_DIR/html/community.md"

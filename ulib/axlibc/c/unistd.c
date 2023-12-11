@@ -3,8 +3,9 @@
  *   You can use this software according to the terms and conditions of the Mulan PSL v2.
  *   You may obtain a copy of Mulan PSL v2 at:
  *               http://license.coscl.org.cn/MulanPSL2
- *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
- *   See the Mulan PSL v2 for more details.
+ *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A
+ * PARTICULAR PURPOSE. See the Mulan PSL v2 for more details.
  */
 
 #include <errno.h>
@@ -12,9 +13,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
+#include <sys/utsname.h>
 #include <time.h>
 #include <unistd.h>
-#include <sys/utsname.h>
 
 // TODO:
 pid_t getppid(void)
@@ -38,7 +39,7 @@ uid_t getuid(void)
 }
 
 // TODO
-int setuid (uid_t __uid)
+int setuid(uid_t __uid)
 {
     unimplemented();
     return 0;
@@ -90,12 +91,16 @@ ssize_t pwrite(int fd, const void *buf, size_t count, off_t offset)
 int gethostname(char *name, size_t len)
 {
     size_t i;
-	struct utsname uts;
-	if (uname(&uts)) return -1;
-	if (len > sizeof uts.nodename) len = sizeof uts.nodename;
-	for (i=0; i<len && (name[i] = uts.nodename[i]); i++);
-	if (i && i==len) name[i-1] = 0;
-	return 0;
+    struct utsname uts;
+    if (uname(&uts))
+        return -1;
+    if (len > sizeof uts.nodename)
+        len = sizeof uts.nodename;
+    for (i = 0; i < len && (name[i] = uts.nodename[i]); i++)
+        ;
+    if (i && i == len)
+        name[i - 1] = 0;
+    return 0;
 }
 
 // TODO

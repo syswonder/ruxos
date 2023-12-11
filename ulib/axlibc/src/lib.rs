@@ -93,7 +93,7 @@ mod unistd;
 
 #[cfg(not(test))]
 pub use self::io::write;
-pub use self::io::{read, writev};
+pub use self::io::{read, rux_ioctl, writev};
 
 pub use self::errno::strerror;
 pub use self::mktime::mktime;

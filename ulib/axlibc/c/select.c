@@ -23,11 +23,4 @@ int pselect(int n, fd_set *restrict rfds, fd_set *restrict wfds, fd_set *restric
     return 0;
 }
 
-int select(int n, fd_set *__restrict rfds, fd_set *__restrict wfds, fd_set *__restrict efds,
-           struct timeval *__restrict tv)
-{
-    unimplemented();
-    return 0;
-}
-
 #endif // AX_CONFIG_SELECT

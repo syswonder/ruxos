@@ -10,9 +10,8 @@
 #ifndef _SYS_RESOURCE_H
 #define _SYS_RESOURCE_H
 
-#define __NEED_id_t
 #include <sys/time.h>
-#include <bits/alltypes.h>
+#include <stddef.h>
 
 typedef unsigned long long rlim_t;
 

@@ -2,6 +2,8 @@
 #define NSCD_H
 
 #include <stdint.h>
+#include <stddef.h>
+#include <stdio.h>
 
 #define NSCDVERSION 2
 #define GETPWBYNAME 0
