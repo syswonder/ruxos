@@ -1,5 +1,5 @@
 /* Copyright (c) [2023] [Syswonder Community]
- *   [Rukos] is licensed under Mulan PSL v2.
+ *   [Ruxos] is licensed under Mulan PSL v2.
  *   You can use this software according to the terms and conditions of the Mulan PSL v2.
  *   You may obtain a copy of Mulan PSL v2 at:
  *               http://license.coscl.org.cn/MulanPSL2
@@ -17,7 +17,7 @@ const char res_suffix[11] = "_response\n";
 
 int main()
 {
-    puts("Hello, ArceOS C UDP server!");
+    puts("Hello, Ruxos C UDP server!");
     struct sockaddr_in local, remote;
     int addr_len = sizeof(remote);
     local.sin_family = AF_INET;

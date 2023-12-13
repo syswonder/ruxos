@@ -5,9 +5,8 @@ edition = "2021"
 authors = ["Leping Wang <xuehao14@126.com>"]
 description = "Device tree basic operations"
 license = "GPL-3.0-or-later OR Apache-2.0"
-homepage = "https://github.com/rcore-os/arceos"
-repository = "https://github.com/rcore-os/arceos/tree/main/crates/dtb"
-documentation = "https://rcore-os.github.io/arceos/dtb/index.html"
+homepage = "https://github.com/syswonder/ruxos"
+repository = "https://github.com/syswonder/ruxos/tree/main/crates/dtb"
 
 [dependencies]
 fdt-rs = { version = "0.4.3", default-features = false }

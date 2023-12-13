@@ -1,5 +1,5 @@
 /* Copyright (c) [2023] [Syswonder Community]
- *   [Rukos] is licensed under Mulan PSL v2.
+ *   [Ruxos] is licensed under Mulan PSL v2.
  *   You can use this software according to the terms and conditions of the Mulan PSL v2.
  *   You may obtain a copy of Mulan PSL v2 at:
  *               http://license.coscl.org.cn/MulanPSL2
@@ -25,7 +25,7 @@
     feature = "dummy-if-not-enabled"
 ))]
 extern crate alloc;
-extern crate axruntime;
+extern crate ruxruntime;
 
 #[macro_use]
 mod macros;
@@ -35,7 +35,7 @@ pub use axerrno::{AxError, AxResult};
 
 /// Platform-specific constants and parameters.
 pub mod config {
-    pub use axconfig::*;
+    pub use ruxconfig::*;
 }
 
 /// System operations.

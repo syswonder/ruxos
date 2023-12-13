@@ -1,9 +1,9 @@
-rust_lib_name := axmusl
+rust_lib_name := ruxmusl
 rust_lib := target/$(TARGET)/$(MODE)/lib$(rust_lib_name).a
 
 musl_version := 1.2.3
 
-muslibc_dir := ulib/axmusl
+muslibc_dir := ulib/ruxmusl
 build_dir := $(muslibc_dir)/build_musl_$(ARCH)
 musl_dir := $(muslibc_dir)/musl-$(musl_version)
 inc_dir := $(muslibc_dir)/install/include
@@ -45,7 +45,7 @@ ifeq ($(wildcard $(build_dir)),)
 	tar -zxvf $(muslibc_dir)/musl-1.2.3.tar.gz -C $(muslibc_dir) && rm -f $(muslibc_dir)/musl-1.2.3.tar.gz
   endif
 	mkdir -p $(build_dir)
-	cd $(build_dir) && ../musl-1.2.3/configure --prefix=../install --exec-prefix=../ --syslibdir=../install/lib --disable-shared ARCH=$(AX_ARCH) CC=$(CC) CROSS_COMPILE=$(CROSS_COMPILE) CFLAGS=$(CFLAGS)
+	cd $(build_dir) && ../musl-1.2.3/configure --prefix=../install --exec-prefix=../ --syslibdir=../install/lib --disable-shared ARCH=$(RUX_ARCH) CC=$(CC) CROSS_COMPILE=$(CROSS_COMPILE) CFLAGS=$(CFLAGS)
 	cd $(build_dir) && $(MAKE) -j && $(MAKE) install
 endif
 

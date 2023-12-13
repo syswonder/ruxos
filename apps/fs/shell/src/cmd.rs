@@ -1,5 +1,5 @@
 /* Copyright (c) [2023] [Syswonder Community]
- *   [Rukos] is licensed under Mulan PSL v2.
+ *   [Ruxos] is licensed under Mulan PSL v2.
  *   You can use this software according to the terms and conditions of the Mulan PSL v2.
  *   You may obtain a copy of Mulan PSL v2 at:
  *               http://license.coscl.org.cn/MulanPSL2
@@ -253,15 +253,15 @@ fn do_pwd(_args: &str) {
 }
 
 fn do_uname(_args: &str) {
-    let arch = option_env!("AX_ARCH").unwrap_or("");
-    let platform = option_env!("AX_PLATFORM").unwrap_or("");
-    let smp = match option_env!("AX_SMP") {
+    let arch = option_env!("RUX_ARCH").unwrap_or("");
+    let platform = option_env!("RUX_PLATFORM").unwrap_or("");
+    let smp = match option_env!("RUX_SMP") {
         None | Some("1") => "",
         _ => " SMP",
     };
     let version = option_env!("CARGO_PKG_VERSION").unwrap_or("0.1.0");
     println!(
-        "ArceOS {ver}{smp} {arch} {plat}",
+        "Ruxos {ver}{smp} {arch} {plat}",
         ver = version,
         smp = smp,
         arch = arch,

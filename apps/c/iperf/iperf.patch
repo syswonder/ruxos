@@ -341,7 +341,7 @@ index 73dc362..4bfe6f9 100644
  {
      static int randomized = 0;
 -    char hostname[500];
-+    char hostname[500] = "arceos-iperf";
++    char hostname[500] = "ruxos-iperf";
      struct timeval tv;
      char temp[1000];
  
@@ -411,7 +411,7 @@ index 73dc362..4bfe6f9 100644
  
 -    snprintf(buf, sizeof(buf), "%s %s %s %s %s", uts.sysname, uts.nodename, 
 -	     uts.release, uts.version, uts.machine);
-+    snprintf(buf, sizeof(buf), "%s %s %s %s %s", "arceos", "iperf", "0", "0","null");
++    snprintf(buf, sizeof(buf), "%s %s %s %s %s", "ruxos", "iperf", "0", "0","null");
  
      return buf;
  }

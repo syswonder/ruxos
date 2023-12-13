@@ -6,11 +6,11 @@
 #     - `MODE`: Build mode: release, debug
 #     - `LOG:` Logging level: warn, error, info, debug, trace
 #     - `V`: Verbose level: (empty), 1, 2
-#	  - `ARGS`: Command-line arguments separated by comma. Only available when feature `alloc` is enabled.
-#	  - `ENVS`: Environment variables, separated by comma between key value pairs. Only available when feature `alloc` is enabled.
+#	    - `ARGS`: Command-line arguments separated by comma. Only available when feature `alloc` is enabled.
+#	    - `ENVS`: Environment variables, separated by comma between key value pairs. Only available when feature `alloc` is enabled.
 # * App options:
 #     - `A` or `APP`: Path to the application
-#     - `FEATURES`: Features of ArceOS modules to be enabled.
+#     - `FEATURES`: Features of Ruxos modules to be enabled.
 #     - `APP_FEATURES`: Features of (rust) apps to be enabled.
 # * QEMU options:
 #     - `BLK`: Enable storage devices (virtio-blk)
@@ -29,7 +29,7 @@
 #     - `ANAME_9P`: Path for root of 9pfs(parameter of TATTACH for root)
 #     - `PROTOCOL_9P`: Default protocol version selected for 9P
 # * Network options:
-#     - `IP`: ArceOS IPv4 address (default is 10.0.2.15 for QEMU user netdev)
+#     - `IP`: Ruxos IPv4 address (default is 10.0.2.15 for QEMU user netdev)
 #     - `GW`: Gateway IPv4 address (default is 10.0.2.2 for QEMU user netdev)
 # * Libc options:
 #     - `MUSL`: Link C app with musl libc
@@ -43,7 +43,7 @@ LOG ?= warn
 V ?=
 
 # App options
-A ?= apps/helloworld
+A ?= apps/c/helloworld
 APP ?= $(A)
 FEATURES ?=
 APP_FEATURES ?=
@@ -54,7 +54,6 @@ NET ?= n
 GRAPHIC ?= n
 V9P ?= n
 BUS ?= mmio
-
 
 DISK_IMG ?= disk.img
 QEMU_LOG ?= n
@@ -130,18 +129,18 @@ else
   $(error "ARCH" must be one of "x86_64", "riscv64", or "aarch64")
 endif
 
-export AX_ARCH=$(ARCH)
-export AX_PLATFORM=$(PLATFORM_NAME)
-export AX_SMP=$(SMP)
-export AX_MODE=$(MODE)
-export AX_LOG=$(LOG)
-export AX_TARGET=$(TARGET)
-export AX_IP=$(IP)
-export AX_GW=$(GW)
-export AX_9P_ADDR = $(NET_9P_ADDR)
-export AX_ANAME_9P = $(ANAME_9P)
-export AX_PROTOCOL_9P = $(PROTOCOL_9P)
-export AX_MUSL=$(MUSL)
+export RUX_ARCH=$(ARCH)
+export RUX_PLATFORM=$(PLATFORM_NAME)
+export RUX_SMP=$(SMP)
+export RUX_MODE=$(MODE)
+export RUX_LOG=$(LOG)
+export RUX_TARGET=$(TARGET)
+export RUX_IP=$(IP)
+export RUX_GW=$(GW)
+export RUX_9P_ADDR = $(NET_9P_ADDR)
+export RUX_ANAME_9P = $(ANAME_9P)
+export RUX_PROTOCOL_9P = $(PROTOCOL_9P)
+export RUX_MUSL=$(MUSL)
 
 # Binutils
 CROSS_COMPILE ?= $(ARCH)-linux-musl-
@@ -158,7 +157,7 @@ GDB ?= gdb-multiarch
 OUT_DIR ?= $(APP)
 
 APP_NAME := $(shell basename $(APP))
-LD_SCRIPT := $(CURDIR)/modules/axhal/linker_$(PLATFORM_NAME).lds
+LD_SCRIPT := $(CURDIR)/modules/ruxhal/linker_$(PLATFORM_NAME).lds
 OUT_ELF := $(OUT_DIR)/$(APP_NAME)_$(PLATFORM_NAME).elf
 OUT_BIN := $(OUT_DIR)/$(APP_NAME)_$(PLATFORM_NAME).bin
 
@@ -210,7 +209,7 @@ fmt:
 	cargo fmt --all
 
 fmt_c:
-	@clang-format --style=file -i $(shell find ulib/axlibc -iname '*.c' -o -iname '*.h')
+	@clang-format --style=file -i $(shell find ulib/ruxlibc -iname '*.c' -o -iname '*.h')
 
 test:
 	$(call app_test)
@@ -233,11 +232,11 @@ clean: clean_c clean_musl
 	cargo clean
 
 clean_c::
-	rm -rf ulib/axlibc/build_*
+	rm -rf ulib/ruxlibc/build_*
 	rm -rf $(app-objs)
 
 clean_musl:
-	rm -rf ulib/axmusl/build_*
-	rm -rf ulib/axmusl/install
+	rm -rf ulib/ruxmusl/build_*
+	rm -rf ulib/ruxmusl/install
 
 .PHONY: all build disasm run justrun debug clippy fmt fmt_c test test_no_fail_fast clean clean_c clean_musl doc disk_image

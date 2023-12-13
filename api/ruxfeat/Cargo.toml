@@ -1,0 +1,86 @@
+[package]
+name = "ruxfeat"
+version = "0.1.0"
+edition = "2021"
+authors = [
+    "Yuekai Jia <equation618@gmail.com>",
+    "yanjuguang <coolyanjg@163.com>",
+]
+description = "Top-level feature selection for RuxOS"
+license = "GPL-3.0-or-later OR Apache-2.0"
+homepage = "https://github.com/syswonder/ruxos"
+repository = "https://github.com/syswonder/ruxos/tree/main/api/ruxfeat"
+
+[features]
+default = []
+
+# Multicore
+smp = ["ruxhal/smp", "ruxruntime/smp", "spinlock/smp"]
+
+# Floating point/SIMD
+fp_simd = ["ruxhal/fp_simd"]
+
+# Interrupts
+irq = ["ruxhal/irq", "ruxruntime/irq", "ruxtask?/irq"]
+
+# Real time clock
+rtc = ["ruxhal/rtc", "ruxruntime/rtc"]
+
+# Memory
+alloc = ["axalloc", "ruxruntime/alloc"]
+alloc-tlsf = ["axalloc/tlsf"]
+alloc-slab = ["axalloc/slab"]
+alloc-buddy = ["axalloc/buddy"]
+paging = ["alloc", "ruxhal/paging", "ruxruntime/paging"]
+tls = ["alloc", "ruxhal/tls", "ruxruntime/tls", "ruxtask?/tls"]
+
+# Multi-threading and scheduler
+multitask = ["alloc", "ruxtask/multitask", "axsync/multitask", "ruxruntime/multitask"]
+sched_fifo = ["ruxtask/sched_fifo"]
+sched_rr = ["ruxtask/sched_rr", "irq"]
+sched_cfs = ["ruxtask/sched_cfs", "irq"]
+
+# File system
+fs = ["alloc", "paging", "dep:ruxfs", "ruxruntime/fs"] # TODO: try to remove "paging"
+blkfs = ["ruxdriver/virtio-blk", "ruxruntime/blkfs"]
+myfs = ["ruxfs?/myfs"]
+9pfs = []
+
+# Networking
+net = ["alloc", "paging", "ruxdriver/virtio-net", "dep:axnet", "ruxruntime/net"]
+
+# Display
+display = ["alloc", "paging", "ruxdriver/virtio-gpu", "dep:ruxdisplay", "ruxruntime/display"]
+
+# 9P
+virtio-9p = ["9pfs", "ruxdriver/virtio-9p", "rux9p/virtio-9p", "ruxruntime/virtio-9p"]
+net-9p = ["9pfs", "net", "rux9p/net-9p", "ruxruntime/net-9p"]
+
+# Device drivers
+bus-mmio = ["ruxdriver?/bus-mmio"]
+bus-pci = ["ruxdriver?/bus-pci"]
+driver-ramdisk = ["ruxdriver?/ramdisk", "ruxfs?/use-ramdisk"]
+driver-ixgbe = ["ruxdriver?/ixgbe"]
+driver-bcm2835-sdhci = ["ruxdriver?/bcm2835-sdhci"]
+
+# Logging
+log-level-off = ["axlog/log-level-off"]
+log-level-error = ["axlog/log-level-error"]
+log-level-warn = ["axlog/log-level-warn"]
+log-level-info = ["axlog/log-level-info"]
+log-level-debug = ["axlog/log-level-debug"]
+log-level-trace = ["axlog/log-level-trace"]
+
+[dependencies]
+ruxruntime = { path = "../../modules/ruxruntime" }
+ruxhal = { path = "../../modules/ruxhal" }
+axlog = { path = "../../modules/axlog" }
+axalloc = { path = "../../modules/axalloc", optional = true }
+ruxdriver = { path = "../../modules/ruxdriver", optional = true }
+ruxfs = { path = "../../modules/ruxfs", optional = true }
+rux9p = { path = "../../modules/rux9p", optional = true }
+axnet = { path = "../../modules/axnet", optional = true }
+ruxdisplay = { path = "../../modules/ruxdisplay", optional = true }
+axsync = { path = "../../modules/axsync", optional = true }
+ruxtask = { path = "../../modules/ruxtask", optional = true }
+spinlock = { path = "../../crates/spinlock", optional = true }

@@ -1,5 +1,5 @@
 /* Copyright (c) [2023] [Syswonder Community]
- *   [Rukos] is licensed under Mulan PSL v2.
+ *   [Ruxos] is licensed under Mulan PSL v2.
  *   You can use this software according to the terms and conditions of the Mulan PSL v2.
  *   You may obtain a copy of Mulan PSL v2 at:
  *               http://license.coscl.org.cn/MulanPSL2
@@ -7,7 +7,7 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-//! [ArceOS](https://github.com/rcore-os/arceos) global memory allocator.
+//! [Ruxos](https://github.com/syswonder/ruxos) global memory allocator.
 //!
 //! It provides [`GlobalAllocator`], which implements the trait
 //! [`core::alloc::GlobalAlloc`]. A static global variable of type
@@ -42,7 +42,7 @@ cfg_if::cfg_if! {
     }
 }
 
-/// The global allocator used by ArceOS.
+/// The global allocator used by Ruxos.
 ///
 /// It combines a [`ByteAllocator`] and a [`PageAllocator`] into a simple
 /// two-level allocator: firstly tries allocate from the byte allocator, if

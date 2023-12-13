@@ -1,5 +1,5 @@
 /* Copyright (c) [2023] [Syswonder Community]
- *   [Rukos] is licensed under Mulan PSL v2.
+ *   [Ruxos] is licensed under Mulan PSL v2.
  *   You can use this software according to the terms and conditions of the Mulan PSL v2.
  *   You may obtain a copy of Mulan PSL v2 at:
  *               http://license.coscl.org.cn/MulanPSL2
@@ -64,7 +64,7 @@ impl DrawingBoard {
         .into_styled(PrimitiveStyle::with_stroke(Rgb888::GREEN, 10))
         .draw(&mut self.disp)
         .ok();
-        let text = "ArceOS";
+        let text = "Ruxos";
         Text::with_alignment(
             text,
             self.latest_pos + Point::new(0, 300),

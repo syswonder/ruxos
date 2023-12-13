@@ -1,4 +1,4 @@
-# How to run arceos with ixgbe NIC?
+# How to run Ruxos with ixgbe NIC?
 
 You need to specify the platform that owns this network card. For example, we defined a toml file named `x86_64-pc-oslab`` under the platforms directory to describe the platform characteristics.
 

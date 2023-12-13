@@ -10,14 +10,14 @@ repository = "https://github.com/rcore-os/arceos/tree/main/modules/axsync"
 documentation = "https://rcore-os.github.io/arceos/axsync/index.html"
 
 [features]
-multitask = ["axtask/multitask"]
+multitask = ["ruxtask/multitask"]
 default = []
 
 [dependencies]
 spinlock = { path = "../../crates/spinlock" }
-axtask = { path = "../axtask" }
+ruxtask = { path = "../ruxtask" }
 
 [dev-dependencies]
 rand = "0.8"
 axsync = { path = ".", features = ["multitask"] }
-axtask = { path = "../axtask", features = ["test"] }
+ruxtask = { path = "../ruxtask", features = ["test"] }

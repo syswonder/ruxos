@@ -1,5 +1,5 @@
 /* Copyright (c) [2023] [Syswonder Community]
- *   [Rukos] is licensed under Mulan PSL v2.
+ *   [Ruxos] is licensed under Mulan PSL v2.
  *   You can use this software according to the terms and conditions of the Mulan PSL v2.
  *   You may obtain a copy of Mulan PSL v2 at:
  *               http://license.coscl.org.cn/MulanPSL2
@@ -7,7 +7,7 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-//! [ArceOS](https://github.com/rcore-os/arceos) network module.
+//! [Ruxos](https://github.com/syswonder/ruxos) network module.
 //!
 //! It provides unified networking primitives for TCP/UDP communication
 //! using various underlying network stacks. Currently, only [smoltcp] is
@@ -46,7 +46,7 @@ pub use self::net_impl::UdpSocket;
 pub use self::net_impl::{bench_receive, bench_transmit};
 pub use self::net_impl::{dns_query, poll_interfaces};
 
-use axdriver::{prelude::*, AxDeviceContainer};
+use ruxdriver::{prelude::*, AxDeviceContainer};
 
 /// Initializes the network subsystem by NIC devices.
 pub fn init_network(mut net_devs: AxDeviceContainer<AxNetDevice>) {

@@ -20,62 +20,62 @@ documentation = "https://rcore-os.github.io/arceos/axstd/index.html"
 default = []
 
 # Multicore
-smp = ["axfeat/smp", "spinlock/smp"]
+smp = ["ruxfeat/smp", "spinlock/smp"]
 
 # Floating point/SIMD
-fp_simd = ["axfeat/fp_simd"]
+fp_simd = ["ruxfeat/fp_simd"]
 
 # Interrupts
-irq = ["arceos_api/irq", "axfeat/irq"]
+irq = ["arceos_api/irq", "ruxfeat/irq"]
 
 # real time clock
-rtc = ["arceos_api/rtc", "axfeat/rtc"]
+rtc = ["arceos_api/rtc", "ruxfeat/rtc"]
 
 # Memory
-alloc = ["arceos_api/alloc", "axfeat/alloc", "axio/alloc"]
-alloc-tlsf = ["axfeat/alloc-tlsf"]
-alloc-slab = ["axfeat/alloc-slab"]
-alloc-buddy = ["axfeat/alloc-buddy"]
-paging = ["axfeat/paging"]
-tls = ["axfeat/tls"]
+alloc = ["arceos_api/alloc", "ruxfeat/alloc", "axio/alloc"]
+alloc-tlsf = ["ruxfeat/alloc-tlsf"]
+alloc-slab = ["ruxfeat/alloc-slab"]
+alloc-buddy = ["ruxfeat/alloc-buddy"]
+paging = ["ruxfeat/paging"]
+tls = ["ruxfeat/tls"]
 
 # Multi-threading and scheduler
-multitask = ["arceos_api/multitask", "axfeat/multitask"]
-sched_fifo = ["axfeat/sched_fifo"]
-sched_rr = ["axfeat/sched_rr"]
-sched_cfs = ["axfeat/sched_cfs"]
+multitask = ["arceos_api/multitask", "ruxfeat/multitask"]
+sched_fifo = ["ruxfeat/sched_fifo"]
+sched_rr = ["ruxfeat/sched_rr"]
+sched_cfs = ["ruxfeat/sched_cfs"]
 
 # File system
-fs = ["arceos_api/fs", "axfeat/fs"]
-myfs = ["arceos_api/myfs", "axfeat/myfs"]
-blkfs = ["axfeat/blkfs"]
-virtio-9p = ["axfeat/virtio-9p"]
-net-9p = ["axfeat/net-9p"]
+fs = ["arceos_api/fs", "ruxfeat/fs"]
+myfs = ["arceos_api/myfs", "ruxfeat/myfs"]
+blkfs = ["ruxfeat/blkfs"]
+virtio-9p = ["ruxfeat/virtio-9p"]
+net-9p = ["ruxfeat/net-9p"]
 
 # Networking
-net = ["arceos_api/net", "axfeat/net"]
+net = ["arceos_api/net", "ruxfeat/net"]
 dns = []
 
 # Display
-display = ["arceos_api/display", "axfeat/display"]
+display = ["arceos_api/display", "ruxfeat/display"]
 
 # Device drivers
-bus-mmio = ["axfeat/bus-mmio"]
-bus-pci = ["axfeat/bus-pci"]
-driver-ramdisk = ["axfeat/driver-ramdisk"]
-driver-ixgbe = ["axfeat/driver-ixgbe"]
-driver-bcm2835-sdhci = ["axfeat/driver-bcm2835-sdhci"]
+bus-mmio = ["ruxfeat/bus-mmio"]
+bus-pci = ["ruxfeat/bus-pci"]
+driver-ramdisk = ["ruxfeat/driver-ramdisk"]
+driver-ixgbe = ["ruxfeat/driver-ixgbe"]
+driver-bcm2835-sdhci = ["ruxfeat/driver-bcm2835-sdhci"]
 
 # Logging
-log-level-off = ["axfeat/log-level-off"]
-log-level-error = ["axfeat/log-level-error"]
-log-level-warn = ["axfeat/log-level-warn"]
-log-level-info = ["axfeat/log-level-info"]
-log-level-debug = ["axfeat/log-level-debug"]
-log-level-trace = ["axfeat/log-level-trace"]
+log-level-off = ["ruxfeat/log-level-off"]
+log-level-error = ["ruxfeat/log-level-error"]
+log-level-warn = ["ruxfeat/log-level-warn"]
+log-level-info = ["ruxfeat/log-level-info"]
+log-level-debug = ["ruxfeat/log-level-debug"]
+log-level-trace = ["ruxfeat/log-level-trace"]
 
 [dependencies]
-axfeat = { path = "../../api/axfeat" }
+ruxfeat = { path = "../../api/ruxfeat" }
 arceos_api = { path = "../../api/arceos_api" }
 axio = { path = "../../crates/axio" }
 axerrno = { path = "../../crates/axerrno" }
