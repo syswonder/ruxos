@@ -12,9 +12,6 @@ nginx-build-args := \
   CFLAGS="$(CFLAGS)" \
   USE_JEMALLOC=no \
   -j
-$(info lhw debug CC $(CC) CFLAGS $(CFLAGS) )
-$(info lhw debug LD $(LD) LDFLAGS $(LDFLAGS) )
-$(info lhw debug copy obj: $(OBJCOPY), $(OUT_ELF))
 
 ifneq ($(V),)
   nginx-build-args += V=$(V)
@@ -38,8 +35,6 @@ $(nginx-src):
 	@echo "Download nginx source code"
 	wget https://nginx.org/download/nginx-$(nginx-version).tar.gz -P $(APP)
 	tar -zxvf $(APP)/nginx-$(nginx-version).tar.gz -C $(APP) && rm -f $(APP)/nginx-$(nginx-version).tar.gz
-	cd $(nginx-src) && git init && git add .
-#	patch -p1 -N -d $(nginx-objdir) --no-backup-if-mismatch -r - < $(APP)/nginx.patch
 
 $(APP)/$(nginx-objs): build_nginx
 
