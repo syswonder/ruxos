@@ -1,5 +1,5 @@
 /* Copyright (c) [2023] [Syswonder Community]
- *   [Rukos] is licensed under Mulan PSL v2.
+ *   [Ruxos] is licensed under Mulan PSL v2.
  *   You can use this software according to the terms and conditions of the Mulan PSL v2.
  *   You may obtain a copy of Mulan PSL v2 at:
  *               http://license.coscl.org.cn/MulanPSL2
@@ -43,10 +43,7 @@ const SPACE: u8 = b' ';
 const MAX_CMD_LEN: usize = 256;
 
 fn print_prompt() {
-    print!(
-        "arceos:{}$ ",
-        path_to_str!(std::env::current_dir().unwrap())
-    );
+    print!("ruxos:{}$ ", path_to_str!(std::env::current_dir().unwrap()));
     std::io::stdout().flush().unwrap();
 }
 

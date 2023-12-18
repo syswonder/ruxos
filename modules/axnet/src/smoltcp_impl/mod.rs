@@ -1,5 +1,5 @@
 /* Copyright (c) [2023] [Syswonder Community]
- *   [Rukos] is licensed under Mulan PSL v2.
+ *   [Ruxos] is licensed under Mulan PSL v2.
  *   You can use this software according to the terms and conditions of the Mulan PSL v2.
  *   You may obtain a copy of Mulan PSL v2 at:
  *               http://license.coscl.org.cn/MulanPSL2
@@ -18,11 +18,11 @@ use alloc::vec;
 use core::cell::RefCell;
 use core::ops::DerefMut;
 
-use axdriver::prelude::*;
-use axhal::time::{current_time_nanos, NANOS_PER_MICROS};
 use axsync::Mutex;
 use driver_net::{DevError, NetBufPtr};
 use lazy_init::LazyInit;
+use ruxdriver::prelude::*;
+use ruxhal::time::{current_time_nanos, NANOS_PER_MICROS};
 use smoltcp::iface::{Config, Interface, SocketHandle, SocketSet};
 use smoltcp::phy::{Device, DeviceCapabilities, Medium, RxToken, TxToken};
 use smoltcp::socket::{self, AnySocket};
@@ -44,8 +44,8 @@ macro_rules! env_or_default {
     };
 }
 
-const IP: &str = env_or_default!("AX_IP");
-const GATEWAY: &str = env_or_default!("AX_GW");
+const IP: &str = env_or_default!("RUX_IP");
+const GATEWAY: &str = env_or_default!("RUX_GW");
 const DNS_SEVER: &str = "8.8.8.8";
 const IP_PREFIX: u8 = 24;
 

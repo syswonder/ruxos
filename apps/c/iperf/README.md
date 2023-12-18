@@ -1,11 +1,11 @@
-# How to run iperf on ArceOS and benchmark network performance
+# How to run iperf on Ruxos and benchmark network performance
 
 ## Build & run
 
-Build and start the [`iperf3`](https://github.com/esnet/iperf) server on ArceOS:
+Build and start the [`iperf3`](https://github.com/esnet/iperf) server on Ruxos:
 
 ```bash
-# in arceos root directory
+# in ruxos root directory
 make A=apps/c/iperf BLK=y NET=y ARCH=<arch> run
 ```
 
@@ -13,7 +13,7 @@ make A=apps/c/iperf BLK=y NET=y ARCH=<arch> run
 
 In another shell, run the `iperf3` client:
 
-* iperf on ArceOS as the receiver:
+* iperf on Ruxos as the receiver:
 
     ```bash
     # TCP
@@ -24,7 +24,7 @@ In another shell, run the `iperf3` client:
 
     You need to set the `<sender_bitrate>` (in bits/sec) to avoid sending packets too fast from the client when use UDP.
 
-* iperf on ArceOS as the sender:
+* iperf on Ruxos as the sender:
 
     ```bash
     # TCP
@@ -38,7 +38,7 @@ By default, the `<buffer_len>` is 128 KB for TCP and 8 KB for UDP. Larger buffer
 Note that if the `<buffer_len>` is greater than `1472` (total packet length is exceeded the MTU of the NIC) when use UDP, packets fragmentation will occur. You should enable fragmentation features in [smoltcp](https://github.com/smoltcp-rs/smoltcp):
 
 ```toml
-# in arceos/modules/axnet/Cargo.toml
+# in ruxos/modules/axnet/Cargo.toml
 [dependencies.smoltcp]
 git = "https://github.com/smoltcp-rs/smoltcp.git"
 rev = "1f9b9f0"

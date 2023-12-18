@@ -1,0 +1,16 @@
+[package]
+name = "ruxdisplay"
+version = "0.1.0"
+edition = "2021"
+authors = ["Shiping Yuan <robert_yuan@pku.edu.com>"]
+description = "Ruxos graphics module"
+license = "GPL-3.0-or-later OR Apache-2.0"
+homepage = "https://github.com/syswonder/ruxos"
+repository = "https://github.com/syswonder/ruxos/tree/main/modules/ruxdisplay"
+
+[dependencies]
+log = "0.4"
+ruxdriver = { path = "../ruxdriver", features = ["display"] }
+lazy_init = { path = "../../crates/lazy_init" }
+axsync = { path = "../axsync" }
+driver_display = { path = "../../crates/driver_display" }

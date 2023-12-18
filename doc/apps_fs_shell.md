@@ -2,7 +2,7 @@
 
 | App | Extra modules | Enabled features | Description |
 |-|-|-|-|
-| [shell](../apps/fs/shell/) | axalloc, axdriver, axfs | alloc, paging, fs | A simple shell that responds to filesystem operations |
+| [shell](../apps/fs/shell/) | axalloc, ruxdriver, ruxfs | alloc, paging, fs | A simple shell that responds to filesystem operations |
 
 # RUN
 
@@ -22,21 +22,21 @@ make A=apps/fs/shell ARCH=aarch64 LOG=debug BLK=y run
 
 ```
 ...
-[  0.006204 0 axdriver:64] Initialize device drivers...
+[  0.006204 0 ruxdriver:64] Initialize device drivers...
 [  0.006396 0 driver_virtio:50] Detected virtio MMIO device with vendor id: 0x554D4551, device type: Block, version: Legacy
 [  0.006614 0 virtio_drivers::device::blk:55] device features: SEG_MAX | GEOMETRY | BLK_SIZE | SCSI | FLUSH | TOPOLOGY | CONFIG_WCE | DISCARD | WRITE_ZEROES | NOTIFY_ON_EMPTY | RING_INDIRECT_DESC | RING_EVENT_IDX
 [  0.007094 0 virtio_drivers::device::blk:64] config: 0xffff00000a003f00
 [  0.007270 0 virtio_drivers::device::blk:69] found a block device of size 34000KB
-[  0.007956 0 axdriver::virtio:88] created a new Block device: "virtio-blk"
-[  0.008488 0 axfs:25] Initialize filesystems...
-[  0.008584 0 axfs:26]   use block device: "virtio-blk"
+[  0.007956 0 ruxdriver::virtio:88] created a new Block device: "virtio-blk"
+[  0.008488 0 ruxfs:25] Initialize filesystems...
+[  0.008584 0 ruxfs:26]   use block device: "virtio-blk"
 [  0.025432 0 axalloc:57] expand heap memory: [0xffff00004012f000, 0xffff00004013f000)
 [  0.025680 0 axalloc:57] expand heap memory: [0xffff00004013f000, 0xffff00004015f000)
-[  0.026510 0 axfs::fs::fatfs:122] create Dir at fatfs: /dev
-[  0.043112 0 axfs::fs::fatfs:102] lookup at fatfs: /dev
+[  0.026510 0 ruxfs::fs::fatfs:122] create Dir at fatfs: /dev
+[  0.043112 0 ruxfs::fs::fatfs:102] lookup at fatfs: /dev
 [  0.049562 0 fatfs::dir:140] Is a directory
-[  0.057550 0 axruntime:137] Initialize interrupt handlers...
-[  0.057870 0 axruntime:143] Primary CPU 0 init OK.
+[  0.057550 0 ruxruntime:137] Initialize interrupt handlers...
+[  0.057870 0 ruxruntime:143] Primary CPU 0 init OK.
 Available commands:
   cat
   cd
@@ -48,7 +48,7 @@ Available commands:
   pwd
   rm
   uname
-arceos:/$
+Ruxos:/$
 ```
 
 # STEPS
@@ -57,7 +57,7 @@ arceos:/$
 
 [init](./init.md)
 
-After executed all initial actions, then arceos calls `main` function in `shell` app.
+After executed all initial actions, then Ruxos calls `main` function in `shell` app.
 
 ## Step2
 
@@ -196,18 +196,18 @@ graph TD
   lib_create[libax::fs::File::create] --> |WRITE/CREATE/TRUNCATE| open_opt
   lib_open[libax::fs::File::open] --> |READ ONLY| open_opt
   lib_meta[libax::fs::metadata] --> lib_open1[libax::fs::File::open] --> |READ ONLY| open_opt
-  lib_meta --> f_meta[axfs::fops::File::get_attr] --> vfs_getattr
+  lib_meta --> f_meta[ruxfs::fops::File::get_attr] --> vfs_getattr
   lib_meta -..-> |not found/permission denied| err(Return error)
-	open_opt["axfs::api::file::OpenOptions::open"] --> fops_open
+	open_opt["ruxfs::api::file::OpenOptions::open"] --> fops_open
 
-	fops_open["axfs::fops::File::open"] --> fops_openat
-	fops_openat["axfs::fops::File::_open_at"]
+	fops_open["ruxfs::fops::File::open"] --> fops_openat
+	fops_openat["ruxfs::fops::File::_open_at"]
 	fops_openat --> lookup
 	fops_openat --> |w/ CREATE flag| create_file
 	fops_openat --> vfs_getattr
 
-	lookup["axfs::root::lookup"] --> vfs_lookup
-	create_file["axfs::root::create_file"]
+	lookup["ruxfs::root::lookup"] --> vfs_lookup
+	create_file["ruxfs::root::create_file"]
 	create_file --> vfs_lookup
 	create_file --> vfs_create
 	create_file --> vfs_truncate
@@ -227,8 +227,8 @@ graph TD
 
 ```mermaid
 graph TD
-	lib_mkdir[libax::fs::create_dir] --> builder_create["axfs::api::DirBuilder::create"]
-	builder_create --> root_create[axfs::root::create_dir] --> lookup[axfs::root::lookup]
+	lib_mkdir[libax::fs::create_dir] --> builder_create["ruxfs::api::DirBuilder::create"]
+	builder_create --> root_create[ruxfs::root::create_dir] --> lookup[ruxfs::root::lookup]
 	lookup -..-> |exists/other error| err(Return error)
 	root_create -->|type=VfsNodeType::Dir| node_create[axfs_vfs::VfsNodeOps::create] --> fs_impl[[FS implementation]]
 
@@ -242,11 +242,11 @@ graph TD
 ```mermaid
 graph LR
   lib_read[libax::fs::File::read] --> fops_read
-  fops_read[axfs::fops::File::read] ---> |w/ read permission| vfs_read_at
+  fops_read[ruxfs::fops::File::read] ---> |w/ read permission| vfs_read_at
   vfs_read_at[axfs_vfs::VfsNodeOps::read] --> fs_impl[[FS implementation]]
 
 	lib_write[libax::fs::File::write] --> fops_write
-  fops_write[axfs::fops::File::write] ---> |w/ write permission| vfs_write_at
+  fops_write[ruxfs::fops::File::write] ---> |w/ write permission| vfs_write_at
   vfs_write_at[axfs_vfs::VfsNodeOps::write] --> fs_impl[[FS implementation]]
 
   fops_read -.-> |else| err1(Return error)
@@ -257,7 +257,7 @@ graph LR
 
 ```mermaid
 graph LR
-	lib_gwd[libax::fs::current_dir] --> root_gwd[axfs::root::current_dir]
+	lib_gwd[libax::fs::current_dir] --> root_gwd[ruxfs::root::current_dir]
 	lib_gwd -.-> return("Return path")
 ```
 
@@ -265,10 +265,10 @@ graph LR
 
 ```mermaid
 graph TD
-  lib_cd[libax::fs::set_current_dir] --> root_cd[axfs::root::set_current_dir]
+  lib_cd[libax::fs::set_current_dir] --> root_cd[ruxfs::root::set_current_dir]
 
   root_cd -..-> |is root| change[Set CURRENT_DIR and CURRENT_DIR_PATH]
-  root_cd --> |else| lookup["axfs::root::lookup"]
+  root_cd --> |else| lookup["ruxfs::root::lookup"]
 
   vfs_lookup["axfs_vfs::VfsNodeOps::lookup"]
   lookup --> vfs_lookup --> fs_impl[[FS implementation]]
@@ -280,11 +280,11 @@ graph TD
 
 ```mermaid
 graph TD
-	lib_rmdir[libax::fs::remove_dir] --> root_rmdir[axfs::root::remove_dir]
+	lib_rmdir[libax::fs::remove_dir] --> root_rmdir[ruxfs::root::remove_dir]
 
   root_rmdir -.-> |empty/is root/invalid/permission denied| ret_err(Return error)
 
-  root_rmdir --> lookup[axfs::root::lookup] --> vfs_lookup["axfs_vfs::VfsNodeOps::lookup"] ---> fs_impl[[FS implementation]]
+  root_rmdir --> lookup[ruxfs::root::lookup] --> vfs_lookup["axfs_vfs::VfsNodeOps::lookup"] ---> fs_impl[[FS implementation]]
   lookup -...-> |not found| ret_err
 
   root_rmdir --> meta[axfs_vfs::VfsNodeOps::get_attr] --> fs_impl
@@ -298,9 +298,9 @@ graph TD
 
 ```mermaid
 graph TD
-	lib_rm[libax::fs::remove_file] --> root_rm[axfs::root::remove_file]
+	lib_rm[libax::fs::remove_file] --> root_rm[ruxfs::root::remove_file]
 
-  root_rm --> lookup[axfs::root::lookup] --> vfs_lookup["axfs_vfs::VfsNodeOps::lookup"]
+  root_rm --> lookup[ruxfs::root::lookup] --> vfs_lookup["axfs_vfs::VfsNodeOps::lookup"]
   	---> fs_impl[[FS implementation]]
   lookup -.-> |not found| ret_err
   root_rm ---> meta[axfs_vfs::VfsNodeOps::get_attr] ---> fs_impl

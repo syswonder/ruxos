@@ -5,7 +5,7 @@
 ### 下载网页
 
 ```shell
-//首先要确保机器中有musl libc,可以运行rukos的c程序，具体可以参考rukos的README中运行c程序的部分
+//首先要确保机器中有musl libc,可以运行Ruxos的c程序，具体可以参考Ruxos的README中运行c程序的部分
 git clone https://github.com/syswonder/syswonder-web.git
 mkdir -p apps/c/nginx/html
 cp -r syswonder-web/docs/* apps/c/nginx/html
@@ -137,7 +137,7 @@ http {
 
 上面的设置会在本机的5555端口建立一个服务器，向请求者发送Index.heml文件
 
-其中需要注意的点是：1.rukos是单进程系统，无法分出第二个进程，需要使用`daemon off;`设置将守护进程关闭。2.server的文件在机器的/v9fs/下，这是由`root /v9fs;`这一项设置的，可以根据需求设置其他的路径。3. `try_files $uri $uri/ /404.html;`的意思是尝试请求的uri是否存在，不存在的话返回404页面。
+其中需要注意的点是：1.ruxos是单进程系统，无法分出第二个进程，需要使用`daemon off;`设置将守护进程关闭。2.server的文件在机器的/v9fs/下，这是由`root /v9fs;`这一项设置的，可以根据需求设置其他的路径。3. `try_files $uri $uri/ /404.html;`的意思是尝试请求的uri是否存在，不存在的话返回404页面。
 
 如果想要使用nginx的其他用法，需要对应修改nginx.conf文件，具体语法可以查阅官方文档。但是目前还没有尝试过除了http服务器之外的用法。
 
@@ -150,7 +150,7 @@ http {
 ## 运行命令：
 
 ```shell
-make A=apps/c/nginx/ LOG=info NET=y BLK=y V9P=y V9P_PATH=/home/oslab/Desktop/rukos/apps/c/nginx/html/  ARCH=aarch64 SMP=4 ARGS="./nginx_app" MUSL=y run
+make A=apps/c/nginx/ LOG=info NET=y BLK=y V9P=y V9P_PATH=/home/oslab/Desktop/Ruxos/apps/c/nginx/html/  ARCH=aarch64 SMP=4 ARGS="./nginx_app" MUSL=y run
 ```
 
 需要注意的是，nginx.conf中对外的端口是系统的端口，不是qemu以及宿主机的端口，需要对qemu以及宿主机进行相应的设置，使得对应的端口（上面的例子是5555端口）暴露在外面，才能被访问。

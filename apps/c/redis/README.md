@@ -26,7 +26,7 @@
 
 
 # How to test?
-- Use `redis-cli -p 5555` to connect to redis-server, and enjoy ArceOS-Redis world!
+- Use `redis-cli -p 5555` to connect to redis-server, and enjoy Ruxos-Redis world!
 - Use `redis-benchmark -p 5555` and other optional parameters to run the benchmark.
     - Like: `redis-benchmark -p 5555 -n 5 -q -c 10`, this command issues 5 requests for each commands (like `set`, `get`, etc.), with 10 concurrency.
     - `LRANGE_xxx` test may fail because of running out of memory(Follow notes 4, 5).
@@ -281,7 +281,7 @@ MSET (10 keys): 183150.19 requests per second
   ```
 ### X86_64
 
-# Run ArceOS-Redis On PC
+# Run Ruxos-Redis On PC
 
 ## Notification
 
@@ -292,8 +292,8 @@ MSET (10 keys): 183150.19 requests per second
 
 - `make A=apps/c/redis LOG=error PLATFORM=x86_64-pc-oslab SMP=4 FEATURES=driver-ixgbe,driver-ramdisk IP=10.2.2.2 GW=10.2.2.1`
 - Copy `redis_x86_64-pc-oslab.elf` to `/boot`, then reboot.
-- Enter `grub` then boot the PC by ArceOS Redis.
-- Connect to ArceOS-Redis server by:
+- Enter `grub` then boot the PC by Ruxos Redis.
+- Connect to Ruxos-Redis server by:
   - `redis-cli -p 5555 -h 10.2.2.2`
   - `redis-benchmark -p 5555 -h 10.2.2.2`
 

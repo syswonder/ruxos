@@ -1,5 +1,5 @@
 /* Copyright (c) [2023] [Syswonder Community]
- *   [Rukos] is licensed under Mulan PSL v2.
+ *   [Ruxos] is licensed under Mulan PSL v2.
  *   You can use this software according to the terms and conditions of the Mulan PSL v2.
  *   You may obtain a copy of Mulan PSL v2 at:
  *               http://license.coscl.org.cn/MulanPSL2
@@ -9,17 +9,17 @@
 
 use alloc::string::String;
 use axerrno::AxResult;
-use axfs::fops::{Directory, File};
+use ruxfs::fops::{Directory, File};
 
-pub use axfs::fops::DirEntry as AxDirEntry;
-pub use axfs::fops::FileAttr as AxFileAttr;
-pub use axfs::fops::FilePerm as AxFilePerm;
-pub use axfs::fops::FileType as AxFileType;
-pub use axfs::fops::OpenOptions as AxOpenOptions;
+pub use ruxfs::fops::DirEntry as AxDirEntry;
+pub use ruxfs::fops::FileAttr as AxFileAttr;
+pub use ruxfs::fops::FilePerm as AxFilePerm;
+pub use ruxfs::fops::FileType as AxFileType;
+pub use ruxfs::fops::OpenOptions as AxOpenOptions;
 pub use axio::SeekFrom as AxSeekFrom;
 
 #[cfg(feature = "myfs")]
-pub use axfs::fops::{Disk as AxDisk, MyFileSystemIf};
+pub use ruxfs::fops::{Disk as AxDisk, MyFileSystemIf};
 
 /// A handle to an opened file.
 pub struct AxFileHandle(File);
@@ -72,25 +72,25 @@ pub fn ax_read_dir(dir: &mut AxDirHandle, dirents: &mut [AxDirEntry]) -> AxResul
 }
 
 pub fn ax_create_dir(path: &str) -> AxResult {
-    axfs::api::create_dir(path)
+    ruxfs::api::create_dir(path)
 }
 
 pub fn ax_remove_dir(path: &str) -> AxResult {
-    axfs::api::remove_dir(path)
+    ruxfs::api::remove_dir(path)
 }
 
 pub fn ax_remove_file(path: &str) -> AxResult {
-    axfs::api::remove_file(path)
+    ruxfs::api::remove_file(path)
 }
 
 pub fn ax_rename(old: &str, new: &str) -> AxResult {
-    axfs::api::rename(old, new)
+    ruxfs::api::rename(old, new)
 }
 
 pub fn ax_current_dir() -> AxResult<String> {
-    axfs::api::current_dir()
+    ruxfs::api::current_dir()
 }
 
 pub fn ax_set_current_dir(path: &str) -> AxResult {
-    axfs::api::set_current_dir(path)
+    ruxfs::api::set_current_dir(path)
 }

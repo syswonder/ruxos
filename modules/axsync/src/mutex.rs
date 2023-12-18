@@ -1,5 +1,5 @@
 /* Copyright (c) [2023] [Syswonder Community]
- *   [Rukos] is licensed under Mulan PSL v2.
+ *   [Ruxos] is licensed under Mulan PSL v2.
  *   You can use this software according to the terms and conditions of the Mulan PSL v2.
  *   You may obtain a copy of Mulan PSL v2 at:
  *               http://license.coscl.org.cn/MulanPSL2
@@ -14,7 +14,7 @@ use core::fmt;
 use core::ops::{Deref, DerefMut};
 use core::sync::atomic::{AtomicU64, Ordering};
 
-use axtask::{current, WaitQueue};
+use ruxtask::{current, WaitQueue};
 
 /// A mutual exclusion primitive useful for protecting shared data, similar to
 /// [`std::sync::Mutex`](https://doc.rust-lang.org/std/sync/struct.Mutex.html).
@@ -209,7 +209,7 @@ impl<'a, T: ?Sized> Drop for MutexGuard<'a, T> {
 #[cfg(test)]
 mod tests {
     use crate::Mutex;
-    use axtask as thread;
+    use ruxtask as thread;
     use std::sync::Once;
 
     static INIT: Once = Once::new();
