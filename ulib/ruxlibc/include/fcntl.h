@@ -11,7 +11,9 @@
 #define __FCNTL_H__
 
 #include <sys/types.h>
+//#include <sys/select.h>
 
+#define AT_SYMLINK_NOFOLLOW 0x100
 #define O_CREAT     0100
 #define O_EXCL      0200
 #define O_NOCTTY    0400
@@ -129,5 +131,6 @@ int posix_fadvise(int __fd, unsigned long __offset, unsigned long __len, int __a
 int sync_file_range(int, off_t, off_t, unsigned);
 
 int open(const char *filename, int flags, ...);
+int openat(int, const char *, int, ...);
 
 #endif

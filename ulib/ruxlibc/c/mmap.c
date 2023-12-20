@@ -3,25 +3,32 @@
  *   You can use this software according to the terms and conditions of the Mulan PSL v2.
  *   You may obtain a copy of Mulan PSL v2 at:
  *               http://license.coscl.org.cn/MulanPSL2
- *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
- *   See the Mulan PSL v2 for more details.
+ *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A
+ * PARTICULAR PURPOSE. See the Mulan PSL v2 for more details.
  */
 
 #include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <sys/mman.h>
 
 // TODO:
 void *mmap(void *addr, size_t len, int prot, int flags, int fildes, off_t off)
 {
-    unimplemented();
-    return MAP_FAILED;
+    if (fildes != -1) {
+        unimplemented();
+        return MAP_FAILED;
+    }
+    return malloc(len);
 }
 
 // TODO:
 int munmap(void *addr, size_t length)
 {
-    unimplemented();
+    if (addr == NULL)
+        return 0;
+    free(addr);
     return 0;
 }
 

@@ -3,16 +3,22 @@
  *   You can use this software according to the terms and conditions of the Mulan PSL v2.
  *   You may obtain a copy of Mulan PSL v2 at:
  *               http://license.coscl.org.cn/MulanPSL2
- *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
- *   See the Mulan PSL v2 for more details.
+ *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A
+ * PARTICULAR PURPOSE. See the Mulan PSL v2 for more details.
  */
 
 #ifndef _SIGNAL_H
 #define _SIGNAL_H
 
+typedef struct __sigset_t {
+    unsigned long __bits[128 / sizeof(long)];
+} sigset_t;
+
 #include <pthread.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <sys/types.h>
 
 typedef int sig_atomic_t;
 
@@ -159,9 +165,6 @@ typedef void (*sighandler_t)(int);
 #define SIGDFL 0l
 #define SIGIGN 1l
 
-typedef struct __sigset_t {
-    unsigned long __bits[128 / sizeof(long)];
-} sigset_t;
 
 struct sigaction {
     union {
@@ -176,6 +179,8 @@ struct sigaction {
 #define sa_handler   __sa_handler.sa_handler
 #define sa_sigaction __sa_handler.sa_sigaction
 
+int sigprocmask(int, const sigset_t *__restrict, sigset_t *__restrict);
+int sigsuspend(const sigset_t *);
 void (*signal(int, void (*)(int)))(int);
 int sigaction(int, const struct sigaction *__restrict, struct sigaction *__restrict);
 int sigemptyset(sigset_t *);

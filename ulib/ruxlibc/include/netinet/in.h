@@ -15,6 +15,11 @@
 #define INET_ADDRSTRLEN  16
 #define INET6_ADDRSTRLEN 46
 
+#define INADDR_ANY        ((in_addr_t) 0x00000000)
+#define INADDR_BROADCAST  ((in_addr_t) 0xffffffff)
+#define INADDR_NONE       ((in_addr_t) 0xffffffff)
+#define INADDR_LOOPBACK   ((in_addr_t) 0x7f000001)
+
 uint32_t htonl(uint32_t);
 uint16_t htons(uint16_t);
 uint32_t ntohl(uint32_t);

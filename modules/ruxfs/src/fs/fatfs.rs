@@ -84,14 +84,34 @@ impl VfsNodeOps for FileWrapper<'static> {
 
     fn read_at(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
         let mut file = self.0.lock();
-        file.seek(SeekFrom::Start(offset)).map_err(as_vfs_err)?; // TODO: more efficient
-        file.read(buf).map_err(as_vfs_err)
+        file.seek(SeekFrom::Start(offset)).map_err(as_vfs_err)?;
+
+        let mut total_read = 0;
+        while total_read < buf.len() {
+            let read_len = file.read(&mut buf[total_read..]).map_err(as_vfs_err)?;
+            if read_len == 0 {
+                break;
+            }
+            total_read += read_len;
+        }
+
+        Ok(total_read)
     }
 
     fn write_at(&self, offset: u64, buf: &[u8]) -> VfsResult<usize> {
         let mut file = self.0.lock();
         file.seek(SeekFrom::Start(offset)).map_err(as_vfs_err)?; // TODO: more efficient
-        file.write(buf).map_err(as_vfs_err)
+
+        let mut total_write = 0;
+        while total_write < buf.len() {
+            let write_len = file.write(&buf[total_write..]).map_err(as_vfs_err)?;
+            if write_len == 0 {
+                break;
+            }
+            total_write += write_len;
+        }
+
+        Ok(total_write)
     }
 
     fn truncate(&self, size: u64) -> VfsResult {

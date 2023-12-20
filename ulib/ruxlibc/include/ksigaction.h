@@ -6,7 +6,8 @@
  *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  *   See the Mulan PSL v2 for more details.
  */
-
+#ifndef _KSIGACTION_H
+#define _KSIGACTION_H
 
 struct k_sigaction {
     void (*handler)(int);
@@ -14,3 +15,4 @@ struct k_sigaction {
     void (*restorer)(void);
     unsigned mask[2];
 };
+#endif

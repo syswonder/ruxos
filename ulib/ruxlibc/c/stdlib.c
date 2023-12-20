@@ -3,8 +3,9 @@
  *   You can use this software according to the terms and conditions of the Mulan PSL v2.
  *   You may obtain a copy of Mulan PSL v2 at:
  *               http://license.coscl.org.cn/MulanPSL2
- *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
- *   See the Mulan PSL v2 for more details.
+ *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A
+ * PARTICULAR PURPOSE. See the Mulan PSL v2 for more details.
  */
 
 #include <ctype.h>
@@ -367,232 +368,233 @@ typedef int (*cmpfun_)(const void *, const void *);
 
 static int wrapper_cmp(const void *v1, const void *v2, void *cmp)
 {
-	return ((cmpfun_)cmp)(v1, v2);
+    return ((cmpfun_)cmp)(v1, v2);
 }
 
 typedef int (*cmpfun)(const void *, const void *, void *);
 
-static inline int a_ctz_32(uint32_t x){
-    static const char debruijn32[32] = {
-		0, 1, 23, 2, 29, 24, 19, 3, 30, 27, 25, 11, 20, 8, 4, 13,
-		31, 22, 28, 18, 26, 10, 7, 12, 21, 17, 9, 6, 16, 5, 15, 14
-	};
-	return debruijn32[(x&-x)*0x076be629 >> 27];
+static inline int a_ctz_32(uint32_t x)
+{
+    static const char debruijn32[32] = {0,  1,  23, 2,  29, 24, 19, 3,  30, 27, 25,
+                                        11, 20, 8,  4,  13, 31, 22, 28, 18, 26, 10,
+                                        7,  12, 21, 17, 9,  6,  16, 5,  15, 14};
+    return debruijn32[(x & -x) * 0x076be629 >> 27];
 }
 
-static inline int a_ctz_64(uint64_t x){
+static inline int a_ctz_64(uint64_t x)
+{
     static const char debruijn64[64] = {
-		0, 1, 2, 53, 3, 7, 54, 27, 4, 38, 41, 8, 34, 55, 48, 28,
-		62, 5, 39, 46, 44, 42, 22, 9, 24, 35, 59, 56, 49, 18, 29, 11,
-		63, 52, 6, 26, 37, 40, 33, 47, 61, 45, 43, 21, 23, 58, 17, 10,
-		51, 25, 36, 32, 60, 20, 57, 16, 50, 31, 19, 15, 30, 14, 13, 12
-	};
-    if (sizeof(long) < 8) { 
-		uint32_t y = x;
-		if (!y) {
-			y = x>>32;
-			return 32 + a_ctz_32(y);
-		}
-		return a_ctz_32(y);
-	}
-	return debruijn64[(x&-x)*0x022fdd63cc95386dull >> 58];
+        0,  1,  2,  53, 3,  7,  54, 27, 4,  38, 41, 8,  34, 55, 48, 28, 62, 5,  39, 46, 44, 42,
+        22, 9,  24, 35, 59, 56, 49, 18, 29, 11, 63, 52, 6,  26, 37, 40, 33, 47, 61, 45, 43, 21,
+        23, 58, 17, 10, 51, 25, 36, 32, 60, 20, 57, 16, 50, 31, 19, 15, 30, 14, 13, 12};
+    if (sizeof(long) < 8) {
+        uint32_t y = x;
+        if (!y) {
+            y = x >> 32;
+            return 32 + a_ctz_32(y);
+        }
+        return a_ctz_32(y);
+    }
+    return debruijn64[(x & -x) * 0x022fdd63cc95386dull >> 58];
 }
 
 static inline int a_ctz_l(unsigned long x)
 {
-	return (sizeof(long) < 8) ? a_ctz_32(x) : a_ctz_64(x);
+    return (sizeof(long) < 8) ? a_ctz_32(x) : a_ctz_64(x);
 }
 
 #define ntz(x) a_ctz_l((x))
 
-
-static inline int pntz(size_t p[2]) {
-	int r = ntz(p[0] - 1);
-	if(r != 0 || (r = 8*sizeof(size_t) + ntz(p[1])) != 8*sizeof(size_t)) {
-		return r;
-	}
-	return 0;
+static inline int pntz(size_t p[2])
+{
+    int r = ntz(p[0] - 1);
+    if (r != 0 || (r = 8 * sizeof(size_t) + ntz(p[1])) != 8 * sizeof(size_t)) {
+        return r;
+    }
+    return 0;
 }
 
-static void cycle(size_t width, unsigned char* ar[], int n)
+static void cycle(size_t width, unsigned char *ar[], int n)
 {
-	unsigned char tmp[256];
-	size_t l;
-	int i;
+    unsigned char tmp[256];
+    size_t l;
+    int i;
 
-	if(n < 2) {
-		return;
-	}
+    if (n < 2) {
+        return;
+    }
 
-	ar[n] = tmp;
-	while(width) {
-		l = sizeof(tmp) < width ? sizeof(tmp) : width;
-		memcpy(ar[n], ar[0], l);
-		for(i = 0; i < n; i++) {
-			memcpy(ar[i], ar[i + 1], l);
-			ar[i] += l;
-		}
-		width -= l;
-	}
+    ar[n] = tmp;
+    while (width) {
+        l = sizeof(tmp) < width ? sizeof(tmp) : width;
+        memcpy(ar[n], ar[0], l);
+        for (i = 0; i < n; i++) {
+            memcpy(ar[i], ar[i + 1], l);
+            ar[i] += l;
+        }
+        width -= l;
+    }
 }
 
 /* shl() and shr() need n > 0 */
 static inline void shl(size_t p[2], int n)
 {
-	if(n >= 8 * sizeof(size_t)) {
-		n -= 8 * sizeof(size_t);
-		p[1] = p[0];
-		p[0] = 0;
-	}
-	p[1] <<= n;
-	p[1] |= p[0] >> (sizeof(size_t) * 8 - n);
-	p[0] <<= n;
+    if (n >= 8 * sizeof(size_t)) {
+        n -= 8 * sizeof(size_t);
+        p[1] = p[0];
+        p[0] = 0;
+    }
+    p[1] <<= n;
+    p[1] |= p[0] >> (sizeof(size_t) * 8 - n);
+    p[0] <<= n;
 }
 
 static inline void shr(size_t p[2], int n)
 {
-	if(n >= 8 * sizeof(size_t)) {
-		n -= 8 * sizeof(size_t);
-		p[0] = p[1];
-		p[1] = 0;
-	}
-	p[0] >>= n;
-	p[0] |= p[1] << (sizeof(size_t) * 8 - n);
-	p[1] >>= n;
+    if (n >= 8 * sizeof(size_t)) {
+        n -= 8 * sizeof(size_t);
+        p[0] = p[1];
+        p[1] = 0;
+    }
+    p[0] >>= n;
+    p[0] |= p[1] << (sizeof(size_t) * 8 - n);
+    p[1] >>= n;
 }
 
 static void sift(unsigned char *head, size_t width, cmpfun cmp, void *arg, int pshift, size_t lp[])
 {
-	unsigned char *rt, *lf;
-	unsigned char *ar[14 * sizeof(size_t) + 1];
-	int i = 1;
+    unsigned char *rt, *lf;
+    unsigned char *ar[14 * sizeof(size_t) + 1];
+    int i = 1;
 
-	ar[0] = head;
-	while(pshift > 1) {
-		rt = head - width;
-		lf = head - width - lp[pshift - 2];
+    ar[0] = head;
+    while (pshift > 1) {
+        rt = head - width;
+        lf = head - width - lp[pshift - 2];
 
-		if(cmp(ar[0], lf, arg) >= 0 && cmp(ar[0], rt, arg) >= 0) {
-			break;
-		}
-		if(cmp(lf, rt, arg) >= 0) {
-			ar[i++] = lf;
-			head = lf;
-			pshift -= 1;
-		} else {
-			ar[i++] = rt;
-			head = rt;
-			pshift -= 2;
-		}
-	}
-	cycle(width, ar, i);
+        if (cmp(ar[0], lf, arg) >= 0 && cmp(ar[0], rt, arg) >= 0) {
+            break;
+        }
+        if (cmp(lf, rt, arg) >= 0) {
+            ar[i++] = lf;
+            head = lf;
+            pshift -= 1;
+        } else {
+            ar[i++] = rt;
+            head = rt;
+            pshift -= 2;
+        }
+    }
+    cycle(width, ar, i);
 }
 
-static void trinkle(unsigned char *head, size_t width, cmpfun cmp, void *arg, size_t pp[2], int pshift, int trusty, size_t lp[])
+static void trinkle(unsigned char *head, size_t width, cmpfun cmp, void *arg, size_t pp[2],
+                    int pshift, int trusty, size_t lp[])
 {
-	unsigned char *stepson,
-	              *rt, *lf;
-	size_t p[2];
-	unsigned char *ar[14 * sizeof(size_t) + 1];
-	int i = 1;
-	int trail;
+    unsigned char *stepson, *rt, *lf;
+    size_t p[2];
+    unsigned char *ar[14 * sizeof(size_t) + 1];
+    int i = 1;
+    int trail;
 
-	p[0] = pp[0];
-	p[1] = pp[1];
+    p[0] = pp[0];
+    p[1] = pp[1];
 
-	ar[0] = head;
-	while(p[0] != 1 || p[1] != 0) {
-		stepson = head - lp[pshift];
-		if(cmp(stepson, ar[0], arg) <= 0) {
-			break;
-		}
-		if(!trusty && pshift > 1) {
-			rt = head - width;
-			lf = head - width - lp[pshift - 2];
-			if(cmp(rt, stepson, arg) >= 0 || cmp(lf, stepson, arg) >= 0) {
-				break;
-			}
-		}
+    ar[0] = head;
+    while (p[0] != 1 || p[1] != 0) {
+        stepson = head - lp[pshift];
+        if (cmp(stepson, ar[0], arg) <= 0) {
+            break;
+        }
+        if (!trusty && pshift > 1) {
+            rt = head - width;
+            lf = head - width - lp[pshift - 2];
+            if (cmp(rt, stepson, arg) >= 0 || cmp(lf, stepson, arg) >= 0) {
+                break;
+            }
+        }
 
-		ar[i++] = stepson;
-		head = stepson;
-		trail = pntz(p);
-		shr(p, trail);
-		pshift += trail;
-		trusty = 0;
-	}
-	if(!trusty) {
-		cycle(width, ar, i);
-		sift(head, width, cmp, arg, pshift, lp);
-	}
+        ar[i++] = stepson;
+        head = stepson;
+        trail = pntz(p);
+        shr(p, trail);
+        pshift += trail;
+        trusty = 0;
+    }
+    if (!trusty) {
+        cycle(width, ar, i);
+        sift(head, width, cmp, arg, pshift, lp);
+    }
 }
 
 void __qsort_r(void *base, size_t nel, size_t width, cmpfun cmp, void *arg)
 {
-	size_t lp[12*sizeof(size_t)];
-	size_t i, size = width * nel;
-	unsigned char *head, *high;
-	size_t p[2] = {1, 0};
-	int pshift = 1;
-	int trail;
+    size_t lp[12 * sizeof(size_t)];
+    size_t i, size = width * nel;
+    unsigned char *head, *high;
+    size_t p[2] = {1, 0};
+    int pshift = 1;
+    int trail;
 
-	if (!size) return;
+    if (!size)
+        return;
 
-	head = base;
-	high = head + size - width;
+    head = base;
+    high = head + size - width;
 
-	/* Precompute Leonardo numbers, scaled by element width */
-	for(lp[0]=lp[1]=width, i=2; (lp[i]=lp[i-2]+lp[i-1]+width) < size; i++);
+    /* Precompute Leonardo numbers, scaled by element width */
+    for (lp[0] = lp[1] = width, i = 2; (lp[i] = lp[i - 2] + lp[i - 1] + width) < size; i++)
+        ;
 
-	while(head < high) {
-		if((p[0] & 3) == 3) {
-			sift(head, width, cmp, arg, pshift, lp);
-			shr(p, 2);
-			pshift += 2;
-		} else {
-			if(lp[pshift - 1] >= high - head) {
-				trinkle(head, width, cmp, arg, p, pshift, 0, lp);
-			} else {
-				sift(head, width, cmp, arg, pshift, lp);
-			}
+    while (head < high) {
+        if ((p[0] & 3) == 3) {
+            sift(head, width, cmp, arg, pshift, lp);
+            shr(p, 2);
+            pshift += 2;
+        } else {
+            if (lp[pshift - 1] >= high - head) {
+                trinkle(head, width, cmp, arg, p, pshift, 0, lp);
+            } else {
+                sift(head, width, cmp, arg, pshift, lp);
+            }
 
-			if(pshift == 1) {
-				shl(p, 1);
-				pshift = 0;
-			} else {
-				shl(p, pshift - 1);
-				pshift = 1;
-			}
-		}
+            if (pshift == 1) {
+                shl(p, 1);
+                pshift = 0;
+            } else {
+                shl(p, pshift - 1);
+                pshift = 1;
+            }
+        }
 
-		p[0] |= 1;
-		head += width;
-	}
+        p[0] |= 1;
+        head += width;
+    }
 
-	trinkle(head, width, cmp, arg, p, pshift, 0, lp);
+    trinkle(head, width, cmp, arg, p, pshift, 0, lp);
 
-	while(pshift != 1 || p[0] != 1 || p[1] != 0) {
-		if(pshift <= 1) {
-			trail = pntz(p);
-			shr(p, trail);
-			pshift += trail;
-		} else {
-			shl(p, 2);
-			pshift -= 2;
-			p[0] ^= 7;
-			shr(p, 1);
-			trinkle(head - lp[pshift] - width, width, cmp, arg, p, pshift + 1, 1, lp);
-			shl(p, 1);
-			p[0] |= 1;
-			trinkle(head - width, width, cmp, arg, p, pshift, 1, lp);
-		}
-		head -= width;
-	}
+    while (pshift != 1 || p[0] != 1 || p[1] != 0) {
+        if (pshift <= 1) {
+            trail = pntz(p);
+            shr(p, trail);
+            pshift += trail;
+        } else {
+            shl(p, 2);
+            pshift -= 2;
+            p[0] ^= 7;
+            shr(p, 1);
+            trinkle(head - lp[pshift] - width, width, cmp, arg, p, pshift + 1, 1, lp);
+            shl(p, 1);
+            p[0] |= 1;
+            trinkle(head - width, width, cmp, arg, p, pshift, 1, lp);
+        }
+        head -= width;
+    }
 }
 
 void qsort(void *base, size_t nel, size_t width, cmpfun_ cmp)
 {
-	__qsort_r(base, nel, width, wrapper_cmp, (void *)cmp);
+    __qsort_r(base, nel, width, wrapper_cmp, (void *)cmp);
 }
 
 // TODO
@@ -613,5 +615,77 @@ int mkostemp(char *__template, int __flags)
 int system(const char *cmd)
 {
     unimplemented();
+    return 0;
+}
+
+// TODO
+char *realpath(const char *restrict path, char *restrict resolved_path)
+{
+    unimplemented();
+    return 0;
+}
+
+struct chunk {
+    size_t psize, csize;
+    struct chunk *next, *prev;
+};
+
+void __bin_chunk(struct chunk *)
+{
+    unimplemented();
+    return;
+}
+
+void *aligned_alloc(size_t align, size_t len)
+{
+    unsigned char *mem, *new;
+
+    if ((align & -align) != align) {
+        errno = EINVAL;
+        return 0;
+    }
+
+    if (len > SIZE_MAX - align) {
+        errno = ENOMEM;
+        return 0;
+    }
+
+    if (align <= SIZE_ALIGN)
+        return malloc(len);
+
+    if (!(mem = malloc(len + align - 1)))
+        return 0;
+
+    new = (void *)((uintptr_t)mem + align - 1 & -align);
+    if (new == mem)
+        return mem;
+
+    struct chunk *c = MEM_TO_CHUNK(mem);
+    struct chunk *n = MEM_TO_CHUNK(new);
+
+    if (IS_MMAPPED(c)) {
+        n->psize = c->psize + (new - mem);
+        n->csize = c->csize - (new - mem);
+        return new;
+    }
+
+    struct chunk *t = NEXT_CHUNK(c);
+
+    n->psize = c->csize = C_INUSE | (new - mem);
+    n->csize = t->psize -= new - mem;
+
+    __bin_chunk(c);
+    return new;
+}
+
+// TODO
+int posix_memalign(void **res, size_t align, size_t len)
+{
+    if (align < sizeof(void *))
+        return EINVAL;
+    void *mem = aligned_alloc(align, len);
+    if (!mem)
+        return errno;
+    *res = mem;
     return 0;
 }

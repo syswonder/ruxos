@@ -62,6 +62,14 @@ pub mod time {
     ///
     /// A timer interrupt will be triggered at the given deadline (in nanoseconds).
     pub fn set_oneshot_timer(deadline_ns: u64) {}
+
+    #[cfg(feature = "rtc")]
+    pub fn rtc_read_time() -> u64 {
+        0
+    }
+
+    #[cfg(feature = "rtc")]
+    pub fn rtc_write_time(seconds: u32) -> u64 {}
 }
 
 #[cfg(feature = "irq")]
