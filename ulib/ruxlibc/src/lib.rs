@@ -111,6 +111,8 @@ pub use self::env::{getenv, setenv, unsetenv};
 pub use self::fd_ops::{ax_fcntl, close, dup, dup2, dup3};
 #[cfg(feature = "fs")]
 pub use self::fs::{ax_open, fstat, getcwd, lseek, lstat, mkdir, rename, rmdir, stat, unlink};
+#[cfg(feature = "fd")]
+pub use self::io::rux_ioctl;
 #[cfg(feature = "poll")]
 pub use self::io_mpx::poll;
 #[cfg(feature = "select")]

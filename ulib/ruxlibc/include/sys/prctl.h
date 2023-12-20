@@ -10,4 +10,8 @@
 #ifndef _SYS_PRCTL_H
 #define _SYS_PRCTL_H
 
+#define PR_SET_DUMPABLE   4
+
+int prctl (int, ...);
+
 #endif // _SYS_PRCTL_H

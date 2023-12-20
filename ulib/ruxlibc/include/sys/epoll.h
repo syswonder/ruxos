@@ -10,9 +10,6 @@
 #ifndef _SYS_EPOLL_H
 #define _SYS_EPOLL_H
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 #include <fcntl.h>
 #include <stdint.h>
@@ -62,8 +59,5 @@ int epoll_create(int __size);
 int epoll_ctl(int, int, int, struct epoll_event *);
 int epoll_wait(int, struct epoll_event *, int, int);
 
-#ifdef __cplusplus
-}
-#endif
 
 #endif //_SYS_EPOLL_H

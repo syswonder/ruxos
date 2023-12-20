@@ -215,7 +215,29 @@ pub unsafe fn sys_epoll_wait(
         loop {
             #[cfg(feature = "net")]
             axnet::poll_interfaces();
-            let events_num = epoll_instance.poll_all(events)?;
+
+            let poll_all_res = epoll_instance.poll_all(events);
+            let mut events_num = 0;
+            match poll_all_res {
+                Ok(num) => events_num = num,
+                Err(LinuxError::EBADF) => {
+                    error!("sys_epoll_wait a non-exist fd");
+                    let mut events = epoll_instance.events.lock();
+                    let del_fds = events
+                        .iter()
+                        .filter(|(&fd, _)| get_file_like(fd as _).is_err())
+                        .map(|(&fd, _)| fd)
+                        .collect::<alloc::vec::Vec<_>>();
+                    del_fds.iter().for_each(|&fd| {
+                        if let Entry::Occupied(ocp) = events.entry(fd) {
+                            ocp.remove_entry();
+                        }
+                    });
+                    return Ok(0);
+                }
+                Err(_) => {}
+            }
+
             if events_num > 0 {
                 return Ok(events_num as c_int);
             }

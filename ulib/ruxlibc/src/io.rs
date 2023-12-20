@@ -8,6 +8,8 @@
  */
 
 use core::ffi::{c_int, c_void};
+#[cfg(feature = "fd")]
+use ruxos_posix_api::sys_ioctl;
 
 use ruxos_posix_api::{sys_read, sys_write, sys_writev};
 
@@ -38,4 +40,13 @@ pub unsafe extern "C" fn writev(
     iocnt: c_int,
 ) -> ctypes::ssize_t {
     e(sys_writev(fd, iov, iocnt) as _) as _
+}
+
+/// Manipulate file descriptor.
+///
+/// TODO: `SET/GET` command is ignored
+#[cfg(feature = "fd")]
+#[no_mangle]
+pub unsafe extern "C" fn rux_ioctl(fd: c_int, req: c_int, arg: usize) -> c_int {
+    e(sys_ioctl(fd, req.try_into().unwrap(), arg))
 }

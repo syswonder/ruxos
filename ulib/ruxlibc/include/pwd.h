@@ -38,6 +38,12 @@
 #define REQKEYLEN  2
 #define REQ_LEN    3
 
+#define RUX_DEFAULT_USER "root"
+#define RUX_DEFAULT_GROUP "root"
+#define RUX_DEFAULT_PASS ""
+#define RUX_DEFAULT_UID 0
+#define RUX_DEFAULT_GID 0
+
 struct passwd {
     char *pw_name;
     char *pw_passwd;
@@ -50,5 +56,7 @@ struct passwd {
 
 int getpwuid_r(uid_t, struct passwd *, char *, size_t, struct passwd **);
 int getpwnam_r(const char *, struct passwd *, char *, size_t, struct passwd **);
+
+struct passwd *getpwnam (const char *);
 
 #endif // _PWD_H

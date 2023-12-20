@@ -7,6 +7,7 @@
  *   See the Mulan PSL v2 for more details.
  */
 
+use crate::imp::fd_ops::get_file_like;
 use axerrno::LinuxError;
 use core::ffi::c_int;
 
@@ -15,6 +16,7 @@ pub const TCGETS: usize = 0x5401;
 pub const TIOCGPGRP: usize = 0x540F;
 pub const TIOCSPGRP: usize = 0x5410;
 pub const TIOCGWINSZ: usize = 0x5413;
+pub const FIONBIO: usize = 0x5421;
 
 #[derive(Clone, Copy, Default)]
 pub struct ConsoleWinSize {
@@ -28,12 +30,14 @@ pub struct ConsoleWinSize {
 /// currently only support fd = 1
 pub fn sys_ioctl(fd: c_int, request: usize, data: usize) -> c_int {
     debug!("sys_ioctl <= fd: {}, request: {}", fd, request);
-    if fd != 1 {
-        debug!("Only support fd = 1");
-        return -1;
-    }
     syscall_body!(sys_ioctl, {
         match request {
+            FIONBIO => {
+                unsafe {
+                    get_file_like(fd)?.set_nonblocking(*(data as *const i32) > 0)?;
+                }
+                Ok(0)
+            }
             TIOCGWINSZ => {
                 let winsize = data as *mut ConsoleWinSize;
                 unsafe {
