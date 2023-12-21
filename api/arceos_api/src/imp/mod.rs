@@ -1,5 +1,5 @@
 /* Copyright (c) [2023] [Syswonder Community]
- *   [Rukos] is licensed under Mulan PSL v2.
+ *   [Ruxos] is licensed under Mulan PSL v2.
  *   You can use this software according to the terms and conditions of the Mulan PSL v2.
  *   You may obtain a copy of Mulan PSL v2 at:
  *               http://license.coscl.org.cn/MulanPSL2
@@ -29,11 +29,11 @@ mod stdio {
     use core::fmt;
 
     pub fn ax_console_read_byte() -> Option<u8> {
-        axhal::console::getchar().map(|c| if c == b'\r' { b'\n' } else { c })
+        ruxhal::console::getchar().map(|c| if c == b'\r' { b'\n' } else { c })
     }
 
     pub fn ax_console_write_bytes(buf: &[u8]) -> crate::AxResult<usize> {
-        axhal::console::write_bytes(buf);
+        ruxhal::console::write_bytes(buf);
         Ok(buf.len())
     }
 
@@ -46,6 +46,6 @@ pub use self::mem::*;
 pub use self::stdio::*;
 pub use self::task::*;
 
-pub use axhal::misc::terminate as ax_terminate;
-pub use axhal::time::{current_time as ax_current_time, TimeValue as AxTimeValue};
 pub use axio::PollState as AxPollState;
+pub use ruxhal::misc::terminate as ax_terminate;
+pub use ruxhal::time::{current_time as ax_current_time, TimeValue as AxTimeValue};

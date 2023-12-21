@@ -3,11 +3,10 @@ name = "driver_9p"
 version = "0.1.0"
 edition = "2021"
 authors = ["Zheng Wu <hello_weekday@163.com>"]
-description = "Common traits and types for block storage drivers"
+description = "Common traits and types for 9p drivers"
 license = "GPL-3.0-or-later OR Apache-2.0"
-homepage = "https://github.com/rcore-os/arceos"
-repository = "https://github.com/rcore-os/arceos/tree/main/crates/driver_common"
-documentation = "https://rcore-os.github.io/arceos/driver_common/index.html"
+homepage = "https://github.com/syswonder/ruxos"
+repository = "https://github.com/syswonder/ruxos/tree/main/crates/driver_9p"
 
 [features]
 default = []

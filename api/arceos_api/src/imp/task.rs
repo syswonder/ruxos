@@ -1,5 +1,5 @@
 /* Copyright (c) [2023] [Syswonder Community]
- *   [Rukos] is licensed under Mulan PSL v2.
+ *   [Ruxos] is licensed under Mulan PSL v2.
  *   You can use this software according to the terms and conditions of the Mulan PSL v2.
  *   You may obtain a copy of Mulan PSL v2 at:
  *               http://license.coscl.org.cn/MulanPSL2
@@ -9,17 +9,17 @@
 
 pub fn ax_sleep_until(deadline: crate::time::AxTimeValue) {
     #[cfg(feature = "multitask")]
-    axtask::sleep_until(deadline);
+    ruxtask::sleep_until(deadline);
     #[cfg(not(feature = "multitask"))]
-    axhal::time::busy_wait_until(deadline);
+    ruxhal::time::busy_wait_until(deadline);
 }
 
 pub fn ax_yield_now() {
     #[cfg(feature = "multitask")]
-    axtask::yield_now();
+    ruxtask::yield_now();
     #[cfg(not(feature = "multitask"))]
     if cfg!(feature = "irq") {
-        axhal::arch::wait_for_irqs();
+        ruxhal::arch::wait_for_irqs();
     } else {
         core::hint::spin_loop();
     }
@@ -27,9 +27,9 @@ pub fn ax_yield_now() {
 
 pub fn ax_exit(_exit_code: i32) -> ! {
     #[cfg(feature = "multitask")]
-    axtask::exit(_exit_code);
+    ruxtask::exit(_exit_code);
     #[cfg(not(feature = "multitask"))]
-    axhal::misc::terminate();
+    ruxhal::misc::terminate();
 }
 
 cfg_task! {
@@ -37,7 +37,7 @@ cfg_task! {
 
     /// A handle to a task.
     pub struct AxTaskHandle {
-        inner: axtask::AxTaskRef,
+        inner: ruxtask::AxTaskRef,
         id: u64,
     }
 
@@ -52,24 +52,24 @@ cfg_task! {
     ///
     /// A wait queue is used to store sleeping tasks waiting for a certain event
     /// to happen.
-    pub struct AxWaitQueueHandle(axtask::WaitQueue);
+    pub struct AxWaitQueueHandle(ruxtask::WaitQueue);
 
     impl AxWaitQueueHandle {
         /// Creates a new empty wait queue.
         pub const fn new() -> Self {
-            Self(axtask::WaitQueue::new())
+            Self(ruxtask::WaitQueue::new())
         }
     }
 
     pub fn ax_current_task_id() -> u64 {
-        axtask::current().id().as_u64()
+        ruxtask::current().id().as_u64()
     }
 
     pub fn ax_spawn<F>(f: F, name: alloc::string::String, stack_size: usize) -> AxTaskHandle
     where
         F: FnOnce() + Send + 'static,
     {
-        let inner = axtask::spawn_raw(f, name, stack_size);
+        let inner = ruxtask::spawn_raw(f, name, stack_size);
         AxTaskHandle {
             id: inner.id().as_u64(),
             inner,
@@ -81,7 +81,7 @@ cfg_task! {
     }
 
     pub fn ax_set_current_priority(prio: isize) -> crate::AxResult {
-        if axtask::set_priority(prio) {
+        if ruxtask::set_priority(prio) {
             Ok(())
         } else {
             axerrno::ax_err!(

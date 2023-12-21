@@ -2,25 +2,25 @@
 #
 # Inputs:
 #   - `FEATURES`: a list of features to be enabled split by spaces or commas.
-#     The features can be selected from the crate `axfeat` or the user library
-#     (crate `axstd` or `axlibc`).
+#     The features can be selected from the crate `ruxfeat` or the user library
+#     (crate `axstd` or `ruxlibc`).
 #   - `APP_FEATURES`: a list of features to be enabled for the Rust app.
 #
 # Outputs:
-#   - `AX_FEAT`: features to be enabled for ArceOS modules (crate `axfeat`).
-#   - `LIB_FEAT`: features to be enabled for the user library (crate `axstd`, `axlibc`).
+#   - `RUX_FEAT`: features to be enabled for Ruxos modules (crate `ruxfeat`).
+#   - `LIB_FEAT`: features to be enabled for the user library (crate `axstd`, `ruxlibc`, `ruxmusl`).
 #   - `APP_FEAT`: features to be enabled for the Rust app.
 
 ifeq ($(APP_TYPE),c)
-  ax_feat_prefix := axfeat/
+  ax_feat_prefix := ruxfeat/
   ifeq ($(MUSL), y)
-    lib_feat_prefix := axmusl/
+    lib_feat_prefix := ruxmusl/
   else
-    lib_feat_prefix := axlibc/
+    lib_feat_prefix := ruxlibc/
   endif
   lib_features := fp_simd alloc multitask fs net fd pipe select poll epoll random-hw signal
 else
-  # TODO: it's better to use `axfeat/` as `ax_feat_prefix`, but all apps need to have `axfeat` as a dependency
+  # TODO: it's better to use `ruxfeat/` as `ax_feat_prefix`, but all apps need to have `ruxfeat` as a dependency
   ax_feat_prefix := axstd/
   lib_feat_prefix := axstd/
   lib_features :=
@@ -40,7 +40,7 @@ ifeq ($(APP_TYPE), c)
   ifneq ($(filter fs net pipe select poll epoll,$(FEATURES)),)
     override FEATURES += fd
   endif
-  ifeq ($(AX_MUSL), y)
+  ifeq ($(RUX_MUSL), y)
     override FEATURES += musl
     override FEATURES += fp_simd
     override FEATURES += fd
@@ -70,6 +70,6 @@ endif
 ax_feat += $(filter-out $(lib_features),$(FEATURES))
 lib_feat += $(filter $(lib_features),$(FEATURES))
 
-AX_FEAT := $(strip $(addprefix $(ax_feat_prefix),$(ax_feat)))
+RUX_FEAT := $(strip $(addprefix $(ax_feat_prefix),$(ax_feat)))
 LIB_FEAT := $(strip $(addprefix $(lib_feat_prefix),$(lib_feat)))
 APP_FEAT := $(strip $(shell echo $(APP_FEATURES) | tr ',' ' '))

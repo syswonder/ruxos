@@ -1,5 +1,5 @@
 /* Copyright (c) [2023] [Syswonder Community]
- *   [Rukos] is licensed under Mulan PSL v2.
+ *   [Ruxos] is licensed under Mulan PSL v2.
  *   You can use this software according to the terms and conditions of the Mulan PSL v2.
  *   You may obtain a copy of Mulan PSL v2 at:
  *               http://license.coscl.org.cn/MulanPSL2
@@ -17,6 +17,7 @@ extern crate alloc;
 
 mod dir;
 mod null;
+mod random;
 mod zero;
 
 #[cfg(test)]
@@ -24,6 +25,7 @@ mod tests;
 
 pub use self::dir::DirNode;
 pub use self::null::NullDev;
+pub use self::random::RandomDev;
 pub use self::zero::ZeroDev;
 
 use alloc::sync::Arc;

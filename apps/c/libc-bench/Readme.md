@@ -113,11 +113,11 @@ b_utf8_onebyone (0)
   time: 0.127939568
 
 b_stdio_putcgetc (0)
-[  2.098431 0:2 arceos_posix_api::imp::ioctl:32] Only support fd = 1
+[  2.098431 0:2 ruxos_posix_api::imp::ioctl:32] Only support fd = 1
   time: 0.395968752
 
 b_stdio_putcgetc_unlocked (0)
-[  2.493650 0:2 arceos_posix_api::imp::ioctl:32] Only support fd = 1
+[  2.493650 0:2 ruxos_posix_api::imp::ioctl:32] Only support fd = 1
   time: 0.245682432
 
 b_regex_compile ("(a|b|c)*d*b")
@@ -150,6 +150,6 @@ b_regex_search ("a{25}b")
 
 - Memory is expanded to 4G (two files are changed, `platforms/aarch64-qemu-virt.toml`, `scripts/make/qemu.mk`), so CI fails (mostly because RISC-V cannot support such a large memory space).
 
-- It is recommended to know how musl-libc is integrated in `ulib/axmusl`.
+- It is recommended to know how musl-libc is integrated in `ulib/ruxmusl`.
 
-- Since `/etc/hosts` is not complemented, `getaddrinfo` uses previous implementation. See `ulib/axmusl/src/net.rs`.
+- Since `/etc/hosts` is not complemented, `getaddrinfo` uses previous implementation. See `ulib/ruxmusl/src/net.rs`.

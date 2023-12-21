@@ -1,0 +1,14 @@
+alloc
+paging
+fp_simd
+irq
+multitask
+fs
+blkfs
+net
+pipe
+epoll
+poll
+select
+virtio-9p
+rtc

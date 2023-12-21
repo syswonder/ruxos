@@ -1,5 +1,5 @@
 /* Copyright (c) [2023] [Syswonder Community]
- *   [Rukos] is licensed under Mulan PSL v2.
+ *   [Ruxos] is licensed under Mulan PSL v2.
  *   You can use this software according to the terms and conditions of the Mulan PSL v2.
  *   You may obtain a copy of Mulan PSL v2 at:
  *               http://license.coscl.org.cn/MulanPSL2
@@ -25,15 +25,15 @@ Connection: close\r\n\
 
 const char content[] = "<html>\n\
 <head>\n\
-  <title>Hello, ArceOS</title>\n\
+  <title>Hello, Ruxos</title>\n\
 </head>\n\
 <body>\n\
   <center>\n\
-    <h1>Hello, <a href=\"https://github.com/rcore-os/arceos\">ArceOS</a></h1>\n\
+    <h1>Hello, <a href=\"https://github.com/syswonder/ruxos\">Ruxos</a></h1>\n\
   </center>\n\
   <hr>\n\
   <center>\n\
-    <i>Powered by <a href=\"https://github.com/rcore-os/arceos/tree/main/apps/net/httpserver\">ArceOS example HTTP server</a> v0.1.0</i>\n\
+    <i>Powered by <a href=\"https://github.com/syswonder/ruxos/tree/main/apps/net/httpserver\">Ruxos example HTTP server</a> v0.1.0</i>\n\
   </center>\n\
 </body>\n\
 </html>\n\
@@ -41,7 +41,7 @@ const char content[] = "<html>\n\
 
 int main()
 {
-    puts("Hello, ArceOS C HTTP server!");
+    puts("Hello, Ruxos C HTTP server!");
     struct sockaddr_in local, remote;
     int addr_len = sizeof(remote);
     local.sin_family = AF_INET;

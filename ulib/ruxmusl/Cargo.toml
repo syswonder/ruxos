@@ -1,0 +1,58 @@
+[package]
+name = "ruxmusl"
+version = "0.1.0"
+edition = "2021"
+authors = ["yanjuguang <coolyanjg@163.com>"]
+description = "Ruxos compatible layer for Musl libc"
+license = "GPL-3.0-or-later OR Apache-2.0 OR MulanPSL2"
+homepage = "https://github.com/syswonder/ruxos"
+repository = "https://github.com/syswonder/ruxos/tree/main/ulib/ruxmusl"
+
+[lib]
+crate-type = ["staticlib"]
+
+[features]
+default = []
+
+# Multicore
+smp = ["ruxos_posix_api/smp"]
+
+# Floating point/SIMD
+fp_simd = ["ruxfeat/fp_simd"]
+
+# Memory
+alloc = ["ruxos_posix_api/alloc"]
+tls = ["alloc", "ruxfeat/tls"]
+
+# Multi-task
+multitask = ["ruxos_posix_api/multitask"]
+
+# File system
+fs = ["ruxos_posix_api/fs", "fd"]
+
+# Networking
+net = ["ruxos_posix_api/net", "fd"]
+
+# Libc features
+fd = ["ruxos_posix_api/fd"]
+pipe = ["ruxos_posix_api/pipe"]
+select = ["ruxos_posix_api/select"]
+epoll = ["ruxos_posix_api/epoll"]
+poll = ["ruxos_posix_api/poll"]
+rtc = ["ruxfeat/rtc"]
+
+musl = ["ruxos_posix_api/musl", "tls"]
+
+# Interrupts
+irq = ["ruxos_posix_api/irq", "ruxfeat/irq"]
+
+sched_rr = ["irq", "ruxfeat/sched_rr"]
+
+[dependencies]
+ruxfeat = { path = "../../api/ruxfeat" }
+ruxos_posix_api = { path = "../../api/ruxos_posix_api" }
+num_enum = { version = "0.5.11", default-features = false }
+ruxhal = { path = "../../modules/ruxhal" }
+axlog = { path = "../../modules/axlog" }
+kernel_guard = { path = "../../crates/kernel_guard" }
+crate_interface = { path = "../../crates/crate_interface" }

@@ -1,5 +1,5 @@
 /* Copyright (c) [2023] [Syswonder Community]
- *   [Rukos] is licensed under Mulan PSL v2.
+ *   [Ruxos] is licensed under Mulan PSL v2.
  *   You can use this software according to the terms and conditions of the Mulan PSL v2.
  *   You may obtain a copy of Mulan PSL v2 at:
  *               http://license.coscl.org.cn/MulanPSL2
@@ -13,9 +13,9 @@
 //! to rust [std], but calling the functions directly in ArceOS modules, instead
 //! of using libc and system calls.
 //!
-//! These features are exactly the same as those in [axfeat], they are used to
-//! provide users with the selection of features in axfeat, without import
-//! [axfeat] additionally:
+//! These features are exactly the same as those in [ruxfeat], they are used to
+//! provide users with the selection of features in ruxfeat, without import
+//! [ruxfeat] additionally:
 //!
 //! ## Cargo Features
 //!
