@@ -1499,6 +1499,7 @@ dependencies = [
 name = "ruxfs"
 version = "0.1.0"
 dependencies = [
+ "axalloc",
  "axerrno",
  "axfs_devfs",
  "axfs_ramfs",
@@ -1512,6 +1513,7 @@ dependencies = [
  "fatfs",
  "lazy_init",
  "log",
+ "memory_addr",
  "ruxdriver",
  "ruxtask",
 ]

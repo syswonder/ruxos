@@ -18,7 +18,7 @@ default = []
 smp = ["ruxhal/smp", "ruxruntime/smp", "spinlock/smp"]
 
 # Floating point/SIMD
-fp_simd = ["ruxhal/fp_simd"]
+fp_simd = ["ruxhal/fp_simd", "ruxfs/fp_simd"]
 
 # Interrupts
 irq = ["ruxhal/irq", "ruxruntime/irq", "ruxtask?/irq"]
@@ -27,7 +27,7 @@ irq = ["ruxhal/irq", "ruxruntime/irq", "ruxtask?/irq"]
 rtc = ["ruxhal/rtc", "ruxruntime/rtc"]
 
 # Memory
-alloc = ["axalloc", "ruxruntime/alloc"]
+alloc = ["axalloc", "ruxruntime/alloc", "ruxfs/alloc"]
 alloc-tlsf = ["axalloc/tlsf"]
 alloc-slab = ["axalloc/slab"]
 alloc-buddy = ["axalloc/buddy"]

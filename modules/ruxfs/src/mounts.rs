@@ -10,6 +10,8 @@
 use alloc::sync::Arc;
 use axfs_vfs::{VfsNodeType, VfsOps, VfsResult};
 
+#[cfg(feature = "alloc")]
+use crate::arch::{get_cpuinfo, get_meminfo};
 use crate::fs;
 
 #[cfg(feature = "devfs")]
@@ -17,10 +19,12 @@ pub(crate) fn devfs() -> Arc<fs::devfs::DeviceFileSystem> {
     let null = fs::devfs::NullDev;
     let zero = fs::devfs::ZeroDev;
     let bar = fs::devfs::ZeroDev;
+    let random = fs::devfs::RandomDev;
     let devfs = fs::devfs::DeviceFileSystem::new();
     let foo_dir = devfs.mkdir("foo");
     devfs.add("null", Arc::new(null));
     devfs.add("zero", Arc::new(zero));
+    devfs.add("random", Arc::new(random));
     foo_dir.add("bar", Arc::new(bar));
     Arc::new(devfs)
 }
@@ -34,6 +38,19 @@ pub(crate) fn ramfs() -> Arc<fs::ramfs::RamFileSystem> {
 pub(crate) fn procfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
     let procfs = fs::ramfs::RamFileSystem::new();
     let proc_root = procfs.root_dir();
+
+    #[cfg(feature = "alloc")]
+    {
+        // Create /proc/cpuinfo
+        proc_root.create("cpuinfo", VfsNodeType::File)?;
+        let file_cpuinfo = proc_root.clone().lookup("./cpuinfo")?;
+        file_cpuinfo.write_at(0, get_cpuinfo().as_bytes())?;
+
+        // Create /proc/meminfo
+        proc_root.create("meminfo", VfsNodeType::File)?;
+        let file_meminfo = proc_root.clone().lookup("./meminfo")?;
+        file_meminfo.write_at(0, get_meminfo().as_bytes())?;
+    }
 
     // Create /proc/sys/net/core/somaxconn
     proc_root.create("sys", VfsNodeType::Dir)?;
@@ -86,4 +103,32 @@ pub(crate) fn sysfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
     file_cc.write_at(0, b"tsc\n")?;
 
     Ok(Arc::new(sysfs))
+}
+
+#[cfg(feature = "etcfs")]
+pub(crate) fn etcfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
+    let etcfs = fs::ramfs::RamFileSystem::new();
+    let etc_root = etcfs.root_dir();
+
+    // Create /etc/passwd and /etc/hosts
+    etc_root.create("passwd", VfsNodeType::File)?;
+    let file_passwd = etc_root.clone().lookup("passwd")?;
+
+    // format: username:password:uid:gid:allname:homedir:shell
+    file_passwd.write_at(0, b"root:x:0:0:root:/root:/bin/bash\n")?;
+
+    etc_root.create("hosts", VfsNodeType::File)?;
+    let file_hosts = etc_root.clone().lookup("hosts")?;
+    file_hosts.write_at(
+        0,
+        b"127.0.0.1	localhost\n\n\
+        ::1 ip6-localhost ip6-loopback \n\
+        fe00::0 ip6-localnet \n\
+        ff00::0 ip6-mcastprefix \n\
+        ff02::1 ip6-allnodes \n\
+        ff02::2 ip6-allrouters \n\
+        ff02::3 ip6-allhosts\n",
+    )?;
+
+    Ok(Arc::new(etcfs))
 }

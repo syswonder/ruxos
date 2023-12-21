@@ -40,6 +40,9 @@ mod fs;
 mod mounts;
 mod root;
 
+#[cfg(feature = "alloc")]
+mod arch;
+
 pub mod api;
 pub mod fops;
 
@@ -103,6 +106,11 @@ pub fn prepare_commonfs(mount_points: &mut Vec<self::root::MountPoint>) {
     // Mount another ramfs as sysfs
     #[cfg(feature = "sysfs")]
     let mount_point = MountPoint::new("/sys", mounts::sysfs().unwrap());
+    mount_points.push(mount_point);
+
+    // Mount another ramfs as etcfs
+    #[cfg(feature = "etcfs")]
+    let mount_point = MountPoint::new("/etc", mounts::etcfs().unwrap());
     mount_points.push(mount_point);
 }
 
