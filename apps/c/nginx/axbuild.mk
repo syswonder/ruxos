@@ -29,19 +29,14 @@ disk.img:
 	./$(APP)/create_nginx_img.sh $(DISK_ARG)
 
 $(nginx-objdir):
-	git clone https://github.com/lhw2002426/nginx-app.git -b nginx-objs $(APP)/objs
-
-$(nginx-src):
-	@echo "Download nginx source code"
-	wget https://nginx.org/download/nginx-$(nginx-version).tar.gz -P $(APP)
-	tar -zxvf $(APP)/nginx-$(nginx-version).tar.gz -C $(APP) && rm -f $(APP)/nginx-$(nginx-version).tar.gz
+	git clone https://github.com/syswonder/rux-nginx.git -b nginx-objs $(APP)/objs
 
 $(APP)/$(nginx-objs): build_nginx
 
 clean_c::
 	find . -type f \( -name "*.o" -o -name "*.elf" -o -name "*.bin" \) -exec rm -f {} +
 
-build_nginx: $(nginx-src) disk.img $(nginx-objdir)
+build_nginx: disk.img $(nginx-objdir)
 	cd $(nginx-objdir) && $(MAKE) $(nginx-build-args)
 
 

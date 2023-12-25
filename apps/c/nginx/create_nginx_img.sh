@@ -25,10 +25,6 @@ create_test_img() {
 	mkdir -p mnt
 	sudo mount -o loop "$name" mnt -o rw,uid=$USER,gid=$USER
 	mkdir -p "mnt/nginx/logs"
-	mkdir -p "mnt/etc"
-	echo "" >> "mnt/etc/localtime"
-	echo "root:x:0:0:root:/root:/bin/bash" >> "mnt/etc/passwd"
-	echo "root:x:0:" >> "mnt/etc/group"
 	mkdir -p "mnt/nginx/conf"
 	cp "$CONF" "mnt/nginx/conf/nginx.conf"
 	cp "$CUR_DIR/mime.types" "mnt/nginx/conf/mime.types"
