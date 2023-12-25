@@ -10,5 +10,4 @@ pipe
 epoll
 poll
 select
-virtio-9p
 rtc

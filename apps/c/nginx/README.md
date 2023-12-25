@@ -22,20 +22,23 @@ The commands below is to run nginx with different features.  These examples run 
 use v9p and musl in aarch64：
 
 ```shell
-make A=apps/c/nginx/ LOG=info NET=y BLK=y V9P=y V9P_PATH=apps/c/nginx/html/  ARCH=aarch64 SMP=4 ARGS="./nginx_app" MUSL=y run
+make A=apps/c/nginx/ LOG=info NET=y BLK=y FEATURES=virtio-9p V9P=y V9P_PATH=./apps/c/nginx/html/ ARCH=aarch64 SMP=4 MUSL=y run
 ```
 
 not use v9p，but use musl in aarch64：
 
 ```shell
-make A=apps/c/nginx/ LOG=info NET=y BLK=y ARCH=aarch64 SMP=4 ARGS="./nginx_app" MUSL=y run
+make A=apps/c/nginx/ LOG=info NET=y BLK=y ARCH=aarch64 SMP=4 MUSL=y run
 ```
 
-If you change running option or source code , remember to clean the compile files and before running.
+If you change running option or source code , remember to clean the compile files before running.
 
 ```shell
 make clean_c A=apps/c/nginx
 ```
+
+## ruxgo
+if you want to use ruxgo to run nginx, remember to run `apps/c/nginx/create_nginx_img.sh` first to make sure disk.img is right, or you can build your own disk.img
 
 # nginx conf
 
@@ -46,4 +49,3 @@ You can change next files to change nginx conf:
 `/nginx/conf/mime.types`
 
 After change you should copy them to disk.img (you can run `apps/c/nginx/create_nginx_img.sh` to do that)
-
