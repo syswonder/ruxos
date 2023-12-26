@@ -7,7 +7,7 @@ An experimental modular operating system (or unikernel) written in Rust.
 
 RuxOS was inspired by [Unikraft](https://github.com/unikraft/unikraft) and [ArceOS](https://github.com/rcore-os/arceos)
 
-🚧 Working In Progress.
+🚧 Working In Progress. See [RuxOS Book](ruxos.syswonder.org) for more information.
 
 ## Features & TODOs
 
@@ -39,17 +39,8 @@ The currently supported applications (Rust), as well as their dependent modules 
 
 | App | Extra modules | Enabled features | Description |
 |-|-|-|-|
-| [helloworld](apps/helloworld/) | | | A minimal app that just prints a string |
-| [exception](apps/exception/) | | paging | Exception handling test |
-| [memtest](apps/memtest/) | axalloc | alloc, paging | Dynamic memory allocation test |
 | [display](apps/display/) | axalloc, ruxdisplay | alloc, paging, display | Graphic/GUI test |
-| [yield](apps/task/yield/) | axalloc, ruxtask | alloc, paging, multitask, sched_fifo | Multi-threaded yielding test |
-| [parallel](apps/task/parallel/) | axalloc, ruxtask | alloc, paging, multitask, sched_fifo | Parallel computing test (to test synchronization & mutex) |
-| [sleep](apps/task/sleep/) | axalloc, ruxtask | alloc, paging, multitask, sched_fifo | Thread sleeping test |
 | [shell](apps/fs/shell/) | axalloc, ruxdriver, ruxfs | alloc, paging, fs | A simple shell that responds to filesystem operations |
-| [httpclient](apps/net/httpclient/) | axalloc, ruxdriver, axnet | alloc, paging, net | A simple client that sends an HTTP request and then prints the response |
-| [echoserver](apps/net/echoserver/) | axalloc, ruxdriver, axnet, ruxtask | alloc, paging, net, multitask | A multi-threaded TCP server that reverses messages sent by the client  |
-| [httpserver](apps/net/httpserver/) | axalloc, ruxdriver, axnet, ruxtask | alloc, paging, net, multitask | A multi-threaded HTTP server that serves a static web page |
 
 ### C
 
@@ -119,13 +110,13 @@ Where `<arch>` should be one of `riscv64`, `aarch64`，`x86_64`.
 
 More arguments and targets can be found in [Makefile](Makefile).
 
-For example, to run the [httpserver](apps/net/httpserver/) on `qemu-system-aarch64` with 4 cores:
+For example, to run the [shell](apps/fs/shell/) on `qemu-system-aarch64`:
 
 ```bash
-make A=apps/net/httpserver ARCH=aarch64 LOG=info SMP=4 run NET=y
+make A=apps/fs/shell ARCH=aarch64 LOG=info run BLK=y
 ```
 
-Note that the `NET=y` argument is required to enable the network device in QEMU. These arguments (`BLK`, `GRAPHIC`, etc.) only take effect at runtime not build time.
+Note that the `BLK=y` argument is required to enable the block device in QEMU. These arguments (`NET`, `GRAPHIC`, etc.) only take effect at runtime not build time.
 
 ### Your custom apps
 
