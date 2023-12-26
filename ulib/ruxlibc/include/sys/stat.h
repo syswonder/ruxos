@@ -14,21 +14,46 @@
 #include <sys/time.h>
 #include <sys/types.h>
 
+#if defined(__aarch64__)
 struct stat {
-    dev_t st_dev;             /* ID of device containing file*/
-    ino_t st_ino;             /* inode number*/
-    mode_t st_mode;           /* protection*/
-    nlink_t st_nlink;         /* number of hard links*/
-    uid_t st_uid;             /* user ID of owner*/
-    gid_t st_gid;             /* group ID of owner*/
-    dev_t st_rdev;            /* device ID (if special file)*/
-    off_t st_size;            /* total size, in bytes*/
-    blksize_t st_blksize;     /* blocksize for filesystem I/O*/
-    blkcnt_t st_blocks;       /* number of blocks allocated*/
-    struct timespec st_atime; /* time of last access*/
-    struct timespec st_mtime; /* time of last modification*/
-    struct timespec st_ctime; /* time of last status change*/
+	dev_t st_dev;
+	ino_t st_ino;
+	mode_t st_mode;
+	nlink_t st_nlink;
+	uid_t st_uid;
+	gid_t st_gid;
+	dev_t st_rdev;
+	unsigned long __pad;
+	off_t st_size;
+	blksize_t st_blksize;
+	int __pad2;
+	blkcnt_t st_blocks;
+	struct timespec st_atime;
+	struct timespec st_mtime;
+	struct timespec st_ctime;
+	unsigned __unused[2];
 };
+#else
+struct stat {
+	dev_t st_dev;
+	ino_t st_ino;
+	nlink_t st_nlink;
+
+	mode_t st_mode;
+	uid_t st_uid;
+	gid_t st_gid;
+	unsigned int    __pad0;
+	dev_t st_rdev;
+	off_t st_size;
+	blksize_t st_blksize;
+	blkcnt_t st_blocks;
+
+	struct timespec st_atime;
+	struct timespec st_mtime;
+	struct timespec st_ctime;
+	long __unused[3];
+};
+#endif
 
 #if defined(__aarch64__)
 struct kstat {

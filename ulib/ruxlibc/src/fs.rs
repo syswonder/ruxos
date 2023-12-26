@@ -42,7 +42,7 @@ pub unsafe extern "C" fn lseek(fd: c_int, offset: ctypes::off_t, whence: c_int) 
 /// Return 0 if success.
 #[no_mangle]
 pub unsafe extern "C" fn stat(path: *const c_char, buf: *mut ctypes::stat) -> c_int {
-    e(sys_stat(path, buf))
+    e(sys_stat(path, buf as _))
 }
 
 /// Get file metadata by `fd` and write into `buf`.

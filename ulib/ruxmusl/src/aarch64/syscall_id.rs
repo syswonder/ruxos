@@ -117,7 +117,7 @@ pub enum SyscallId {
     #[cfg(feature = "alloc")]
     MMAP = 222,
     #[cfg(feature = "alloc")]
-    MADVICE = 233,
+    MADVISE = 233,
     #[cfg(feature = "alloc")]
     MPROTECT = 226,
     PRLIMIT64 = 261,

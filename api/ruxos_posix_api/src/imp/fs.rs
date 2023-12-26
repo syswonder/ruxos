@@ -8,7 +8,7 @@
  */
 
 use alloc::sync::Arc;
-use core::ffi::{c_char, c_int, c_long, c_uint};
+use core::ffi::{c_char, c_int, c_long};
 
 use axerrno::{LinuxError, LinuxResult};
 use axio::{PollState, SeekFrom};
@@ -232,7 +232,7 @@ pub unsafe fn sys_fdatasync(fd: c_int) -> c_int {
 /// Get the file metadata by `path` and write into `buf`.
 ///
 /// Return 0 if success.
-pub unsafe fn sys_stat(path: *const c_char, buf: *mut ctypes::stat) -> c_int {
+pub unsafe fn sys_stat(path: *const c_char, buf: *mut core::ffi::c_void) -> c_int {
     let path = char_ptr_to_str(path);
     debug!("sys_stat <= {:?} {:#x}", path, buf as usize);
     syscall_body!(sys_stat, {
@@ -243,8 +243,30 @@ pub unsafe fn sys_stat(path: *const c_char, buf: *mut ctypes::stat) -> c_int {
         options.read(true);
         let file = ruxfs::fops::File::open(path?, &options)?;
         let st = File::new(file).stat()?;
-        unsafe { *buf = st };
-        Ok(0)
+
+        #[cfg(not(feature = "musl"))]
+        {
+            let buf = buf as *mut ctypes::stat;
+            unsafe { *buf = st };
+            Ok(0)
+        }
+
+        #[cfg(feature = "musl")]
+        {
+            let kst = buf as *mut ctypes::kstat;
+            unsafe {
+                (*kst).st_dev = st.st_dev;
+                (*kst).st_ino = st.st_ino;
+                (*kst).st_mode = st.st_mode;
+                (*kst).st_nlink = st.st_nlink;
+                (*kst).st_uid = st.st_uid;
+                (*kst).st_gid = st.st_gid;
+                (*kst).st_size = st.st_size;
+                (*kst).st_blocks = st.st_blocks;
+                (*kst).st_blksize = st.st_blksize;
+            }
+            Ok(0)
+        }
     })
 }
 
@@ -267,7 +289,7 @@ pub unsafe fn sys_fstat(fd: c_int, kst: *mut core::ffi::c_void) -> c_int {
             let kst = kst as *mut ctypes::kstat;
             unsafe {
                 (*kst).st_dev = st.st_dev;
-                (*kst).st_ino = st.st_dev;
+                (*kst).st_ino = st.st_ino;
                 (*kst).st_mode = st.st_mode;
                 (*kst).st_nlink = st.st_nlink;
                 (*kst).st_uid = st.st_uid;
@@ -275,6 +297,13 @@ pub unsafe fn sys_fstat(fd: c_int, kst: *mut core::ffi::c_void) -> c_int {
                 (*kst).st_size = st.st_size;
                 (*kst).st_blocks = st.st_blocks;
                 (*kst).st_blksize = st.st_blksize;
+                (*kst).st_atime_sec = st.st_atime.tv_sec;
+                (*kst).st_atime_nsec = st.st_atime.tv_nsec;
+                (*kst).st_mtime_sec = st.st_mtime.tv_sec;
+                (*kst).st_mtime_nsec = st.st_mtime.tv_nsec;
+                (*kst).st_ctime_sec = st.st_ctime.tv_sec;
+                (*kst).st_ctime_nsec = st.st_ctime.tv_nsec;
+                (*kst).st_rdev = st.st_rdev;
             }
             Ok(0)
         }
@@ -319,7 +348,7 @@ pub unsafe fn sys_newfstatat(
         let st = File::new(file).stat()?;
         unsafe {
             (*kst).st_dev = st.st_dev;
-            (*kst).st_ino = st.st_dev;
+            (*kst).st_ino = st.st_ino;
             (*kst).st_mode = st.st_mode;
             (*kst).st_nlink = st.st_nlink;
             (*kst).st_uid = st.st_uid;
@@ -508,15 +537,19 @@ fn convert_name_to_array(name: &[u8]) -> [i8; 256] {
 /// Read directory entries from a directory file descriptor.
 ///
 /// TODO: check errors, change 280 to a special value
-pub unsafe fn sys_getdents64(fd: c_uint, dirent: *mut LinuxDirent64, count: c_uint) -> c_long {
+pub unsafe fn sys_getdents64(
+    fd: c_int,
+    dirent: *mut LinuxDirent64,
+    count: ctypes::size_t,
+) -> c_long {
     debug!(
         "sys_getdents64 <= fd: {}, dirent: {:p}, count: {}",
         fd, dirent, count
     );
 
     syscall_body!(sys_getdents64, {
-        let expect_entries = count as usize / 280;
-        let dir = Directory::from_fd(fd as i32)?;
+        let expect_entries = count / 280;
+        let dir = Directory::from_fd(fd)?;
         let mut my_dirent: Vec<DirEntry> =
             (0..expect_entries).map(|_| DirEntry::default()).collect();
 

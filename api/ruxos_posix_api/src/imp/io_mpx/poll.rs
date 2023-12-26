@@ -58,7 +58,7 @@ pub unsafe fn sys_ppoll(
 pub unsafe fn sys_poll(fds: *mut ctypes::pollfd, nfds: ctypes::nfds_t, timeout: c_int) -> c_int {
     debug!("sys_poll <= nfds: {} timeout: {} ms", nfds, timeout);
 
-    syscall_body!(ax_poll, {
+    syscall_body!(sys_poll, {
         if nfds == 0 {
             return Err(LinuxError::EINVAL);
         }

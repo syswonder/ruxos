@@ -46,13 +46,14 @@ pub mod config {
 pub mod ctypes;
 
 pub use imp::io::{sys_read, sys_readv, sys_write, sys_writev};
+pub use imp::prctl::{sys_arch_prctl, sys_prctl};
 pub use imp::resources::{sys_getrlimit, sys_prlimit64, sys_setrlimit};
 pub use imp::rt_sig::{sys_rt_sigaction, sys_rt_sigprocmask};
 pub use imp::stat::{sys_geteuid, sys_umask};
 pub use imp::sys::{sys_sysinfo, sys_uname};
 pub use imp::sys_invalid;
 pub use imp::task::{sys_exit, sys_getpid, sys_sched_yield};
-pub use imp::time::{sys_clock_gettime, sys_clock_settime, sys_nanosleep};
+pub use imp::time::{sys_clock_gettime, sys_clock_settime, sys_gettimeofday, sys_nanosleep};
 
 #[cfg(all(feature = "fd", feature = "musl"))]
 pub use imp::fd_ops::sys_dup3;
@@ -73,7 +74,7 @@ pub use imp::io_mpx::{sys_pselect6, sys_select};
 #[cfg(feature = "fd")]
 pub use imp::ioctl::sys_ioctl;
 #[cfg(feature = "alloc")]
-pub use imp::mmap::{sys_madvice, sys_mmap, sys_mprotect, sys_mremap, sys_munmap};
+pub use imp::mmap::{sys_madvise, sys_mmap, sys_mprotect, sys_mremap, sys_munmap};
 #[cfg(feature = "net")]
 pub use imp::net::{
     sys_accept, sys_bind, sys_connect, sys_freeaddrinfo, sys_getaddrinfo, sys_getpeername,
@@ -102,7 +103,13 @@ pub use imp::signal::{sys_getitimer, sys_setitimer, sys_sigaction, sys_sigaltsta
 
 #[cfg(feature = "multitask")]
 pub use imp::pthread::futex::sys_futex;
+#[cfg(all(
+    feature = "multitask",
+    feature = "musl",
+    any(target_arch = "aarch64", target_arch = "x86_64")
+))]
+pub use imp::pthread::sys_clone;
 #[cfg(all(feature = "multitask", feature = "musl"))]
-pub use imp::pthread::{sys_clone, sys_set_tid_address};
+pub use imp::pthread::sys_set_tid_address;
 #[cfg(feature = "multitask")]
 pub use imp::pthread::{sys_pthread_create, sys_pthread_exit, sys_pthread_join, sys_pthread_self};
