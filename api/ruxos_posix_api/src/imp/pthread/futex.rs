@@ -17,6 +17,7 @@ use ruxtask::{current, AxTaskRef, TaskState, WaitQueue};
 
 use crate::ctypes;
 
+#[derive(Debug)]
 enum FutexFlags {
     Wait,
     Wake,
@@ -59,7 +60,7 @@ pub fn sys_futex(
     check_dead_wait();
     let flag = FutexFlags::from(op);
     let current_task = current();
-    let timeout = if to != 0 {
+    let timeout = if to != 0 && to > 0xffff000000000000usize {
         let dur = unsafe { Duration::from(*(to as *const ctypes::timespec)) };
         dur.as_nanos() as u64
     } else {

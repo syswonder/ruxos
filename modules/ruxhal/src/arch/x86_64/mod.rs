@@ -19,6 +19,7 @@ use core::arch::asm;
 use memory_addr::{PhysAddr, VirtAddr};
 use x86::{controlregs, msr, tlb};
 use x86_64::instructions::interrupts;
+use x86_64::registers::model_specific::EferFlags;
 
 pub use self::context::{ExtendedState, FxsaveArea, TaskContext, TrapFrame};
 pub use self::gdt::GdtStruct;
@@ -116,4 +117,42 @@ pub fn read_thread_pointer() -> usize {
 #[inline]
 pub unsafe fn write_thread_pointer(fs_base: usize) {
     unsafe { msr::wrmsr(msr::IA32_FS_BASE, fs_base as u64) }
+}
+
+#[cfg(feature = "musl")]
+core::arch::global_asm!(include_str!("syscall.S"),);
+
+/// Set syscall entry
+///
+/// # Safety
+///
+/// This function modify MSR registers
+#[cfg(feature = "musl")]
+#[inline]
+pub unsafe fn init_syscall_entry() {
+    extern "C" {
+        fn x86_syscall_entry();
+    }
+
+    let cpuid = raw_cpuid::CpuId::new();
+
+    unsafe {
+        assert!(cpuid
+            .get_extended_processor_and_feature_identifiers()
+            .unwrap()
+            .has_syscall_sysret());
+
+        x86_64::registers::model_specific::LStar::write(x86_64::VirtAddr::new(
+            x86_syscall_entry as usize as u64,
+        ));
+        x86_64::registers::model_specific::Efer::update(|efer| {
+            efer.insert(
+                EferFlags::SYSTEM_CALL_EXTENSIONS
+                    | EferFlags::LONG_MODE_ACTIVE
+                    | EferFlags::LONG_MODE_ENABLE,
+            );
+        });
+        msr::wrmsr(msr::IA32_STAR, (0x10 << 48) | (0x10 << 32));
+        msr::wrmsr(msr::IA32_FMASK, 0x47700);
+    }
 }

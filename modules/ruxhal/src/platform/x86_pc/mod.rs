@@ -65,6 +65,8 @@ unsafe extern "C" fn rust_entry(magic: usize, mbi: usize) {
         crate::cpu::init_primary(current_cpu_id());
         self::uart16550::init();
         self::dtables::init_primary();
+        #[cfg(feature = "musl")]
+        crate::arch::init_syscall_entry();
         self::time::init_early();
         parse_cmdline(mbi);
         rust_main(current_cpu_id(), 0);
@@ -77,6 +79,8 @@ unsafe extern "C" fn rust_entry_secondary(magic: usize) {
     if magic == self::boot::MULTIBOOT_BOOTLOADER_MAGIC {
         crate::cpu::init_secondary(current_cpu_id());
         self::dtables::init_secondary();
+        #[cfg(feature = "musl")]
+        crate::arch::init_syscall_entry();
         rust_main_secondary(current_cpu_id());
     }
 }

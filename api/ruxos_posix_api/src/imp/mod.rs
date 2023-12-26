@@ -10,6 +10,7 @@
 mod stdio;
 
 pub mod io;
+pub mod prctl;
 pub mod resources;
 pub mod rt_sig;
 pub mod stat;

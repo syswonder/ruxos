@@ -97,7 +97,7 @@ impl Pthread {
     }
 
     /// Posix create, used by musl libc
-    #[cfg(feature = "musl")]
+    #[cfg(all(feature = "musl", any(target_arch = "x86_64", target_arch = "aarch64")))]
     fn pcreate(
         _attr: *const ctypes::pthread_attr_t,
         start_routine: extern "C" fn(arg: *mut c_void) -> *mut c_void,
@@ -239,7 +239,7 @@ unsafe impl<T> Send for ForceSendSync<T> {}
 unsafe impl<T> Sync for ForceSendSync<T> {}
 
 /// Create new thread by `sys_clone`, return new thread ID
-#[cfg(feature = "musl")]
+#[cfg(all(feature = "musl", target_arch = "aarch64"))]
 pub unsafe fn sys_clone(
     flags: c_int,
     stack: *mut c_void,
@@ -264,6 +264,60 @@ pub unsafe fn sys_clone(
             )
         };
         let args = unsafe { *((stack as usize + 8) as *mut usize) } as *mut c_void;
+
+        let set_tid = if (flags as u32 & ctypes::CLONE_CHILD_SETTID) != 0 {
+            core::sync::atomic::AtomicU64::new(ctid as _)
+        } else {
+            core::sync::atomic::AtomicU64::new(0)
+        };
+
+        let (tid, task_inner) = Pthread::pcreate(
+            core::ptr::null(),
+            func,
+            args,
+            tls,
+            set_tid,
+            core::sync::atomic::AtomicU64::from(ctid as u64),
+        )?;
+
+        // write tid to ptid
+        if (flags as u32 & ctypes::CLONE_PARENT_SETTID) != 0 {
+            unsafe { *ptid = tid as c_int };
+        }
+
+        ruxtask::put_task(task_inner);
+
+        Ok(tid)
+    })
+}
+
+/// Create new thread by `sys_clone`, return new thread ID
+#[cfg(all(feature = "musl", target_arch = "x86_64"))]
+pub unsafe fn sys_clone(
+    flags: c_int,
+    stack: *mut c_void, // for x86_64, stack points to arg
+    ptid: *mut ctypes::pid_t,
+    ctid: *mut ctypes::pid_t,
+    tls: *mut c_void,
+    func: *mut c_void,
+) -> c_int {
+    debug!(
+        "sys_clone <= flags: {:x}, stack: {:p}, ctid: {:x}, func: {:x}, tls: {:#x}",
+        flags, stack, ctid as usize, func as usize, tls as usize,
+    );
+
+    syscall_body!(sys_clone, {
+        if (flags as u32 & ctypes::CLONE_THREAD) == 0 {
+            debug!("ONLY support thread");
+            return Err(LinuxError::EINVAL);
+        }
+
+        let func = unsafe {
+            core::mem::transmute::<*const (), extern "C" fn(arg: *mut c_void) -> *mut c_void>(
+                func as usize as *const (),
+            )
+        };
+        let args = unsafe { *((stack as usize) as *mut usize) } as *mut c_void;
 
         let set_tid = if (flags as u32 & ctypes::CLONE_CHILD_SETTID) != 0 {
             core::sync::atomic::AtomicU64::new(ctid as _)
