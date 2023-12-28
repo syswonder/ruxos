@@ -11,3 +11,4 @@ epoll
 poll
 virtio-9p
 rtc
+signal
