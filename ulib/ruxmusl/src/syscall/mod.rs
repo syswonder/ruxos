@@ -177,12 +177,19 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[1] as *mut ctypes::timespec,
             ) as _,
             SyscallId::SCHED_YIELD => ruxos_posix_api::sys_sched_yield() as _,
+            #[cfg(feature = "signal")]
+            SyscallId::SIGALTSTACK => ruxos_posix_api::sys_sigaltstack(
+                args[0] as *const core::ffi::c_void,
+                args[1] as *mut core::ffi::c_void,
+            ) as _,
+            #[cfg(feature = "signal")]
             SyscallId::RT_SIGACTION => ruxos_posix_api::sys_rt_sigaction(
                 args[0] as c_int,
                 args[1] as *const ctypes::sigaction,
                 args[2] as *mut ctypes::sigaction,
                 args[3] as ctypes::size_t,
             ) as _,
+            #[cfg(feature = "signal")]
             SyscallId::RT_SIGPROCMASK => ruxos_posix_api::sys_rt_sigprocmask(
                 args[0] as c_int,
                 args[1] as *const usize,
@@ -284,6 +291,14 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
             SyscallId::MUNMAP => ruxos_posix_api::sys_munmap(
                 args[0] as *mut core::ffi::c_void,
                 args[1] as ctypes::size_t,
+            ) as _,
+            #[cfg(feature = "alloc")]
+            SyscallId::MREMAP => ruxos_posix_api::sys_mremap(
+                args[0] as *mut core::ffi::c_void,
+                args[1] as ctypes::size_t,
+                args[2] as ctypes::size_t,
+                args[3] as c_int,
+                args[4] as *mut core::ffi::c_void,
             ) as _,
             #[cfg(feature = "multitask")]
             SyscallId::CLONE => ruxos_posix_api::sys_clone(

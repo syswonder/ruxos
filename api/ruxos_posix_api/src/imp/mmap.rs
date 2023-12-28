@@ -69,3 +69,27 @@ pub fn sys_mprotect(addr: *mut c_void, len: ctypes::size_t, prot: c_int) -> c_in
     );
     syscall_body!(sys_mprotect, Ok(0))
 }
+
+/// Remap a virtual memory address
+///
+/// TODO: only support
+pub fn sys_mremap(
+    old_addr: *mut c_void,
+    old_size: ctypes::size_t,
+    new_size: ctypes::size_t,
+    _flags: c_int,
+    _new_addr: *mut c_void,
+) -> *mut c_void {
+    debug!(
+        "sys_mremap <= old_addr: {:p}, old_size: {}, new_size: {}, flags: {}, new_addr: {:p}",
+        old_addr, old_size, new_size, _flags, _new_addr
+    );
+    syscall_body!(sys_mremap, {
+        if old_addr.is_null() {
+            // TODO: It should be ctypes::MAP_FAILED,
+            // but it is not defined in ctypes for an unknown reason
+            return Ok(-1 as _);
+        }
+        Ok::<*mut c_void, LinuxError>(-1 as _)
+    })
+}

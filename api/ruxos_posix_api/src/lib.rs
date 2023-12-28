@@ -73,7 +73,7 @@ pub use imp::io_mpx::{sys_pselect6, sys_select};
 #[cfg(feature = "fd")]
 pub use imp::ioctl::sys_ioctl;
 #[cfg(feature = "alloc")]
-pub use imp::mmap::{sys_mmap, sys_mprotect, sys_munmap};
+pub use imp::mmap::{sys_mmap, sys_mprotect, sys_mremap, sys_munmap};
 #[cfg(feature = "net")]
 pub use imp::net::{
     sys_accept, sys_bind, sys_connect, sys_freeaddrinfo, sys_getaddrinfo, sys_getpeername,
@@ -98,7 +98,7 @@ pub use imp::pthread::{
     sys_pthread_setspecific,
 };
 #[cfg(feature = "signal")]
-pub use imp::signal::{sys_getitimer, sys_setitimer, sys_sigaction};
+pub use imp::signal::{sys_getitimer, sys_setitimer, sys_sigaction, sys_sigaltstack};
 
 #[cfg(feature = "multitask")]
 pub use imp::pthread::futex::sys_futex;

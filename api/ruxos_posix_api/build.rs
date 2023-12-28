@@ -103,6 +103,7 @@ typedef struct {{
             "sigset_t",
             "sigaction",
             "kstat",
+            "stack_t",
         ];
         let allow_vars = [
             "O_.*",
@@ -122,6 +123,7 @@ typedef struct {{
             "EINVAL",
             "CLONE_.*",
             "AT_.*",
+            "MAP_FAILED",
         ];
 
         #[derive(Debug)]
