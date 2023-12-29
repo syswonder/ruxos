@@ -62,7 +62,7 @@ pub use imp::fd_ops::{sys_close, sys_dup, sys_dup2, sys_fcntl};
 pub use imp::fs::{
     sys_fchownat, sys_fdatasync, sys_fstat, sys_fsync, sys_getcwd, sys_lseek, sys_lstat, sys_mkdir,
     sys_mkdirat, sys_newfstatat, sys_open, sys_openat, sys_rename, sys_renameat, sys_rmdir,
-    sys_stat, sys_unlink, sys_unlinkat,
+    sys_stat, sys_unlink, sys_unlinkat,sys_getegid,sys_geteuid
 };
 #[cfg(feature = "epoll")]
 pub use imp::io_mpx::{sys_epoll_create, sys_epoll_ctl, sys_epoll_pwait, sys_epoll_wait};

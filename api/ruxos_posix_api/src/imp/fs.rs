@@ -189,6 +189,21 @@ pub unsafe fn sys_stat(path: *const c_char, buf: *mut ctypes::stat) -> c_int {
         Ok(0)
     })
 }
+/// Obtain a valid user ID for the process
+/// 
+/// return 1000 if success.
+pub unsafe fn sys_geteuid() -> c_int {
+    debug!("sys_geteuid ");
+    syscall_body!(sys_geteuid, Ok(1000))
+}
+
+/// Obtain a valid group ID for the process
+/// 
+/// return 1000 if success.
+pub unsafe fn sys_getegid() -> c_int {
+    debug!("sys_getegid ");
+    syscall_body!(sys_getegid, Ok(1000))
+}
 
 /// retrieve information about the file pointed by `fd`
 pub unsafe fn sys_fstat(fd: c_int, kst: *mut core::ffi::c_void) -> c_int {
