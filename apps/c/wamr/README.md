@@ -7,6 +7,8 @@ The `main.wasm` and other wasm files is compiled from `.c` files in `rootfs/` us
 
 # How to build?
 
+The compilation of `WAMR` depends on `cmake`.
+
 Take the 2048 game as an example. To run 2048, you need to compile the `2048.wasm` wasm file first.
 
 We use `wasi-sdk` to compile the `2048` wasm file. You can download the `wasi-sdk` from [here](https://github.com/WebAssembly/wasi-sdk). Or you can use other wasm compiler.
