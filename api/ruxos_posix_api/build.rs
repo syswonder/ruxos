@@ -104,6 +104,8 @@ typedef struct {{
             "sigaction",
             "kstat",
             "stack_t",
+            "ino_t",
+            "dirent",
         ];
         let allow_vars = [
             "O_.*",

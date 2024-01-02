@@ -93,3 +93,15 @@ pub fn sys_mremap(
         Ok::<*mut c_void, LinuxError>(-1 as _)
     })
 }
+
+/// give advice about use of memory
+/// if success return 0, if error return -1
+///
+/// TODO: implement this
+pub fn sys_madvice(addr: *mut c_void, len: ctypes::size_t, advice: c_int) -> c_int {
+    debug!(
+        "sys_madvice <= addr: {:p}, len: {}, advice: {}",
+        addr, len, advice
+    );
+    syscall_body!(sys_madvice, Ok(0))
+}

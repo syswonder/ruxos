@@ -17,6 +17,7 @@ pub const TIOCGPGRP: usize = 0x540F;
 pub const TIOCSPGRP: usize = 0x5410;
 pub const TIOCGWINSZ: usize = 0x5413;
 pub const FIONBIO: usize = 0x5421;
+pub const FIOCLEX: usize = 0x5451;
 
 #[derive(Clone, Copy, Default)]
 pub struct ConsoleWinSize {
@@ -56,6 +57,7 @@ pub fn sys_ioctl(fd: c_int, request: usize, data: usize) -> c_int {
                 }
                 Ok(0)
             }
+            FIOCLEX => Ok(0),
             _ => Err(LinuxError::EINVAL),
         }
     })
