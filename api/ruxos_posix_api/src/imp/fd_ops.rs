@@ -167,6 +167,17 @@ pub fn sys_fcntl(fd: c_int, cmd: c_int, arg: usize) -> c_int {
                 }
                 Ok(flags as c_int)
             }
+            ctypes::F_SETFD => {
+                if arg == 0 || arg == 1 || arg == 2 {
+                    return Ok(0);
+                }
+                FD_TABLE
+                    .write()
+                    .add_at(arg, get_file_like(fd)?)
+                    .ok_or(LinuxError::EMFILE)?;
+                let _ = close_file_like(fd);
+                Ok(0)
+            }
             _ => {
                 warn!("unsupported fcntl parameters: cmd {}", cmd);
                 Ok(0)

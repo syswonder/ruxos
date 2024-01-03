@@ -15,7 +15,11 @@ use axsync::Mutex;
 use {alloc::sync::Arc, axerrno::LinuxError, axerrno::LinuxResult, axio::PollState};
 
 fn console_read_bytes() -> Option<u8> {
-    ruxhal::console::getchar().map(|c| if c == b'\r' { b'\n' } else { c })
+    let ret = ruxhal::console::getchar().map(|c| if c == b'\r' { b'\n' } else { c });
+    if let Some(c) = ret {
+        let _ = console_write_bytes(&[c]);
+    }
+    ret
 }
 
 fn console_write_bytes(buf: &[u8]) -> AxResult<usize> {
