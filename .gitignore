@@ -6,3 +6,6 @@ disk.img
 actual.out
 qemu.log
 rusty-tags.vi
+apps/c/redis/
+apps/c/iperf/
+apps/c/wamr/
