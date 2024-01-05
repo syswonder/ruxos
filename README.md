@@ -7,7 +7,7 @@ An experimental modular operating system (or unikernel) written in Rust.
 
 RuxOS was inspired by [Unikraft](https://github.com/unikraft/unikraft) and [ArceOS](https://github.com/rcore-os/arceos)
 
-🚧 Working In Progress. See [RuxOS Book](ruxos.syswonder.org) for more information.
+🚧 Working In Progress. See [RuxOS Book](https://ruxos.syswonder.org) for more information.
 
 ## Features & TODOs
 
