@@ -8,15 +8,16 @@
  */
 
 use alloc::sync::Arc;
-use core::ffi::{c_char, c_int};
+use core::ffi::{c_char, c_int, c_long, c_uint};
 
 use axerrno::{LinuxError, LinuxResult};
 use axio::{PollState, SeekFrom};
 use axsync::Mutex;
-use ruxfs::fops::OpenOptions;
+use ruxfs::fops::{DirEntry, OpenOptions};
 
 use super::fd_ops::{get_file_like, FileLike};
 use crate::{ctypes, utils::char_ptr_to_str};
+use alloc::vec::Vec;
 
 pub struct File {
     inner: Mutex<ruxfs::fops::File>,
@@ -84,6 +85,58 @@ impl FileLike for File {
     }
 }
 
+pub struct Directory {
+    inner: Mutex<ruxfs::fops::Directory>,
+}
+
+impl Directory {
+    fn new(inner: ruxfs::fops::Directory) -> Self {
+        Self {
+            inner: Mutex::new(inner),
+        }
+    }
+
+    fn add_to_fd_table(self) -> LinuxResult<c_int> {
+        super::fd_ops::add_file_like(Arc::new(self))
+    }
+
+    fn from_fd(fd: c_int) -> LinuxResult<Arc<Self>> {
+        let f = super::fd_ops::get_file_like(fd)?;
+        f.into_any()
+            .downcast::<Self>()
+            .map_err(|_| LinuxError::EINVAL)
+    }
+}
+
+impl FileLike for Directory {
+    fn read(&self, _buf: &mut [u8]) -> LinuxResult<usize> {
+        Err(LinuxError::EACCES)
+    }
+
+    fn write(&self, _buf: &[u8]) -> LinuxResult<usize> {
+        Err(LinuxError::EACCES)
+    }
+
+    fn stat(&self) -> LinuxResult<ctypes::stat> {
+        Err(LinuxError::EACCES)
+    }
+
+    fn into_any(self: Arc<Self>) -> Arc<dyn core::any::Any + Send + Sync> {
+        self
+    }
+
+    fn poll(&self) -> LinuxResult<PollState> {
+        Ok(PollState {
+            readable: true,
+            writable: true,
+        })
+    }
+
+    fn set_nonblocking(&self, _nonblocking: bool) -> LinuxResult {
+        Ok(())
+    }
+}
+
 /// Convert open flags to [`OpenOptions`].
 fn flags_to_options(flags: c_int, _mode: ctypes::mode_t) -> OpenOptions {
     let flags = flags as u32;
@@ -133,8 +186,13 @@ pub fn sys_openat(_fd: usize, path: *const c_char, flags: c_int, mode: ctypes::m
     debug!("sys_openat <= {:?}, {:#o} {:#o}", path, flags, mode);
     syscall_body!(sys_openat, {
         let options = flags_to_options(flags, mode);
-        let file = ruxfs::fops::File::open(path?, &options)?;
-        File::new(file).add_to_fd_table()
+        if (flags as u32) & ctypes::O_DIRECTORY != 0 {
+            let dir = ruxfs::fops::Directory::open_dir(path?, &options)?;
+            Directory::new(dir).add_to_fd_table()
+        } else {
+            let file = ruxfs::fops::File::open(path?, &options)?;
+            File::new(file).add_to_fd_table()
+        }
     })
 }
 
@@ -401,4 +459,83 @@ pub fn sys_fchownat(
         flag
     );
     syscall_body!(sys_fchownat, Ok(0))
+}
+
+/// read value of a symbolic link relative to directory file descriptor
+pub fn sys_readlinkat(
+    fd: c_int,
+    pathname: *const c_char,
+    buf: *mut c_char,
+    bufsize: usize,
+) -> usize {
+    let path = char_ptr_to_str(pathname);
+    debug!(
+        "sys_readlinkat <= path = {:?}, fd = {:}, bufsize = {:}",
+        path, fd, bufsize
+    );
+    syscall_body!(sys_readlinkat, {
+        let mut options = OpenOptions::new();
+        options.read(true);
+        let dst = unsafe { core::slice::from_raw_parts_mut(buf as *mut u8, bufsize as _) };
+        // if fd == AT_FDCWD then readat the relative path
+        if fd == ctypes::AT_FDCWD as c_int {
+            let file = ruxfs::fops::File::open(path?, &options)?;
+            let file = File::new(file);
+            Ok(file.read(dst)?)
+        } else {
+            let dir = Directory::from_fd(fd)?;
+            let mut file = dir.inner.lock().open_file_at(path?, &options)?;
+            Ok(file.read(dst)?)
+        }
+    })
+}
+
+type LinuxDirent64 = ctypes::dirent;
+
+fn convert_name_to_array(name: &[u8]) -> [i8; 256] {
+    let mut array = [0i8; 256];
+    let len = name.len();
+    let name_ptr = name.as_ptr() as *const i8;
+    let array_ptr = array.as_mut_ptr();
+
+    unsafe {
+        core::ptr::copy_nonoverlapping(name_ptr, array_ptr, len);
+    }
+
+    array
+}
+
+/// Read directory entries from a directory file descriptor.
+///
+/// TODO: check errors, change 280 to a special value
+pub unsafe fn sys_getdents64(fd: c_uint, dirent: *mut LinuxDirent64, count: c_uint) -> c_long {
+    debug!(
+        "sys_getdents64 <= fd: {}, dirent: {:p}, count: {}",
+        fd, dirent, count
+    );
+
+    syscall_body!(sys_getdents64, {
+        let expect_entries = count as usize / 280;
+        let dir = Directory::from_fd(fd as i32)?;
+        let mut my_dirent: Vec<DirEntry> =
+            (0..expect_entries).map(|_| DirEntry::default()).collect();
+
+        let n = dir.inner.lock().read_dir(&mut my_dirent)?;
+
+        for (i, entry) in my_dirent.iter().enumerate() {
+            let linux_dirent = LinuxDirent64 {
+                d_ino: 1,
+                d_off: 280,
+                d_reclen: 280,
+                d_type: entry.entry_type() as u8,
+                d_name: convert_name_to_array(entry.name_as_bytes()),
+            };
+
+            unsafe {
+                core::ptr::write(dirent.add(i), linux_dirent);
+            }
+        }
+
+        Ok(n * 280)
+    })
 }

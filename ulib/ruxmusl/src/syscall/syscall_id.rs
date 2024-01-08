@@ -38,6 +38,8 @@ pub enum SyscallId {
     #[cfg(feature = "pipe")]
     PIPE2 = 59,
     #[cfg(feature = "fs")]
+    GETDENTS64 = 61,
+    #[cfg(feature = "fs")]
     LSEEK = 62,
     READ = 63,
     WRITE = 64,
@@ -49,6 +51,8 @@ pub enum SyscallId {
     PSELECT6 = 72,
     #[cfg(feature = "poll")]
     PPOLL = 73,
+    #[cfg(feature = "fs")]
+    READLINKAT = 78,
     #[cfg(feature = "fs")]
     NEWFSTATAT = 79,
     #[cfg(feature = "fs")]
@@ -66,7 +70,11 @@ pub enum SyscallId {
     CLOCK_SETTIME = 112,
     CLOCK_GETTIME = 113,
     SCHED_YIELD = 124,
+    #[cfg(feature = "signal")]
+    SIGALTSTACK = 132,
+    #[cfg(feature = "signal")]
     RT_SIGACTION = 134,
+    #[cfg(feature = "signal")]
     RT_SIGPROCMASK = 135,
     UNAME = 160,
     GETRLIMIT = 163,
@@ -102,10 +110,14 @@ pub enum SyscallId {
     SENDMSG = 211,
     #[cfg(feature = "alloc")]
     MUNMAP = 215,
+    #[cfg(feature = "alloc")]
+    MREMAP = 216,
     #[cfg(feature = "multitask")]
     CLONE = 220,
     #[cfg(feature = "alloc")]
     MMAP = 222,
+    #[cfg(feature = "alloc")]
+    MADVICE = 233,
     #[cfg(feature = "alloc")]
     MPROTECT = 226,
     PRLIMIT64 = 261,

@@ -110,13 +110,21 @@ pub(crate) fn etcfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
     let etcfs = fs::ramfs::RamFileSystem::new();
     let etc_root = etcfs.root_dir();
 
-    // Create /etc/passwd and /etc/hosts
+    // Create /etc/passwd, and /etc/hosts
     etc_root.create("passwd", VfsNodeType::File)?;
     let file_passwd = etc_root.clone().lookup("passwd")?;
-
     // format: username:password:uid:gid:allname:homedir:shell
     file_passwd.write_at(0, b"root:x:0:0:root:/root:/bin/bash\n")?;
 
+    // Create /etc/group
+    etc_root.create("group", VfsNodeType::File)?;
+    let file_group = etc_root.clone().lookup("group")?;
+    file_group.write_at(0, b"root:x:0:\n")?;
+
+    // Create /etc/localtime
+    etc_root.create("localtime", VfsNodeType::File)?;
+
+    // Createe /etc/hosts
     etc_root.create("hosts", VfsNodeType::File)?;
     let file_hosts = etc_root.clone().lookup("hosts")?;
     file_hosts.write_at(

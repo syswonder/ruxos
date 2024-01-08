@@ -1,6 +1,6 @@
 pub mod syscall_id;
 
-use core::ffi::c_int;
+use core::ffi::{c_int, c_uint};
 use ruxos_posix_api::ctypes;
 use syscall_id::SyscallId;
 
@@ -86,6 +86,12 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[1] as c_int,
             ) as _,
             #[cfg(feature = "fs")]
+            SyscallId::GETDENTS64 => ruxos_posix_api::sys_getdents64(
+                args[0] as c_uint,
+                args[1] as *mut ctypes::dirent,
+                args[2] as c_uint,
+            ) as _,
+            #[cfg(feature = "fs")]
             SyscallId::LSEEK => ruxos_posix_api::sys_lseek(
                 args[0] as c_int,
                 args[1] as ctypes::off_t,
@@ -129,6 +135,13 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[2] as *const ctypes::timespec,
                 args[3] as *const ctypes::sigset_t,
                 args[4] as ctypes::size_t,
+            ) as _,
+            #[cfg(feature = "fs")]
+            SyscallId::READLINKAT => ruxos_posix_api::sys_readlinkat(
+                args[0] as c_int,
+                args[1] as *const core::ffi::c_char,
+                args[2] as *mut core::ffi::c_char,
+                args[3] as ctypes::size_t,
             ) as _,
             #[cfg(feature = "fs")]
             SyscallId::NEWFSTATAT => ruxos_posix_api::sys_newfstatat(
@@ -177,12 +190,19 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[1] as *mut ctypes::timespec,
             ) as _,
             SyscallId::SCHED_YIELD => ruxos_posix_api::sys_sched_yield() as _,
+            #[cfg(feature = "signal")]
+            SyscallId::SIGALTSTACK => ruxos_posix_api::sys_sigaltstack(
+                args[0] as *const core::ffi::c_void,
+                args[1] as *mut core::ffi::c_void,
+            ) as _,
+            #[cfg(feature = "signal")]
             SyscallId::RT_SIGACTION => ruxos_posix_api::sys_rt_sigaction(
                 args[0] as c_int,
                 args[1] as *const ctypes::sigaction,
                 args[2] as *mut ctypes::sigaction,
                 args[3] as ctypes::size_t,
             ) as _,
+            #[cfg(feature = "signal")]
             SyscallId::RT_SIGPROCMASK => ruxos_posix_api::sys_rt_sigprocmask(
                 args[0] as c_int,
                 args[1] as *const usize,
@@ -285,6 +305,14 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[0] as *mut core::ffi::c_void,
                 args[1] as ctypes::size_t,
             ) as _,
+            #[cfg(feature = "alloc")]
+            SyscallId::MREMAP => ruxos_posix_api::sys_mremap(
+                args[0] as *mut core::ffi::c_void,
+                args[1] as ctypes::size_t,
+                args[2] as ctypes::size_t,
+                args[3] as c_int,
+                args[4] as *mut core::ffi::c_void,
+            ) as _,
             #[cfg(feature = "multitask")]
             SyscallId::CLONE => ruxos_posix_api::sys_clone(
                 args[0] as c_int,
@@ -301,6 +329,12 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[3] as c_int,
                 args[4] as c_int,
                 args[5] as ctypes::off_t,
+            ) as _,
+            #[cfg(feature = "alloc")]
+            SyscallId::MADVICE => ruxos_posix_api::sys_madvice(
+                args[0] as *mut core::ffi::c_void,
+                args[1] as ctypes::size_t,
+                args[2] as c_int,
             ) as _,
             #[cfg(feature = "alloc")]
             SyscallId::MPROTECT => ruxos_posix_api::sys_mprotect(
