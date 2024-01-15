@@ -64,6 +64,8 @@ NET_9P_ADDR ?= 127.0.0.1:564
 ANAME_9P ?= ./
 PROTOCOL_9P ?= 9P2000.L
 
+START_PORT ?= 5555
+PORTS_NUM ?= 5
 # Network options
 IP ?= 10.0.2.15
 GW ?= 10.0.2.2

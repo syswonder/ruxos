@@ -241,6 +241,7 @@ fn from_sockaddr(
 pub fn sys_socket(domain: c_int, socktype: c_int, protocol: c_int) -> c_int {
     debug!("sys_socket <= {} {} {}", domain, socktype, protocol);
     let (domain, socktype, protocol) = (domain as u32, socktype as u32, protocol as u32);
+    pub const _SOCK_DGRAM_NONBLOKCING: u32 = ctypes::SOCK_DGRAM | ctypes::SOCK_NONBLOCK;
     syscall_body!(sys_socket, {
         match (domain, socktype, protocol) {
             (ctypes::AF_INET, ctypes::SOCK_STREAM, ctypes::IPPROTO_TCP)
@@ -250,6 +251,11 @@ pub fn sys_socket(domain: c_int, socktype: c_int, protocol: c_int) -> c_int {
             (ctypes::AF_INET, ctypes::SOCK_DGRAM, ctypes::IPPROTO_UDP)
             | (ctypes::AF_INET, ctypes::SOCK_DGRAM, 0) => {
                 Socket::Udp(Mutex::new(UdpSocket::new())).add_to_fd_table()
+            }
+            (ctypes::AF_INET, _SOCK_DGRAM_NONBLOKCING, ctypes::IPPROTO_TCP) => {
+                let tcp_socket = TcpSocket::new();
+                tcp_socket.set_nonblocking(true);
+                Socket::Tcp(Mutex::new(tcp_socket)).add_to_fd_table()
             }
             _ => Err(LinuxError::EINVAL),
         }
