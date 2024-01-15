@@ -171,7 +171,7 @@ impl TcpSocket {
                 // When set to non_blocking, directly return inporgress
                 if self.is_nonblocking() {
                     return Err(AxError::InProgress);
-                } 
+                }
                 Err(AxError::WouldBlock)
             } else if self.get_state() == STATE_CONNECTED {
                 Ok(())
@@ -179,11 +179,10 @@ impl TcpSocket {
                 // When set to non_blocking, directly return inporgress
                 if self.is_nonblocking() {
                     return Err(AxError::InProgress);
-                } 
+                }
                 ax_err!(ConnectionRefused, "socket connect() failed")
             }
         })
-        
     }
 
     /// Binds an unbound socket to the given address and port.

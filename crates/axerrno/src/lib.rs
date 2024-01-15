@@ -94,8 +94,8 @@ pub enum AxError {
     /// An error returned when an operation could not be completed because a
     /// call to `write()` returned [`Ok(0)`](Ok).
     WriteZero,
-    // It is a temporary error code that usually returns when a non_blocking operation 
-    //is not completed, prompting the caller to try again later.
+    /// It is a temporary error code that usually returns when a non_blocking operation
+    /// is not completed, prompting the caller to try again later.
     InProgress,
 }
 
