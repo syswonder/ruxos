@@ -297,13 +297,13 @@ mod tests {
     #[test]
     fn test_try_from() {
         let max_code = core::mem::variant_count::<AxError>() as i32;
-        assert_eq!(max_code, 22);
-        assert_eq!(max_code, AxError::WriteZero.code());
+        assert_eq!(max_code, 23);
+        assert_eq!(max_code, AxError::InProgress.code());
 
         assert_eq!(AxError::AddrInUse.code(), 1);
         assert_eq!(Ok(AxError::AddrInUse), AxError::try_from(1));
         assert_eq!(Ok(AxError::AlreadyExists), AxError::try_from(2));
-        assert_eq!(Ok(AxError::WriteZero), AxError::try_from(max_code));
+        assert_eq!(Ok(AxError::InProgress), AxError::try_from(max_code));
         assert_eq!(Err(max_code + 1), AxError::try_from(max_code + 1));
         assert_eq!(Err(0), AxError::try_from(0));
         assert_eq!(Err(-1), AxError::try_from(-1));
