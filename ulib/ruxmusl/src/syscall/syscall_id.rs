@@ -82,7 +82,9 @@ pub enum SyscallId {
     UMASK = 166,
     #[cfg(feature = "multitask")]
     GETPID = 172,
+    #[cfg(feature = "fs")]
     GETEUID = 175,
+    #[cfg(feature = "fs")]
     GETEGID = 177,
     SYSINFO = 179,
     #[cfg(feature = "net")]
