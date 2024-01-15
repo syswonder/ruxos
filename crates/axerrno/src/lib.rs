@@ -94,6 +94,9 @@ pub enum AxError {
     /// An error returned when an operation could not be completed because a
     /// call to `write()` returned [`Ok(0)`](Ok).
     WriteZero,
+    // It is a temporary error code that usually returns when a non_blocking operation 
+    //is not completed, prompting the caller to try again later.
+    InProgress,
 }
 
 /// A specialized [`Result`] type with [`AxError`] as the error type.
@@ -219,6 +222,7 @@ impl AxError {
             Unsupported => "Operation not supported",
             WouldBlock => "Operation would block",
             WriteZero => "Write zero",
+            InProgress => "non_blocking operation is not completed",
         }
     }
 
@@ -270,6 +274,7 @@ impl From<AxError> for LinuxError {
             Unsupported => LinuxError::ENOSYS,
             UnexpectedEof | WriteZero => LinuxError::EIO,
             WouldBlock => LinuxError::EAGAIN,
+            InProgress => LinuxError::EINPROGRESS,
         }
     }
 }

@@ -11,7 +11,7 @@ use core::cell::UnsafeCell;
 use core::net::SocketAddr;
 use core::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
-use axerrno::{ax_err, ax_err_type, AxError, AxResult};
+use axerrno::{ax_err, ax_err_type, AxError, AxResult, LinuxError};
 use axio::PollState;
 use axsync::Mutex;
 
@@ -165,21 +165,25 @@ impl TcpSocket {
         })
         .unwrap_or_else(|_| ax_err!(AlreadyExists, "socket connect() failed: already connected"))?; // EISCONN
 
-        // Here our state must be `CONNECTING`, and only one thread can run here.
-        if self.is_nonblocking() {
-            Ok(())
-        } else {
-            self.block_on(|| {
-                let PollState { writable, .. } = self.poll_connect()?;
-                if !writable {
-                    Err(AxError::WouldBlock)
-                } else if self.get_state() == STATE_CONNECTED {
-                    Ok(())
-                } else {
-                    ax_err!(ConnectionRefused, "socket connect() failed")
-                }
-            })
-        }
+        self.block_on(|| {
+            let PollState { writable, .. } = self.poll_connect()?;
+            if !writable {
+                // When set to non_blocking, directly return inporgress
+                if self.is_nonblocking() {
+                    return Err(AxError::InProgress);
+                } 
+                Err(AxError::WouldBlock)
+            } else if self.get_state() == STATE_CONNECTED {
+                Ok(())
+            } else {
+                // When set to non_blocking, directly return inporgress
+                if self.is_nonblocking() {
+                    return Err(AxError::InProgress);
+                } 
+                ax_err!(ConnectionRefused, "socket connect() failed")
+            }
+        })
+        
     }
 
     /// Binds an unbound socket to the given address and port.
