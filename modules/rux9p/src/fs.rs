@@ -11,10 +11,11 @@
 //!
 //! The implementation is based on [`axfs_vfs`].
 use crate::drv::{self, Drv9pOps};
-use alloc::{collections::BTreeMap, string::String, string::ToString, sync::Arc, sync::Weak};
+use alloc::{
+    collections::BTreeMap, string::String, string::ToString, sync::Arc, sync::Weak, vec::Vec,
+};
 use axfs_vfs::{
-    impl_vfs_non_dir_default, VfsDirEntry, VfsError, VfsNodeAttr, VfsNodeOps, VfsNodeRef,
-    VfsNodeType, VfsOps, VfsResult,
+    VfsDirEntry, VfsError, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps, VfsResult,
 };
 use log::*;
 use spin::{once::Once, RwLock};
@@ -35,7 +36,7 @@ macro_rules! handle_result {
 /// A 9P filesystem that implements [`axfs_vfs::VfsOps`].
 pub struct _9pFileSystem {
     parent: Once<VfsNodeRef>,
-    root: Arc<DirNode>,
+    root: Arc<CommonNode>,
 }
 
 impl _9pFileSystem {
@@ -56,7 +57,8 @@ impl _9pFileSystem {
             }
         }
 
-        // root_fid should never be recycled.
+        const AFID: u32 = 0xFFFF_FFFF;
+
         let fid = match dev.write().get_fid() {
             Some(id) => id,
             None => {
@@ -64,8 +66,6 @@ impl _9pFileSystem {
                 0xff_ff_ff_ff
             }
         };
-
-        const AFID: u32 = 0xFFFF_FFFF;
 
         // AUTH afid
         #[cfg(feature = "need_auth")]
@@ -82,7 +82,7 @@ impl _9pFileSystem {
 
         Self {
             parent: Once::new(),
-            root: DirNode::new(None, dev.clone(), fid, Arc::new(protocol.clone())),
+            root: CommonNode::new(fid, None, dev.clone(), Arc::new(protocol.clone())),
         }
     }
 }
@@ -105,30 +105,31 @@ impl VfsOps for _9pFileSystem {
 /// The directory node in the 9P filesystem.
 ///
 /// It implements [`axfs_vfs::VfsNodeOps`].
-pub struct DirNode {
+pub struct CommonNode {
+    this: Weak<CommonNode>,
+    parent: RwLock<Weak<dyn VfsNodeOps>>,
     inner: Arc<RwLock<Drv9pOps>>,
-    this: Weak<DirNode>,
     fid: Arc<u32>,
     protocol: Arc<String>,
-    parent: RwLock<Weak<dyn VfsNodeOps>>,
 }
 
-impl DirNode {
+impl CommonNode {
     pub(super) fn new(
+        fid: u32,
         parent: Option<Weak<dyn VfsNodeOps>>,
         dev: Arc<RwLock<Drv9pOps>>,
-        fid: u32,
         protocol: Arc<String>,
     ) -> Arc<Self> {
+        const OPEN_FLAG: u8 = 0x02;
         if *protocol == "9P2000.L" {
-            match dev.write().l_topen(fid, 0x00) {
+            match dev.write().l_topen(fid, OPEN_FLAG as u32) {
                 Ok(_) => {}
                 Err(errcode) => {
                     error!("9pfs open failed! error code: {}", errcode);
                 }
             }
         } else if *protocol == "9P2000.u" {
-            match dev.write().topen(fid, 0x00) {
+            match dev.write().topen(fid, OPEN_FLAG) {
                 Ok(_) => {}
                 Err(errcode) => {
                     error!("9pfs open failed! error code: {}", errcode);
@@ -152,16 +153,12 @@ impl DirNode {
     }
 
     /// Checks whether a node with the given name exists in this directory.
-    pub fn exist(&self, name: &str) -> bool {
-        debug!("finding if {} exists", name);
-        match self.read_nodes() {
-            Ok(map) => map.contains_key(name),
-            Err(_) => false,
-        }
+    fn exist(&self, path: &str) -> bool {
+        self.try_get(path).is_ok()
     }
 
     /// Creates a new node with the given name and type in this directory.
-    pub fn create_node(&self, name: &str, ty: VfsNodeType) -> VfsResult {
+    fn create_node(&self, name: &str, ty: VfsNodeType) -> VfsResult {
         if self.exist(name) {
             error!("AlreadyExists {}", name);
             return Err(VfsError::AlreadyExists);
@@ -215,35 +212,93 @@ impl DirNode {
         Ok(())
     }
 
-    /// Removes a node by the given name in this directory.
-    pub fn remove_node(&self, name: &str) -> VfsResult {
-        if self.exist(name) {
-            let fid = match self.inner.write().get_fid() {
-                Some(id) => id,
-                None => {
-                    error!("No enough fids! Check fid_MAX constrant or fid leaky.");
-                    0xff_ff_ff_ff
-                }
-            };
-            handle_result!(
-                self.inner.write().twalk(*self.fid, fid, 1, &[name]),
-                "9pfs twalk failed! error code: {}"
-            );
-            handle_result!(
-                self.inner.write().tremove(fid),
-                "9pfs tremove failed! error code: {}"
-            );
-            self.inner.write().recycle_fid(fid);
-            Ok(())
+    fn try_get(&self, path: &str) -> VfsResult<VfsNodeRef> {
+        let (name, rest) = split_path(path);
+        if name == ".." {
+            return self.parent().unwrap().lookup(rest.unwrap_or(""));
+        } else if name == "." {
+            return self.try_get(rest.unwrap_or(""));
+        }
+
+        let fid = match self.inner.write().get_fid() {
+            Some(id) => id,
+            None => {
+                warn!("9pfs: No enough fids! Check fid_MAX constrant or fid leaky.");
+                0xff_ff_ff_ff
+            }
+        };
+
+        // get two new dfid for old dir and new dir.
+        const ENOENT: u8 = 2;
+        let result = if name.is_empty() {
+            self.inner.write().twalk(*self.fid, fid, 0, &[])
         } else {
-            Err(VfsError::NotFound)
+            self.inner.write().twalk(*self.fid, fid, 1, &[name])
+        };
+
+        match result {
+            Ok(_) => {
+                let node = CommonNode::new(
+                    fid,
+                    Some(self.this.clone()),
+                    self.inner.clone(),
+                    self.protocol.clone(),
+                );
+                match rest {
+                    Some(rpath) => node.try_get(rpath),
+                    None => Ok(node),
+                }
+            }
+            // No such file or directory
+            Err(ENOENT) => {
+                self.inner.write().recycle_fid(fid);
+                debug!("try_get failed {:?}=={}+{:?}", path, name, rest);
+                Err(VfsError::NotFound)
+            }
+            Err(ecode) => {
+                self.inner.write().recycle_fid(fid);
+                error!("Failed when getting node in 9pfs, ecode:{}", ecode);
+                Err(VfsError::BadState)
+            }
+        }
+    }
+
+    fn get_in_9pfs(&self, path: &str) -> VfsResult<Arc<CommonNode>> {
+        let splited: Vec<&str> = path
+            .split('/')
+            .filter(|&x| !x.is_empty() && (x != "."))
+            .collect();
+
+        // get two new dfid for old dir and new dir.
+        let new_fid = match self.inner.write().get_fid() {
+            Some(id) => id,
+            None => {
+                warn!("9pfs: No enough fids! Check fid_MAX constrant or fid leaky.");
+                0xff_ff_ff_ff
+            }
+        };
+
+        // Operations in 9pfs
+        let result = self
+            .inner
+            .write()
+            .twalk(*self.fid, new_fid, splited.len() as u16, &splited);
+
+        match result {
+            Ok(_) => Ok(CommonNode::new(
+                new_fid,
+                Some(self.this.clone()),
+                self.inner.clone(),
+                self.protocol.clone(),
+            )),
+            Err(_) => Err(VfsError::BadState),
         }
     }
 
     /// Update nodes from host filesystem
-    fn read_nodes(&self) -> Result<BTreeMap<String, VfsNodeRef>, VfsError> {
+    fn all_nodes(&self) -> Result<BTreeMap<String, VfsNodeRef>, VfsError> {
         let mut node_map: BTreeMap<String, VfsNodeRef> = BTreeMap::new();
-        debug!("reading nodes");
+        debug!("reading all nodes in 9p, fid={}", *self.fid);
         let dirents = match self.protocol.as_str() {
             "9P2000.L" => match self.inner.write().treaddir(*self.fid) {
                 Ok(contents) => contents,
@@ -270,79 +325,111 @@ impl DirNode {
             if fname.eq("..") || fname.eq(".") {
                 continue;
             }
-            let ftype = match direntry.get_type() {
-                0o1 => VfsNodeType::Fifo,
-                0o2 => VfsNodeType::CharDevice,
-                0o4 => VfsNodeType::Dir,
-                0o6 => VfsNodeType::BlockDevice,
-                0o10 => VfsNodeType::File,
-                0o12 => VfsNodeType::SymLink,
-                0o14 => VfsNodeType::Socket,
-                _ => {
-                    error!("Unsupported File Type In 9pfs! Using it as File");
-                    VfsNodeType::File
-                }
-            };
-            debug!("9pfs update node {}, type {}", fname, direntry.get_type());
-            let fid = match self.inner.write().get_fid() {
-                Some(id) => id,
-                None => {
-                    error!("No enough fids! Check fid_MAX constrant or fid leaky.");
-                    return Err(VfsError::BadState);
-                }
-            };
-            self.inner
-                .write()
-                .twalk(*self.fid, fid, 1, &[fname])
-                .unwrap();
-            let node: VfsNodeRef = match ftype {
-                VfsNodeType::File => Arc::new(FileNode::new(
-                    self.inner.clone(),
-                    fid,
-                    self.protocol.clone(),
-                )),
-                VfsNodeType::Dir => Self::new(
-                    Some(self.this.clone()),
-                    self.inner.clone(),
-                    fid,
-                    self.protocol.clone(),
-                ),
-                _ => return Err(VfsError::Unsupported),
-            };
+
+            trace!("9pfs update node {}, type {}", fname, direntry.get_type());
+
+            let node: VfsNodeRef = self.try_get(fname).unwrap();
             node_map.insert(fname.into(), node);
         }
         Ok(node_map)
     }
 }
 
-impl Drop for DirNode {
+impl Drop for CommonNode {
     fn drop(&mut self) {
         // pay attention to AA-deadlock
         let result = self.inner.write().tclunk(*self.fid);
+        const ENOENT: u8 = 2;
         match result {
-            Ok(_) => {
+            Ok(_) | Err(ENOENT) => {
                 self.inner.write().recycle_fid(*self.fid);
             }
             Err(_) => {
-                error!("9pfs drop failed! It may cause fid leaky problem.")
+                error!(
+                    "9pfs(fid={}) drop failed! It may cause fid leaky problem. ",
+                    *self.fid
+                )
             }
         }
     }
 }
 
-impl VfsNodeOps for DirNode {
+impl VfsNodeOps for CommonNode {
+    /// Renames or moves existing file or directory.
+    fn rename(&self, src_path: &str, dst_path: &str) -> VfsResult {
+        let (src_prefixs, old_name) = if let Some(src_sindex) = src_path.rfind('/') {
+            (&src_path[..src_sindex], &src_path[src_sindex + 1..])
+        } else {
+            ("", src_path)
+        };
+
+        let (dst_prefixs, new_name) = if let Some(dst_sindex) = src_path.rfind('/') {
+            (&dst_path[..dst_sindex], &dst_path[dst_sindex + 1..])
+        } else {
+            ("", dst_path)
+        };
+
+        debug!(
+            "9pfs src_path:{} dst_path:{}, src_prefixs:{:?}, dst_prefixs:{:?}",
+            src_path, dst_path, src_prefixs, dst_prefixs
+        );
+
+        let src_result = self.get_in_9pfs(src_prefixs);
+        let dst_result = self.get_in_9pfs(dst_prefixs);
+
+        if let (Ok(src_dnode), Ok(dst_dnode)) = (src_result, dst_result) {
+            let src_fid = *src_dnode.fid;
+            let dst_fid = *dst_dnode.fid;
+            handle_result!(
+                self.inner
+                    .write()
+                    .trename_at(src_fid, old_name, dst_fid, new_name),
+                "9pfs rename_at failed! error code: {}"
+            );
+        } else {
+            //create a new file and write content from original file.
+            let src_fnode = self.try_get(src_path)?;
+            let _ = self.create(dst_path, src_fnode.get_attr()?.file_type());
+            let dst_fnode = self.try_get(dst_path)?;
+
+            let mut buffer = [0_u8; 1024]; // a length for one turn to read and write
+            let mut offset = 0;
+            loop {
+                let length = src_fnode.read_at(offset, &mut buffer)?;
+                if length == 0 {
+                    break;
+                }
+                dst_fnode.write_at(offset, &buffer[..length])?;
+                offset += length as u64;
+            }
+            src_fnode.remove("")?;
+        }
+        Ok(())
+    }
+
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
         if *self.protocol == "9P2000.L" {
             let resp = self.inner.write().tgetattr(*self.fid, 0x3fff_u64);
+            debug!("get_attr {:?}", resp);
             match resp {
-                Ok(attr) => Ok(VfsNodeAttr::new_dir(attr.get_size(), attr.get_blk_num())),
-                Err(_) => Err(VfsError::BadState),
+                Ok(stat) if stat.get_ftype() == 0o4 => {
+                    Ok(VfsNodeAttr::new_dir(stat.get_size(), stat.get_blk_num()))
+                }
+                Ok(stat) if stat.get_ftype() == 0o10 => {
+                    Ok(VfsNodeAttr::new_file(stat.get_size(), stat.get_blk_num()))
+                }
+                _ => Err(VfsError::BadState),
             }
         } else if *self.protocol == "9P2000.u" {
             let resp = self.inner.write().tstat(*self.fid);
             match resp {
-                Ok(stat) => Ok(VfsNodeAttr::new_dir(stat.get_length(), stat.get_blk_num())),
-                Err(_) => Err(VfsError::BadState),
+                Ok(stat) if stat.get_ftype() == 0o4 => {
+                    Ok(VfsNodeAttr::new_dir(stat.get_length(), stat.get_blk_num()))
+                }
+                Ok(stat) if stat.get_ftype() == 0o10 => {
+                    Ok(VfsNodeAttr::new_file(stat.get_length(), stat.get_blk_num()))
+                }
+                _ => Err(VfsError::BadState),
             }
         } else {
             Err(VfsError::Unsupported)
@@ -355,42 +442,16 @@ impl VfsNodeOps for DirNode {
 
     /// for 9p filesystem's directory, lookup() will return node in 9p if path existing in both 9p and mounted_map.
     fn lookup(self: Arc<Self>, path: &str) -> VfsResult<VfsNodeRef> {
-        let (name, rest) = split_path(path);
-        debug!("9pfs lookup:{}, {:?}", name, rest);
-        let _9p_map = match self.read_nodes() {
-            Ok(contents) => contents,
-            Err(errcode) => {
-                error!("9pfs read_nodes failed! error code = {}", errcode);
-                return Err(VfsError::Unsupported);
-            }
-        };
-
-        // find file in 9p host first, and then find in host if failed
-        let node = match _9p_map.get(name) {
-            Some(node) => node.clone(),
-            None => {
-                debug!("find no {:?} in 9p dir", name);
-                match name {
-                    "" | "." => Ok(self.clone() as VfsNodeRef),
-                    ".." => self.parent().ok_or(VfsError::NotFound),
-                    _ => Err(VfsError::NotFound),
-                }?
-            }
-        };
-
-        if let Some(rest) = rest {
-            node.lookup(rest)
-        } else {
-            Ok(node)
-        }
+        debug!("lookup 9pfs: {}", path);
+        self.try_get(path)
     }
 
     fn read_dir(&self, start_idx: usize, dirents: &mut [VfsDirEntry]) -> VfsResult<usize> {
         debug!("9pfs reading dirents");
-        let _9p_map = match self.read_nodes() {
+        let _9p_map = match self.all_nodes() {
             Ok(contents) => contents,
             Err(errcode) => {
-                error!("9pfs read_nodes failed! error code = {}", errcode);
+                error!("9pfs all_nodes failed! error code = {}", errcode);
                 return Err(VfsError::BadState);
             }
         };
@@ -422,22 +483,10 @@ impl VfsNodeOps for DirNode {
 
     fn create(&self, path: &str, ty: VfsNodeType) -> VfsResult {
         debug!("create {:?} at 9pfs: {}", ty, path);
+
         let (name, rest) = split_path(path);
-        if let Some(rest) = rest {
-            match name {
-                "" | "." => self.create(rest, ty),
-                ".." => self.parent().ok_or(VfsError::NotFound)?.create(rest, ty),
-                _ => {
-                    let subdir = self
-                        .read_nodes()?
-                        .get(name)
-                        .ok_or(VfsError::NotFound)?
-                        .clone();
-                    subdir.create(rest, ty)
-                }
-            }
-        } else if name.is_empty() || name == "." || name == ".." {
-            Ok(()) // already exists
+        if let Some(rpath) = rest {
+            self.try_get(name)?.create(rpath, ty)
         } else {
             self.create_node(name, ty)
         }
@@ -445,107 +494,16 @@ impl VfsNodeOps for DirNode {
 
     fn remove(&self, path: &str) -> VfsResult {
         debug!("remove at 9pfs: {}", path);
-        let (name, rest) = split_path(path);
-        if let Some(rest) = rest {
-            match name {
-                "" | "." => self.remove(rest),
-                ".." => self.parent().ok_or(VfsError::NotFound)?.remove(rest),
-                _ => {
-                    let subdir = match self.read_nodes() {
-                        Ok(contents) => contents.get(name).ok_or(VfsError::NotFound)?.clone(),
-                        Err(errcode) => {
-                            error!("9pfs read_nodes failed! error code = {}", errcode);
-                            return Err(VfsError::BadState);
-                        }
-                    };
-                    subdir.remove(rest)
-                }
-            }
-        } else if name.is_empty() || name == "." || name == ".." {
-            Err(VfsError::InvalidInput) // remove '.' or '..
-        } else {
-            self.remove_node(name)
-        }
-    }
-
-    axfs_vfs::impl_vfs_dir_default! {}
-}
-
-fn split_path(path: &str) -> (&str, Option<&str>) {
-    let trimmed_path = path.trim_start_matches('/');
-    trimmed_path.find('/').map_or((trimmed_path, None), |n| {
-        (&trimmed_path[..n], Some(&trimmed_path[n + 1..]))
-    })
-}
-
-/// The file node in the 9P filesystem.
-///
-/// It implements [`axfs_vfs::VfsNodeOps`].
-/// Note: Pay attention to AA-deadlock in inner.
-pub struct FileNode {
-    inner: Arc<RwLock<Drv9pOps>>,
-    fid: Arc<u32>,
-    protocol: Arc<String>,
-}
-
-impl FileNode {
-    pub(super) fn new(dev: Arc<RwLock<Drv9pOps>>, fid: u32, protocol: Arc<String>) -> Self {
-        const OPEN_FLAG: u32 = 0x02;
-        if *protocol == "9P2000.L" {
-            handle_result!(
-                dev.write().l_topen(fid, OPEN_FLAG),
-                "9pfs l_topen failed! error code: {}"
-            );
-        } else if *protocol == "9P2000.u" {
-            handle_result!(
-                dev.write().topen(fid, OPEN_FLAG as u8),
-                "9pfs topen failed! error code: {}"
-            );
-        }
-        Self {
-            inner: dev,
-            fid: Arc::new(fid),
-            protocol,
-        }
-    }
-}
-
-impl Drop for FileNode {
-    fn drop(&mut self) {
-        // pay attention to AA-deadlock
-        let result = self.inner.write().tclunk(*self.fid);
-        match result {
-            Ok(_) => {
-                self.inner.write().recycle_fid(*self.fid);
-            }
-            Err(_) => {
-                error!("9pfs drop failed! It may cause fid leaky problem.")
-            }
-        }
-    }
-}
-
-impl VfsNodeOps for FileNode {
-    impl_vfs_non_dir_default! {}
-    /// Get the attributes of the node.
-    fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
-        if *self.protocol == "9P2000.L" {
-            let resp = self.inner.write().tgetattr(*self.fid, 0x3fff_u64);
-            match resp {
-                Ok(attr) => Ok(VfsNodeAttr::new_file(attr.get_size(), attr.get_blk_num())),
+        match split_path(path) {
+            ("", None) | (".", None) => match self.inner.write().tremove(*self.fid) {
+                Ok(_) => Ok(()),
                 Err(_) => Err(VfsError::BadState),
-            }
-        } else if *self.protocol == "9P2000.u" {
-            let resp = self.inner.write().tstat(*self.fid);
-            match resp {
-                Ok(stat) => Ok(VfsNodeAttr::new_file(stat.get_length(), stat.get_blk_num())),
-                Err(_) => Err(VfsError::BadState),
-            }
-        } else {
-            Err(VfsError::Unsupported)
+            },
+            _ => self.try_get(path)?.remove(""),
         }
     }
 
+    // Operation only for file usually
     /// Truncate the file to the given size.
     fn truncate(&self, size: u64) -> VfsResult {
         debug!("9pfs truncating, size:{}", size);
@@ -594,6 +552,7 @@ impl VfsNodeOps for FileNode {
             read_len -= rlen;
             offset_ptr += rlen;
         }
+        debug!("9P Reading {}, length: {}", self.fid, buf.len());
         Ok(buf.len())
     }
 
@@ -625,4 +584,11 @@ impl VfsNodeOps for FileNode {
             Err(_) => Err(VfsError::BadState),
         }
     }
+}
+
+fn split_path(path: &str) -> (&str, Option<&str>) {
+    let trimmed_path = path.trim_start_matches('/');
+    trimmed_path.find('/').map_or((trimmed_path, None), |n| {
+        (&trimmed_path[..n], Some(&trimmed_path[n + 1..]))
+    })
 }
