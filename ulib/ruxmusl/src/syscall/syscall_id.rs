@@ -83,6 +83,7 @@ pub enum SyscallId {
     #[cfg(feature = "multitask")]
     GETPID = 172,
     GETEUID = 175,
+    GETEGID = 177,
     SYSINFO = 179,
     #[cfg(feature = "net")]
     SOCKET = 198,

@@ -48,7 +48,7 @@ pub mod ctypes;
 pub use imp::io::{sys_read, sys_readv, sys_write, sys_writev};
 pub use imp::resources::{sys_getrlimit, sys_prlimit64, sys_setrlimit};
 pub use imp::rt_sig::{sys_rt_sigaction, sys_rt_sigprocmask};
-pub use imp::stat::{sys_geteuid, sys_umask};
+pub use imp::stat::{sys_getegid, sys_geteuid, sys_umask};
 pub use imp::sys::{sys_sysinfo, sys_uname};
 pub use imp::sys_invalid;
 pub use imp::task::{sys_exit, sys_getpid, sys_sched_yield};

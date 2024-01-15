@@ -94,6 +94,9 @@ pub enum AxError {
     /// An error returned when an operation could not be completed because a
     /// call to `write()` returned [`Ok(0)`](Ok).
     WriteZero,
+    /// It is a temporary error code that usually returns when a non_blocking operation
+    /// is not completed, prompting the caller to try again later.
+    InProgress,
 }
 
 /// A specialized [`Result`] type with [`AxError`] as the error type.
@@ -219,6 +222,7 @@ impl AxError {
             Unsupported => "Operation not supported",
             WouldBlock => "Operation would block",
             WriteZero => "Write zero",
+            InProgress => "non_blocking operation is not completed",
         }
     }
 
@@ -270,6 +274,7 @@ impl From<AxError> for LinuxError {
             Unsupported => LinuxError::ENOSYS,
             UnexpectedEof | WriteZero => LinuxError::EIO,
             WouldBlock => LinuxError::EAGAIN,
+            InProgress => LinuxError::EINPROGRESS,
         }
     }
 }
@@ -292,13 +297,13 @@ mod tests {
     #[test]
     fn test_try_from() {
         let max_code = core::mem::variant_count::<AxError>() as i32;
-        assert_eq!(max_code, 22);
-        assert_eq!(max_code, AxError::WriteZero.code());
+        assert_eq!(max_code, 23);
+        assert_eq!(max_code, AxError::InProgress.code());
 
         assert_eq!(AxError::AddrInUse.code(), 1);
         assert_eq!(Ok(AxError::AddrInUse), AxError::try_from(1));
         assert_eq!(Ok(AxError::AlreadyExists), AxError::try_from(2));
-        assert_eq!(Ok(AxError::WriteZero), AxError::try_from(max_code));
+        assert_eq!(Ok(AxError::InProgress), AxError::try_from(max_code));
         assert_eq!(Err(max_code + 1), AxError::try_from(max_code + 1));
         assert_eq!(Err(0), AxError::try_from(0));
         assert_eq!(Err(-1), AxError::try_from(-1));
