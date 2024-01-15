@@ -7,7 +7,7 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use core::net::SocketAddr;
+use core::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use axerrno::{ax_err, ax_err_type, AxError, AxResult};
@@ -217,7 +217,9 @@ impl UdpSocket {
 
     fn send_impl(&self, buf: &[u8], remote_endpoint: IpEndpoint) -> AxResult<usize> {
         if self.local_addr.read().is_none() {
-            return ax_err!(NotConnected, "socket send() failed");
+            let res = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), 0));
+            self.bind(res)?;
+            //return ax_err!(NotConnected, "socket send() failed");
         }
 
         self.block_on(|| {
@@ -288,7 +290,8 @@ impl Drop for UdpSocket {
 }
 
 fn get_ephemeral_port() -> AxResult<u16> {
-    const PORT_START: u16 = 0xc000;
+    //const PORT_START: u16 = 0xc000;
+    const PORT_START: u16 = 0x15b3;
     const PORT_END: u16 = 0xffff;
     static CURR: Mutex<u16> = Mutex::new(PORT_START);
     let mut curr = CURR.lock();
