@@ -280,21 +280,6 @@ pub unsafe fn sys_fstat(fd: c_int, kst: *mut core::ffi::c_void) -> c_int {
         }
     })
 }
-/// Obtain a valid user ID for the process
-///
-/// return 1000 if success.
-pub unsafe fn sys_geteuid() -> c_int {
-    debug!("sys_geteuid ");
-    syscall_body!(sys_geteuid, Ok(1000))
-}
-
-/// Obtain a valid group ID for the process
-///
-/// return 1000 if success.
-pub unsafe fn sys_getegid() -> c_int {
-    debug!("sys_getegid ");
-    syscall_body!(sys_getegid, Ok(1000))
-}
 /// Get the metadata of the symbolic link and write into `buf`.
 ///
 /// Return 0 if success.

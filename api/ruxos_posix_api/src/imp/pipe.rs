@@ -123,11 +123,15 @@ impl FileLike for Pipe {
         let mut read_size = 0usize;
         let max_len = buf.len();
         let mut ring_buffer = self.buffer.lock();
+        // First, check if there is data in the read end.
+        // This loop is only runs when the write end is open
+        // and there is no data available
         loop {
             let loop_read = ring_buffer.available_read();
+            // If there is no date
             if loop_read == 0 {
-                // write end is closed
                 if self.write_end_close() {
+                    // write end is closed, read 0 bytes.
                     return Ok(0);
                 } else {
                     // write end is open
@@ -140,6 +144,7 @@ impl FileLike for Pipe {
                 break;
             }
         }
+        // read data
         let loop_read = ring_buffer.available_read();
         for _ in 0..loop_read {
             if read_size == max_len {

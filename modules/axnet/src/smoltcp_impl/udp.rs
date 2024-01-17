@@ -219,7 +219,6 @@ impl UdpSocket {
         if self.local_addr.read().is_none() {
             let res = SocketAddr::V4(SocketAddrV4::new(Ipv4Addr::new(0, 0, 0, 0), 0));
             self.bind(res)?;
-            //return ax_err!(NotConnected, "socket send() failed");
         }
 
         self.block_on(|| {
@@ -290,7 +289,6 @@ impl Drop for UdpSocket {
 }
 
 fn get_ephemeral_port() -> AxResult<u16> {
-    //const PORT_START: u16 = 0xc000;
     const PORT_START: u16 = 0x15b3;
     const PORT_END: u16 = 0xffff;
     static CURR: Mutex<u16> = Mutex::new(PORT_START);

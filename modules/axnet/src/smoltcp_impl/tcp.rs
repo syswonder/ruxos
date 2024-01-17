@@ -11,7 +11,7 @@ use core::cell::UnsafeCell;
 use core::net::SocketAddr;
 use core::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
-use axerrno::{ax_err, ax_err_type, AxError, AxResult, LinuxError};
+use axerrno::{ax_err, ax_err_type, AxError, AxResult};
 use axio::PollState;
 use axsync::Mutex;
 
