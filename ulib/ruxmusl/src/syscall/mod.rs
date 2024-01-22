@@ -156,6 +156,8 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
             }
             #[cfg(feature = "fs")]
             SyscallId::FSYNC => ruxos_posix_api::sys_fsync(args[0] as c_int) as _,
+            SyscallId::GETEUID => ruxos_posix_api::sys_geteuid() as _,
+            SyscallId::GETEGID => ruxos_posix_api::sys_getegid() as _,
             #[cfg(feature = "fs")]
             SyscallId::FDATASYNC => ruxos_posix_api::sys_fdatasync(args[0] as c_int) as _,
             #[allow(unreachable_code)]
@@ -221,7 +223,6 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
             SyscallId::UMASK => ruxos_posix_api::sys_umask(args[0] as ctypes::mode_t) as _,
             #[cfg(feature = "multitask")]
             SyscallId::GETPID => ruxos_posix_api::sys_getpid() as _,
-            SyscallId::GETEUID => ruxos_posix_api::sys_geteuid() as _,
             SyscallId::SYSINFO => {
                 ruxos_posix_api::sys_sysinfo(args[0] as *mut ctypes::sysinfo) as _
             }

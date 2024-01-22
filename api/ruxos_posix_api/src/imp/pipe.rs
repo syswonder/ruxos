@@ -122,26 +122,38 @@ impl FileLike for Pipe {
         }
         let mut read_size = 0usize;
         let max_len = buf.len();
+        let mut ring_buffer = self.buffer.lock();
+        // First, check if there is data in the read end.
+        // This loop is only runs when the write end is open
+        // and there is no data available
         loop {
-            let mut ring_buffer = self.buffer.lock();
             let loop_read = ring_buffer.available_read();
+            // If there is no data
             if loop_read == 0 {
                 if self.write_end_close() {
-                    return Ok(read_size);
+                    // write end is closed, read 0 bytes.
+                    return Ok(0);
+                } else {
+                    // write end is open
+                    drop(ring_buffer);
+                    // Data not ready, wait for write end
+                    crate::sys_sched_yield(); // TODO: use synconize primitive
+                    ring_buffer = self.buffer.lock();
                 }
-                drop(ring_buffer);
-                // Data not ready, wait for write end
-                crate::sys_sched_yield(); // TODO: use synconize primitive
-                continue;
-            }
-            for _ in 0..loop_read {
-                if read_size == max_len {
-                    return Ok(read_size);
-                }
-                buf[read_size] = ring_buffer.read_byte();
-                read_size += 1;
+            } else {
+                break;
             }
         }
+        // read data
+        let loop_read = ring_buffer.available_read();
+        for _ in 0..loop_read {
+            if read_size == max_len {
+                return Ok(read_size);
+            }
+            buf[read_size] = ring_buffer.read_byte();
+            read_size += 1;
+        }
+        Ok(read_size)
     }
 
     fn write(&self, buf: &[u8]) -> LinuxResult<usize> {

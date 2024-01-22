@@ -86,7 +86,7 @@ impl TcpSocket {
     #[inline]
     pub fn local_addr(&self) -> AxResult<SocketAddr> {
         match self.get_state() {
-            STATE_CONNECTED | STATE_LISTENING => {
+            STATE_CONNECTED | STATE_LISTENING | STATE_BUSY => {
                 Ok(into_core_sockaddr(unsafe { self.local_addr.get().read() }))
             }
             _ => Err(AxError::NotConnected),
@@ -165,21 +165,24 @@ impl TcpSocket {
         })
         .unwrap_or_else(|_| ax_err!(AlreadyExists, "socket connect() failed: already connected"))?; // EISCONN
 
-        // Here our state must be `CONNECTING`, and only one thread can run here.
-        if self.is_nonblocking() {
-            Err(AxError::WouldBlock)
-        } else {
-            self.block_on(|| {
-                let PollState { writable, .. } = self.poll_connect()?;
-                if !writable {
-                    Err(AxError::WouldBlock)
-                } else if self.get_state() == STATE_CONNECTED {
-                    Ok(())
-                } else {
-                    ax_err!(ConnectionRefused, "socket connect() failed")
+        self.block_on(|| {
+            let PollState { writable, .. } = self.poll_connect()?;
+            if !writable {
+                // When set to non_blocking, directly return inporgress
+                if self.is_nonblocking() {
+                    return Err(AxError::InProgress);
                 }
-            })
-        }
+                Err(AxError::WouldBlock)
+            } else if self.get_state() == STATE_CONNECTED {
+                Ok(())
+            } else {
+                // When set to non_blocking, directly return inporgress
+                if self.is_nonblocking() {
+                    return Err(AxError::InProgress);
+                }
+                ax_err!(ConnectionRefused, "socket connect() failed")
+            }
+        })
     }
 
     /// Binds an unbound socket to the given address and port.
@@ -189,7 +192,7 @@ impl TcpSocket {
     /// It's must be called before [`listen`](Self::listen) and
     /// [`accept`](Self::accept).
     pub fn bind(&self, mut local_addr: SocketAddr) -> AxResult {
-        self.update_state(STATE_CLOSED, STATE_CLOSED, || {
+        self.update_state(STATE_CLOSED, STATE_BUSY, || {
             // TODO: check addr is available
             if local_addr.port() == 0 {
                 local_addr.set_port(get_ephemeral_port()?);
@@ -213,7 +216,7 @@ impl TcpSocket {
     /// It's must be called after [`bind`](Self::bind) and before
     /// [`accept`](Self::accept).
     pub fn listen(&self) -> AxResult {
-        self.update_state(STATE_CLOSED, STATE_LISTENING, || {
+        self.update_state(STATE_BUSY, STATE_LISTENING, || {
             let bound_endpoint = self.bound_endpoint()?;
             unsafe {
                 (*self.local_addr.get()).port = bound_endpoint.port;
@@ -513,7 +516,7 @@ impl Drop for TcpSocket {
 }
 
 fn get_ephemeral_port() -> AxResult<u16> {
-    const PORT_START: u16 = 0xc000;
+    const PORT_START: u16 = 0x15b3;
     const PORT_END: u16 = 0xffff;
     static CURR: Mutex<u16> = Mutex::new(PORT_START);
 
