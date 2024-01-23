@@ -20,7 +20,13 @@ typedef unsigned u_int, uint;
 typedef unsigned long u_long, ulong;
 
 typedef unsigned mode_t;
+
+#if defined(__aarch64__)
 typedef uint32_t nlink_t;
+#else
+typedef uint64_t nlink_t;
+#endif
+
 typedef int64_t off_t;
 typedef uint64_t ino_t;
 typedef uint64_t dev_t;

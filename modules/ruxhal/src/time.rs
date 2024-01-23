@@ -52,7 +52,7 @@ pub fn current_time() -> TimeValue {
         let rtc_time = rtc_read_time();
         return Duration::new(rtc_time, (nanos % (NANOS_PER_SEC)) as u32);
     }
-    TimeValue::from_nanos(current_time_nanos())
+    TimeValue::from_nanos(current_time_nanos() + 1_000_000_000)
 }
 
 /// set time value

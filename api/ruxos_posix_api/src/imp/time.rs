@@ -58,7 +58,7 @@ pub unsafe fn sys_clock_gettime(_clk: ctypes::clockid_t, ts: *mut ctypes::timesp
 }
 
 /// Get clock time since booting
-pub unsafe fn sys_clock_settime(_clk: ctypes::clockid_t, ts: *mut ctypes::timespec) -> c_int {
+pub unsafe fn sys_clock_settime(_clk: ctypes::clockid_t, ts: *const ctypes::timespec) -> c_int {
     syscall_body!(sys_clock_setttime, {
         if ts.is_null() {
             return Err(LinuxError::EFAULT);
@@ -108,4 +108,10 @@ pub unsafe fn sys_nanosleep(req: *const ctypes::timespec, rem: *mut ctypes::time
         }
         Ok(0)
     })
+}
+
+/// Get time of the day, ignore second parameter
+pub unsafe fn sys_gettimeofday(ts: *mut ctypes::timespec, flags: c_int) -> c_int {
+    debug!("sys_gettimeofday <= flags: {}", flags);
+    unsafe { sys_clock_gettime(0, ts) }
 }

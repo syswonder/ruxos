@@ -50,6 +50,7 @@ irq = ["ruxos_posix_api/irq", "ruxfeat/irq"]
 sched_rr = ["irq", "ruxfeat/sched_rr"]
 
 [dependencies]
+cfg-if = "1.0"
 ruxfeat = { path = "../../api/ruxfeat" }
 ruxos_posix_api = { path = "../../api/ruxos_posix_api" }
 num_enum = { version = "0.5.11", default-features = false }

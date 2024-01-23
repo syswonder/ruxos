@@ -124,7 +124,7 @@ pub(crate) fn etcfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
     // Create /etc/localtime
     etc_root.create("localtime", VfsNodeType::File)?;
 
-    // Createe /etc/hosts
+    // Create /etc/hosts
     etc_root.create("hosts", VfsNodeType::File)?;
     let file_hosts = etc_root.clone().lookup("hosts")?;
     file_hosts.write_at(
@@ -136,6 +136,17 @@ pub(crate) fn etcfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
         ff02::1 ip6-allnodes \n\
         ff02::2 ip6-allrouters \n\
         ff02::3 ip6-allhosts\n",
+    )?;
+
+    // Create /etc/resolv.conf
+    etc_root.create("resolv.conf", VfsNodeType::File)?;
+    let file_resolv = etc_root.clone().lookup("resolv.conf")?;
+    file_resolv.write_at(
+        0,
+        b"nameserver 127.0.0.53\n\
+        options edns0 trust-ad\n\
+        search lan\n
+        ",
     )?;
 
     Ok(Arc::new(etcfs))
