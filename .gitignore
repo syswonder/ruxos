@@ -1,6 +1,11 @@
 /target
 /.vscode
 .DS_Store
+
+# clangd
+/.cache
+compile_commands.json
+
 *.asm
 disk.img
 actual.out

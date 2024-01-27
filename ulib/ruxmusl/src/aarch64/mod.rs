@@ -187,11 +187,11 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
             #[cfg(feature = "multitask")]
             SyscallId::FUTEX => ruxos_posix_api::sys_futex(
                 args[0],
-                args[1] as c_int,
-                args[2] as c_int,
+                args[1] as _,
+                args[2] as _,
                 args[3],
-                args[4] as c_int,
-                args[5] as c_int,
+                args[4] as _,
+                args[5] as _,
             ) as _,
             SyscallId::NANO_SLEEP => ruxos_posix_api::sys_nanosleep(
                 args[0] as *const ctypes::timespec,

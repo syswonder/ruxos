@@ -18,7 +18,7 @@ pub use crate::task::{CurrentTask, TaskId, TaskInner};
 #[cfg(not(feature = "musl"))]
 use crate::tsd;
 #[doc(cfg(feature = "multitask"))]
-pub use crate::wait_queue::WaitQueue;
+pub use crate::wait_queue::{WaitQueue, WaitQueueWithMetadata};
 
 /// The reference type of a task.
 pub type AxTaskRef = Arc<AxTask>;

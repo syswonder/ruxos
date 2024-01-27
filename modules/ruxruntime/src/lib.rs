@@ -199,7 +199,11 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     ruxhal::platform_init();
 
     #[cfg(feature = "multitask")]
-    ruxtask::init_scheduler();
+    {
+        ruxtask::init_scheduler();
+        #[cfg(feature = "musl")]
+        ruxfutex::init_futex();
+    }
 
     #[cfg(any(feature = "fs", feature = "net", feature = "display"))]
     {

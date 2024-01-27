@@ -3,7 +3,7 @@
 #     - `ARCH`: Target architecture: x86_64, riscv64, aarch64
 #     - `PLATFORM`: Target platform in the `platforms` directory
 #     - `SMP`: Number of CPUs
-#     - `MODE`: Build mode: release, debug
+#     - `MODE`: Build mode: release, debug, reldebug
 #     - `LOG:` Logging level: warn, error, info, debug, trace
 #     - `V`: Verbose level: (empty), 1, 2
 #	    - `ARGS`: Command-line arguments separated by comma. Only available when feature `alloc` is enabled.
@@ -198,6 +198,9 @@ debug: build
 	  -ex 'continue' \
 	  -ex 'disp /16i $$pc'
 
+debug_no_attach: build
+	$(call run_qemu_debug)
+
 clippy:
 ifeq ($(origin ARCH), command line)
 	$(call cargo_clippy,--target $(TARGET))
@@ -245,4 +248,4 @@ clean_musl:
 	rm -rf ulib/ruxmusl/build_*
 	rm -rf ulib/ruxmusl/install
 
-.PHONY: all build disasm run justrun debug clippy fmt fmt_c test test_no_fail_fast clean clean_c clean_musl doc disk_image
+.PHONY: all build disasm run justrun debug clippy fmt fmt_c test test_no_fail_fast clean clean_c clean_musl doc disk_image debug_no_attach
