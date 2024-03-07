@@ -8,7 +8,8 @@
  */
 
 //! Time-related operations.
-
+#[cfg(all(feature = "rtc", target_arch = "x86_64"))]
+use core::sync::atomic::{AtomicU64, Ordering};
 pub use core::time::Duration;
 
 /// A measurement of the system clock.
@@ -43,28 +44,30 @@ pub fn current_time_nanos() -> u64 {
 }
 ///record first time res from x86 rtc as base time
 #[cfg(all(feature = "rtc", target_arch = "x86_64"))]
-pub static mut BASE_TIME: u64 = 0;
+static BASE_TIME: AtomicU64 = AtomicU64::new(0);
 ///record last time res from x86 rtc to correct time
 #[cfg(all(feature = "rtc", target_arch = "x86_64"))]
-pub static mut LAST_TIME: u64 = 0;
+static LAST_TIME: AtomicU64 = AtomicU64::new(0);
 
 /// Returns the current clock time in [`TimeValue`].
 #[allow(unreachable_code)]
 pub fn current_time() -> TimeValue {
     #[cfg(all(feature = "rtc", target_arch = "x86_64"))]
     {
-        unsafe {
-            let nanos = current_time_nanos();
-            if BASE_TIME == 0 {
-                BASE_TIME = rtc_read_time();
-            }
-            if (nanos / NANOS_PER_SEC) - LAST_TIME > 1800 {
-                BASE_TIME = rtc_read_time() - (nanos / NANOS_PER_SEC);
-                LAST_TIME = nanos / NANOS_PER_SEC;
-            }
-            let rtc_time = BASE_TIME + (nanos / NANOS_PER_SEC);
-            return Duration::new(rtc_time, (nanos % (NANOS_PER_SEC)) as u32);
+        let nanos = current_time_nanos();
+        let mut base_time = BASE_TIME.load(Ordering::Relaxed);
+        if base_time == 0 {
+            base_time = rtc_read_time();
+            BASE_TIME.store(base_time, Ordering::Relaxed);
         }
+        let last_time = LAST_TIME.load(Ordering::Relaxed);
+        if (nanos / NANOS_PER_SEC) - last_time > 1800 {
+            base_time = rtc_read_time() - (nanos / NANOS_PER_SEC);
+            BASE_TIME.store(base_time, Ordering::Relaxed);
+            LAST_TIME.store(nanos / NANOS_PER_SEC, Ordering::Relaxed);
+        }
+        let rtc_time = base_time + (nanos / NANOS_PER_SEC);
+        return Duration::new(rtc_time, (nanos % NANOS_PER_SEC) as u32);
     }
     #[cfg(all(feature = "rtc", target_arch = "aarch64"))]
     {
