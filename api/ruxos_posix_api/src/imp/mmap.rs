@@ -72,7 +72,7 @@ pub fn sys_mprotect(addr: *mut c_void, len: ctypes::size_t, prot: c_int) -> c_in
 
 /// Remap a virtual memory address
 ///
-/// TODO: only support
+/// TODO: null implementation
 pub fn sys_mremap(
     old_addr: *mut c_void,
     old_size: ctypes::size_t,
@@ -84,24 +84,17 @@ pub fn sys_mremap(
         "sys_mremap <= old_addr: {:p}, old_size: {}, new_size: {}, flags: {}, new_addr: {:p}",
         old_addr, old_size, new_size, _flags, _new_addr
     );
-    syscall_body!(sys_mremap, {
-        if old_addr.is_null() {
-            // TODO: It should be ctypes::MAP_FAILED,
-            // but it is not defined in ctypes for an unknown reason
-            return Ok(-1 as _);
-        }
-        Ok::<*mut c_void, LinuxError>(-1 as _)
-    })
+    syscall_body!(sys_mremap, Ok::<*mut c_void, LinuxError>(-1 as _))
 }
 
 /// give advice about use of memory
 /// if success return 0, if error return -1
 ///
 /// TODO: implement this
-pub fn sys_madvice(addr: *mut c_void, len: ctypes::size_t, advice: c_int) -> c_int {
+pub fn sys_madvise(addr: *mut c_void, len: ctypes::size_t, advice: c_int) -> c_int {
     debug!(
-        "sys_madvice <= addr: {:p}, len: {}, advice: {}",
+        "sys_madvise <= addr: {:p}, len: {}, advice: {}",
         addr, len, advice
     );
-    syscall_body!(sys_madvice, Ok(0))
+    syscall_body!(sys_madvise, Ok(0))
 }

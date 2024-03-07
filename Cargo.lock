@@ -1570,6 +1570,7 @@ name = "ruxmusl"
 version = "0.1.0"
 dependencies = [
  "axlog",
+ "cfg-if",
  "crate_interface",
  "kernel_guard",
  "num_enum",

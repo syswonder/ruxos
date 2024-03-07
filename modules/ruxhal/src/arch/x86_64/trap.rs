@@ -53,3 +53,22 @@ fn x86_trap_handler(tf: &TrapFrame) {
         }
     }
 }
+
+#[cfg(feature = "musl")]
+#[no_mangle]
+fn x86_syscall_handler(
+    syscall_id: usize,
+    arg1: usize,
+    arg2: usize,
+    arg3: usize,
+    arg4: usize,
+    arg5: usize,
+    arg6: usize,
+) -> isize {
+    debug!(
+        "syscall_id: {}, 
+        arg1: {:#x}, arg2: {:#x}, arg3:{:#x}, arg4: {:#x}, arg5:{:#x}, arg6: {:#x}",
+        syscall_id, arg1, arg2, arg3, arg4, arg5, arg6
+    );
+    crate::trap::handle_syscall(syscall_id, [arg1, arg2, arg3, arg4, arg5, arg6])
+}

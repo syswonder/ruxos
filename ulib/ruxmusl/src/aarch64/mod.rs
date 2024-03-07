@@ -1,6 +1,6 @@
 pub mod syscall_id;
 
-use core::ffi::{c_int, c_uint};
+use core::ffi::c_int;
 use ruxos_posix_api::ctypes;
 use syscall_id::SyscallId;
 
@@ -87,9 +87,9 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
             ) as _,
             #[cfg(feature = "fs")]
             SyscallId::GETDENTS64 => ruxos_posix_api::sys_getdents64(
-                args[0] as c_uint,
+                args[0] as c_int,
                 args[1] as *mut ctypes::dirent,
-                args[2] as c_uint,
+                args[2] as ctypes::size_t,
             ) as _,
             #[cfg(feature = "fs")]
             SyscallId::LSEEK => ruxos_posix_api::sys_lseek(
@@ -156,6 +156,8 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
             }
             #[cfg(feature = "fs")]
             SyscallId::FSYNC => ruxos_posix_api::sys_fsync(args[0] as c_int) as _,
+            SyscallId::GETEUID => ruxos_posix_api::sys_geteuid() as _,
+            SyscallId::GETEGID => ruxos_posix_api::sys_getegid() as _,
             #[cfg(feature = "fs")]
             SyscallId::FDATASYNC => ruxos_posix_api::sys_fdatasync(args[0] as c_int) as _,
             #[allow(unreachable_code)]
@@ -183,7 +185,7 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
             ) as _,
             SyscallId::CLOCK_SETTIME => ruxos_posix_api::sys_clock_settime(
                 args[0] as ctypes::clockid_t,
-                args[1] as *mut ctypes::timespec,
+                args[1] as *const ctypes::timespec,
             ) as _,
             SyscallId::CLOCK_GETTIME => ruxos_posix_api::sys_clock_gettime(
                 args[0] as ctypes::clockid_t,
@@ -221,7 +223,6 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
             SyscallId::UMASK => ruxos_posix_api::sys_umask(args[0] as ctypes::mode_t) as _,
             #[cfg(feature = "multitask")]
             SyscallId::GETPID => ruxos_posix_api::sys_getpid() as _,
-            SyscallId::GETEUID => ruxos_posix_api::sys_geteuid() as _,
             SyscallId::SYSINFO => {
                 ruxos_posix_api::sys_sysinfo(args[0] as *mut ctypes::sysinfo) as _
             }
@@ -331,7 +332,7 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[5] as ctypes::off_t,
             ) as _,
             #[cfg(feature = "alloc")]
-            SyscallId::MADVICE => ruxos_posix_api::sys_madvice(
+            SyscallId::MADVISE => ruxos_posix_api::sys_madvise(
                 args[0] as *mut core::ffi::c_void,
                 args[1] as ctypes::size_t,
                 args[2] as c_int,

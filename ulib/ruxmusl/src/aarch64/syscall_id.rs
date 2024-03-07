@@ -83,6 +83,7 @@ pub enum SyscallId {
     #[cfg(feature = "multitask")]
     GETPID = 172,
     GETEUID = 175,
+    GETEGID = 177,
     SYSINFO = 179,
     #[cfg(feature = "net")]
     SOCKET = 198,
@@ -117,7 +118,7 @@ pub enum SyscallId {
     #[cfg(feature = "alloc")]
     MMAP = 222,
     #[cfg(feature = "alloc")]
-    MADVICE = 233,
+    MADVISE = 233,
     #[cfg(feature = "alloc")]
     MPROTECT = 226,
     PRLIMIT64 = 261,

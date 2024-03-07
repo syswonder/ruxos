@@ -2,6 +2,11 @@
 
 QEMU := qemu-system-$(ARCH)
 
+# Generate a list of ports 
+PORTS := $(shell seq $(START_PORT) $$(($(START_PORT) + $(PORTS_NUM) - 1)))
+PORTS_TMP := ${foreach port,${PORTS},hostfwd=tcp::${port}-:${port},hostfwd=udp::${port}-:${port},}
+PORTS_LIST := $(subst $(empty) $(empty),,$(PORTS_TMP))
+
 ifeq ($(BUS), mmio)
   vdev-suffix := device
 else ifeq ($(BUS), pci)
@@ -39,7 +44,7 @@ qemu_args-$(V9P) += \
   -device virtio-9p-$(vdev-suffix),fsdev=myid,mount_tag=rootfs
 
 ifeq ($(NET_DEV), user)
-  qemu_args-$(NET) += -netdev user,id=net0,hostfwd=tcp::5555-:5555,hostfwd=udp::5555-:5555
+  qemu_args-$(NET) += -netdev user,id=net0,$(PORTS_LIST)
 else ifeq ($(NET_DEV), tap)
   qemu_args-$(NET) += -netdev tap,id=net0,ifname=tap0,script=no,downscript=no
 else

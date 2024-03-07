@@ -67,9 +67,9 @@ impl Drv9pOps {
                 const ERROR_RESP: u8 = _9PType::Rlerror as u8;
                 match response[RTYPE_INDEX] {
                     ERROR_RESP => {
-                        error!(
-                            "9pfs request occurs a error, errcode: {}",
-                            response[ECODE_INDEX]
+                        debug!(
+                            "9pfs request({}) occurs a error, errcode: {}",
+                            request[RTYPE_INDEX], response[ECODE_INDEX]
                         );
                         Err(response[ECODE_INDEX])
                     }
@@ -451,6 +451,7 @@ impl Drv9pOps {
         match self.request(&request.buffer, &mut response_buffer) {
             Ok(_) => Ok(FileAttr {
                 vaild: lbytes2u64(&response_buffer[7..15]),
+                qid: _9PQid::new(&response_buffer[15..28]),
                 mode: lbytes2u64(&response_buffer[28..32]) as u32,
                 uid: lbytes2u64(&response_buffer[32..36]) as u32,
                 gid: lbytes2u64(&response_buffer[36..40]) as u32,
@@ -778,6 +779,7 @@ impl _9PReq {
     }
 }
 
+#[derive(Debug)]
 pub struct _9PQid {
     ftype: u8,
     version: u32,
@@ -832,8 +834,10 @@ impl DirEntry {
     }
 }
 
+#[derive(Debug)]
 pub struct FileAttr {
-    vaild: u64,     // vaild mask
+    vaild: u64, // vaild mask
+    qid: _9PQid,
     mode: u32,      // mode for protection
     n_link: u64,    // number of hard links
     uid: u32,       // user ID of owner
@@ -859,6 +863,11 @@ impl FileAttr {
     pub fn new() -> Self {
         Self {
             vaild: 0,
+            qid: _9PQid {
+                ftype: 0,
+                version: 0,
+                path: 0,
+            },
             mode: 0,      // mode for protection
             n_link: 0,    // number of hard links
             uid: 0,       // user ID of owner
@@ -877,6 +886,20 @@ impl FileAttr {
             btime_ns: 0,
             gen: 0,
             date_version: 0,
+        }
+    }
+
+    pub fn get_ftype(&self) -> u8 {
+        match self.qid.ftype {
+            0x00 => 0o10,
+            0x02 => 0o12,
+            0x20 => 0o6,
+            0x40 => 0o1,
+            0x80 => 0o4,
+            _ => {
+                error!("Unsupported, looking it as File(0o10)!");
+                0o10
+            }
         }
     }
 

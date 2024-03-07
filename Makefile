@@ -23,6 +23,8 @@
 #     - `QEMU_LOG`: Enable QEMU logging (log file is "qemu.log")
 #     - `NET_DUMP`: Enable network packet dump (log file is "netdump.pcap")
 #     - `NET_DEV`: QEMU netdev backend types: user, tap
+#     - `START_PORT`: The starting port number for the open ports in QEMU (default is port 5555)
+#     - `PORT_NUM`: The number of open ports in QEMU (default is 5)
 # * 9P options:
 #     - `V9P_PATH`: Host path for backend of virtio-9p
 #     - `NET_9P_ADDR`: Server address and port for 9P netdev 
@@ -64,6 +66,8 @@ NET_9P_ADDR ?= 127.0.0.1:564
 ANAME_9P ?= ./
 PROTOCOL_9P ?= 9P2000.L
 
+START_PORT ?= 5555
+PORTS_NUM ?= 5
 # Network options
 IP ?= 10.0.2.15
 GW ?= 10.0.2.2

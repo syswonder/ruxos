@@ -41,12 +41,32 @@ pub const NANOS_PER_MICROS: u64 = 1_000;
 pub fn current_time_nanos() -> u64 {
     ticks_to_nanos(current_ticks())
 }
+///record first time res from x86 rtc as base time
+#[cfg(all(feature = "rtc", target_arch = "x86_64"))]
+pub static mut BASE_TIME: u64 = 0;
+///record last time res from x86 rtc to correct time
+#[cfg(all(feature = "rtc", target_arch = "x86_64"))]
+pub static mut LAST_TIME: u64 = 0;
 
 /// Returns the current clock time in [`TimeValue`].
 #[allow(unreachable_code)]
 pub fn current_time() -> TimeValue {
-    #[cfg(any(target_arch = "x86_64", target_arch = "aarch64"))]
-    #[cfg(feature = "rtc")]
+    #[cfg(all(feature = "rtc", target_arch = "x86_64"))]
+    {
+        unsafe {
+            let nanos = current_time_nanos();
+            if BASE_TIME == 0 {
+                BASE_TIME = rtc_read_time();
+            }
+            if (nanos / NANOS_PER_SEC) - LAST_TIME > 1800 {
+                BASE_TIME = rtc_read_time() - (nanos / NANOS_PER_SEC);
+                LAST_TIME = nanos / NANOS_PER_SEC;
+            }
+            let rtc_time = BASE_TIME + (nanos / NANOS_PER_SEC);
+            return Duration::new(rtc_time, (nanos % (NANOS_PER_SEC)) as u32);
+        }
+    }
+    #[cfg(all(feature = "rtc", target_arch = "aarch64"))]
     {
         let nanos = current_time_nanos();
         let rtc_time = rtc_read_time();
