@@ -53,22 +53,17 @@ pub(crate) fn procfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
     }
 
     // Create /proc/sys/net/core/somaxconn
-    proc_root.create("sys", VfsNodeType::Dir)?;
-    proc_root.create("sys/net", VfsNodeType::Dir)?;
-    proc_root.create("sys/net/core", VfsNodeType::Dir)?;
-    proc_root.create("sys/net/core/somaxconn", VfsNodeType::File)?;
+    proc_root.create_recursive("sys/net/core/somaxconn", VfsNodeType::File)?;
     let file_somaxconn = proc_root.clone().lookup("./sys/net/core/somaxconn")?;
     file_somaxconn.write_at(0, b"4096\n")?;
 
     // Create /proc/sys/vm/overcommit_memory
-    proc_root.create("sys/vm", VfsNodeType::Dir)?;
-    proc_root.create("sys/vm/overcommit_memory", VfsNodeType::File)?;
+    proc_root.create_recursive("sys/vm/overcommit_memory", VfsNodeType::File)?;
     let file_over = proc_root.clone().lookup("./sys/vm/overcommit_memory")?;
     file_over.write_at(0, b"0\n")?;
 
     // Create /proc/self/stat
-    proc_root.create("self", VfsNodeType::Dir)?;
-    proc_root.create("self/stat", VfsNodeType::File)?;
+    proc_root.create_recursive("self/stat", VfsNodeType::File)?;
 
     Ok(Arc::new(procfs))
 }
@@ -79,21 +74,14 @@ pub(crate) fn sysfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
     let sys_root = sysfs.root_dir();
 
     // Create /sys/kernel/mm/transparent_hugepage/enabled
-    sys_root.create("kernel", VfsNodeType::Dir)?;
-    sys_root.create("kernel/mm", VfsNodeType::Dir)?;
-    sys_root.create("kernel/mm/transparent_hugepage", VfsNodeType::Dir)?;
-    sys_root.create("kernel/mm/transparent_hugepage/enabled", VfsNodeType::File)?;
+    sys_root.create_recursive("kernel/mm/transparent_hugepage/enabled", VfsNodeType::File)?;
     let file_hp = sys_root
         .clone()
         .lookup("./kernel/mm/transparent_hugepage/enabled")?;
     file_hp.write_at(0, b"always [madvise] never\n")?;
 
     // Create /sys/devices/system/clocksource/clocksource0/current_clocksource
-    sys_root.create("devices", VfsNodeType::Dir)?;
-    sys_root.create("devices/system", VfsNodeType::Dir)?;
-    sys_root.create("devices/system/clocksource", VfsNodeType::Dir)?;
-    sys_root.create("devices/system/clocksource/clocksource0", VfsNodeType::Dir)?;
-    sys_root.create(
+    sys_root.create_recursive(
         "devices/system/clocksource/clocksource0/current_clocksource",
         VfsNodeType::File,
     )?;

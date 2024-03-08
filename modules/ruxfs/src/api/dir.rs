@@ -150,10 +150,9 @@ impl DirBuilder {
         }
     }
 
-    fn create_dir_all(&self, _path: &str) -> Result<()> {
-        axerrno::ax_err!(
-            Unsupported,
-            "Recursive directory creation is not supported yet"
-        )
+    /// Recursively create a directory and all of its parent components if they
+    /// are missing.
+    pub fn create_dir_all(&self, path: &str) -> Result<()> {
+        crate::root::create_dir_all(None, path)
     }
 }

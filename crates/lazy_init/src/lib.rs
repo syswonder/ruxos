@@ -89,6 +89,7 @@ impl<T> LazyInit<T> {
         }
     }
 
+    #[track_caller]
     fn check_init(&self) {
         if !self.is_init() {
             panic!(
@@ -99,12 +100,14 @@ impl<T> LazyInit<T> {
     }
 
     #[inline]
+    #[track_caller]
     fn get(&self) -> &T {
         self.check_init();
         unsafe { self.get_unchecked() }
     }
 
     #[inline]
+    #[track_caller]
     fn get_mut(&mut self) -> &mut T {
         self.check_init();
         unsafe { self.get_mut_unchecked() }
@@ -145,6 +148,7 @@ impl<T: fmt::Debug> fmt::Debug for LazyInit<T> {
 impl<T> Deref for LazyInit<T> {
     type Target = T;
     #[inline]
+    #[track_caller]
     fn deref(&self) -> &T {
         self.get()
     }
@@ -152,6 +156,7 @@ impl<T> Deref for LazyInit<T> {
 
 impl<T> DerefMut for LazyInit<T> {
     #[inline]
+    #[track_caller]
     fn deref_mut(&mut self) -> &mut T {
         self.get_mut()
     }
