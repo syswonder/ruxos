@@ -50,6 +50,9 @@ pub enum SyscallId {
     #[cfg(feature = "fd")]
     IOCTL = 16,
 
+    #[cfg(feature = "fs")]
+    PREAD64 = 17,
+
     #[cfg(feature = "fd")]
     READV = 19,
 
@@ -207,6 +210,9 @@ pub enum SyscallId {
     #[cfg(feature = "fs")]
     RENAMEAT = 264,
 
+    #[cfg(feature = "fs")]
+    READLINKAT = 267,
+
     #[cfg(feature = "select")]
     PSELECT6 = 270,
 
@@ -225,5 +231,10 @@ pub enum SyscallId {
     #[cfg(feature = "pipe")]
     PIPE2 = 293,
 
+    #[cfg(feature = "fs")]
+    PREADV = 295,
+
     PRLIMIT64 = 302,
+
+    GETRANDOM = 318,
 }

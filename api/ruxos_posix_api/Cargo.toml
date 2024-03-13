@@ -30,6 +30,7 @@ epoll = ["fd"]
 poll = ["fd"]
 tls = ["ruxfeat/tls"]
 irq = ["ruxfeat/irq"]
+random-hw = []
 
 musl = ["ruxhal/musl", "ruxruntime/musl", "axalloc/slab", "ruxtask/musl"]
 

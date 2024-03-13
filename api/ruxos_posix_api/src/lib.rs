@@ -45,6 +45,7 @@ pub mod config {
 #[allow(dead_code, non_snake_case, non_camel_case_types, non_upper_case_globals, clippy::upper_case_acronyms, missing_docs)]
 pub mod ctypes;
 
+pub use imp::getrandom::{sys_getrandom, sys_rand, sys_random, sys_srand};
 pub use imp::io::{sys_read, sys_readv, sys_write, sys_writev};
 pub use imp::prctl::{sys_arch_prctl, sys_prctl};
 pub use imp::resources::{sys_getrlimit, sys_prlimit64, sys_setrlimit};
@@ -62,8 +63,8 @@ pub use imp::fd_ops::{sys_close, sys_dup, sys_dup2, sys_fcntl};
 #[cfg(feature = "fs")]
 pub use imp::fs::{
     sys_fchownat, sys_fdatasync, sys_fstat, sys_fsync, sys_getcwd, sys_getdents64, sys_lseek,
-    sys_lstat, sys_mkdir, sys_mkdirat, sys_newfstatat, sys_open, sys_openat, sys_readlinkat,
-    sys_rename, sys_renameat, sys_rmdir, sys_stat, sys_unlink, sys_unlinkat,
+    sys_lstat, sys_mkdir, sys_mkdirat, sys_newfstatat, sys_open, sys_openat, sys_pread, sys_preadv,
+    sys_readlinkat, sys_rename, sys_renameat, sys_rmdir, sys_stat, sys_unlink, sys_unlinkat,
 };
 #[cfg(feature = "epoll")]
 pub use imp::io_mpx::{sys_epoll_create, sys_epoll_ctl, sys_epoll_pwait, sys_epoll_wait};

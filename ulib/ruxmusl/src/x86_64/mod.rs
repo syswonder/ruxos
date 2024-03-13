@@ -103,6 +103,14 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
             #[cfg(feature = "fd")]
             SyscallId::IOCTL => ruxos_posix_api::sys_ioctl(args[0] as c_int, args[1], args[2]) as _,
 
+            #[cfg(feature = "fs")]
+            SyscallId::PREAD64 => ruxos_posix_api::sys_pread(
+                args[0] as c_int,
+                args[1] as *mut c_void,
+                args[2] as ctypes::size_t,
+                args[3] as ctypes::off_t,
+            ) as _,
+
             #[cfg(feature = "fd")]
             SyscallId::READV => ruxos_posix_api::sys_readv(
                 args[0] as c_int,
@@ -442,6 +450,14 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[3] as *const core::ffi::c_char,
             ) as _,
 
+            #[cfg(feature = "fs")]
+            SyscallId::READLINKAT => ruxos_posix_api::sys_readlinkat(
+                args[0] as c_int,
+                args[1] as *const core::ffi::c_char,
+                args[2] as *mut core::ffi::c_char,
+                args[3],
+            ) as _,
+
             #[cfg(feature = "select")]
             SyscallId::PSELECT6 => ruxos_posix_api::sys_pselect6(
                 args[0] as c_int,
@@ -485,11 +501,25 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[1] as c_int,
             ) as _,
 
+            #[cfg(feature = "fs")]
+            SyscallId::PREADV => ruxos_posix_api::sys_preadv(
+                args[0] as c_int,
+                args[1] as *const ctypes::iovec,
+                args[2] as c_int,
+                args[3] as ctypes::off_t,
+            ) as _,
+
             SyscallId::PRLIMIT64 => ruxos_posix_api::sys_prlimit64(
                 args[0] as ctypes::pid_t,
                 args[1] as c_int,
                 args[2] as *const ctypes::rlimit,
                 args[3] as *mut ctypes::rlimit,
+            ) as _,
+
+            SyscallId::GETRANDOM => ruxos_posix_api::sys_getrandom(
+                args[0] as *mut c_void,
+                args[1] as ctypes::size_t,
+                args[2] as c_int,
             ) as _,
         }
     }
