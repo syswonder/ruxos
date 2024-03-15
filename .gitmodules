@@ -1,0 +1,3 @@
+[submodule "patches/opensbi"]
+	path = patches/opensbi
+	url = https://github.com/Sssssaltyfish/opensbi.git

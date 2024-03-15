@@ -22,6 +22,9 @@ cfg_if::cfg_if! {
         mod x86_64;
         #[cfg(feature = "musl")]
         use x86_64::{syscall, syscall_id};
+    } else if #[cfg(target_arch = "riscv64")]{
+        mod riscv64;
+        use riscv64::{syscall, syscall_id};
     } else {
         mod dummy;
         use dummy::{syscall, syscall_id};

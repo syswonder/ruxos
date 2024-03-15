@@ -19,7 +19,7 @@ members = [
     "crates/driver_net",
     "crates/driver_pci",
     "crates/driver_virtio",
-	"crates/dtb",
+    "crates/dtb",
     "crates/flatten_objects",
     "crates/lazy_init",
     "crates/linked_list",
@@ -67,3 +67,6 @@ lto = true
 [profile.reldebug]
 inherits = "release"
 debug = true
+
+[patch.crates-io]
+sbi-spec = { git = "https://github.com/Sssssaltyfish/rustsbi.git", rev = "a25d448d3d770c6db493a472e3e78d949b63f523", optional = true }

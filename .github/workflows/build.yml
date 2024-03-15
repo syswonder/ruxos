@@ -47,6 +47,12 @@ jobs:
         crate: cargo-binutils
         version: latest
         use-tool-cache: true
+    # musl toolchain is also needed in non-musl apps
+    # because we need to build opensbi under riscv64
+    - uses: ./.github/workflows/actions/setup-musl
+      with:
+        arch: ${{ matrix.arch }}
+
     - name: Build display/basic_painting
       run: make ARCH=${{ matrix.arch }} A=apps/display/basic_painting
     - name: Build display/draw_map
@@ -54,9 +60,6 @@ jobs:
     - name: Build fs/shell
       run: make ARCH=${{ matrix.arch }} A=apps/fs/shell
 
-    - uses: ./.github/workflows/actions/setup-musl
-      with:
-        arch: ${{ matrix.arch }}
     - name: Build c/helloworld
       run: make ARCH=${{ matrix.arch }} A=apps/c/helloworld
     - name: Build c/memtest

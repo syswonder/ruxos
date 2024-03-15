@@ -71,6 +71,8 @@ app-objs := $(addprefix $(APP)/,$(app-objs))
 
 $(ulib_hdr): _cargo_build
 
+$(app-objs): $(ulib_hdr) prebuild
+
 $(APP)/%.o: $(APP)/%.c $(ulib_hdr)
 	$(call run_cmd,$(CC),$(CFLAGS) $(APP_CFLAGS) -c -o $@ $<)
 
