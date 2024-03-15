@@ -21,7 +21,7 @@ qemu_args-x86_64 := \
 
 qemu_args-riscv64 := \
   -machine virt \
-  -bios $(RISCV_BIOS) \
+  -bios opensbi/build/platform/generic/firmware/fw_dynamic.bin \
   -kernel $(OUT_BIN)
 
 qemu_args-aarch64 := \

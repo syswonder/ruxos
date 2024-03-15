@@ -29,6 +29,20 @@ fn riscv_trap_handler(tf: &mut TrapFrame, _from_user: bool) {
     match scause.cause() {
         Trap::Exception(E::Breakpoint) => handle_breakpoint(&mut tf.sepc),
         Trap::Interrupt(_) => crate::trap::handle_irq_extern(scause.bits()),
+        Trap::Exception(E::UserEnvCall) => {
+            let ret = crate::trap::handle_syscall(
+                tf.regs.a7,
+                [
+                    tf.regs.a0 as _,
+                    tf.regs.a1 as _,
+                    tf.regs.a2 as _,
+                    tf.regs.a3 as _,
+                    tf.regs.a4 as _,
+                    tf.regs.a5 as _,
+                ],
+            );
+            tf.regs.a0 = ret as _;
+        }
         _ => {
             panic!(
                 "Unhandled trap {:?} @ {:#x}:\n{:#x?}",
