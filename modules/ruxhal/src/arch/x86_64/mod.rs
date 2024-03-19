@@ -19,6 +19,8 @@ use core::arch::asm;
 use memory_addr::{PhysAddr, VirtAddr};
 use x86::{controlregs, msr, tlb};
 use x86_64::instructions::interrupts;
+
+#[cfg(feature = "musl")]
 use x86_64::registers::model_specific::EferFlags;
 
 pub use self::context::{ExtendedState, FxsaveArea, TaskContext, TrapFrame};

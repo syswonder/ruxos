@@ -49,7 +49,7 @@ pipe = ["ruxos_posix_api/pipe"]
 select = ["ruxos_posix_api/select"]
 poll = ["ruxos_posix_api/poll"]
 epoll = ["ruxos_posix_api/epoll"]
-random-hw = []
+random-hw = ["ruxos_posix_api/random-hw"]
 
 [dependencies]
 ruxfeat = { path = "../../api/ruxfeat" }

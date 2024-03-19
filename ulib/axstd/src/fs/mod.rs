@@ -22,8 +22,8 @@ pub use self::file::{File, FileType, Metadata, OpenOptions, Permissions};
 
 /// Read the entire contents of a file into a bytes vector.
 #[cfg(feature = "alloc")]
-pub fn read(path: &str) -> io::Result<Vec<u8>> {
-    let mut file = File::open(path)?;
+pub fn read<P: AsRef<str>>(path: P) -> io::Result<Vec<u8>> {
+    let mut file = File::open(path.as_ref())?;
     let size = file.metadata().map(|m| m.len()).unwrap_or(0);
     let mut bytes = Vec::with_capacity(size as usize);
     file.read_to_end(&mut bytes)?;
@@ -32,8 +32,8 @@ pub fn read(path: &str) -> io::Result<Vec<u8>> {
 
 /// Read the entire contents of a file into a string.
 #[cfg(feature = "alloc")]
-pub fn read_to_string(path: &str) -> io::Result<String> {
-    let mut file = File::open(path)?;
+pub fn read_to_string<P: AsRef<str>>(path: P) -> io::Result<String> {
+    let mut file = File::open(path.as_ref())?;
     let size = file.metadata().map(|m| m.len()).unwrap_or(0);
     let mut string = String::with_capacity(size as usize);
     file.read_to_string(&mut string)?;
@@ -41,46 +41,46 @@ pub fn read_to_string(path: &str) -> io::Result<String> {
 }
 
 /// Write a slice as the entire contents of a file.
-pub fn write<C: AsRef<[u8]>>(path: &str, contents: C) -> io::Result<()> {
-    File::create(path)?.write_all(contents.as_ref())
+pub fn write<P: AsRef<str>, C: AsRef<[u8]>>(path: P, contents: C) -> io::Result<()> {
+    File::create(path.as_ref())?.write_all(contents.as_ref())
 }
 
 /// Given a path, query the file system to get information about a file,
 /// directory, etc.
-pub fn metadata(path: &str) -> io::Result<Metadata> {
-    File::open(path)?.metadata()
+pub fn metadata<P: AsRef<str>>(path: P) -> io::Result<Metadata> {
+    File::open(path.as_ref())?.metadata()
 }
 
 /// Returns an iterator over the entries within a directory.
-pub fn read_dir(path: &str) -> io::Result<ReadDir> {
+pub fn read_dir(path: &str) -> io::Result<ReadDir<'_>> {
     ReadDir::new(path)
 }
 
 /// Creates a new, empty directory at the provided path.
-pub fn create_dir(path: &str) -> io::Result<()> {
-    DirBuilder::new().create(path)
+pub fn create_dir<P: AsRef<str>>(path: P) -> io::Result<()> {
+    DirBuilder::new().create(path.as_ref())
 }
 
 /// Recursively create a directory and all of its parent components if they
 /// are missing.
-pub fn create_dir_all(path: &str) -> io::Result<()> {
-    DirBuilder::new().recursive(true).create(path)
+pub fn create_dir_all<P: AsRef<str>>(path: P) -> io::Result<()> {
+    DirBuilder::new().recursive(true).create(path.as_ref())
 }
 
 /// Removes an empty directory.
-pub fn remove_dir(path: &str) -> io::Result<()> {
-    arceos_api::fs::ax_remove_dir(path)
+pub fn remove_dir<P: AsRef<str>>(path: P) -> io::Result<()> {
+    arceos_api::fs::ax_remove_dir(path.as_ref())
 }
 
 /// Removes a file from the filesystem.
-pub fn remove_file(path: &str) -> io::Result<()> {
-    arceos_api::fs::ax_remove_file(path)
+pub fn remove_file<P: AsRef<str>>(path: P) -> io::Result<()> {
+    arceos_api::fs::ax_remove_file(path.as_ref())
 }
 
 /// Rename a file or directory to a new name.
 /// Delete the original file if `old` already exists.
 ///
 /// This only works then the new path is in the same mounted fs.
-pub fn rename(old: &str, new: &str) -> io::Result<()> {
-    arceos_api::fs::ax_rename(old, new)
+pub fn rename<P: AsRef<str>>(old: P, new: P) -> io::Result<()> {
+    arceos_api::fs::ax_rename(old.as_ref(), new.as_ref())
 }

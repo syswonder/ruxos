@@ -8,7 +8,7 @@
  */
 
 use alloc::sync::Arc;
-use core::ffi::{c_char, c_int, c_long};
+use core::ffi::{c_char, c_int, c_long, c_void};
 
 use axerrno::{LinuxError, LinuxResult};
 use axio::{PollState, SeekFrom};
@@ -118,7 +118,21 @@ impl FileLike for Directory {
     }
 
     fn stat(&self) -> LinuxResult<ctypes::stat> {
-        Err(LinuxError::EACCES)
+        let metadata = self.inner.lock().get_attr()?;
+        let ty = metadata.file_type() as u8;
+        let perm = metadata.perm().bits() as u32;
+        let st_mode = ((ty as u32) << 12) | perm;
+        Ok(ctypes::stat {
+            st_ino: 1,
+            st_nlink: 1,
+            st_mode,
+            st_uid: 1000,
+            st_gid: 1000,
+            st_size: metadata.size() as _,
+            st_blocks: metadata.blocks() as _,
+            st_blksize: 512,
+            ..Default::default()
+        })
     }
 
     fn into_any(self: Arc<Self>) -> Arc<dyn core::any::Any + Send + Sync> {
@@ -179,18 +193,31 @@ pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> 
 }
 
 /// Open a file under a specific dir
-///
-/// TODO: Currently only support openat root directory
-pub fn sys_openat(_fd: usize, path: *const c_char, flags: c_int, mode: ctypes::mode_t) -> c_int {
+pub fn sys_openat(fd: usize, path: *const c_char, flags: c_int, mode: ctypes::mode_t) -> c_int {
     let path = char_ptr_to_str(path);
-    debug!("sys_openat <= {:?}, {:#o} {:#o}", path, flags, mode);
+    let fd: c_int = fd as c_int;
+    debug!("sys_openat <= {}, {:?}, {:#o} {:#o}", fd, path, flags, mode);
     syscall_body!(sys_openat, {
         let options = flags_to_options(flags, mode);
         if (flags as u32) & ctypes::O_DIRECTORY != 0 {
-            let dir = ruxfs::fops::Directory::open_dir(path?, &options)?;
+            let dir = if fd == ctypes::AT_FDCWD {
+                ruxfs::fops::Directory::open_dir(path?, &options)?
+            } else {
+                Directory::from_fd(fd)?
+                    .inner
+                    .lock()
+                    .open_dir_at(path?, &options)?
+            };
             Directory::new(dir).add_to_fd_table()
         } else {
-            let file = ruxfs::fops::File::open(path?, &options)?;
+            let file = if fd == ctypes::AT_FDCWD {
+                ruxfs::fops::File::open(path?, &options)?
+            } else {
+                Directory::from_fd(fd)?
+                    .inner
+                    .lock()
+                    .open_file_at(path?, &options)?
+            };
             File::new(file).add_to_fd_table()
         }
     })
@@ -491,6 +518,7 @@ pub fn sys_fchownat(
 }
 
 /// read value of a symbolic link relative to directory file descriptor
+/// TODO: currently only support symlink, so return EINVAL anyway
 pub fn sys_readlinkat(
     fd: c_int,
     pathname: *const c_char,
@@ -499,23 +527,11 @@ pub fn sys_readlinkat(
 ) -> usize {
     let path = char_ptr_to_str(pathname);
     debug!(
-        "sys_readlinkat <= path = {:?}, fd = {:}, bufsize = {:}",
-        path, fd, bufsize
+        "sys_readlinkat <= path = {:?}, fd = {:}, buf = {:p}, bufsize = {:}",
+        path, fd, buf, bufsize
     );
     syscall_body!(sys_readlinkat, {
-        let mut options = OpenOptions::new();
-        options.read(true);
-        let dst = unsafe { core::slice::from_raw_parts_mut(buf as *mut u8, bufsize as _) };
-        // if fd == AT_FDCWD then readat the relative path
-        if fd == ctypes::AT_FDCWD as c_int {
-            let file = ruxfs::fops::File::open(path?, &options)?;
-            let file = File::new(file);
-            Ok(file.read(dst)?)
-        } else {
-            let dir = Directory::from_fd(fd)?;
-            let mut file = dir.inner.lock().open_file_at(path?, &options)?;
-            Ok(file.read(dst)?)
-        }
+        Err::<usize, LinuxError>(LinuxError::EINVAL)
     })
 }
 
@@ -570,5 +586,65 @@ pub unsafe fn sys_getdents64(
         }
 
         Ok(n * 280)
+    })
+}
+
+/// Read data from the file indicated by `fd`, starting at the position given by `offset`.
+///
+/// Return the read size if success.
+pub fn sys_pread(
+    fd: c_int,
+    buf: *mut c_void,
+    count: usize,
+    offset: ctypes::off_t,
+) -> ctypes::ssize_t {
+    debug!(
+        "sys_pread <= fd: {} buf: {:#x} count: {} offset: {}",
+        fd, buf as usize, count, offset
+    );
+    syscall_body!(sys_pread, {
+        if buf.is_null() {
+            return Err(LinuxError::EFAULT);
+        }
+        let dst = unsafe { core::slice::from_raw_parts_mut(buf as *mut u8, count) };
+        #[cfg(feature = "fd")]
+        {
+            Ok(File::from_fd(fd)?.inner.lock().read_at(offset as _, dst)?)
+        }
+        #[cfg(not(feature = "fd"))]
+        match fd {
+            0 => Ok(super::stdio::stdin().read(dst)? as ctypes::ssize_t),
+            1 | 2 => Err(LinuxError::EPERM),
+            _ => Err(LinuxError::EBADF),
+        }
+    })
+}
+
+/// Reads `iocnt` buffers from the file associated with the file descriptor `fd` into the
+/// buffers described by `iov`, starting at the position given by `offset`
+pub unsafe fn sys_preadv(
+    fd: c_int,
+    iov: *const ctypes::iovec,
+    iocnt: c_int,
+    offset: ctypes::off_t,
+) -> ctypes::ssize_t {
+    debug!(
+        "sys_preadv <= fd: {}, iocnt: {}, offset: {}",
+        fd, iocnt, offset
+    );
+    syscall_body!(sys_preadv, {
+        if !(0..=1024).contains(&iocnt) {
+            return Err(LinuxError::EINVAL);
+        }
+
+        let iovs = unsafe { core::slice::from_raw_parts(iov, iocnt as usize) };
+        let mut ret = 0;
+        for iov in iovs.iter() {
+            if iov.iov_base.is_null() {
+                continue;
+            }
+            ret += sys_pread(fd, iov.iov_base, iov.iov_len, offset);
+        }
+        Ok(ret)
     })
 }

@@ -51,7 +51,9 @@ endif
 $(OUT_DIR):
 	$(call run_cmd,mkdir,-p $@)
 
-$(OUT_BIN): _cargo_build $(OUT_ELF)
+$(OUT_ELF): _cargo_build
+
+$(OUT_BIN): $(OUT_ELF)
 	$(call run_cmd,$(OBJCOPY),$(OUT_ELF) --strip-all -O binary $@)
 
 .PHONY: _cargo_build

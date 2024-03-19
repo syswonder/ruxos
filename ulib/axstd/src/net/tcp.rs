@@ -7,6 +7,8 @@
  *   See the Mulan PSL v2 for more details.
  */
 
+use core::fmt::Debug;
+
 use super::{SocketAddr, ToSocketAddrs};
 use crate::io::{self, prelude::*};
 
@@ -67,6 +69,15 @@ impl Write for TcpStream {
 
     fn flush(&mut self) -> io::Result<()> {
         Ok(())
+    }
+}
+
+impl Debug for TcpStream {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("TcpStream")
+            .field("local_addr", &self.local_addr())
+            .field("peer_addr", &self.peer_addr())
+            .finish_non_exhaustive()
     }
 }
 

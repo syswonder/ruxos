@@ -226,6 +226,16 @@ pub(crate) fn create_dir(dir: Option<&VfsNodeRef>, path: &str) -> AxResult {
     }
 }
 
+pub(crate) fn create_dir_all(dir: Option<&VfsNodeRef>, path: &str) -> AxResult {
+    match lookup(dir, path) {
+        Ok(_) => ax_err!(AlreadyExists),
+        Err(AxError::NotFound) => {
+            parent_node_of(dir, path).create_recursive(path, VfsNodeType::Dir)
+        }
+        Err(e) => Err(e),
+    }
+}
+
 pub(crate) fn remove_file(dir: Option<&VfsNodeRef>, path: &str) -> AxResult {
     let node = lookup(dir, path)?;
     let attr = node.get_attr()?;

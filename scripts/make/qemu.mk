@@ -21,7 +21,7 @@ qemu_args-x86_64 := \
 
 qemu_args-riscv64 := \
   -machine virt \
-  -bios default \
+  -bios $(RISCV_BIOS) \
   -kernel $(OUT_BIN)
 
 qemu_args-aarch64 := \
@@ -29,7 +29,7 @@ qemu_args-aarch64 := \
   -machine virt \
   -kernel $(OUT_BIN)
 
-qemu_args-y := -m 128M -smp $(SMP) $(qemu_args-$(ARCH)) \
+qemu_args-y := -m 2G -smp $(SMP) $(qemu_args-$(ARCH)) \
   -append ";$(ARGS);$(ENVS)"
 
 qemu_args-$(BLK) += \

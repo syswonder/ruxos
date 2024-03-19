@@ -8,6 +8,7 @@
  */
 
 use alloc::{collections::BTreeMap, sync::Arc};
+use core::fmt::Debug;
 use core::ops::Deref;
 use core::sync::atomic::{AtomicIsize, Ordering};
 
@@ -103,6 +104,12 @@ impl<T> Deref for CFSTask<T> {
     type Target = T;
     fn deref(&self) -> &Self::Target {
         &self.inner
+    }
+}
+
+impl<T: Debug> Debug for CFSTask<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{:?}", &self.inner)
     }
 }
 

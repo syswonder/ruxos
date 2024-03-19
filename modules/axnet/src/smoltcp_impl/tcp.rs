@@ -515,6 +515,22 @@ impl Drop for TcpSocket {
     }
 }
 
+impl axio::Read for TcpSocket {
+    fn read(&mut self, buf: &mut [u8]) -> AxResult<usize> {
+        self.recv(buf)
+    }
+}
+
+impl axio::Write for TcpSocket {
+    fn write(&mut self, buf: &[u8]) -> AxResult<usize> {
+        self.send(buf)
+    }
+
+    fn flush(&mut self) -> AxResult {
+        Ok(())
+    }
+}
+
 fn get_ephemeral_port() -> AxResult<u16> {
     const PORT_START: u16 = 0x15b3;
     const PORT_END: u16 = 0xffff;

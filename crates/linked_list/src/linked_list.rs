@@ -21,7 +21,7 @@ extern crate alloc;
 use alloc::{boxed::Box, sync::Arc};
 use core::ptr::NonNull;
 
-use crate::unsafe_list::{self, Adapter, Cursor, Links};
+use crate::unsafe_list::{self, Adapter, Cursor, Iterator, Links};
 
 // TODO: Use the one from `kernel::file_operations::PointerWrapper` instead.
 /// Wraps an object to be inserted in a linked list.
@@ -213,6 +213,12 @@ impl<G: AdapterWrapped> List<G> {
     #[inline]
     pub fn cursor_front(&self) -> Cursor<'_, G> {
         self.list.cursor_front()
+    }
+
+    /// Returns an iterator of its elements.
+    #[inline]
+    pub fn iter(&self) -> Iterator<'_, G> {
+        self.list.iter()
     }
 }
 

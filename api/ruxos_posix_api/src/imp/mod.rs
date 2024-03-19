@@ -9,6 +9,7 @@
 
 mod stdio;
 
+pub mod getrandom;
 pub mod io;
 pub mod prctl;
 pub mod resources;

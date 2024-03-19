@@ -177,6 +177,33 @@ pub trait VfsNodeOps: Send + Sync {
     fn as_any(&self) -> &dyn core::any::Any {
         unimplemented!()
     }
+
+    /// Create a new node with given `path` in the directory, recursively.
+    ///
+    /// Default implementation `create`s all prefix sub-paths sequentially,
+    /// implementor may provide a more efficient impl.
+    ///
+    /// Return [`Ok(())`](Ok) if already exists.
+    fn create_recursive(&self, path: &str, ty: VfsNodeType) -> VfsResult {
+        if path.starts_with('/') {
+            return ax_err!(InvalidInput);
+        }
+        let path = path.trim_end_matches('/');
+        for (i, c) in path.char_indices() {
+            let part = if c == '/' {
+                unsafe { path.get_unchecked(..i) }
+            } else {
+                continue;
+            };
+            match self.create(part, VfsNodeType::Dir) {
+                Ok(()) | Err(AxError::AlreadyExists) => {}
+                err @ Err(_) => return err,
+            }
+        }
+        self.create(path, ty)?;
+
+        Ok(())
+    }
 }
 
 #[doc(hidden)]

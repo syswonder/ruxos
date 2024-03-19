@@ -106,7 +106,8 @@ pub type AxResult<T = ()> = Result<T, AxError>;
 pub type LinuxResult<T = ()> = Result<T, LinuxError>;
 
 /// Convenience method to construct an [`AxError`] type while printing a warning
-/// message.
+/// message. Additional arguments after the format would be passed to
+/// the corresponding logging macro.
 ///
 /// # Examples
 ///
@@ -125,6 +126,14 @@ pub type LinuxResult<T = ()> = Result<T, LinuxError>;
 ///     ax_err_type!(BadAddress, "the address is 0!"),
 ///     AxError::BadAddress,
 /// );
+///
+/// // Also print "[AxError::BadAddress] the address is xxx!" if the `log` crate
+/// // is enabled.
+/// assert_eq!(
+///     ax_err_type!(BadAddress, "the address is {}!", "xxx"),
+///     AxError::BadAddress,
+/// );
+
 /// ```
 #[macro_export]
 macro_rules! ax_err_type {
@@ -136,6 +145,11 @@ macro_rules! ax_err_type {
     ($err: ident, $msg: expr) => {{
         use $crate::AxError::*;
         $crate::__priv::warn!("[AxError::{:?}] {}", $err, $msg);
+        $err
+    }};
+    ($err: ident, $fmt: literal, $($arg: tt)+) => {{
+        use $crate::AxError::*;
+        $crate::__priv::warn!(concat!("[AxError::{:?}] ", $fmt), $err, $($arg)+);
         $err
     }};
 }
@@ -164,8 +178,9 @@ macro_rules! ensure {
     };
 }
 
-/// Convenience method to construct an [`Err(AxError)`] type while printing a
-/// warning message.
+/// Convenience method to construct an [`Err(AxError)`] type while format-printing a
+/// warning message. Additional arguments after the format would be passed to
+/// the corresponding logging macro.
 ///
 /// # Examples
 ///
@@ -183,6 +198,13 @@ macro_rules! ensure {
 ///     ax_err!(BadAddress, "the address is 0!"),
 ///     AxResult::<()>::Err(AxError::BadAddress),
 /// );
+///
+/// // Also print "[AxError::BadAddress] the address is xxx!" if the `log` crate
+/// // is enabled.
+/// assert_eq!(
+///     ax_err!(BadAddress, "the address is {}!", "xxx"),
+///     AxResult::<()>::Err(AxError::BadAddress),
+/// );
 /// ```
 /// [`Err(AxError)`]: Err
 #[macro_export]
@@ -192,6 +214,9 @@ macro_rules! ax_err {
     };
     ($err: ident, $msg: expr) => {
         Err($crate::ax_err_type!($err, $msg))
+    };
+    ($err: ident, $fmt: literal, $($arg: tt)+) => {
+        Err($crate::ax_err_type!($err, $fmt, $($arg)+))
     };
 }
 
