@@ -97,7 +97,7 @@ pub use self::io::{read, writev};
 
 pub use self::errno::strerror;
 pub use self::mktime::mktime;
-pub use self::rand::{rand, random, srand};
+pub use self::rand::{getrandom, rand, random, srand};
 pub use self::resource::{getrlimit, setrlimit};
 pub use self::setjmp::{longjmp, setjmp};
 pub use self::string::{strlen, strnlen};

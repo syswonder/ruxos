@@ -47,6 +47,10 @@ pub enum SyscallId {
     READV = 65,
     #[cfg(feature = "fd")]
     WRITEV = 66,
+    #[cfg(feature = "fs")]
+    PREAD64 = 67,
+    #[cfg(feature = "fs")]
+    PREADV = 69,
     #[cfg(feature = "select")]
     PSELECT6 = 72,
     #[cfg(feature = "poll")]
@@ -122,4 +126,5 @@ pub enum SyscallId {
     #[cfg(feature = "alloc")]
     MPROTECT = 226,
     PRLIMIT64 = 261,
+    GETRANDOM = 278,
 }

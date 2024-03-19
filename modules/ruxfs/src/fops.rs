@@ -273,7 +273,7 @@ impl Directory {
 
         node.open()?;
         Ok(Self {
-            node: WithCap::new(node, access_cap),
+            node: WithCap::new(node, access_cap | Cap::EXECUTE),
             entry_idx: 0,
         })
     }
@@ -344,6 +344,11 @@ impl Directory {
     /// This only works then the new path is in the same mounted fs.
     pub fn rename(&self, old: &str, new: &str) -> AxResult {
         crate::root::rename(old, new)
+    }
+
+    /// Gets the file attributes.
+    pub fn get_attr(&self) -> AxResult<FileAttr> {
+        self.node.access(Cap::empty())?.get_attr()
     }
 }
 
