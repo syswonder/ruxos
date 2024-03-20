@@ -400,7 +400,7 @@ impl Drv9pOps {
 
     /// write perform I/O on the file represented by fid.
     /// Note that in v9fs, a read(2) or write(2) system call for a chunk of the file that won't fit in a single request is broken up into multiple requests.
-    pub fn twrite(&mut self, fid: u32, offset: u64, data: &[u8]) -> Result<u8, u8> {
+    pub fn twrite(&mut self, fid: u32, offset: u64, data: &[u8]) -> Result<usize, u8> {
         const MAX_READ_LEN: u32 = _9P_MAX_PSIZE - 32;
         let mut writing_len = data.len() as u32;
         if writing_len > MAX_READ_LEN {
@@ -416,7 +416,7 @@ impl Drv9pOps {
         }
         request.finish();
         match self.request(&request.buffer, &mut response_buffer) {
-            Ok(_) => Ok(lbytes2u64(&response_buffer[7..11]) as u8), // index from 7 to 11 corresponing to total count of writed byte
+            Ok(_) => Ok(lbytes2u64(&response_buffer[7..11]) as usize), // index from 7 to 11 corresponing to total count of writed byte
             Err(ecode) => Err(ecode),
         }
     }
@@ -903,6 +903,10 @@ impl FileAttr {
         }
     }
 
+    pub fn get_perm(&self) -> u32 {
+        self.mode
+    }
+
     pub fn set_size(&mut self, size: u64) {
         self.vaild |= _9P_SETATTR_SIZE;
         self.size = size;
@@ -1016,6 +1020,10 @@ impl UStatFs {
 
     pub fn get_name(&self) -> String {
         self.name.clone()
+    }
+
+    pub fn get_perm(&self) -> u32 {
+        self.mode
     }
 
     pub fn get_ftype(&self) -> u8 {
