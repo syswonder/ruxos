@@ -113,18 +113,20 @@ pub enum SyscallId {
     SHUTDOWN = 210,
     #[cfg(feature = "net")]
     SENDMSG = 211,
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "paging")]
     MUNMAP = 215,
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "paging")]
     MREMAP = 216,
     #[cfg(feature = "multitask")]
     CLONE = 220,
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "paging")]
     MMAP = 222,
-    #[cfg(feature = "alloc")]
-    MADVISE = 233,
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "paging")]
     MPROTECT = 226,
+    #[cfg(feature = "paging")]
+    MSYNC = 227,
+    #[cfg(feature = "paging")]
+    MADVISE = 233,
     PRLIMIT64 = 261,
     GETRANDOM = 278,
 }

@@ -225,6 +225,47 @@ pub fn sys_openat(fd: usize, path: *const c_char, flags: c_int, mode: ctypes::mo
 
 /// Set the position of the file indicated by `fd`.
 ///
+/// Read data from a file at a specific offset.
+pub fn sys_pread64(
+    fd: c_int,
+    buf: *mut c_void,
+    count: usize,
+    pos: ctypes::off_t,
+) -> ctypes::ssize_t {
+    debug!("sys_pread64 <= {} {} {}", fd, count, pos);
+    syscall_body!(sys_pread64, {
+        let dst = unsafe { core::slice::from_raw_parts_mut(buf as *mut u8, count) };
+        let size = File::from_fd(fd)?
+            .inner
+            .lock()
+            .read_at(pos.try_into().unwrap(), dst)?;
+        Ok(size as ctypes::ssize_t)
+    })
+}
+
+/// Set the position of the file indicated by `fd`.
+///
+/// Write data from a file at a specific offset.
+pub fn sys_pwrite64(
+    fd: c_int,
+    buf: *const c_void,
+    count: usize,
+    pos: ctypes::off_t,
+) -> ctypes::ssize_t {
+    debug!("sys_pwrite64 <= {} {} {}", fd, count, pos);
+    syscall_body!(sys_pwrite64, {
+        // TODO: judge if access is legal.
+        let src = unsafe { core::slice::from_raw_parts_mut(buf as *mut u8, count) };
+        let size = File::from_fd(fd)?
+            .inner
+            .lock()
+            .write_at(pos.try_into().unwrap(), src)?;
+        Ok(size as ctypes::ssize_t)
+    })
+}
+
+/// Set the position of the file indicated by `fd`.
+///
 /// Return its position after seek.
 pub fn sys_lseek(fd: c_int, offset: ctypes::off_t, whence: c_int) -> ctypes::off_t {
     debug!("sys_lseek <= {} {} {}", fd, offset, whence);

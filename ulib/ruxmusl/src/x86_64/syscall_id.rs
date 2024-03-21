@@ -32,13 +32,13 @@ pub enum SyscallId {
     #[cfg(feature = "fs")]
     LSEEK = 8,
 
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "paging")]
     MMAP = 9,
 
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "paging")]
     MPROTECT = 10,
 
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "paging")]
     MUNMAP = 11,
 
     #[cfg(feature = "signal")]
@@ -67,10 +67,13 @@ pub enum SyscallId {
 
     SCHED_YIELD = 24,
 
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "paging")]
     MREMAP = 25,
 
-    #[cfg(feature = "alloc")]
+    #[cfg(feature = "paging")]
+    MSYNC = 26,
+
+    #[cfg(feature = "paging")]
     MADVISE = 28,
 
     #[cfg(feature = "fd")]

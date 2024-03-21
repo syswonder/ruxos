@@ -27,7 +27,7 @@ pub mod fs;
 pub mod io_mpx;
 #[cfg(feature = "fd")]
 pub mod ioctl;
-#[cfg(feature = "alloc")]
+#[cfg(feature = "paging")]
 pub mod mmap;
 #[cfg(feature = "net")]
 pub mod net;
