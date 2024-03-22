@@ -42,14 +42,18 @@ extern "C" {
     fn rust_main_secondary(cpu_id: usize);
 }
 
-pub(crate) unsafe extern "C" fn rust_entry(cpu_id: usize, dtb: usize) {
+pub(crate) unsafe extern "C" fn rust_entry(cpu_id: usize) {
     crate::mem::clear_bss();
     crate::arch::set_exception_vector_base(exception_vector_base as usize);
     crate::arch::write_page_table_root0(0.into()); // disable low address access
+    unsafe {
+        // Set the physical address of the dtb file to 0x03000000 in config.txt
+        dtb::init(crate::mem::phys_to_virt(0x03000000.into()).as_ptr());
+    }
     crate::cpu::init_primary(cpu_id);
     super::aarch64_common::pl011::init_early();
     super::aarch64_common::generic_timer::init_early();
-    rust_main(cpu_id, dtb);
+    rust_main(cpu_id, 0x03000000);
 }
 
 #[cfg(feature = "smp")]
