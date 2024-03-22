@@ -21,7 +21,7 @@ qemu_args-x86_64 := \
 
 qemu_args-riscv64 := \
   -machine virt \
-  -bios opensbi/build/platform/generic/firmware/fw_dynamic.bin \
+  -bios patches/opensbi/build/platform/generic/firmware/fw_dynamic.bin \
   -kernel $(OUT_BIN)
 
 qemu_args-aarch64 := \
@@ -29,7 +29,7 @@ qemu_args-aarch64 := \
   -machine virt \
   -kernel $(OUT_BIN)
 
-qemu_args-y := -m 2G -smp $(SMP) $(qemu_args-$(ARCH)) \
+qemu_args-y := -m 1G -smp $(SMP) $(qemu_args-$(ARCH)) \
   -append ";$(ARGS);$(ENVS)"
 
 qemu_args-$(BLK) += \
