@@ -1,3 +1,6 @@
 [submodule "patches/opensbi"]
 	path = patches/opensbi
 	url = https://github.com/Sssssaltyfish/opensbi.git
+[submodule "patches/rustsbi"]
+	path = patches/rustsbi
+	url = https://github.com/Sssssaltyfish/rustsbi.git

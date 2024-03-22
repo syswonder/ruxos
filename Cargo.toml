@@ -75,3 +75,4 @@ debug = true
 
 [patch.crates-io]
 crate_interface = { path = "crates/crate_interface" }
+sbi-spec = { path = "patches/rustsbi/sbi-spec" }
