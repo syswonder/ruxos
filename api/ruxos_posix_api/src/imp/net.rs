@@ -45,10 +45,10 @@ impl Socket {
         }
     }
 
-    fn recv(&self, buf: &mut [u8]) -> LinuxResult<usize> {
+    fn recv(&self, buf: &mut [u8], flags: i32) -> LinuxResult<usize> {
         match self {
             Socket::Udp(udpsocket) => Ok(udpsocket.lock().recv_from(buf).map(|e| e.0)?),
-            Socket::Tcp(tcpsocket) => Ok(tcpsocket.lock().recv(buf)?),
+            Socket::Tcp(tcpsocket) => Ok(tcpsocket.lock().recv(buf, flags)?),
         }
     }
 
@@ -102,7 +102,7 @@ impl Socket {
                 .lock()
                 .recv_from(buf)
                 .map(|res| (res.0, Some(res.1)))?),
-            Socket::Tcp(tcpsocket) => Ok(tcpsocket.lock().recv(buf).map(|res| (res, None))?),
+            Socket::Tcp(tcpsocket) => Ok(tcpsocket.lock().recv(buf, 0).map(|res| (res, None))?),
         }
     }
 
@@ -141,7 +141,7 @@ impl Socket {
 
 impl FileLike for Socket {
     fn read(&self, buf: &mut [u8]) -> LinuxResult<usize> {
-        self.recv(buf)
+        self.recv(buf, 0)
     }
 
     fn write(&self, buf: &[u8]) -> LinuxResult<usize> {
@@ -422,7 +422,7 @@ pub fn sys_recv(
             return Err(LinuxError::EFAULT);
         }
         let buf = unsafe { core::slice::from_raw_parts_mut(buf_ptr as *mut u8, len) };
-        Socket::from_fd(socket_fd)?.recv(buf)
+        Socket::from_fd(socket_fd)?.recv(buf, flag)
     })
 }
 
