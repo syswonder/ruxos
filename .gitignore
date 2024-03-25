@@ -6,6 +6,9 @@
 /.cache
 compile_commands.json
 
+# downloaded opensbi binary
+/fw_dynamic.bin
+
 *.asm
 disk.img
 actual.out

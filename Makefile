@@ -56,7 +56,7 @@ NET ?= n
 GRAPHIC ?= n
 V9P ?= n
 BUS ?= mmio
-RISCV_BIOS ?= $(shell realpath ./platforms/riscv/fw_dynamic.bin)
+RISCV_BIOS ?= default
 
 DISK_IMG ?= disk.img
 QEMU_LOG ?= n
