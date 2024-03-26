@@ -1,0 +1,109 @@
+--- /cxx/CMakeLists.txt
++++ /cxx/CMakeLists.txt
+@@ -3,7 +3,7 @@ foreach(test_path ${BENCHMARK_TESTS})
+   get_filename_component(test_file "${test_path}" NAME)
+   set(target ${test_file}.out)
+   #EXCLUDE_FROM_ALL
+-  add_executable(${target} ${test_file})
++  add_library(${target} ${test_file})
+   # shlwapi for MSVC
+   #target_link_libraries(${target} benchmark -pthread shlwapi)
+   target_link_libraries(${target} benchmark -pthread)
+--- /cxx/mutators.bench.cpp
++++ /cxx/mutators.bench.cpp
+@@ -26,8 +27,8 @@ void BM_write_seq(benchmark::State& state) {
+ template<typename V>
+ void BM_push_back(benchmark::State& state) {
+   int N = state.range(0);
+-  V v;
+   while (state.KeepRunning()) {
++    V v;
+     for (int i = 0; i < N; ++i)
+       v.push_back(i);
+   }
+@@ -37,8 +38,8 @@ void BM_push_back(benchmark::State& state) {
+ template<typename V>
+ void BM_push_back_resize(benchmark::State& state) {
+   int N = state.range(0);
+-  V v(N);
+   while (state.KeepRunning()) {
++    V v(N);
+     for (int i = 0; i < N; ++i)
+       v.push_back(i);
+   }
+@@ -48,9 +49,9 @@ void BM_push_back_resize(benchmark::State& state) {
+ template<typename V>
+ void BM_push_back_vector_reserve(benchmark::State& state) {
+   int N = state.range(0);
+-  V v;
+-  v.reserve(N);
+   while (state.KeepRunning()) {
++    V v;
++    v.reserve(N);
+     for (int i = 0; i < N; ++i)
+       v.push_back(i);
+   }
+@@ -60,9 +61,9 @@ void BM_push_back_vector_reserve(benchmark::State& state) {
+ template<typename V>
+ void BM_insert_begin(benchmark::State& state) {
+   int N = state.range(0);
+-  V v(N, 1);
+-  auto val = *v.begin();
+   while (state.KeepRunning()) {
++    V v(N, 1);
++    auto val = *v.begin();
+     v.insert(v.begin(), val);
+   }
+   state.SetComplexityN(N);
+@@ -94,14 +95,15 @@ void BM_assoc_insert_random(benchmark::State& state) {
+   int N = state.range(0);
+   using CVT = typename V::value_type;
+   using VT = typename remove_const<CVT>::type;
+-  std::vector<VT> temp(N*1000);
++  // TODO: It will panic if *100 or *1000
++  std::vector<VT> temp(N*10);
+   fill_random(temp);
+   V v;
+   auto it = temp.begin();
+   while (state.KeepRunning()) {
+     v.insert(*it++);
+     if (it == temp.end()) // FIXME: After temp.end insert will just return.
+-      assert(0);//it = temp.begin();
++      it = temp.begin();
+   }
+   state.SetComplexityN(N);
+ }
+--- /include/test_configs.h
++++ /include/test_configs.h
+@@ -1,6 +1,8 @@
+ #ifndef TEST_CONFIGS_H
+ #define TEST_CONFIGS_H
+ 
++void *__dso_handle = 0;
++
+ #define KB << 10
+ #define MB << 20
+ #define GB << 30
+@@ -12,9 +12,9 @@
+ #ifdef i7_4770
+ // To benchmark data residing completely in L1 cache.
+ #ifndef ENABLE_TRAVIS_BUILD
+-#define L1 (32 KB)
++#define L1 (16)
+ // To benchmark data residing in L2 cache.
+-#define L2 (256 KB)
++#define L2 (L1 << 7)
+ #else
+ // For the Travis CI to run the entire test.
+ #define L1 (16 KB)
+--- /benchmark/CMakeLists.txt
++++ /benchmark/CMakeLists.txt
+@@ -177,6 +177,8 @@ endif(BENCHMARK_USE_LIBCXX)
+ cxx_feature_check(STD_REGEX)
+ cxx_feature_check(GNU_POSIX_REGEX)
+ cxx_feature_check(POSIX_REGEX)
++add_compile_definitions(HAVE_STD_REGEX)
++set(HAVE_STD_REGEX 1)
+ if(NOT HAVE_STD_REGEX AND NOT HAVE_GNU_POSIX_REGEX AND NOT HAVE_POSIX_REGEX)
+   message(FATAL_ERROR "Failed to determine the source files for the regular expression backend")
+ endif()

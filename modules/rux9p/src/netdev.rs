@@ -70,7 +70,7 @@ impl _9pDriverOps for Net9pDev {
                 return Err(0);
             }
         }
-        match self.socket.recv(outputs) {
+        match self.socket.recv(outputs, 0) {
             Ok(length) => {
                 debug!("net9p recv successfully,length = {}", length);
                 Ok(length as u32)

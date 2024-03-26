@@ -34,6 +34,11 @@ const STATE_CONNECTING: u8 = 2;
 const STATE_CONNECTED: u8 = 3;
 const STATE_LISTENING: u8 = 4;
 
+const MSG_OOB: i32 = 1;
+const MSG_PEEK: i32 = 2;
+const MSG_DONTWAIT: i32 = 4;
+const MSG_CTRUNC: i32 = 8;
+
 /// A TCP socket that provides POSIX-like APIs.
 ///
 /// - [`connect`] is for TCP clients.
@@ -282,7 +287,7 @@ impl TcpSocket {
     }
 
     /// Receives data from the socket, stores it in the given buffer.
-    pub fn recv(&self, buf: &mut [u8]) -> AxResult<usize> {
+    pub fn recv(&self, buf: &mut [u8], flags: i32) -> AxResult<usize> {
         if self.is_connecting() {
             return Err(AxError::WouldBlock);
         } else if !self.is_connected() {
@@ -302,10 +307,20 @@ impl TcpSocket {
                 } else if socket.recv_queue() > 0 {
                     // data available
                     // TODO: use socket.recv(|buf| {...})
-                    let len = socket
-                        .recv_slice(buf)
-                        .map_err(|_| ax_err_type!(BadState, "socket recv() failed"))?;
-                    Ok(len)
+                    if flags & MSG_DONTWAIT != 0 {
+                        self.set_nonblocking(true);
+                    }
+                    if flags & MSG_PEEK != 0 {
+                        let len = socket
+                            .peek_slice(buf)
+                            .map_err(|_| ax_err_type!(BadState, "socket recv() failed"))?;
+                        Ok(len)
+                    } else {
+                        let len = socket
+                            .recv_slice(buf)
+                            .map_err(|_| ax_err_type!(BadState, "socket recv() failed"))?;
+                        Ok(len)
+                    }
                 } else {
                     // no more data
                     Err(AxError::WouldBlock)
@@ -315,6 +330,7 @@ impl TcpSocket {
     }
 
     /// Transmits data in the given buffer.
+    /// TODO: impl send flags
     pub fn send(&self, buf: &[u8]) -> AxResult<usize> {
         if self.is_connecting() {
             return Err(AxError::WouldBlock);
@@ -517,7 +533,7 @@ impl Drop for TcpSocket {
 
 impl axio::Read for TcpSocket {
     fn read(&mut self, buf: &mut [u8]) -> AxResult<usize> {
-        self.recv(buf)
+        self.recv(buf, 0)
     }
 }
 

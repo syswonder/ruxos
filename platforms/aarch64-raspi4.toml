@@ -18,6 +18,7 @@ kernel-base-vaddr = "0xffff_0000_0008_0000"
 phys-virt-offset = "0xffff_0000_0000_0000"
 # MMIO regions with format (`base_paddr`, `size`).
 mmio-regions = [
+    ["0xFE34_0000", "0x1000"],      # SD card 
     ["0xFE20_1000", "0x1000"],      # PL011 UART
     ["0xFF84_1000", "0x8000"],      # GICv2
 ]
