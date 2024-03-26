@@ -41,6 +41,7 @@ epoll = ["ruxos_posix_api/epoll"]
 poll = ["ruxos_posix_api/poll"]
 rtc = ["ruxfeat/rtc"]
 signal = ["ruxos_posix_api/signal"]
+random-hw = ["ruxos_posix_api/random-hw"]
 
 musl = ["ruxos_posix_api/musl", "tls"]
 
