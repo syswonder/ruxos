@@ -9,6 +9,8 @@
 
 use core::arch::global_asm;
 
+#[cfg(feature = "irq")]
+use crate::arch::enable_irqs;
 use aarch64_cpu::registers::{ESR_EL1, FAR_EL1};
 use tock_registers::interfaces::Readable;
 
@@ -56,6 +58,8 @@ fn handle_sync_exception(tf: &mut TrapFrame) {
         #[cfg(feature = "musl")]
         Some(ESR_EL1::EC::Value::SVC64) => {
             debug!("Handle supervisor call {}", tf.r[8]);
+            #[cfg(feature = "irq")]
+            enable_irqs();
             let result = crate::trap::handle_syscall(
                 tf.r[8] as usize,
                 [
