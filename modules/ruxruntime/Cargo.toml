@@ -23,7 +23,7 @@ alloc = ["axalloc", "dtb"]
 paging = ["ruxhal/paging", "lazy_init"]
 rtc = ["ruxhal/rtc"]
 
-multitask = ["ruxtask/multitask"]
+multitask = ["ruxtask/multitask", "dep:ruxfutex"]
 fs = ["ruxdriver", "ruxfs"]
 blkfs = ["fs"]
 virtio-9p = ["fs", "rux9p"]
@@ -32,7 +32,7 @@ net = ["ruxdriver", "axnet"]
 display = ["ruxdriver", "ruxdisplay"]
 signal = []
 
-musl = []
+musl = ["dep:ruxfutex"]
 
 [dependencies]
 cfg-if = "1.0"
@@ -46,9 +46,11 @@ rux9p = { path = "../rux9p", optional = true }
 axnet = { path = "../axnet", optional = true }
 ruxdisplay = { path = "../ruxdisplay", optional = true }
 ruxtask = { path = "../ruxtask", optional = true }
+axsync = { path = "../axsync", optional = true }
+ruxfutex = { path = "../ruxfutex", optional = true }
 
 crate_interface = { path = "../../crates/crate_interface" }
 percpu = { path = "../../crates/percpu", optional = true }
 kernel_guard = { path = "../../crates/kernel_guard", optional = true }
 lazy_init = { path = "../../crates/lazy_init", optional = true }
-dtb = { path = "../../crates/dtb", optional = true}
+dtb = { path = "../../crates/dtb", optional = true }

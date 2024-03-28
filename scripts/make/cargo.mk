@@ -9,6 +9,7 @@ else
 endif
 
 build_args-release := --release
+build_args-reldebug := --profile=reldebug
 
 build_args := \
   --target $(TARGET) \
