@@ -98,7 +98,7 @@ impl Pthread {
     }
 
     /// Posix create, used by musl libc
-    #[cfg(all(feature = "musl", any(target_arch = "x86_64", target_arch = "aarch64")))]
+    #[cfg(feature = "musl")]
     fn pcreate(
         _attr: *const ctypes::pthread_attr_t,
         start_routine: extern "C" fn(arg: *mut c_void) -> *mut c_void,
@@ -246,7 +246,10 @@ unsafe impl<T> Send for ForceSendSync<T> {}
 unsafe impl<T> Sync for ForceSendSync<T> {}
 
 /// Create new thread by `sys_clone`, return new thread ID
-#[cfg(all(feature = "musl", target_arch = "aarch64"))]
+#[cfg(all(
+    feature = "musl",
+    any(target_arch = "aarch64", target_arch = "riscv64")
+))]
 pub unsafe fn sys_clone(
     flags: c_int,
     stack: *mut c_void,
