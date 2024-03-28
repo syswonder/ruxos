@@ -9,7 +9,7 @@ family = "riscv64-qemu-virt"
 phys-memory-base = "0x8000_0000"
 # Size of the whole physical memory.
 # phys-memory-size = "0x800_0000"     # 128M
-phys-memory-size = "0x8000_0000"     # 2G
+phys-memory-size = "0x4000_0000"     # 1G
 # Base physical address of the kernel image.
 kernel-base-paddr = "0x8020_0000"
 # Base virtual address of the kernel image.
