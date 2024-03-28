@@ -23,4 +23,4 @@ driver_block = { path = "../driver_block", optional = true }
 driver_net = { path = "../driver_net", optional = true }
 driver_display = { path = "../driver_display", optional = true}
 driver_9p = { path = "../driver_9p", optional = true}
-virtio-drivers = { git = "https://github.com/syswonder/virtio-drivers.git", rev = "256ec4c" }
+virtio-drivers = { git = "https://github.com/syswonder/virtio-drivers.git", rev = "62dbe5a" }

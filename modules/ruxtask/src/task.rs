@@ -116,6 +116,12 @@ impl TaskInner {
         self.id
     }
 
+    /// Gets the clear tid of the task.
+    #[cfg(feature = "musl")]
+    pub const fn tl(&self) -> &AtomicU64 {
+        &self.tl
+    }
+
     /// Gets the name of the task.
     pub fn name(&self) -> &str {
         self.name.as_str()
@@ -138,13 +144,11 @@ impl TaskInner {
     /// set 0 to thread_list_lock
     #[cfg(feature = "musl")]
     pub fn free_thread_list_lock(&self) {
-        unsafe {
-            let addr = self.tl.load(Ordering::Relaxed);
-            if addr == 0 {
-                return;
-            }
-            (addr as *mut core::ffi::c_int).write_volatile(0)
+        let addr = self.tl.load(Ordering::Relaxed);
+        if addr == 0 {
+            return;
         }
+        unsafe { &*(addr as *const AtomicI32) }.store(0, Ordering::Release)
     }
 }
 
@@ -184,7 +188,7 @@ impl TaskInner {
     fn new_common_tls(
         id: TaskId,
         name: String,
-        tls: usize,
+        #[cfg_attr(not(feature = "tls"), allow(unused_variables))] tls: usize,
         set_tid: AtomicU64,
         tl: AtomicU64,
     ) -> Self {

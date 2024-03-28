@@ -5,6 +5,8 @@ bench-obj := $(package-name)/libctest.o
 
 app-objs := $(bench-obj)
 
+force_rebuild:
+
 $(libc-bench-dir):
 	@echo "Download libc-bench code"
 	wget https://git.musl-libc.org/cgit/libc-bench/snapshot/$(package-name).tar.gz -P $(APP)
@@ -14,10 +16,10 @@ $(libc-bench-dir):
 
 $(APP)/$(bench-obj): build_libc_bench
 
-build_libc_bench: $(libc-bench-dir)
+build_libc_bench: $(libc-bench-dir) force_rebuild
 	cd $(libc-bench-dir) && $(MAKE) CC=$(CC) CFLAGS="$(CFLAGS)" -j
 
 clean_c::
 	$(MAKE) -C $(libc-bench-dir) clean
 
-.PHONY: build_libc_bench clean_c
+.PHONY: build_libc_bench clean_c force_rebuild

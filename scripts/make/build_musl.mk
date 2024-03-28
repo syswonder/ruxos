@@ -11,11 +11,15 @@ c_lib := $(muslibc_dir)/install/lib/libc.a
 libgcc :=
 
 CFLAGS += -nostdinc -fno-builtin -ffreestanding -Wall
-CFLAGS += -I$(CURDIR)/$(inc_dir)
+CFLAGS += -isystem$(CURDIR)/$(inc_dir)
 LDFLAGS += -nostdlib -static -no-pie --gc-sections -T$(LD_SCRIPT)
 
 ifeq ($(MODE), release)
   CFLAGS += -O3
+else ifeq ($(MODE), reldebug)
+  CFLAGS += -O3 -g
+else
+  CFLAGS += -Og -g
 endif
 
 ifeq ($(ARCH), x86_64)
@@ -37,7 +41,7 @@ else
   endif
 endif
 
-build_musl: 
+build_musl:
 ifeq ($(wildcard $(build_dir)),)
   ifeq ($(wildcard $(musl_dir)),)
 	@echo "Download musl-1.2.3 source code"
@@ -45,7 +49,7 @@ ifeq ($(wildcard $(build_dir)),)
 	tar -zxvf $(muslibc_dir)/musl-1.2.3.tar.gz -C $(muslibc_dir) && rm -f $(muslibc_dir)/musl-1.2.3.tar.gz
   endif
 	mkdir -p $(build_dir)
-	cd $(build_dir) && ../musl-1.2.3/configure --prefix=../install --exec-prefix=../ --syslibdir=../install/lib --disable-shared ARCH=$(RUX_ARCH) CC=$(CC) CROSS_COMPILE=$(CROSS_COMPILE) CFLAGS=$(CFLAGS)
+	cd $(build_dir) && ../musl-1.2.3/configure --prefix=../install --exec-prefix=../ --syslibdir=../install/lib --disable-shared ARCH=$(RUX_ARCH) CC=$(CC) CROSS_COMPILE=$(CROSS_COMPILE) CFLAGS='$(CFLAGS)'
 	cd $(build_dir) && $(MAKE) -j && $(MAKE) install
 endif
 

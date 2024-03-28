@@ -7,12 +7,15 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use core::arch::asm;
+use core::{
+    arch::asm,
+    fmt::{Debug, LowerHex},
+};
 use memory_addr::VirtAddr;
 
 /// Saved registers when a trap (exception) occurs.
 #[repr(C)]
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Default, Clone, Copy)]
 pub struct TrapFrame {
     /// General-purpose registers (R0..R30).
     pub r: [u64; 31],
@@ -22,6 +25,29 @@ pub struct TrapFrame {
     pub elr: u64,
     /// Saved Process Status Register (SPSR_EL1).
     pub spsr: u64,
+}
+
+struct EnumerateReg<'a, T>(&'a [T]);
+
+impl<'a, T: Debug + LowerHex> Debug for EnumerateReg<'a, T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        let mut dbg_l = f.debug_list();
+        for (i, r) in self.0.iter().enumerate() {
+            dbg_l.entry(&format_args!("x{}: {:#x}", i, r));
+        }
+        dbg_l.finish()
+    }
+}
+
+impl Debug for TrapFrame {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.debug_struct("TrapFrame")
+            .field("r", &EnumerateReg(&self.r))
+            .field("usp", &self.usp)
+            .field("elr", &self.elr)
+            .field("spsr", &self.spsr)
+            .finish()
+    }
 }
 
 /// FP & SIMD registers.

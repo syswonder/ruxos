@@ -22,6 +22,9 @@ use crate::ctypes::{size_t, ssize_t};
 
 use axerrno::LinuxError;
 
+#[cfg(all(target_arch = "x86_64", feature = "random-hw"))]
+use core::arch::x86_64::__cpuid;
+
 static SEED: AtomicU64 = AtomicU64::new(0xae_f3);
 
 /// Returns a 32-bit unsigned pseudo random interger using LCG.
@@ -54,15 +57,7 @@ fn srand_lcg(seed: u64) {
 fn has_rdrand() -> bool {
     #[cfg(target_arch = "x86_64")]
     {
-        let mut ecx: u32;
-        unsafe {
-            core::arch::asm!(
-                "mov eax, 1",
-                "cpuid",
-                out("ecx") ecx
-            )
-        }
-        ecx & (1 << 30) != 0
+        unsafe { __cpuid(1).ecx & (1 << 30) != 0 }
     }
     #[cfg(target_arch = "aarch64")]
     {

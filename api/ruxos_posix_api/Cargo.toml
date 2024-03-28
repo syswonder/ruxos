@@ -19,7 +19,7 @@ default = []
 
 smp = ["ruxfeat/smp"]
 alloc = ["dep:axalloc", "ruxfeat/alloc"]
-multitask = ["ruxfeat/multitask", "ruxtask/multitask"]
+multitask = ["ruxfeat/multitask", "ruxtask/multitask", "dep:ruxfutex"]
 fd = ["alloc"]
 fs = ["dep:ruxfs", "ruxfeat/fs", "fd"]
 net = ["dep:axnet", "ruxfeat/net", "fd"]
@@ -42,6 +42,7 @@ ruxconfig = { path = "../../modules/ruxconfig" }
 axlog = { path = "../../modules/axlog" }
 ruxhal = { path = "../../modules/ruxhal" }
 axsync = { path = "../../modules/axsync" }
+ruxfutex = { path = "../../modules/ruxfutex", optional = true }
 axalloc = { path = "../../modules/axalloc", optional = true }
 ruxtask = { path = "../../modules/ruxtask", optional = true }
 ruxfs = { path = "../../modules/ruxfs", optional = true }
@@ -56,5 +57,7 @@ spin = { version = "0.9" }
 lazy_static = { version = "1.4", features = ["spin_no_std"] }
 flatten_objects = { path = "../../crates/flatten_objects" }
 
+bitflags = "2.2"
+
 [build-dependencies]
-bindgen ={ version = "0.66" }
+bindgen = { version = "0.66" }

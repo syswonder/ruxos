@@ -50,6 +50,7 @@ members = [
     "modules/ruxhal",
     "modules/ruxruntime",
     "modules/ruxtask",
+    "modules/ruxfutex",
 
     "api/ruxfeat",
     "api/arceos_api",
@@ -66,6 +67,11 @@ members = [
 
 [profile.release]
 lto = true
+
+[profile.reldebug]
+inherits = "release"
+debug = true
+
 
 [patch.crates-io]
 crate_interface = { path = "crates/crate_interface" }

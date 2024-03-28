@@ -23,6 +23,8 @@ LDFLAGS += -nostdlib -static -no-pie --gc-sections -T$(LD_SCRIPT)
 
 ifeq ($(MODE), release)
   CFLAGS += -O3
+else ifeq ($(MODE), reldebug)
+  CFLAGS += -O3 -g
 endif
 
 ifeq ($(ARCH), x86_64)
