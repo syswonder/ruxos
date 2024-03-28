@@ -315,12 +315,12 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[1] as *const ctypes::msghdr,
                 args[2] as c_int,
             ) as _,
-            #[cfg(feature = "alloc")]
+            #[cfg(feature = "paging")]
             SyscallId::MUNMAP => ruxos_posix_api::sys_munmap(
                 args[0] as *mut core::ffi::c_void,
                 args[1] as ctypes::size_t,
             ) as _,
-            #[cfg(feature = "alloc")]
+            #[cfg(feature = "paging")]
             SyscallId::MREMAP => ruxos_posix_api::sys_mremap(
                 args[0] as *mut core::ffi::c_void,
                 args[1] as ctypes::size_t,
@@ -336,7 +336,7 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[3] as *mut core::ffi::c_void,
                 args[4] as *mut ctypes::pid_t,
             ) as _,
-            #[cfg(feature = "alloc")]
+            #[cfg(feature = "paging")]
             SyscallId::MMAP => ruxos_posix_api::sys_mmap(
                 args[0] as *mut core::ffi::c_void,
                 args[1] as ctypes::size_t,
@@ -345,14 +345,20 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[4] as c_int,
                 args[5] as ctypes::off_t,
             ) as _,
-            #[cfg(feature = "alloc")]
+            #[cfg(feature = "paging")]
             SyscallId::MADVISE => ruxos_posix_api::sys_madvise(
                 args[0] as *mut core::ffi::c_void,
                 args[1] as ctypes::size_t,
                 args[2] as c_int,
             ) as _,
-            #[cfg(feature = "alloc")]
+            #[cfg(feature = "paging")]
             SyscallId::MPROTECT => ruxos_posix_api::sys_mprotect(
+                args[0] as *mut core::ffi::c_void,
+                args[1] as ctypes::size_t,
+                args[2] as c_int,
+            ) as _,
+            #[cfg(feature = "paging")]
+            SyscallId::MSYNC => ruxos_posix_api::sys_msync(
                 args[0] as *mut core::ffi::c_void,
                 args[1] as ctypes::size_t,
                 args[2] as c_int,

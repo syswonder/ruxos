@@ -44,6 +44,8 @@
 #define MAP_HUGE_SHIFT 26
 #define MAP_HUGE_MASK  0x3f
 
+#define MS_SYNC 0
+
 #define MAP_FAILED ((void *)-1)
 
 /* Flags for mremap.  */

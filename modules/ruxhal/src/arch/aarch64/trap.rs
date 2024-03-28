@@ -86,6 +86,30 @@ fn handle_sync_exception(tf: &mut TrapFrame) {
         Some(ESR_EL1::EC::Value::DataAbortCurrentEL)
         | Some(ESR_EL1::EC::Value::InstrAbortCurrentEL) => {
             let iss = esr.read(ESR_EL1::ISS);
+            #[cfg(feature = "paging")]
+            {
+                let vaddr = FAR_EL1.get() as usize;
+
+                // this cause is coded like linux.
+                let cause: i64 = match esr.read_as_enum(ESR_EL1::EC) {
+                    Some(ESR_EL1::EC::Value::DataAbortCurrentEL) => {
+                        if iss & 0x40 != 0 {
+                            1 // = store
+                        } else {
+                            0 //  = load
+                        }
+                    }
+                    _ => {
+                        -1 // = instruction fetch
+                    }
+                };
+
+                if crate::trap::handle_page_fault(vaddr, cause) == 0 {
+                    trace!("mapped vaddr in Page Fault: {:X} {:?}", vaddr, cause);
+                    return;
+                }
+            }
+
             panic!(
                 "EL1 Page Fault @ {:#x}, FAR={:#x}, ISS={:#x}:\n{:#x?}",
                 tf.elr,

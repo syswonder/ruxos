@@ -12,6 +12,7 @@ pub(crate) mod trap;
 
 use core::arch::asm;
 
+use crate::mem::PAGE_SIZE_4K;
 use aarch64_cpu::registers::{DAIF, TPIDR_EL0, TTBR0_EL1, TTBR1_EL1, VBAR_EL1};
 use memory_addr::{PhysAddr, VirtAddr};
 use tock_registers::interfaces::{Readable, Writeable};
@@ -99,7 +100,7 @@ pub unsafe fn write_page_table_root0(root_paddr: PhysAddr) {
 pub fn flush_tlb(vaddr: Option<VirtAddr>) {
     unsafe {
         if let Some(vaddr) = vaddr {
-            asm!("tlbi vaae1is, {}; dsb sy; isb", in(reg) vaddr.as_usize())
+            asm!("tlbi vaae1is, {}; dsb sy; isb", in(reg) vaddr.as_usize()/PAGE_SIZE_4K)
         } else {
             // flush the entire TLB
             asm!("tlbi vmalle1; dsb sy; isb")

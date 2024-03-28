@@ -21,11 +21,19 @@ use crate_interface::{call_interface, def_interface};
 #[def_interface]
 pub trait TrapHandler {
     /// Handles interrupt requests for the given IRQ number.
-    fn handle_irq(irq_num: usize);
+    fn handle_irq(_irq_num: usize) {
+        panic!("No handle_irq implement");
+    }
     /// Handles system call from user app.
     #[cfg(feature = "musl")]
-    fn handle_syscall(syscall_id: usize, args: [usize; 6]) -> isize;
-    // more e.g.: handle_page_fault();
+    fn handle_syscall(_syscall_id: usize, _args: [usize; 6]) -> isize {
+        panic!("No handle_syscall implement");
+    }
+    /// Handles page fault for mmap.
+    #[cfg(feature = "paging")]
+    fn handle_page_fault(_vaddr: usize, _cause: i64) -> i64 {
+        panic!("No handle_page_fault implement");
+    }
 }
 
 /// Call the external IRQ handler.
@@ -39,4 +47,11 @@ pub(crate) fn handle_irq_extern(irq_num: usize) {
 #[cfg(feature = "musl")]
 pub(crate) fn handle_syscall(syscall_id: usize, args: [usize; 6]) -> isize {
     call_interface!(TrapHandler::handle_syscall, syscall_id, args)
+}
+
+/// Call the external IRQ handler.
+#[allow(dead_code)]
+#[cfg(feature = "paging")]
+pub(crate) fn handle_page_fault(vaddr: usize, cause: i64) -> i64 {
+    call_interface!(TrapHandler::handle_page_fault, vaddr, cause)
 }
