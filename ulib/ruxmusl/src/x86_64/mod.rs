@@ -1,7 +1,7 @@
 pub mod syscall_id;
 
-use core::ffi::{c_int, c_ulong, c_void};
-use ruxos_posix_api::ctypes;
+use core::ffi::{c_char, c_int, c_ulong, c_void};
+use ruxos_posix_api::ctypes::{self, gid_t, pid_t, uid_t};
 use syscall_id::SyscallId;
 
 pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
@@ -267,12 +267,21 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[5] as *mut c_void,
             ) as _,
 
+            #[cfg(feature = "fs")]
+            #[allow(unreachable_code)]
+            SyscallId::EXECVE => {
+                ruxos_posix_api::sys_execve(args[0] as *const c_char, args[1], args[2]) as _
+            }
+
             #[cfg(not(feature = "multitask"))]
             SyscallId::EXIT => ruxos_posix_api::sys_exit(args[0] as c_int) as _,
 
             #[allow(unreachable_code)]
             #[cfg(feature = "multitask")]
             SyscallId::EXIT => ruxos_posix_api::sys_pthread_exit(args[0] as *mut c_void) as _,
+
+            #[cfg(feature = "signal")]
+            SyscallId::KILL => ruxos_posix_api::sys_kill(args[0] as pid_t, args[1] as c_int) as _,
 
             SyscallId::UNAME => ruxos_posix_api::sys_uname(args[0] as *mut c_void) as _,
 
@@ -298,6 +307,9 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
             SyscallId::GETCWD => {
                 ruxos_posix_api::sys_getcwd(args[0] as *mut core::ffi::c_char, args[1]) as _
             }
+
+            #[cfg(feature = "fs")]
+            SyscallId::CHDIR => ruxos_posix_api::sys_chdir(args[0] as *const c_char) as _,
 
             #[cfg(feature = "fs")]
             SyscallId::RENAME => ruxos_posix_api::sys_rename(
@@ -345,6 +357,22 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 ruxos_posix_api::sys_sysinfo(args[0] as *mut ctypes::sysinfo) as _
             }
 
+            SyscallId::TIMES => ruxos_posix_api::sys_times(args[0] as *mut usize) as _,
+
+            SyscallId::GETUID => ruxos_posix_api::sys_getuid() as _,
+
+            SyscallId::GETGID => ruxos_posix_api::sys_getgid() as _,
+
+            SyscallId::SETUID => ruxos_posix_api::sys_setuid(args[0] as uid_t) as _,
+
+            SyscallId::SETGID => ruxos_posix_api::sys_setgid(args[0] as gid_t) as _,
+
+            SyscallId::GETPPID => ruxos_posix_api::sys_getppid() as _,
+
+            SyscallId::GETPGID => ruxos_posix_api::sys_getpgid(args[0] as pid_t) as _,
+
+            SyscallId::CAPGET => ruxos_posix_api::sys_cap_get(args[0], args[1]) as _,
+
             #[cfg(feature = "signal")]
             SyscallId::SIGALTSTACK => {
                 ruxos_posix_api::sys_sigaltstack(args[0] as *const c_void, args[1] as *mut c_void)
@@ -362,6 +390,9 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
             SyscallId::ARCH_PRCTL => {
                 ruxos_posix_api::sys_arch_prctl(args[0] as c_int, args[1] as c_ulong) as _
             }
+
+            #[cfg(feature = "multitask")]
+            SyscallId::GETTID => ruxos_posix_api::sys_gettid() as _,
 
             #[cfg(feature = "multitask")]
             SyscallId::FUTEX => ruxos_posix_api::sys_futex(
@@ -456,6 +487,14 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[1] as *const core::ffi::c_char,
                 args[2] as *mut core::ffi::c_char,
                 args[3],
+            ) as _,
+
+            #[cfg(feature = "fs")]
+            SyscallId::FACCESSAT => ruxos_posix_api::sys_faccessat(
+                args[0] as c_int,
+                args[1] as *const c_char,
+                args[2] as c_int,
+                args[3] as c_int,
             ) as _,
 
             #[cfg(feature = "select")]

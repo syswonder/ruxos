@@ -45,16 +45,22 @@ pub mod config {
 #[allow(dead_code, non_snake_case, non_camel_case_types, non_upper_case_globals, clippy::upper_case_acronyms, missing_docs)]
 pub mod ctypes;
 
+pub use imp::cap::sys_cap_get;
 pub use imp::getrandom::{sys_getrandom, sys_rand, sys_random, sys_srand};
 pub use imp::io::{sys_read, sys_readv, sys_write, sys_writev};
 pub use imp::prctl::{sys_arch_prctl, sys_prctl};
 pub use imp::resources::{sys_getrlimit, sys_prlimit64, sys_setrlimit};
 pub use imp::rt_sig::{sys_rt_sigaction, sys_rt_sigprocmask};
-pub use imp::stat::{sys_getegid, sys_geteuid, sys_umask};
+pub use imp::stat::{
+    sys_getegid, sys_geteuid, sys_getgid, sys_getpgid, sys_getuid, sys_setgid, sys_setpgid,
+    sys_setuid, sys_umask,
+};
 pub use imp::sys::{sys_sysinfo, sys_uname};
 pub use imp::sys_invalid;
-pub use imp::task::{sys_exit, sys_getpid, sys_sched_yield};
-pub use imp::time::{sys_clock_gettime, sys_clock_settime, sys_gettimeofday, sys_nanosleep};
+pub use imp::task::{sys_exit, sys_getpid, sys_getppid, sys_gettid, sys_sched_yield};
+pub use imp::time::{
+    sys_clock_gettime, sys_clock_settime, sys_gettimeofday, sys_nanosleep, sys_times,
+};
 
 #[cfg(all(feature = "fd", feature = "musl"))]
 pub use imp::fd_ops::sys_dup3;
@@ -62,9 +68,10 @@ pub use imp::fd_ops::sys_dup3;
 pub use imp::fd_ops::{sys_close, sys_dup, sys_dup2, sys_fcntl};
 #[cfg(feature = "fs")]
 pub use imp::fs::{
-    sys_fchownat, sys_fdatasync, sys_fstat, sys_fsync, sys_getcwd, sys_getdents64, sys_lseek,
-    sys_lstat, sys_mkdir, sys_mkdirat, sys_newfstatat, sys_open, sys_openat, sys_pread, sys_preadv,
-    sys_readlinkat, sys_rename, sys_renameat, sys_rmdir, sys_stat, sys_unlink, sys_unlinkat,
+    sys_chdir, sys_faccessat, sys_fchownat, sys_fdatasync, sys_fstat, sys_fsync, sys_getcwd,
+    sys_getdents64, sys_lseek, sys_lstat, sys_mkdir, sys_mkdirat, sys_newfstatat, sys_open,
+    sys_openat, sys_pread, sys_preadv, sys_readlinkat, sys_rename, sys_renameat, sys_rmdir,
+    sys_stat, sys_unlink, sys_unlinkat,
 };
 #[cfg(feature = "epoll")]
 pub use imp::io_mpx::{sys_epoll_create, sys_epoll_ctl, sys_epoll_pwait, sys_epoll_wait};
@@ -100,7 +107,7 @@ pub use imp::pthread::{
     sys_pthread_setspecific,
 };
 #[cfg(feature = "signal")]
-pub use imp::signal::{sys_getitimer, sys_setitimer, sys_sigaction, sys_sigaltstack};
+pub use imp::signal::{sys_getitimer, sys_kill, sys_setitimer, sys_sigaction, sys_sigaltstack};
 
 #[cfg(feature = "multitask")]
 pub use imp::pthread::futex::sys_futex;
@@ -114,3 +121,6 @@ pub use imp::pthread::sys_clone;
 pub use imp::pthread::sys_set_tid_address;
 #[cfg(feature = "multitask")]
 pub use imp::pthread::{sys_pthread_create, sys_pthread_exit, sys_pthread_join, sys_pthread_self};
+
+#[cfg(feature = "fs")]
+pub use imp::execve::sys_execve;

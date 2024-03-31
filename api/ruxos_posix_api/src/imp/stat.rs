@@ -7,7 +7,8 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use crate::ctypes;
+use crate::ctypes::{self, gid_t, pid_t, uid_t};
+use core::ffi::c_int;
 
 /// Set file mode creation mask
 ///
@@ -25,4 +26,38 @@ pub fn sys_geteuid() -> core::ffi::c_uint {
 /// Returns the effective groupe ID of the calling process
 pub fn sys_getegid() -> core::ffi::c_uint {
     syscall_body!(sys_getegid, Ok(1000))
+}
+
+/// Get current real user ID.
+pub fn sys_getuid() -> c_int {
+    syscall_body!(sys_getuid, Ok(1000))
+}
+
+/// Get current real group ID.
+pub fn sys_getgid() -> c_int {
+    syscall_body!(sys_getgid, Ok(1000))
+}
+
+/// set current user id
+pub fn sys_setuid(uid: uid_t) -> c_int {
+    debug!("sys_setuid: uid {}", uid);
+    syscall_body!(sys_setuid, Ok(0))
+}
+
+/// set current group id
+pub fn sys_setgid(gid: gid_t) -> c_int {
+    debug!("sys_setgid: gid {}", gid);
+    syscall_body!(sys_setgid, Ok(0))
+}
+
+/// get process gid
+pub fn sys_getpgid(pid: pid_t) -> c_int {
+    debug!("sys_getpgid: getting pgid of pid {} ", pid);
+    syscall_body!(sys_getpgid, Ok(1000))
+}
+
+/// set process gid
+pub fn sys_setpgid(pid: pid_t, pgid: pid_t) -> c_int {
+    debug!("sys_setpgid: pid {}, pgid {} ", pid, pgid);
+    syscall_body!(sys_setpgid, Ok(0))
 }

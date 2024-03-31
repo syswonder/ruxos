@@ -49,8 +49,12 @@ pub unsafe fn sys_ppoll(
     _sig_mask: *const ctypes::sigset_t,
     _sig_num: ctypes::size_t,
 ) -> c_int {
-    debug!("sys_ppoll <= nfds: {} timeout: {:?}", nfds, *timeout);
-    let to = Duration::from(*timeout).as_millis() as c_int;
+    let to = if timeout.is_null() {
+        -1
+    } else {
+        Duration::from(*timeout).as_millis() as c_int
+    };
+    debug!("sys_ppoll <= nfds: {} timeout: {:?}", nfds, to);
     sys_poll(fds, nfds, to)
 }
 

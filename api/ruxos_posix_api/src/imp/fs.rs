@@ -13,7 +13,10 @@ use core::ffi::{c_char, c_int, c_long, c_void};
 use axerrno::{LinuxError, LinuxResult};
 use axio::{PollState, SeekFrom};
 use axsync::Mutex;
-use ruxfs::fops::{DirEntry, OpenOptions};
+use ruxfs::{
+    api::set_current_dir,
+    fops::{DirEntry, OpenOptions},
+};
 
 use super::fd_ops::{get_file_like, FileLike};
 use crate::{ctypes, utils::char_ptr_to_str};
@@ -56,8 +59,14 @@ impl FileLike for File {
         let ty = metadata.file_type() as u8;
         let perm = metadata.perm().bits() as u32;
         let st_mode = ((ty as u32) << 12) | perm;
+
+        // Inode of files, for musl dynamic linker.
+        // WARN: there will be collision for files with the same size.
+        // TODO: implement real inode.
+        let st_ino = metadata.size() + st_mode as u64;
+
         Ok(ctypes::stat {
-            st_ino: 1,
+            st_ino,
             st_nlink: 1,
             st_mode,
             st_uid: 1000,
@@ -298,7 +307,7 @@ pub unsafe fn sys_stat(path: *const c_char, buf: *mut core::ffi::c_void) -> c_in
 }
 
 /// retrieve information about the file pointed by `fd`
-pub unsafe fn sys_fstat(fd: c_int, kst: *mut core::ffi::c_void) -> c_int {
+pub fn sys_fstat(fd: c_int, kst: *mut core::ffi::c_void) -> c_int {
     debug!("sys_fstat <= {} {:#x}", fd, kst as usize);
     syscall_body!(sys_fstat, {
         if kst.is_null() {
@@ -364,7 +373,6 @@ pub unsafe fn sys_newfstatat(
         "sys_newfstatat <= fd: {}, path: {:?}, flag: {:x}",
         _fd, path, flag
     );
-    assert_eq!(_fd, ctypes::AT_FDCWD as c_int);
     syscall_body!(sys_newfstatat, {
         if kst.is_null() {
             return Err(LinuxError::EFAULT);
@@ -646,5 +654,33 @@ pub unsafe fn sys_preadv(
             ret += sys_pread(fd, iov.iov_base, iov.iov_len, offset);
         }
         Ok(ret)
+    })
+}
+
+/// checks accessibility to the file `pathname`.
+/// If pathname is a symbolic link, it is dereferenced.
+/// The mode is either the value F_OK, for the existence of the file,
+/// or a mask consisting of the bitwise OR of one or more of R_OK, W_OK, and X_OK, for the read, write, execute permissions.
+pub fn sys_faccessat(dirfd: c_int, pathname: *const c_char, mode: c_int, flags: c_int) -> c_int {
+    let path = char_ptr_to_str(pathname).unwrap();
+    debug!(
+        "sys_faccessat <= dirfd {} path {} mode {} flags {}",
+        dirfd, path, mode, flags
+    );
+    syscall_body!(sys_faccessat, {
+        let mut options = OpenOptions::new();
+        options.read(true);
+        let _file = ruxfs::fops::File::open(path, &options)?;
+        Ok(0)
+    })
+}
+
+/// changes the current working directory to the directory specified in path.
+pub fn sys_chdir(path: *const c_char) -> c_int {
+    let p = char_ptr_to_str(path).unwrap();
+    debug!("sys_chdir <= path: {}", p);
+    syscall_body!(sys_chdir, {
+        set_current_dir(p)?;
+        Ok(0)
     })
 }
