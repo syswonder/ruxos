@@ -148,6 +148,11 @@ impl FileLike for Socket {
         self.send(buf)
     }
 
+    ///TODO
+    fn flush(&self) -> LinuxResult {
+        Ok(())
+    }
+
     fn stat(&self) -> LinuxResult<ctypes::stat> {
         // not really implemented
         let st_mode = 0o140000 | 0o777u32; // S_IFSOCK | rwxrwxrwx

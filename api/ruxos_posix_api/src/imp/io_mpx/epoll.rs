@@ -123,6 +123,10 @@ impl FileLike for EpollInstance {
         Err(LinuxError::ENOSYS)
     }
 
+    fn flush(&self) -> LinuxResult {
+        Ok(())
+    }
+
     fn stat(&self) -> LinuxResult<ctypes::stat> {
         let st_mode = 0o600u32; // rw-------
         Ok(ctypes::stat {

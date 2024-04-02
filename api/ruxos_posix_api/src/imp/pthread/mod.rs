@@ -16,6 +16,8 @@ use ruxtask::AxTaskRef;
 use spin::RwLock;
 
 use crate::ctypes;
+#[cfg(feature = "fd")]
+use crate::imp::fd_ops::{fd_table_count, flush_file_like, RUX_FILE_LIMIT};
 
 pub mod condvar;
 pub mod mutex;
@@ -208,6 +210,21 @@ pub unsafe fn sys_pthread_create(
 /// Exits the current thread. The value `retval` will be returned to the joiner.
 pub fn sys_pthread_exit(retval: *mut c_void) -> ! {
     debug!("sys_pthread_exit <= {:#x}", retval as usize);
+    #[cfg(feature = "fd")]
+    {
+        let mut now_fd_count = 0;
+        let mut fd_index: usize = 0;
+        while fd_index < RUX_FILE_LIMIT {
+            let flush_res = flush_file_like(fd_index.try_into().unwrap());
+            if flush_res == Ok(()) {
+                now_fd_count += 1;
+                if now_fd_count == fd_table_count() {
+                    break;
+                }
+            }
+            fd_index += 1;
+        }
+    }
     #[cfg(feature = "musl")]
     {
         use core::sync::atomic::Ordering;

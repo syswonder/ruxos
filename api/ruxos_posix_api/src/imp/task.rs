@@ -7,6 +7,8 @@
  *   See the Mulan PSL v2 for more details.
  */
 
+#[cfg(feature = "fd")]
+use crate::imp::fd_ops::{fd_table_count, flush_file_like, RUX_FILE_LIMIT};
 use core::ffi::c_int;
 
 /// Relinquish the CPU, and switches to another task.
@@ -42,6 +44,21 @@ pub fn sys_getpid() -> c_int {
 /// Exit current task
 pub fn sys_exit(exit_code: c_int) -> ! {
     debug!("sys_exit <= {}", exit_code);
+    #[cfg(feature = "fd")]
+    {
+        let mut now_fd_count = 0;
+        let mut fd_index: usize = 0;
+        while fd_index < RUX_FILE_LIMIT {
+            let flush_res = flush_file_like(fd_index.try_into().unwrap());
+            if flush_res == Ok(()) {
+                now_fd_count += 1;
+                if now_fd_count == fd_table_count() {
+                    break;
+                }
+            }
+            fd_index += 1;
+        }
+    }
     #[cfg(feature = "multitask")]
     ruxtask::exit(exit_code);
     #[cfg(not(feature = "multitask"))]

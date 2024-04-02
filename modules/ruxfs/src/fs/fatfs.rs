@@ -8,6 +8,7 @@
  */
 
 use alloc::sync::Arc;
+use axio::Error;
 use core::cell::UnsafeCell;
 
 use axfs_vfs::{VfsDirEntry, VfsError, VfsNodePerm, VfsResult};
@@ -73,6 +74,10 @@ impl FatFileSystem {
 
 impl VfsNodeOps for FileWrapper<'static> {
     axfs_vfs::impl_vfs_non_dir_default! {}
+
+    fn fsync(&self) -> VfsResult {
+        self.0.lock().flush().map_err(as_vfs_err)
+    }
 
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
         let size = self.0.lock().seek(SeekFrom::End(0)).map_err(as_vfs_err)?;
@@ -272,7 +277,7 @@ impl Write for Disk {
         Ok(write_len)
     }
     fn flush(&mut self) -> Result<(), Self::Error> {
-        Ok(())
+        self.do_flush().map_err(|_| ())
     }
 }
 

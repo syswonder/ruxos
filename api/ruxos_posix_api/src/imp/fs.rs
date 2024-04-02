@@ -51,6 +51,10 @@ impl FileLike for File {
         Ok(self.inner.lock().write(buf)?)
     }
 
+    fn flush(&self) -> LinuxResult {
+        Ok(self.inner.lock().flush()?)
+    }
+
     fn stat(&self) -> LinuxResult<ctypes::stat> {
         let metadata = self.inner.lock().get_attr()?;
         let ty = metadata.file_type() as u8;
@@ -115,6 +119,10 @@ impl FileLike for Directory {
 
     fn write(&self, _buf: &[u8]) -> LinuxResult<usize> {
         Err(LinuxError::EACCES)
+    }
+
+    fn flush(&self) -> LinuxResult {
+        Ok(())
     }
 
     fn stat(&self) -> LinuxResult<ctypes::stat> {
@@ -184,7 +192,7 @@ fn flags_to_options(flags: c_int, _mode: ctypes::mode_t) -> OpenOptions {
 /// has the maximum number of files open.
 pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> c_int {
     let filename = char_ptr_to_str(filename);
-    debug!("sys_open <= {:?} {:#o} {:#o}", filename, flags, mode);
+    info!("sys_open <= {:?} {:#o} {:#o}", filename, flags, mode);
     syscall_body!(sys_open, {
         let options = flags_to_options(flags, mode);
         let file = ruxfs::fops::File::open(filename?, &options)?;
@@ -196,7 +204,7 @@ pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> 
 pub fn sys_openat(fd: usize, path: *const c_char, flags: c_int, mode: ctypes::mode_t) -> c_int {
     let path = char_ptr_to_str(path);
     let fd: c_int = fd as c_int;
-    debug!("sys_openat <= {}, {:?}, {:#o} {:#o}", fd, path, flags, mode);
+    info!("sys_openat <= {}, {:?}, {:#o} {:#o}", fd, path, flags, mode);
     syscall_body!(sys_openat, {
         let options = flags_to_options(flags, mode);
         if (flags as u32) & ctypes::O_DIRECTORY != 0 {

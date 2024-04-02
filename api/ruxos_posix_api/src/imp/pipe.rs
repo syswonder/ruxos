@@ -181,6 +181,10 @@ impl FileLike for Pipe {
         }
     }
 
+    fn flush(&self) -> LinuxResult {
+        Ok(())
+    }
+
     fn stat(&self) -> LinuxResult<ctypes::stat> {
         let st_mode = 0o10000 | 0o600u32; // S_IFIFO | rw-------
         Ok(ctypes::stat {
