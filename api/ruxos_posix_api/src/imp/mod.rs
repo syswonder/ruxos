@@ -9,6 +9,7 @@
 
 mod stdio;
 
+pub mod cap;
 pub mod getrandom;
 pub mod io;
 pub mod prctl;
@@ -19,6 +20,8 @@ pub mod sys;
 pub mod task;
 pub mod time;
 
+#[cfg(feature = "fs")]
+pub mod execve;
 #[cfg(feature = "fd")]
 pub mod fd_ops;
 #[cfg(feature = "fs")]

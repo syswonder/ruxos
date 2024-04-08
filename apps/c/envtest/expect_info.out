@@ -9,7 +9,7 @@ Found physcial memory regions:
  .data .tdata .tbss .percpu (READ | WRITE | RESERVED)
  boot stack (READ | WRITE | RESERVED)
  .bss (READ | WRITE | RESERVED)
- free memory (READ | WRITE | FREE)
+ free memory (READ | WRITE | EXECUTE | FREE)
 Initialize global memory allocator...
   use TLSF allocator.
 Initialize kernel page table...

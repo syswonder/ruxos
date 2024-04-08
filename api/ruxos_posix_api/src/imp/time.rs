@@ -115,3 +115,8 @@ pub unsafe fn sys_gettimeofday(ts: *mut ctypes::timespec, flags: c_int) -> c_int
     debug!("sys_gettimeofday <= flags: {}", flags);
     unsafe { sys_clock_gettime(0, ts) }
 }
+
+/// TODO: get process and waited-for child process times
+pub unsafe fn sys_times(_buf: *mut usize) -> c_int {
+    syscall_body!(sys_times, Ok(0))
+}

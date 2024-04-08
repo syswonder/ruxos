@@ -7,12 +7,15 @@
  *   See the Mulan PSL v2 for more details.
  */
 
+#define _GNU_SOURCE
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
 
 const int NUM_TASKS = 5;
 
@@ -42,7 +45,7 @@ void *tickfunc(void *arg)
 
 void *tickfunc2(void *arg)
 {
-    pid_t task_id = getpid();
+    pid_t task_id = gettid();
     char buf0[128];
     char buf1[128];
 
