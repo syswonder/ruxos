@@ -105,6 +105,17 @@ pub fn sys_mremap(
     syscall_body!(sys_mremap, Ok::<*mut c_void, LinuxError>(-1 as _))
 }
 
+/// Synchronizes the calling process's memory pages in the interval [addr, addr+len-1]
+/// with the corresponding physical storage device, ensuring that any modifications
+/// are flushed to the storage.
+pub fn sys_msync(start: *mut c_void, len: ctypes::size_t, flags: c_int) -> c_int {
+    debug!(
+        "sys_msync <= addr: {:p}, len: {}, flags: {}",
+        start, len, flags
+    );
+    syscall_body!(sys_msync, Ok(0))
+}
+
 /// give advice about use of memory
 /// if success return 0, if error return -1
 ///

@@ -104,7 +104,15 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
             SyscallId::IOCTL => ruxos_posix_api::sys_ioctl(args[0] as c_int, args[1], args[2]) as _,
 
             #[cfg(feature = "fs")]
-            SyscallId::PREAD64 => ruxos_posix_api::sys_pread(
+            SyscallId::PREAD64 => ruxos_posix_api::sys_pread64(
+                args[0] as c_int,
+                args[1] as *mut c_void,
+                args[2] as ctypes::size_t,
+                args[3] as ctypes::off_t,
+            ) as _,
+
+            #[cfg(feature = "fs")]
+            SyscallId::PWRITE64 => ruxos_posix_api::sys_pwrite64(
                 args[0] as c_int,
                 args[1] as *mut c_void,
                 args[2] as ctypes::size_t,
@@ -149,6 +157,13 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[2] as ctypes::size_t,
                 args[3] as c_int,
                 args[4] as *mut core::ffi::c_void,
+            ) as _,
+
+            #[cfg(feature = "alloc")]
+            SyscallId::MSYNC => ruxos_posix_api::sys_msync(
+                args[0] as *mut core::ffi::c_void,
+                args[1] as ctypes::size_t,
+                args[2] as c_int,
             ) as _,
 
             #[cfg(feature = "alloc")]

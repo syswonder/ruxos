@@ -19,6 +19,7 @@ default = []
 
 smp = ["ruxfeat/smp"]
 alloc = ["dep:axalloc", "ruxfeat/alloc"]
+paging = ["alloc", "ruxfeat/paging"]
 multitask = ["ruxfeat/multitask", "ruxtask/multitask", "dep:ruxfutex"]
 fd = ["alloc"]
 fs = ["dep:ruxfs", "ruxfeat/fs", "fd"]
@@ -54,8 +55,13 @@ axerrno = { path = "../../crates/axerrno" }
 memory_addr = { path = "../../crates/memory_addr" }
 static_assertions = "1.1.0"
 spin = { version = "0.9" }
+spinlock = { path = "../../crates/spinlock" }
 lazy_static = { version = "1.4", features = ["spin_no_std"] }
 flatten_objects = { path = "../../crates/flatten_objects" }
+page_table = { path = "../../crates/page_table" }
+crate_interface = { path = "../../crates/crate_interface" }
+
+cfg-if = "1.0"
 elf = { version = "0.7", default-features = false }
 bitflags = "2.2"
 

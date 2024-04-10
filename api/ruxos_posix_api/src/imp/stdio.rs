@@ -10,9 +10,15 @@
 use axerrno::AxResult;
 use axio::{prelude::*, BufReader};
 use axsync::Mutex;
-
 #[cfg(feature = "fd")]
-use {alloc::sync::Arc, axerrno::LinuxError, axerrno::LinuxResult, axio::PollState};
+use {
+    alloc::sync::Arc,
+    axerrno::AxError,
+    axerrno::LinuxError,
+    axerrno::LinuxResult,
+    axio::PollState,
+    core::sync::atomic::{AtomicBool, Ordering},
+};
 
 fn console_read_bytes() -> Option<u8> {
     let ret = ruxhal::console::getchar().map(|c| if c == b'\r' { b'\n' } else { c });
@@ -58,6 +64,8 @@ impl Write for StdoutRaw {
 
 pub struct Stdin {
     inner: &'static Mutex<BufReader<StdinRaw>>,
+    #[cfg(feature = "fd")]
+    nonblocking: AtomicBool,
 }
 
 impl Stdin {
@@ -74,6 +82,17 @@ impl Stdin {
                 return Ok(read_len);
             }
             crate::sys_sched_yield();
+        }
+    }
+
+    // Attempt a non-blocking read operation.
+    #[cfg(feature = "fd")]
+    fn read_nonblocked(&self, buf: &mut [u8]) -> AxResult<usize> {
+        if let Some(mut inner) = self.inner.try_lock() {
+            let read_len = inner.read(buf)?;
+            Ok(read_len)
+        } else {
+            Err(AxError::WouldBlock)
         }
     }
 }
@@ -101,7 +120,11 @@ impl Write for Stdout {
 /// Constructs a new handle to the standard input of the current process.
 pub fn stdin() -> Stdin {
     static INSTANCE: Mutex<BufReader<StdinRaw>> = Mutex::new(BufReader::new(StdinRaw));
-    Stdin { inner: &INSTANCE }
+    Stdin {
+        inner: &INSTANCE,
+        #[cfg(feature = "fd")]
+        nonblocking: AtomicBool::from(false),
+    }
 }
 
 /// Constructs a new handle to the standard output of the current process.
@@ -113,7 +136,10 @@ pub fn stdout() -> Stdout {
 #[cfg(feature = "fd")]
 impl super::fd_ops::FileLike for Stdin {
     fn read(&self, buf: &mut [u8]) -> LinuxResult<usize> {
-        Ok(self.read_blocked(buf)?)
+        match self.nonblocking.load(Ordering::Relaxed) {
+            true => Ok(self.read_nonblocked(buf)?),
+            false => Ok(self.read_blocked(buf)?),
+        }
     }
 
     fn write(&self, _buf: &[u8]) -> LinuxResult<usize> {
@@ -141,7 +167,8 @@ impl super::fd_ops::FileLike for Stdin {
         })
     }
 
-    fn set_nonblocking(&self, _nonblocking: bool) -> LinuxResult {
+    fn set_nonblocking(&self, nonblocking: bool) -> LinuxResult {
+        self.nonblocking.store(nonblocking, Ordering::Relaxed);
         Ok(())
     }
 }

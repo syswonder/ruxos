@@ -53,6 +53,9 @@ pub enum SyscallId {
     #[cfg(feature = "fs")]
     PREAD64 = 17,
 
+    #[cfg(feature = "fs")]
+    PWRITE64 = 18,
+
     #[cfg(feature = "fd")]
     READV = 19,
 
@@ -69,6 +72,9 @@ pub enum SyscallId {
 
     #[cfg(feature = "alloc")]
     MREMAP = 25,
+
+    #[cfg(feature = "alloc")]
+    MSYNC = 26,
 
     #[cfg(feature = "alloc")]
     MADVISE = 28,

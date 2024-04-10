@@ -10,7 +10,7 @@
 use axalloc::global_allocator;
 use core::{alloc::Layout, ptr::NonNull};
 use driver_net::ixgbe::{IxgbeHal, PhysAddr as IxgbePhysAddr};
-use ruxhal::mem::{phys_to_virt, virt_to_phys};
+use ruxhal::mem::{direct_virt_to_phys, phys_to_virt};
 
 pub struct IxgbeHalImpl;
 
@@ -22,7 +22,7 @@ unsafe impl IxgbeHal for IxgbeHalImpl {
         } else {
             return (0, NonNull::dangling());
         };
-        let paddr = virt_to_phys((vaddr.as_ptr() as usize).into());
+        let paddr = direct_virt_to_phys((vaddr.as_ptr() as usize).into());
         (paddr.as_usize(), vaddr)
     }
 
@@ -37,7 +37,7 @@ unsafe impl IxgbeHal for IxgbeHalImpl {
     }
 
     unsafe fn mmio_virt_to_phys(vaddr: NonNull<u8>, _size: usize) -> IxgbePhysAddr {
-        virt_to_phys((vaddr.as_ptr() as usize).into()).into()
+        direct_virt_to_phys((vaddr.as_ptr() as usize).into()).into()
     }
 
     fn wait_until(duration: core::time::Duration) -> Result<(), &'static str> {

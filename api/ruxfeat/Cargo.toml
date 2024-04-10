@@ -41,16 +41,16 @@ sched_rr = ["ruxtask/sched_rr", "irq"]
 sched_cfs = ["ruxtask/sched_cfs", "irq"]
 
 # File system
-fs = ["alloc", "paging", "dep:ruxfs", "ruxruntime/fs"] # TODO: try to remove "paging"
+fs = ["alloc", "dep:ruxfs", "ruxruntime/fs"] 
 blkfs = ["ruxdriver/virtio-blk", "ruxruntime/blkfs"]
 myfs = ["ruxfs?/myfs"]
 9pfs = []
 
 # Networking
-net = ["alloc", "paging", "ruxdriver/virtio-net", "dep:axnet", "ruxruntime/net"]
+net = ["alloc", "ruxdriver/virtio-net", "dep:axnet", "ruxruntime/net"]
 
 # Display
-display = ["alloc", "paging", "ruxdriver/virtio-gpu", "dep:ruxdisplay", "ruxruntime/display"]
+display = ["alloc", "ruxdriver/virtio-gpu", "dep:ruxdisplay", "ruxruntime/display"]
 
 # 9P
 virtio-9p = ["9pfs", "ruxdriver/virtio-9p", "rux9p/virtio-9p", "ruxruntime/virtio-9p"]

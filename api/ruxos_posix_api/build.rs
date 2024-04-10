@@ -125,7 +125,10 @@ typedef struct {{
             "EINVAL",
             "CLONE_.*",
             "AT_.*",
-            "MAP_FAILED",
+            "MAP_.+",
+            "PROT_.+",
+            "MS_.+",
+            "MREMAP_.+",
         ];
 
         #[derive(Debug)]
