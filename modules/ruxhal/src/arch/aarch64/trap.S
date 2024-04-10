@@ -48,6 +48,44 @@
     add     sp, sp, 34 * 8
 .endm
 
+save_neno_registers:
+    sub     sp, sp, 50 * 8
+    stp     q0, q1, [sp, 0 * 16]
+    stp     q2, q3, [sp, 2 * 16]
+    stp     q4, q5, [sp, 4 * 16]
+    stp     q6, q7, [sp, 6 * 16]
+    stp     q16, q17, [sp, 8 * 16]
+    stp     q18, q19, [sp, 10 * 16]
+    stp     q20, q21, [sp, 12 * 16]
+    stp     q22, q23, [sp, 14 * 16]
+    stp     q24, q25, [sp, 16 * 16]
+    stp     q26, q27, [sp, 18 * 16]
+    stp     q28, q29, [sp, 20 * 16]
+    stp     q30, q31, [sp, 22 * 16]
+    mrs     x9, fpcr
+    mrs     x10, fpsr
+    stp     x9,x10, [sp, 48 *  8]
+    ret
+
+restore_neno_registers:
+    ldp     q0, q1, [sp, 0 * 16]
+    ldp     q2, q3, [sp, 2 * 16]
+    ldp     q4, q5, [sp, 4 * 16]
+    ldp     q6, q7, [sp, 6 * 16]
+    ldp     q16, q17, [sp, 8 * 16]
+    ldp     q18, q19, [sp, 10 * 16]
+    ldp     q20, q21, [sp, 12 * 16]
+    ldp     q22, q23, [sp, 14 * 16]
+    ldp     q24, q25, [sp, 16 * 16]
+    ldp     q26, q27, [sp, 18 * 16]
+    ldp     q28, q29, [sp, 20 * 16]
+    ldp     q30, q31, [sp, 22 * 16]
+    ldp     x9,x10, [sp, 48 *  8]
+    msr     fpcr, x9
+    msr     fpsr, x10
+    add     sp, sp, 50 * 8
+    ret
+
 .macro INVALID_EXCP, kind, source
 .p2align 7
     SAVE_REGS
@@ -62,7 +100,9 @@
 .p2align 7
     SAVE_REGS
     mov     x0, sp
+    bl      save_neno_registers
     bl      handle_sync_exception
+    bl      restore_neno_registers
     b       .Lexception_return
 .endm
 

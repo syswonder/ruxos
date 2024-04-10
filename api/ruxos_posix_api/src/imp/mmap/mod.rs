@@ -7,17 +7,15 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use crate::mem::{direct_virt_to_phys, PhysAddr, VirtAddr};
-
-/// Starts the given secondary CPU with its boot stack.
-pub fn start_secondary_cpu(hartid: usize, stack_top: PhysAddr) {
-    extern "C" {
-        fn _start_secondary();
+cfg_if::cfg_if! {
+    if #[cfg(all(feature = "paging", target_arch = "aarch64"))] {
+        #[macro_use]
+        mod utils;
+        mod api;
+        mod trap;
+        pub use self::api::{sys_madvise, sys_mmap, sys_mprotect, sys_mremap, sys_msync, sys_munmap};
+    }else {
+        mod legacy;
+        pub use self::legacy::{sys_madvise, sys_mmap, sys_mprotect, sys_mremap, sys_msync, sys_munmap};
     }
-    if sbi_rt::probe_extension(sbi_rt::Hsm).is_unavailable() {
-        warn!("HSM SBI extension is not supported for current SEE.");
-        return;
-    }
-    let entry = direct_virt_to_phys(VirtAddr::from(_start_secondary as usize));
-    sbi_rt::hart_start(hartid, entry.as_usize(), stack_top.as_usize());
 }

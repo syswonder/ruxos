@@ -11,6 +11,8 @@
 
 use core::fmt;
 
+#[cfg(feature = "paging")]
+use crate::paging::pte_query;
 #[doc(no_inline)]
 pub use memory_addr::{PhysAddr, VirtAddr, PAGE_SIZE_4K};
 
@@ -59,11 +61,26 @@ pub struct MemRegion {
 /// [`PHYS_VIRT_OFFSET`], that maps all the physical memory to the virtual
 /// space at the address plus the offset. So we have
 /// `paddr = vaddr - PHYS_VIRT_OFFSET`.
+/// Usually only used when the page table is not enabled or linear mapping
 ///
 /// [`PHYS_VIRT_OFFSET`]: ruxconfig::PHYS_VIRT_OFFSET
 #[inline]
-pub const fn virt_to_phys(vaddr: VirtAddr) -> PhysAddr {
+pub const fn direct_virt_to_phys(vaddr: VirtAddr) -> PhysAddr {
     PhysAddr::from(vaddr.as_usize() - ruxconfig::PHYS_VIRT_OFFSET)
+}
+
+/// Converts a virtual address to a physical address.
+///
+/// When paging is enabled, query physical address from the page table
+#[inline]
+pub fn virt_to_phys(vaddr: VirtAddr) -> PhysAddr {
+    #[cfg(feature = "paging")]
+    match pte_query(vaddr) {
+        Ok((paddr, _, _)) => paddr,
+        Err(_) => PhysAddr::from(0_usize), // for address unmapped
+    }
+    #[cfg(not(feature = "paging"))]
+    direct_virt_to_phys(vaddr)
 }
 
 /// Converts a physical address to a virtual address.
@@ -88,31 +105,31 @@ pub fn memory_regions() -> impl Iterator<Item = MemRegion> {
 fn kernel_image_regions() -> impl Iterator<Item = MemRegion> {
     [
         MemRegion {
-            paddr: virt_to_phys((_stext as usize).into()),
+            paddr: direct_virt_to_phys((_stext as usize).into()),
             size: _etext as usize - _stext as usize,
             flags: MemRegionFlags::RESERVED | MemRegionFlags::READ | MemRegionFlags::EXECUTE,
             name: ".text",
         },
         MemRegion {
-            paddr: virt_to_phys((_srodata as usize).into()),
+            paddr: direct_virt_to_phys((_srodata as usize).into()),
             size: _erodata as usize - _srodata as usize,
             flags: MemRegionFlags::RESERVED | MemRegionFlags::READ,
             name: ".rodata",
         },
         MemRegion {
-            paddr: virt_to_phys((_sdata as usize).into()),
+            paddr: direct_virt_to_phys((_sdata as usize).into()),
             size: _edata as usize - _sdata as usize,
             flags: MemRegionFlags::RESERVED | MemRegionFlags::READ | MemRegionFlags::WRITE,
             name: ".data .tdata .tbss .percpu",
         },
         MemRegion {
-            paddr: virt_to_phys((boot_stack as usize).into()),
+            paddr: direct_virt_to_phys((boot_stack as usize).into()),
             size: boot_stack_top as usize - boot_stack as usize,
             flags: MemRegionFlags::RESERVED | MemRegionFlags::READ | MemRegionFlags::WRITE,
             name: "boot stack",
         },
         MemRegion {
-            paddr: virt_to_phys((_sbss as usize).into()),
+            paddr: direct_virt_to_phys((_sbss as usize).into()),
             size: _ebss as usize - _sbss as usize,
             flags: MemRegionFlags::RESERVED | MemRegionFlags::READ | MemRegionFlags::WRITE,
             name: ".bss",
@@ -138,7 +155,7 @@ pub(crate) fn default_mmio_regions() -> impl Iterator<Item = MemRegion> {
 /// Returns the default free memory regions (kernel image end to physical memory end).
 #[allow(dead_code)]
 pub(crate) fn default_free_regions() -> impl Iterator<Item = MemRegion> {
-    let start = virt_to_phys((_ekernel as usize).into()).align_up_4k();
+    let start = direct_virt_to_phys((_ekernel as usize).into()).align_up_4k();
     let end = PhysAddr::from(ruxconfig::PHYS_MEMORY_END).align_down_4k();
     core::iter::once(MemRegion {
         paddr: start,

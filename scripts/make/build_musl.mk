@@ -15,7 +15,7 @@ CFLAGS += -isystem$(CURDIR)/$(inc_dir)
 LDFLAGS += -nostdlib -static -no-pie --gc-sections -T$(LD_SCRIPT)
 
 ifeq ($(MODE), release)
-  CFLAGS += -O3
+  CFLAGS += -O3 
 else ifeq ($(MODE), reldebug)
   CFLAGS += -O3 -g
 else

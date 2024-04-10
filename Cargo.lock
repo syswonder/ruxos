@@ -704,6 +704,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a26ae43d7bcc3b814de94796a5e736d4029efb0ee900c12e2d54c993ad1a1e07"
 
 [[package]]
+name = "elf"
+version = "0.7.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4445909572dbd556c457c849c4ca58623d84b27c8fff1e74b0b4227d8b90d17b"
+
+[[package]]
 name = "embedded-graphics"
 version = "0.8.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1174,6 +1180,7 @@ version = "0.1.0"
 dependencies = [
  "aarch64-cpu",
  "bitflags 2.4.0",
+ "log",
  "memory_addr",
  "x86_64",
 ]
@@ -1661,9 +1668,13 @@ dependencies = [
  "axsync",
  "bindgen",
  "bitflags 2.4.0",
+ "cfg-if",
+ "crate_interface",
+ "elf",
  "flatten_objects",
  "lazy_static",
  "memory_addr",
+ "page_table",
  "ruxconfig",
  "ruxfeat",
  "ruxfs",
@@ -1672,6 +1683,7 @@ dependencies = [
  "ruxruntime",
  "ruxtask",
  "spin 0.9.8",
+ "spinlock",
  "static_assertions",
 ]
 

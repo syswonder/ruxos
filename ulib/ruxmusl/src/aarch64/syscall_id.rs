@@ -54,6 +54,8 @@ pub enum SyscallId {
     #[cfg(feature = "fs")]
     PREAD64 = 67,
     #[cfg(feature = "fs")]
+    PWRITE64 = 68,
+    #[cfg(feature = "fs")]
     PREADV = 69,
     #[cfg(feature = "select")]
     PSELECT6 = 72,
@@ -140,9 +142,11 @@ pub enum SyscallId {
     #[cfg(feature = "alloc")]
     MMAP = 222,
     #[cfg(feature = "alloc")]
-    MADVISE = 233,
-    #[cfg(feature = "alloc")]
     MPROTECT = 226,
+    #[cfg(feature = "alloc")]
+    MSYNC = 227,
+    #[cfg(feature = "alloc")]
+    MADVISE = 233,
     PRLIMIT64 = 261,
     GETRANDOM = 278,
 }

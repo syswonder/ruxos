@@ -234,6 +234,46 @@ pub fn sys_openat(fd: usize, path: *const c_char, flags: c_int, mode: ctypes::mo
 
 /// Set the position of the file indicated by `fd`.
 ///
+/// Read data from a file at a specific offset.
+pub fn sys_pread64(
+    fd: c_int,
+    buf: *mut c_void,
+    count: usize,
+    pos: ctypes::off_t,
+) -> ctypes::ssize_t {
+    debug!("sys_pread64 <= {} {} {}", fd, count, pos);
+    syscall_body!(sys_pread64, {
+        if buf.is_null() {
+            return Err(LinuxError::EFAULT);
+        }
+        let dst = unsafe { core::slice::from_raw_parts_mut(buf as *mut u8, count) };
+        let size = File::from_fd(fd)?.inner.lock().read_at(pos as u64, dst)?;
+        Ok(size as ctypes::ssize_t)
+    })
+}
+
+/// Set the position of the file indicated by `fd`.
+///
+/// Write data from a file at a specific offset.
+pub fn sys_pwrite64(
+    fd: c_int,
+    buf: *const c_void,
+    count: usize,
+    pos: ctypes::off_t,
+) -> ctypes::ssize_t {
+    debug!("sys_pwrite64 <= {} {} {}", fd, count, pos);
+    syscall_body!(sys_pwrite64, {
+        if buf.is_null() {
+            return Err(LinuxError::EFAULT);
+        }
+        let src = unsafe { core::slice::from_raw_parts_mut(buf as *mut u8, count) };
+        let size = File::from_fd(fd)?.inner.lock().write_at(pos as u64, src)?;
+        Ok(size as ctypes::ssize_t)
+    })
+}
+
+/// Set the position of the file indicated by `fd`.
+///
 /// Return its position after seek.
 pub fn sys_lseek(fd: c_int, offset: ctypes::off_t, whence: c_int) -> ctypes::off_t {
     debug!("sys_lseek <= {} {} {}", fd, offset, whence);
@@ -597,37 +637,6 @@ pub unsafe fn sys_getdents64(
     })
 }
 
-/// Read data from the file indicated by `fd`, starting at the position given by `offset`.
-///
-/// Return the read size if success.
-pub fn sys_pread(
-    fd: c_int,
-    buf: *mut c_void,
-    count: usize,
-    offset: ctypes::off_t,
-) -> ctypes::ssize_t {
-    debug!(
-        "sys_pread <= fd: {} buf: {:#x} count: {} offset: {}",
-        fd, buf as usize, count, offset
-    );
-    syscall_body!(sys_pread, {
-        if buf.is_null() {
-            return Err(LinuxError::EFAULT);
-        }
-        let dst = unsafe { core::slice::from_raw_parts_mut(buf as *mut u8, count) };
-        #[cfg(feature = "fd")]
-        {
-            Ok(File::from_fd(fd)?.inner.lock().read_at(offset as _, dst)?)
-        }
-        #[cfg(not(feature = "fd"))]
-        match fd {
-            0 => Ok(super::stdio::stdin().read(dst)? as ctypes::ssize_t),
-            1 | 2 => Err(LinuxError::EPERM),
-            _ => Err(LinuxError::EBADF),
-        }
-    })
-}
-
 /// Reads `iocnt` buffers from the file associated with the file descriptor `fd` into the
 /// buffers described by `iov`, starting at the position given by `offset`
 pub unsafe fn sys_preadv(
@@ -651,7 +660,7 @@ pub unsafe fn sys_preadv(
             if iov.iov_base.is_null() {
                 continue;
             }
-            ret += sys_pread(fd, iov.iov_base, iov.iov_len, offset);
+            ret += sys_pread64(fd, iov.iov_base, iov.iov_len, offset);
         }
         Ok(ret)
     })

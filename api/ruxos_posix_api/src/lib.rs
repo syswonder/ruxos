@@ -17,6 +17,7 @@
 #![feature(doc_cfg)]
 #![feature(doc_auto_cfg)]
 #![allow(clippy::missing_safety_doc)]
+#![cfg_attr(feature = "alloc", feature(btree_cursors))]
 
 #[macro_use]
 extern crate axlog;
@@ -70,8 +71,8 @@ pub use imp::fd_ops::{sys_close, sys_dup, sys_dup2, sys_fcntl};
 pub use imp::fs::{
     sys_chdir, sys_faccessat, sys_fchownat, sys_fdatasync, sys_fstat, sys_fsync, sys_getcwd,
     sys_getdents64, sys_lseek, sys_lstat, sys_mkdir, sys_mkdirat, sys_newfstatat, sys_open,
-    sys_openat, sys_pread, sys_preadv, sys_readlinkat, sys_rename, sys_renameat, sys_rmdir,
-    sys_stat, sys_unlink, sys_unlinkat,
+    sys_openat, sys_pread64, sys_preadv, sys_pwrite64, sys_readlinkat, sys_rename, sys_renameat,
+    sys_rmdir, sys_stat, sys_unlink, sys_unlinkat,
 };
 #[cfg(feature = "epoll")]
 pub use imp::io_mpx::{sys_epoll_create, sys_epoll_ctl, sys_epoll_pwait, sys_epoll_wait};
@@ -82,7 +83,7 @@ pub use imp::io_mpx::{sys_pselect6, sys_select};
 #[cfg(feature = "fd")]
 pub use imp::ioctl::sys_ioctl;
 #[cfg(feature = "alloc")]
-pub use imp::mmap::{sys_madvise, sys_mmap, sys_mprotect, sys_mremap, sys_munmap};
+pub use imp::mmap::{sys_madvise, sys_mmap, sys_mprotect, sys_mremap, sys_msync, sys_munmap};
 #[cfg(feature = "net")]
 pub use imp::net::{
     sys_accept, sys_bind, sys_connect, sys_freeaddrinfo, sys_getaddrinfo, sys_getpeername,
