@@ -1,7 +1,7 @@
 //! Traphandle implementation
 //!
 //! Used to support musl syscall
-
+#[cfg(feature = "musl")]
 use crate::syscall_id::SyscallId;
 
 /// Traphandler used by musl libc, overwrite handler in ruxruntime
