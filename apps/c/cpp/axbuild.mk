@@ -13,8 +13,7 @@ std_benchmark_dir := $(APP)/std-benchmark
 std_benchmark_build = $(std_benchmark_dir)/build
 
 bench ?= all
-benches_available := $(wildcard $(std_benchmark_dir)/cxx/*.bench.cpp)
-benches_available := $(patsubst $(std_benchmark_dir)/cxx/%.bench.cpp,%,$(benches_available))
+benches_available := accessors algorithm mutators size_metric string stringstream
 
 $(std_benchmark_dir):
 	@echo "Download std-benchmark source code"
@@ -31,7 +30,7 @@ build_std-benchmark: $(std_benchmark_dir) $(APP)/axbuild.mk
 		ln -s -f $(CROSS_COMPILE_PATH)/lib/gcc/*-linux-musl/*/libgcc.a ./ && \
 		$(AR) x libgcc.a _clrsbsi2.o
 ifeq ($(bench), all)
-	$(error "Running all benches automatically is not supported, please add 'bench=' arg. \
+	$(error "Running all benches automatically is not supported currently, please add 'bench=' arg. \
 		Available benches: $(benches_available)")
 endif
 ifneq ($(filter $(bench),$(benches_available)),)
@@ -49,5 +48,3 @@ clean_c::
 	rm -rf $(std_benchmark_build)/
 
 .PHONY: build_std-benchmark clean_c
-
-
