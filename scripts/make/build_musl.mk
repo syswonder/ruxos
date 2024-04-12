@@ -54,7 +54,7 @@ ifeq ($(wildcard $(install_dir)),)
 	tar -zxvf $(muslibc_dir)/musl-1.2.3.tar.gz -C $(muslibc_dir) && rm -f $(muslibc_dir)/musl-1.2.3.tar.gz
   endif
 	mkdir -p $(build_dir)
-	cd $(build_dir) && ../musl-1.2.3/configure --prefix=../$(install_dir_name) --exec-prefix=../ --syslibdir=../$(install_dir_name)/lib --disable-shared ARCH=$(RUX_ARCH) CC=$(CC) CROSS_COMPILE=$(CROSS_COMPILE) CFLAGS='$(CFLAGS)'
+	cd $(build_dir) && ../musl-1.2.3/configure --prefix=../$(install_dir_name) --exec-prefix=../ --syslibdir=../$(install_dir_name)/lib ARCH=$(RUX_ARCH) CC=$(CC) CROSS_COMPILE=$(CROSS_COMPILE) CFLAGS='$(CFLAGS)'
 	cd $(build_dir) && $(MAKE) -j && $(MAKE) install
 endif
 

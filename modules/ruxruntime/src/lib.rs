@@ -195,6 +195,9 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
         remap_kernel_memory().expect("remap kernel memoy failed");
     }
 
+    #[cfg(feature = "tty")]
+    tty::init();
+
     info!("Initialize platform devices...");
     ruxhal::platform_init();
 

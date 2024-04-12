@@ -19,41 +19,37 @@ use {
     core::sync::atomic::{AtomicBool, Ordering},
 };
 
-fn console_read_bytes() -> Option<u8> {
-    let ret = ruxhal::console::getchar().map(|c| if c == b'\r' { b'\n' } else { c });
-    if let Some(c) = ret {
-        let _ = console_write_bytes(&[c]);
-    }
-    ret
-}
-
-fn console_write_bytes(buf: &[u8]) -> AxResult<usize> {
-    ruxhal::console::write_bytes(buf);
-    Ok(buf.len())
-}
-
 struct StdinRaw;
 struct StdoutRaw;
+
+#[cfg(feature = "alloc")]
+extern crate alloc;
+#[cfg(feature = "alloc")]
+static STDIO_TTY_NAME: lazy_init::LazyInit<alloc::string::String> = lazy_init::LazyInit::new();
+#[cfg(not(feature = "alloc"))]
+static STDIO_TTY_NAME: &str = "dummy";
+
+fn get_stdio_tty_name() -> &'static str {
+    #[cfg(feature = "alloc")]
+    {
+        if !STDIO_TTY_NAME.is_init() {
+            let name = ruxhal::get_all_device_names().first().unwrap().clone();
+            STDIO_TTY_NAME.init_by(name);
+        }
+    }
+    &STDIO_TTY_NAME
+}
 
 impl Read for StdinRaw {
     // Non-blocking read, returns number of bytes read.
     fn read(&mut self, buf: &mut [u8]) -> AxResult<usize> {
-        let mut read_len = 0;
-        while read_len < buf.len() {
-            if let Some(c) = console_read_bytes() {
-                buf[read_len] = c;
-                read_len += 1;
-            } else {
-                break;
-            }
-        }
-        Ok(read_len)
+        Ok(ruxhal::tty_read(buf, get_stdio_tty_name()))
     }
 }
 
 impl Write for StdoutRaw {
     fn write(&mut self, buf: &[u8]) -> AxResult<usize> {
-        console_write_bytes(buf)
+        Ok(ruxhal::tty_write(buf, get_stdio_tty_name()))
     }
 
     fn flush(&mut self) -> AxResult {
