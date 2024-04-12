@@ -44,7 +44,7 @@ impl ruxhal::trap::TrapHandler for TrapHandlerImpl {
             let map_flag = get_mflags_from_usize(vma.prot);
 
             trace!(
-                "Page Fault Happening, vaddr:{:x?}, casue:{:?}, map_flags:{:x?}",
+                "Page Fault Happening, vaddr:0x{:x?}, casue:{:?}, map_flags:0x{:x?}",
                 vaddr,
                 cause,
                 map_flag
@@ -141,9 +141,9 @@ impl ruxhal::trap::TrapHandler for TrapHandlerImpl {
             }
         } else {
             for mapped in vma_map.iter() {
-                warn!("{:x?}", mapped);
+                warn!("0x{:x?}", mapped);
             }
-            warn!("vaddr={:x?},cause={:x?}", vaddr, cause);
+            warn!("vaddr=0x{:x?},cause=0x{:x?}", vaddr, cause);
             false
         }
     }

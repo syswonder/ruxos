@@ -1,9 +1,11 @@
 pub mod syscall_id;
 
+#[allow(unused_imports)]
 use core::ffi::{c_char, c_int, c_ulong, c_void};
 use ruxos_posix_api::ctypes::{self, gid_t, pid_t, uid_t};
 use syscall_id::SyscallId;
 
+#[allow(dead_code)]
 pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
     debug!("x86 syscall <= syscall_name: {:?}", syscall_id);
 
@@ -288,6 +290,7 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 ruxos_posix_api::sys_execve(args[0] as *const c_char, args[1], args[2]) as _
             }
 
+            #[allow(unreachable_code)]
             #[cfg(not(feature = "multitask"))]
             SyscallId::EXIT => ruxos_posix_api::sys_exit(args[0] as c_int) as _,
 

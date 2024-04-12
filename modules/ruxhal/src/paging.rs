@@ -135,7 +135,7 @@ pub fn alloc_page_preload() -> Result<VirtAddr, PagingError> {
 /// address is still on linear mapping region.
 /// use `do_pte_map` to do actually page mapping after call this function.
 pub fn pte_swap_preload(swaped_vaddr: VirtAddr) -> PagingResult<VirtAddr> {
-    trace!("swapping swaped_vaddr: {:x?}", swaped_vaddr,);
+    trace!("swapping swaped_vaddr: 0x{:x?}", swaped_vaddr,);
     let mut kernel_page_table = KERNEL_PAGE_TABLE.lock();
     let (paddr, _) = kernel_page_table.unmap(swaped_vaddr)?;
     flush_tlb(Some(swaped_vaddr));
@@ -170,7 +170,12 @@ pub fn pte_update_page(
     paddr: Option<PhysAddr>,
     flags: Option<MappingFlags>,
 ) -> PagingResult {
-    trace!("updating vaddr: {:x?} {:x?} {:x?}", vaddr, paddr, flags);
+    trace!(
+        "updating vaddr:0x{:x?} paddr:0x{:x?} flags:0x{:x?}",
+        vaddr,
+        paddr,
+        flags
+    );
     KERNEL_PAGE_TABLE.lock().update(vaddr, paddr, flags)?;
     flush_tlb(Some(vaddr));
     Ok(())
@@ -180,7 +185,7 @@ pub fn pte_update_page(
 ///
 /// release the corresponding memory at the same time
 pub fn pte_unmap_page(vaddr: VirtAddr) -> PagingResult {
-    trace!("unmapping vaddr: {:x?}", vaddr);
+    trace!("unmapping vaddr: 0x{:x?}", vaddr);
     let (paddr, _) = KERNEL_PAGE_TABLE.lock().unmap(vaddr)?;
     global_allocator().dealloc_pages(phys_to_virt(paddr).as_usize(), 1);
     flush_tlb(Some(vaddr));

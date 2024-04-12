@@ -178,6 +178,61 @@ pub(crate) fn find_free_region(
     None
 }
 
+/// Clear the memory of the specified area. return Some(start) if successful.
+/// take care of AA-deadlock, this function should not be used after `MEM_MAP` is used.
+pub(crate) fn snatch_fixed_region(
+    vma_map: &mut BTreeMap<usize, Vma>,
+    start: usize,
+    len: usize,
+) -> Option<usize> {
+    let end = start + len;
+
+    // Return None if the specified address can't be used
+    if start >= VMA_START && end <= VMA_END {
+        return None;
+    }
+
+    let mut post_append: Vec<(usize, Vma)> = Vec::new(); // vma should be insert.
+    let mut post_remove: Vec<usize> = Vec::new(); // vma should be removed.
+
+    let mut node = vma_map.upper_bound_mut(Bound::Included(&start));
+    while let Some(vma) = node.value_mut() {
+        if vma.start_addr >= end {
+            break;
+        }
+        if let Some((overlapped_start, overlapped_end)) =
+            get_overlap((start, end), (vma.start_addr, vma.end_addr))
+        {
+            // add node for overlapped vma_ptr
+            if vma.end_addr > overlapped_end {
+                let right_vma = Vma::clone_from(vma, overlapped_end, vma.end_addr);
+                post_append.push((overlapped_end, right_vma));
+            }
+            if overlapped_start > vma.start_addr {
+                vma.end_addr = overlapped_start
+            } else {
+                post_remove.push(vma.start_addr);
+            }
+        }
+        node.move_next();
+    }
+
+    // do action after success.
+    for key in post_remove {
+        vma_map.remove(&key).expect("there should be no empty");
+    }
+    for (key, value) in post_append {
+        vma_map.insert(key, value);
+    }
+
+    // delete the mapped and swapped page.
+    release_pages_mapped(start, end);
+    #[cfg(feature = "fs")]
+    release_pages_swaped(start, end);
+
+    Some(start)
+}
+
 /// release the range of [start, end) in mem_map
 /// take care of AA-deadlock, this function should not be used after `MEM_MAP` is used.
 pub(crate) fn release_pages_mapped(start: usize, end: usize) {
@@ -352,7 +407,7 @@ pub(crate) fn preload_page_with_swap(
         },
 
         Err(ecode) => panic!(
-            "Unexpected error {:x?} happening when page fault occurs!",
+            "Unexpected error 0x{:x?} happening when page fault occurs!",
             ecode
         ),
     }

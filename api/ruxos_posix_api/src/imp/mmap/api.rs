@@ -19,7 +19,7 @@ use ruxhal::{mem::VirtAddr, paging::pte_update_page};
 
 use super::utils::{
     find_free_region, get_mflags_from_usize, get_overlap, release_pages_mapped, shift_mapped_page,
-    Vma, MEM_MAP, VMA_END, VMA_MAP,
+    snatch_fixed_region, Vma, MEM_MAP, VMA_END, VMA_MAP,
 };
 
 #[cfg(feature = "fs")]
@@ -39,7 +39,7 @@ pub fn sys_mmap(
     off: ctypes::off_t,
 ) -> *mut c_void {
     debug!(
-        "sys_mmap <= start: {:p}, len: {:x}, prot:{:x?}, flags:{:x?}, fd: {}",
+        "sys_mmap <= start: {:p}, len: 0x{:x}, prot:0x{:x?}, flags:0x{:x?}, fd: {}",
         start, len, prot, flags, fd
     );
     syscall_body!(sys_mmap, {
@@ -48,7 +48,7 @@ pub fn sys_mmap(
         let len = VirtAddr::from(len).align_up_4k().as_usize();
         if !VirtAddr::from(start).is_aligned(PAGE_SIZE_4K) || len == 0 {
             error!(
-                "mmap failed because start:{:x} is not aligned or len:{:x} == 0",
+                "mmap failed because start:0x{:x} is not aligned or len:0x{:x} == 0",
                 start, len
             );
             return Err(LinuxError::EINVAL);
@@ -60,7 +60,7 @@ pub fn sys_mmap(
 
         // check if `MAP_SHARED` or `MAP_PRIVATE` within flags.
         if (flags & ctypes::MAP_PRIVATE == 0) && (flags & ctypes::MAP_SHARED == 0) {
-            error!("mmap failed because none of `MAP_PRIVATE` and `MAP_SHARED` exsit");
+            error!("mmap failed because none of `MAP_PRIVATE` and `MAP_SHARED` exist");
             return Err(LinuxError::EINVAL);
         }
 
@@ -77,9 +77,15 @@ pub fn sys_mmap(
         let mut new = Vma::new(fid, offset, prot, flags);
         let mut vma_map = VMA_MAP.lock();
         let addr_condition = if start == 0 { None } else { Some(start) };
-        let try_addr = find_free_region(&vma_map, addr_condition, len);
+
+        let try_addr = if flags & ctypes::MAP_FIXED != 0 {
+            snatch_fixed_region(&mut vma_map, start, len)
+        } else {
+            find_free_region(&vma_map, addr_condition, len)
+        };
+
         match try_addr {
-            Some(vaddr) if vaddr == start || flags & ctypes::MAP_FIXED == 0 => {
+            Some(vaddr) => {
                 new.start_addr = vaddr;
                 new.end_addr = vaddr + len;
                 vma_map.insert(vaddr, new);
@@ -92,7 +98,7 @@ pub fn sys_mmap(
 
 /// Deletes the mappings for the specified address range
 pub fn sys_munmap(start: *mut c_void, len: ctypes::size_t) -> c_int {
-    debug!("sys_munmap <= start: {:p}, len: {:x}", start, len);
+    debug!("sys_munmap <= start: {:p}, len: 0x{:x}", start, len);
     syscall_body!(sys_munmap, {
         // transform C-type into rust-type
         let start = start as usize;
@@ -100,15 +106,20 @@ pub fn sys_munmap(start: *mut c_void, len: ctypes::size_t) -> c_int {
 
         if !VirtAddr::from(start).is_aligned(PAGE_SIZE_4K) || len == 0 {
             error!(
-                "sys_munmap start_address={:x}, len {:x?} not aligned",
+                "sys_munmap start_address=0x{:x}, len 0x{:x?} not aligned",
                 start, len
             );
             return Err(LinuxError::EINVAL);
         }
 
         let mut vma_map = VMA_MAP.lock();
+
+        // In order to ensure that munmap can exit directly if it fails, it must
+        // ensure that munmap semantics are correct before taking action.
+        let mut post_shrink: Vec<(usize, usize)> = Vec::new(); // vma should be insert.
         let mut post_append: Vec<(usize, Vma)> = Vec::new(); // vma should be insert.
         let mut post_remove: Vec<usize> = Vec::new(); // vma should be removed.
+
         let mut node = vma_map.upper_bound_mut(Bound::Included(&start));
         let mut counter = 0; // counter to check if all address in [start, start+len) is mapped.
         while let Some(vma) = node.value_mut() {
@@ -127,7 +138,8 @@ pub fn sys_munmap(start: *mut c_void, len: ctypes::size_t) -> c_int {
                     post_append.push((overlapped_end, right_vma));
                 }
                 if overlapped_start > vma.start_addr {
-                    vma.end_addr = overlapped_start;
+                    // do vma.end_addr = overlapped_start if success
+                    post_shrink.push((vma.start_addr, overlapped_start));
                 } else {
                     post_remove.push(vma.start_addr);
                 }
@@ -138,14 +150,18 @@ pub fn sys_munmap(start: *mut c_void, len: ctypes::size_t) -> c_int {
         // check if any address in [start, end) not mayed.
         if counter != end - start {
             error!(
-                "munmap {:x?} but only {:x?} Byte inside",
+                "munmap 0x{:x?} but only 0x{:x?} byte inside",
                 end - start,
                 counter
             );
             return Err(LinuxError::EINVAL);
         }
 
-        // do post action if success.
+        // do action after success.
+        for (start, addr) in post_shrink {
+            let vma_shrinking = vma_map.get_mut(&start).unwrap();
+            vma_shrinking.end_addr = addr;
+        }
         for key in post_remove {
             vma_map.remove(&key).expect("there should be no empty");
         }
@@ -167,7 +183,7 @@ pub fn sys_munmap(start: *mut c_void, len: ctypes::size_t) -> c_int {
 /// addr must be aligned to a page boundary.
 pub fn sys_mprotect(start: *mut c_void, len: ctypes::size_t, prot: c_int) -> c_int {
     debug!(
-        "sys_mprotect <= addr: {:p}, len: {:x}, prot: {}",
+        "sys_mprotect <= addr: {:p}, len: 0x{:x}, prot: {}",
         start, len, prot
     );
 
@@ -180,7 +196,11 @@ pub fn sys_mprotect(start: *mut c_void, len: ctypes::size_t, prot: c_int) -> c_i
         }
         let syncing_interval = (start, end);
 
+        // In order to ensure that munmap can exit directly if it fails, it must
+        // ensure that munmap semantics are correct before taking action.
         let mut post_append: Vec<(usize, Vma)> = Vec::new();
+        let mut post_shrink: Vec<(usize, usize)> = Vec::new();
+        let mut post_align_changed: Vec<(usize, usize)> = Vec::new();
 
         let mut vma_map = VMA_MAP.lock();
         let mut node = vma_map.upper_bound_mut(Bound::Included(&start));
@@ -201,13 +221,17 @@ pub fn sys_mprotect(start: *mut c_void, len: ctypes::size_t, prot: c_int) -> c_i
                     post_append.push((overlapped_end, right_vma));
                 }
                 if overlapped_start > vma.start_addr {
-                    vma.end_addr = overlapped_start;
+                    // do vma.end_addr = overlapped_start if success
+                    post_shrink.push((vma.start_addr, overlapped_start));
+
+                    // The left side of the vma needs to be kept as is, while `prot`
+                    // on the right side need to be modified.
                     let mut overlapped_vma = Vma::clone_from(vma, overlapped_start, overlapped_end);
                     overlapped_vma.prot = prot as u32;
                     post_append.push((overlapped_start, overlapped_vma))
                 } else {
-                    vma.end_addr = overlapped_end;
-                    vma.prot = prot as u32;
+                    // do vma.end_addr = overlapped_end and vma.prot = prot as u32 if success
+                    post_align_changed.push((vma.start_addr, overlapped_end));
                 }
             }
             node.move_next();
@@ -215,7 +239,7 @@ pub fn sys_mprotect(start: *mut c_void, len: ctypes::size_t, prot: c_int) -> c_i
         // check if any address in [start, end) not mayed.
         if counter != end - start {
             error!(
-                "munmap {:x?} but only {:x?} Byte inside",
+                "mprotect 0x{:x?} but only 0x{:x?} byte inside",
                 end - start,
                 counter
             );
@@ -232,14 +256,23 @@ pub fn sys_mprotect(start: *mut c_void, len: ctypes::size_t, prot: c_int) -> c_i
             .is_err()
             {
                 error!(
-                    "Update page prot failed when mprotecting the page: vaddr={:x?}, prot={:?}",
+                    "Updating page prot failed when mprotecting the page: vaddr=0x{:x?}, prot={:?}",
                     vaddr, prot
                 );
             }
         }
-        // do post action if success.
+        // do action after success.
         for (key, value) in post_append {
             vma_map.insert(key, value);
+        }
+        for (start, addr) in post_shrink {
+            let vma_shrinking = vma_map.get_mut(&start).unwrap();
+            vma_shrinking.end_addr = addr;
+        }
+        for (start, addr) in post_align_changed {
+            let vma_align_changing = vma_map.get_mut(&start).unwrap();
+            vma_align_changing.end_addr = addr;
+            vma_align_changing.prot = prot as u32;
         }
         Ok(0)
     })
@@ -269,9 +302,9 @@ pub fn sys_msync(start: *mut c_void, len: ctypes::size_t, flags: c_int) -> c_int
                     let ret_size = sys_pwrite64(fid, src, size, offset as i64) as usize;
                     if size != ret_size {
                         error!(
-                            "sys_msync: try to pwrite(fid={:x?}, size={:x?}, offset={:x?}) but get ret = {:x?}",
-                            fid, size, offset, ret_size
-                        );
+                             "sys_msync: try to pwrite(fid=0x{:x?}, size=0x{:x?}, offset=0x{:x?}) but get ret = 0x{:x?}",
+                             fid, size, offset, ret_size
+                         );
                         return Err(LinuxError::EFAULT);
                     }
                 }

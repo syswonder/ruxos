@@ -34,10 +34,8 @@ const STATE_CONNECTING: u8 = 2;
 const STATE_CONNECTED: u8 = 3;
 const STATE_LISTENING: u8 = 4;
 
-const MSG_OOB: i32 = 1;
 const MSG_PEEK: i32 = 2;
 const MSG_DONTWAIT: i32 = 4;
-const MSG_CTRUNC: i32 = 8;
 
 /// A TCP socket that provides POSIX-like APIs.
 ///

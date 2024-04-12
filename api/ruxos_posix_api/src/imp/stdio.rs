@@ -10,12 +10,11 @@
 use axerrno::AxResult;
 use axio::{prelude::*, BufReader};
 use axsync::Mutex;
+
 #[cfg(feature = "fd")]
 use {
     alloc::sync::Arc,
-    axerrno::AxError,
-    axerrno::LinuxError,
-    axerrno::LinuxResult,
+    axerrno::{AxError, LinuxError, LinuxResult},
     axio::PollState,
     core::sync::atomic::{AtomicBool, Ordering},
 };
