@@ -1,29 +1,32 @@
-use core::ffi::c_char;
-
 mod auxv;
 mod load_elf;
 mod stack;
 
 use alloc::vec;
+use core::ffi::c_char;
 
 use crate::{
+    config,
     imp::stat::{sys_getgid, sys_getuid},
-    sys_getegid, sys_geteuid,
+    sys_getegid, sys_geteuid, sys_random,
+    utils::char_ptr_to_str,
 };
 
 /// int execve(const char *pathname, char *const argv[], char *const envp[] );
 pub fn sys_execve(pathname: *const c_char, argv: usize, envp: usize) -> ! {
     use auxv::*;
 
-    let prog = load_elf::ElfProg::new(pathname);
+    let path = char_ptr_to_str(pathname).unwrap();
+    let prog = load_elf::ElfProg::new(path);
 
     // get entry
     let mut entry = prog.entry;
 
     // if interp is needed
     let mut at_base = 0;
-    if !prog.interp_path.is_null() {
-        let interp_prog = load_elf::ElfProg::new(prog.interp_path);
+    if !prog.interp_path.is_empty() {
+        let interp_path = char_ptr_to_str(prog.interp_path.as_ptr() as _).unwrap();
+        let interp_prog = load_elf::ElfProg::new(interp_path);
         entry = interp_prog.entry;
         at_base = interp_prog.base;
         debug!("sys_execve: INTERP base is {:x}", at_base);
@@ -32,18 +35,13 @@ pub fn sys_execve(pathname: *const c_char, argv: usize, envp: usize) -> ! {
     // create stack
     let mut stack = stack::Stack::new();
 
-    let name = prog.name;
-    let platform = prog.platform;
-
     // non 8B info
-    stack.push(vec![0u8; 32], 16);
-    let p_progname = stack.push(name, 16);
-    let _p_plat = stack.push(platform, 16); // platform
-    let p_rand = stack.push(prog.rand, 16); // rand
+    stack.push(&[0u8; 32], 16);
+    let rand = unsafe { [sys_random(), sys_random()] };
+    let p_rand = stack.push(&rand, 16);
 
     // auxv
-    // TODO: vdso and rand
-    // TODO: a way to get pagesz instead of a constant
+    // TODO: vdso
     let auxv = vec![
         AT_PHDR,
         prog.phdr,
@@ -54,9 +52,11 @@ pub fn sys_execve(pathname: *const c_char, argv: usize, envp: usize) -> ! {
         AT_BASE,
         at_base,
         AT_PAGESZ,
-        0x1000,
+        config::PAGE_SIZE_4K,
         AT_HWCAP,
         0,
+        AT_PLATFORM,
+        platform(),
         AT_CLKTCK,
         100,
         AT_FLAGS,
@@ -74,7 +74,7 @@ pub fn sys_execve(pathname: *const c_char, argv: usize, envp: usize) -> ! {
         AT_SECURE,
         0,
         AT_EXECFN,
-        p_progname,
+        pathname as usize,
         AT_RANDOM,
         p_rand,
         AT_SYSINFO_EHDR,
@@ -88,53 +88,48 @@ pub fn sys_execve(pathname: *const c_char, argv: usize, envp: usize) -> ! {
     // handle envs and args
     let mut env_vec = vec![];
     let mut arg_vec = vec![];
-    let mut argc = 0;
 
-    let envp = envp as *const usize;
+    let mut envp = envp as *const usize;
     unsafe {
-        let mut i = 0;
-        while *envp.add(i) != 0 {
-            env_vec.push(*envp.add(i));
-            i += 1;
+        while *envp != 0 {
+            env_vec.push(*envp);
+            envp = envp.add(1);
         }
         env_vec.push(0);
     }
 
-    let argv = argv as *const usize;
+    let mut argv = argv as *const usize;
     unsafe {
-        let mut i = 0;
-        loop {
-            let p = *argv.add(i);
-            if p == 0 {
-                break;
-            }
-            arg_vec.push(p);
-            argc += 1;
-            i += 1;
+        while *argv != 0 {
+            arg_vec.push(*argv);
+            argv = argv.add(1);
         }
-
         arg_vec.push(0);
     }
 
     // push
-    stack.push(auxv, 16);
-    stack.push(env_vec, 8);
-    stack.push(arg_vec, 8);
-    let _sp = stack.push(vec![argc as usize], 8);
+    stack.push(&auxv, 16);
+    stack.push(&env_vec, 8);
+    stack.push(&arg_vec, 8);
+    let sp = stack.push(&[arg_vec.len() - 1], 8); // argc
 
     // try run
     debug!(
-        "sys_execve: run at entry 0x{entry:x}, then it will jump to 0x{:x} ",
+        "sys_execve: sp is 0x{sp:x}, run at 0x{entry:x}, then jump to 0x{:x} ",
         prog.entry
     );
 
+    set_sp_and_jmp(sp, entry);
+}
+
+fn set_sp_and_jmp(sp: usize, entry: usize) -> ! {
     #[cfg(target_arch = "aarch64")]
     unsafe {
         core::arch::asm!("
          mov sp, {}
-         blr {}
+         br {}
      ",
-        in(reg)_sp,
+        in(reg)sp,
         in(reg)entry,
         );
     }
@@ -144,10 +139,20 @@ pub fn sys_execve(pathname: *const c_char, argv: usize, envp: usize) -> ! {
          mov rsp, {}
          jmp {}
      ",
-        in(reg)_sp,
+        in(reg)sp,
         in(reg)entry,
         );
     }
+    unreachable!("sys_execve: unknown arch, sp 0x{sp:x}, entry 0x{entry:x}");
+}
 
-    unreachable!("sys_execve: unknown arch");
+fn platform() -> usize {
+    #[cfg(target_arch = "aarch64")]
+    const PLATFORM_STRING: &[u8] = b"aarch64\0";
+    #[cfg(target_arch = "x86_64")]
+    const PLATFORM_STRING: &[u8] = b"x86_64\0";
+    #[cfg(not(any(target_arch = "aarch64", target_arch = "x86_64")))]
+    const PLATFORM_STRING: &[u8] = b"unknown\0";
+
+    PLATFORM_STRING.as_ptr() as usize
 }

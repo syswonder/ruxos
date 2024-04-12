@@ -1,55 +1,43 @@
-use core::{mem::size_of, ptr::null_mut};
+use alloc::{vec, vec::Vec};
 
-use crate::*;
+const STACK_SIZE: usize = ruxconfig::TASK_STACK_SIZE;
 
 #[derive(Debug)]
 pub struct Stack {
-    sp: usize,
-    start: usize,
-    end: usize,
+    /// stack
+    data: Vec<u8>,
+    /// index of top byte of stack
+    top: usize,
 }
 
 impl Stack {
-    // alloc a stack
+    /// alloc a stack
     pub fn new() -> Self {
-        let size = 0xa00000; // 10M
-        let p = sys_mmap(null_mut(), size, 0, 0, 0, 0);
-
-        let start = p as usize;
-        let sp = start + size;
-        let end = sp;
-
-        Self { sp, start, end }
-    }
-
-    pub fn align(&mut self, align: usize) -> usize {
-        self.sp -= self.sp % align;
-        self.sp
-    }
-
-    pub fn push<T: Copy>(&mut self, thing: alloc::vec::Vec<T>, align: usize) -> usize {
-        let size = thing.len() * size_of::<T>();
-        self.sp -= size;
-        self.sp = self.align(align); // align 16B
-
-        if self.sp < self.start {
-            panic!("stack overflow");
+        Self {
+            data: vec![0u8; STACK_SIZE],
+            top: STACK_SIZE,
         }
+    }
 
-        let mut pt = self.sp as *mut T;
+    /// addr of top of stack
+    pub fn sp(&self) -> usize {
+        self.data.as_ptr() as usize + self.top
+    }
+
+    /// push data to stack and return the addr of sp
+    pub fn push<T>(&mut self, data: &[T], align: usize) -> usize {
+        // move sp to right place
+        self.top -= core::mem::size_of_val(data);
+        self.top = memory_addr::align_down(self.top, align);
+
+        assert!(self.top <= self.data.len(), "sys_execve: stack overflow.");
+
+        // write data into stack
+        let sp = self.sp() as *mut T;
         unsafe {
-            for t in thing {
-                *pt = t;
-                pt = pt.add(1);
-            }
+            sp.copy_from_nonoverlapping(data.as_ptr(), data.len());
         }
 
-        self.sp
-    }
-}
-
-impl Drop for Stack {
-    fn drop(&mut self) {
-        sys_munmap(self.start as *mut _, self.end - self.start);
+        sp as usize
     }
 }
