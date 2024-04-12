@@ -23,9 +23,10 @@ use super::utils::{
 };
 
 #[cfg(feature = "fs")]
-use super::utils::release_pages_swaped;
-#[cfg(feature = "fs")]
-use crate::imp::fs::sys_pwrite64;
+use {
+    super::utils::{release_pages_swaped, write_into},
+    alloc::sync::Arc,
+};
 
 /// Creates a new mapping in the virtual address space of the calling process.
 ///
@@ -296,17 +297,10 @@ pub fn sys_msync(start: *mut c_void, len: ctypes::size_t, flags: c_int) -> c_int
             if !VirtAddr::from(start).is_aligned(PAGE_SIZE_4K) || len == 0 {
                 return Err(LinuxError::EINVAL);
             }
-            for (&vaddr, &page_info) in MEM_MAP.lock().range(start..end) {
-                if let Some((fid, offset, size)) = page_info {
-                    let src = vaddr as *mut c_void;
-                    let ret_size = sys_pwrite64(fid, src, size, offset as i64) as usize;
-                    if size != ret_size {
-                        error!(
-                             "sys_msync: try to pwrite(fid=0x{:x?}, size=0x{:x?}, offset=0x{:x?}) but get ret = 0x{:x?}",
-                             fid, size, offset, ret_size
-                         );
-                        return Err(LinuxError::EFAULT);
-                    }
+            for (&vaddr, page_info) in MEM_MAP.lock().range(start..end) {
+                if let Some((file, offset, size)) = page_info {
+                    let src = vaddr as *mut u8;
+                    write_into(file, src, *offset as u64, *size);
                 }
             }
         }
@@ -358,13 +352,25 @@ pub fn sys_mremap(
             }
             // make sure of consistent_vma is continuous and consistent in both flags and prots.
             if let Some(ref mut inner_vma) = consistent_vma {
-                let end_offset = inner_vma.offset + (inner_vma.end_addr - inner_vma.start_addr);
                 if inner_vma.end_addr == vma.start_addr
                     && inner_vma.flags == vma.flags
                     && inner_vma.prot == vma.prot
-                    && inner_vma.fid == vma.fid
-                    && (end_offset == vma.offset || inner_vma.fid < 0)
                 {
+                    #[cfg(feature = "fs")]
+                    if inner_vma.file.is_some() {
+                        if vma.file.is_none() {
+                            return Err(LinuxError::EFAULT);
+                        }
+                        let end_offset =
+                            inner_vma.offset + (inner_vma.end_addr - inner_vma.start_addr);
+                        let vma_file = vma.file.as_ref().unwrap();
+                        let inner_file = inner_vma.file.as_ref().unwrap();
+                        if !Arc::ptr_eq(vma_file, inner_file) || end_offset != vma.offset {
+                            return Err(LinuxError::EFAULT);
+                        }
+                    } else if vma.file.is_some() {
+                        return Err(LinuxError::EFAULT);
+                    }
                     inner_vma.end_addr = vma.end_addr;
                 } else {
                     return Err(LinuxError::EFAULT);

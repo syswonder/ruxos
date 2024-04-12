@@ -23,21 +23,21 @@ use crate::{ctypes, utils::char_ptr_to_str};
 use alloc::vec::Vec;
 
 pub struct File {
-    inner: Mutex<ruxfs::fops::File>,
+    pub(crate) inner: Mutex<ruxfs::fops::File>,
 }
 
 impl File {
-    fn new(inner: ruxfs::fops::File) -> Self {
+    pub(crate) fn new(inner: ruxfs::fops::File) -> Self {
         Self {
             inner: Mutex::new(inner),
         }
     }
 
-    fn add_to_fd_table(self) -> LinuxResult<c_int> {
+    pub(crate) fn add_to_fd_table(self) -> LinuxResult<c_int> {
         super::fd_ops::add_file_like(Arc::new(self))
     }
 
-    fn from_fd(fd: c_int) -> LinuxResult<Arc<Self>> {
+    pub(crate) fn from_fd(fd: c_int) -> LinuxResult<Arc<Self>> {
         let f = super::fd_ops::get_file_like(fd)?;
         f.into_any()
             .downcast::<Self>()
