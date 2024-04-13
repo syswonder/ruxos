@@ -10,11 +10,7 @@
 use crate::ctypes;
 
 #[cfg(feature = "fs")]
-use {
-    crate::imp::fs::{sys_open, sys_pread64, sys_pwrite64},
-    core::ffi::{c_char, c_void},
-    page_table::PagingError,
-};
+use {crate::imp::fs::File, alloc::sync::Arc, page_table::PagingError, ruxfs::fops::OpenOptions};
 
 use alloc::{collections::BTreeMap, vec::Vec};
 use axsync::Mutex;
@@ -49,7 +45,7 @@ used_fs! {
     pub(crate) const SWAP_PATH: &str = "swap.raw\0";
     pub(crate) static SWAPED_MAP: Mutex<BTreeMap<usize, Offset>> = Mutex::new(BTreeMap::new()); // Vaddr => (page_size, offset_at_swaped)
     lazy_static::lazy_static! {
-        pub(crate) static ref SWAP_FID: i32 = sys_open(SWAP_PATH.as_ptr() as *const c_char, (ctypes::O_RDWR| ctypes::O_TRUNC| ctypes::O_SYNC) as i32, 0);
+        pub(crate) static ref SWAP_FILE: Arc<File> = open_swap_file(SWAP_PATH);
         pub(crate) static ref BITMAP_FREE: Mutex<Vec<usize>> = Mutex::new((0..SWAP_MAX).step_by(PAGE_SIZE_4K).collect());
     }
 }
@@ -57,17 +53,20 @@ used_fs! {
 pub(crate) static VMA_MAP: Mutex<BTreeMap<usize, Vma>> = Mutex::new(BTreeMap::new()); // start_addr
 pub(crate) static MEM_MAP: Mutex<BTreeMap<usize, PageInfo>> = Mutex::new(BTreeMap::new()); // Vaddr => (fid, offset, page_size)
 
-type PageInfo = Option<(Fid, Offset, Len)>; // (fid, offset, page_size)
+#[cfg(feature = "fs")]
+type PageInfo = Option<(Arc<File>, Offset, Len)>; // (fid, offset, page_size)
+#[cfg(not(feature = "fs"))]
+type PageInfo = Option<Len>; // (fid, offset, page_size)
+#[cfg(feature = "fs")]
 type Offset = usize;
-type Fid = i32;
 type Len = usize;
 
 /// Data structure for mapping [start_addr, end_addr) with meta data.
-#[derive(Debug)]
 pub(crate) struct Vma {
     pub start_addr: usize,
     pub end_addr: usize,
-    pub fid: i32,
+    #[cfg(feature = "fs")]
+    pub file: Option<Arc<File>>,
     pub offset: usize,
     pub prot: u32,
     pub flags: u32,
@@ -75,26 +74,75 @@ pub(crate) struct Vma {
 
 /// Impl for Vma.
 impl Vma {
-    pub fn new(fid: i32, offset: usize, prot: u32, flags: u32) -> Self {
+    pub(crate) fn new(_fid: i32, offset: usize, prot: u32, flags: u32) -> Self {
+        #[cfg(feature = "fs")]
+        let file = if _fid < 0 {
+            None
+        } else {
+            Some(File::from_fd(_fid).expect("should be effective fid"))
+        };
         Vma {
             start_addr: 0,
             end_addr: 0,
-            fid,
+            #[cfg(feature = "fs")]
+            file,
             offset,
             flags,
             prot,
         }
     }
 
-    pub fn clone_from(vma: &Vma, start_addr: usize, end_addr: usize) -> Self {
+    pub(crate) fn clone_from(vma: &Vma, start_addr: usize, end_addr: usize) -> Self {
         Vma {
             start_addr,
             end_addr,
-            fid: vma.fid,
+            #[cfg(feature = "fs")]
+            file: vma.file.clone(),
             offset: vma.offset,
             prot: vma.prot,
             flags: vma.prot,
         }
+    }
+}
+
+/// open target file
+#[cfg(feature = "fs")]
+fn open_swap_file(filename: &str) -> Arc<File> {
+    let mut opt = OpenOptions::new();
+    opt.read(true);
+    opt.write(true);
+    opt.append(true);
+    opt.create(true);
+
+    let file = ruxfs::fops::File::open(filename, &opt).expect("create swap file failed");
+    Arc::new(File::new(file))
+}
+
+/// read from target file
+#[cfg(feature = "fs")]
+pub(crate) fn read_from(file: &Arc<File>, buf: *mut u8, offset: u64, len: usize) {
+    let src = unsafe { core::slice::from_raw_parts_mut(buf, len) };
+    let actual_len = file
+        .inner
+        .lock()
+        .read_at(offset, src)
+        .expect("read_from failed");
+    if len != actual_len {
+        warn!("read_from len=0x{len:x} but actual_len=0x{actual_len:x}");
+    }
+}
+
+/// write into target file
+#[cfg(feature = "fs")]
+pub(crate) fn write_into(file: &Arc<File>, buf: *mut u8, offset: u64, len: usize) {
+    let src = unsafe { core::slice::from_raw_parts_mut(buf, len) };
+    let actual_len = file
+        .inner
+        .lock()
+        .write_at(offset, src)
+        .expect("write_into failed");
+    if len != actual_len {
+        warn!("write_into len=0x{len:x} but actual_len=0x{actual_len:x}");
     }
 }
 
@@ -188,7 +236,7 @@ pub(crate) fn snatch_fixed_region(
     let end = start + len;
 
     // Return None if the specified address can't be used
-    if start >= VMA_START && end <= VMA_END {
+    if start < VMA_START || end > VMA_END {
         return None;
     }
 
@@ -238,12 +286,11 @@ pub(crate) fn snatch_fixed_region(
 pub(crate) fn release_pages_mapped(start: usize, end: usize) {
     let mut memory_map = MEM_MAP.lock();
     let mut removing_vaddr = Vec::new();
-    for (&vaddr, &_page_info) in memory_map.range(start..end) {
+    for (&vaddr, _page_info) in memory_map.range(start..end) {
         #[cfg(feature = "fs")]
-        if let Some((fid, offset, size)) = _page_info {
-            let src = vaddr as *mut c_void;
-            let offset = offset as i64;
-            sys_pwrite64(fid, src, size, offset);
+        if let Some((file, offset, size)) = _page_info {
+            let src = vaddr as *mut u8;
+            write_into(file, src, *offset as u64, *size);
         }
         if pte_unmap_page(VirtAddr::from(vaddr)).is_err() {
             panic!("Release page failed when munmapping!");
@@ -282,8 +329,8 @@ pub(crate) fn shift_mapped_page(start: usize, end: usize, vma_offset: usize, cop
     }
 
     let mut opt_buffer = Vec::new();
-    for (&start, &page_info) in memory_map.range(start..end) {
-        opt_buffer.push((start, page_info));
+    for (&start, page_info) in memory_map.range(start..end) {
+        opt_buffer.push((start, page_info.clone()));
     }
     for (start, page_info) in opt_buffer {
         // opt for the PTE.
@@ -315,18 +362,13 @@ pub(crate) fn shift_mapped_page(start: usize, end: usize, vma_offset: usize, cop
             {
                 used_fs! {
                     let offset = swaped_map.get(&start).unwrap();
-                    sys_pread64(
-                        *SWAP_FID,
-                        dst.as_mut_ptr() as *mut c_void,
-                        PAGE_SIZE_4K,
-                        *offset as i64,
-                    );
+                    read_from(&SWAP_FILE, start as *mut u8, *offset as u64, PAGE_SIZE_4K);
                 }
             }
             (fake_vaddr, flags)
         };
         do_pte_map(VirtAddr::from(start + vma_offset), fake_vaddr, flags).unwrap();
-        memory_map.insert(start + vma_offset, page_info);
+        memory_map.insert(start + vma_offset, page_info.clone());
     }
 
     used_fs! {
@@ -343,18 +385,8 @@ pub(crate) fn shift_mapped_page(start: usize, end: usize, vma_offset: usize, cop
                     .pop()
                     .expect("There are no free space in swap-file!");
                 let mut rw_buffer: [u8; PAGE_SIZE_4K] = [0_u8; PAGE_SIZE_4K];
-                sys_pread64(
-                    *SWAP_FID,
-                    rw_buffer.as_mut_ptr() as *mut c_void,
-                    PAGE_SIZE_4K,
-                    off_in_swap as i64,
-                );
-                sys_pwrite64(
-                    *SWAP_FID,
-                    rw_buffer.as_mut_ptr() as *mut c_void,
-                    PAGE_SIZE_4K,
-                    off_ptr as i64,
-                );
+                read_from(&SWAP_FILE, rw_buffer.as_mut_ptr(), off_in_swap as u64, PAGE_SIZE_4K);
+                write_into(&SWAP_FILE, rw_buffer.as_mut_ptr(), off_ptr as u64, PAGE_SIZE_4K);
             }
             swaped_map.insert(start + vma_offset, off_in_swap);
         }
@@ -376,31 +408,24 @@ pub(crate) fn preload_page_with_swap(
         #[cfg(feature = "fs")]
         Err(PagingError::NoMemory) => match memory_map.pop_first() {
             // For file mapping, the mapped content will be written directly to the original file.
-            Some((vaddr_swapped, Some((fid, offset, size)))) => {
+            Some((vaddr_swapped, Some((file, offset, size)))) => {
                 let offset = offset.try_into().unwrap();
-                sys_pwrite64(fid, vaddr_swapped as *mut c_void, size, offset);
+                write_into(&file, vaddr_swapped as *mut u8, offset, size);
                 pte_swap_preload(VirtAddr::from(vaddr_swapped)).unwrap()
             }
             // For anonymous mapping, you need to save the mapped memory to the prepared swap file,
             //  and record the memory address and its offset in the swap file.
             Some((vaddr_swapped, None)) => {
                 let offset_get = off_pool.pop();
-                if SWAP_FID.is_negative() || offset_get.is_none() {
-                    panic!(
-                        "No free memory for mmap or swap fid, swap fid={}",
-                        *SWAP_FID
-                    );
-                }
                 let offset = offset_get.unwrap();
                 swaped_map.insert(vaddr_swapped, offset);
 
-                sys_pwrite64(
-                    *SWAP_FID,
-                    vaddr_swapped as *mut c_void,
+                write_into(
+                    &SWAP_FILE,
+                    vaddr_swapped as *mut u8,
+                    offset as u64,
                     PAGE_SIZE_4K,
-                    offset as i64,
                 );
-
                 pte_swap_preload(VirtAddr::from(vaddr_swapped)).unwrap()
             }
             _ => panic!("No memory for mmap, check if huge memory leaky exists"),

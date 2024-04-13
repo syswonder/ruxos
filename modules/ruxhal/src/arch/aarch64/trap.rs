@@ -9,8 +9,8 @@
 
 use core::arch::global_asm;
 
-#[cfg(feature = "irq")]
-use crate::arch::enable_irqs;
+#[cfg(all(feature = "irq", feature = "musl"))]
+use crate::arch::{disable_irqs, enable_irqs};
 #[cfg(feature = "paging")]
 use crate::trap::PageFaultCause;
 use aarch64_cpu::registers::{ESR_EL1, FAR_EL1};
@@ -74,6 +74,8 @@ fn handle_sync_exception(tf: &mut TrapFrame) {
                 ],
             );
             tf.r[0] = result as u64;
+            #[cfg(feature = "irq")]
+            disable_irqs();
         }
         Some(ESR_EL1::EC::Value::DataAbortLowerEL)
         | Some(ESR_EL1::EC::Value::InstrAbortLowerEL) => {
