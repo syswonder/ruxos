@@ -1,0 +1,10 @@
+ruxgo_bld
+compile_commands.json
+.cache
+/rootfs/bin/*
+/rootfs/lib/*
+/rootfs/dev
+/rootfs/etc
+/rootfs/proc
+/rootfs/sys
+/rootfs/tmp

@@ -1,0 +1,20 @@
+[build]
+compiler = "gcc"
+loader_app = ["y", "/bin/hello"]
+
+[os]
+name = "ruxos"
+services = ["alloc", "paging", "musl", "multitask", "fs", "virtio-9p"]
+ulib = "ruxmusl"
+develop = "y"
+
+[os.platform]
+name = "aarch64-qemu-virt"
+mode = "release"
+log = "info"
+
+[os.platform.qemu]
+memory = "2g"
+v9p = "y"
+v9p_path = "./rootfs"
+args = "/bin/hello"
