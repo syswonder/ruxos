@@ -162,7 +162,11 @@ impl VfsNodeOps for RootDirectory {
 }
 
 pub(crate) fn init_rootfs(mount_points: Vec<MountPoint>) {
-    let main_fs = mount_points.get(0).expect("No filesystem found").fs.clone();
+    let main_fs = mount_points
+        .first()
+        .expect("No filesystem found")
+        .fs
+        .clone();
     let mut root_dir = RootDirectory::new(main_fs);
 
     for mp in mount_points.iter().skip(1) {

@@ -493,6 +493,8 @@ checksum = "7f8f80099a98041a3d1622845c271458a2d73e688351bf3cb999266764b81d48"
 [[package]]
 name = "crate_interface"
 version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d54b79db793871881b52a1eb5dc6fd869743122e34795f12db8e183dcb6a4f28"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -848,6 +850,8 @@ checksum = "eabb4a44450da02c90444cf74558da904edde8fb4e9035a9a6a4e15445af0bd7"
 [[package]]
 name = "handler_table"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "011878ffbfb4cbfcbd9fd799d1168a65897b0b0195fc55f9ec73d27f1685b1dd"
 
 [[package]]
 name = "hash32"
@@ -966,6 +970,8 @@ dependencies = [
 [[package]]
 name = "kernel_guard"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5638cc8298368ef284589ad372890c849b520cccd50567d86a77a9232e68afdc"
 dependencies = [
  "cfg-if",
  "crate_interface",
@@ -1065,6 +1071,8 @@ dependencies = [
 [[package]]
 name = "memory_addr"
 version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "91b53e2ffbb2aaf3b738bd38ddd7ca8c511e47e05cd03fc09eacb7c5fa1285e5"
 
 [[package]]
 name = "micromath"

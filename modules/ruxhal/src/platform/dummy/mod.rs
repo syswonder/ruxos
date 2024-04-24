@@ -69,7 +69,9 @@ pub mod time {
     }
 
     #[cfg(feature = "rtc")]
-    pub fn rtc_write_time(seconds: u32) -> u64 {}
+    pub fn rtc_write_time(seconds: u32) -> u64 {
+        0
+    }
 }
 
 #[cfg(feature = "irq")]
