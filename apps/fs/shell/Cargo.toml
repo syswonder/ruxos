@@ -13,5 +13,5 @@ default = []
 [dependencies]
 axfs_vfs = { path = "../../../crates/axfs_vfs", optional = true }
 axfs_ramfs = { path = "../../../crates/axfs_ramfs", optional = true }
-crate_interface = { path = "../../../crates/crate_interface", optional = true }
+crate_interface = { version = "0.1.1", optional = true }
 axstd = { path = "../../../ulib/axstd", features = ["alloc", "fs","blkfs"], optional = true }

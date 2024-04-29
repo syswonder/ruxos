@@ -12,7 +12,6 @@ members = [
     "crates/axfs_vfs",
     "crates/axio",
     "crates/capability",
-    "crates/crate_interface",
     "crates/driver_9p",
     "crates/driver_block",
     "crates/driver_common",
@@ -22,11 +21,8 @@ members = [
     "crates/driver_virtio",
 	"crates/dtb",
     "crates/flatten_objects",
-    "crates/handler_table",
-    "crates/kernel_guard",
     "crates/lazy_init",
     "crates/linked_list",
-    "crates/memory_addr",
     "crates/page_table",
     "crates/page_table_entry",
     "crates/percpu",
@@ -71,7 +67,3 @@ lto = true
 [profile.reldebug]
 inherits = "release"
 debug = true
-
-
-[patch.crates-io]
-crate_interface = { path = "crates/crate_interface" }

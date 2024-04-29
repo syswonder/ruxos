@@ -19,6 +19,6 @@ buddy = ["allocator/buddy"]
 log = "0.4"
 cfg-if = "1.0"
 spinlock = { path = "../../crates/spinlock" }
-memory_addr = { path = "../../crates/memory_addr" }
+memory_addr = "0.1.0"
 allocator = { path = "../../crates/allocator", features = ["bitmap"] }
 axerrno = { path = "../../crates/axerrno" }

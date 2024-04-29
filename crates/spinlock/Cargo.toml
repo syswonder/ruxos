@@ -16,4 +16,4 @@ default = []
 
 [dependencies]
 cfg-if = "1.0"
-kernel_guard = { path = "../kernel_guard" }
+kernel_guard = "0.1.0"

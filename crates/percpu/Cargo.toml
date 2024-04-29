@@ -20,7 +20,7 @@ default = []
 
 [dependencies]
 cfg-if = "1.0"
-kernel_guard = { path = "../kernel_guard", optional = true }
+kernel_guard = { version = "0.1.0", optional = true }
 percpu_macros = { path = "../percpu_macros" }
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]

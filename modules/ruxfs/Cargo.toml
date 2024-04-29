@@ -38,9 +38,9 @@ axfs_devfs = { path = "../../crates/axfs_devfs", optional = true }
 axfs_ramfs = { path = "../../crates/axfs_ramfs", optional = true }
 ruxdriver = { path = "../ruxdriver", features = ["block"] }
 axsync = { path = "../axsync" }
-crate_interface = { path = "../../crates/crate_interface", optional = true }
+crate_interface = { version = "0.1.1", optional = true }
 axalloc = { path = "../axalloc", optional = true }
-memory_addr = { path = "../../crates/memory_addr" }
+memory_addr = "0.1.0"
 
 [dependencies.fatfs]
 git = "https://github.com/rafalh/rust-fatfs"

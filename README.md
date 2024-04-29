@@ -21,6 +21,7 @@ RuxOS was inspired by [Unikraft](https://github.com/unikraft/unikraft) and [Arce
 * [x] SMP scheduling with single run queue
 * [x] File system
 * [x] Compatible with Linux apps
+* [x] Dynamically loading apps
 * [ ] Interrupt driven device I/O
 * [ ] Async I/O
 
@@ -63,6 +64,9 @@ The currently supported applications (Rust), as well as their dependent modules 
 | [iperf](apps/c/iperf/) | alloc, paging, net, fs, blkfs, select, fp_simd | A network performance test tool |
 | [redis](apps/c/redis/) | alloc, paging, fp_simd, irq, multitask, fs, blkfs, net, pipe, epoll, poll, virtio-9p, rtc | A Redis server on Ruxos |
 | [sqlite3](apps/c/sqlite3/) | alloc, paging, fs, fp_simd, blkfs | A simple test for Sqlite3 API |
+| [cpp](apps/c/cpp/) | alloc, paging, irq, multitask, fs, random-hw | C++ benchmark |
+| [dl](apps/c/dl/) | paging, alloc, irq, musl, multitask, fs, pipe, poll, rtc, signal, virtio-9p | An example for dynamically loading apps |
+
 
 ## Build & Run
 

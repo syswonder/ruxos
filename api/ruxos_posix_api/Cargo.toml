@@ -11,7 +11,7 @@ authors = [
     "Shiping Yuan <robert_yuan@pku.edu.com>",
 ]
 description = "POSIX-compatible APIs for Ruxos modules"
-license = "GPL-3.0-or-later OR Apache-2.0"
+license = "Mulan PSL v2"
 repository = "https://github.com/syswonder/ruxos/tree/main/api/ruxos_posix_api"
 
 [features]
@@ -52,14 +52,14 @@ axnet = { path = "../../modules/axnet", optional = true }
 # Other crates
 axio = { path = "../../crates/axio" }
 axerrno = { path = "../../crates/axerrno" }
-memory_addr = { path = "../../crates/memory_addr" }
+memory_addr = "0.1.0"
 static_assertions = "1.1.0"
 spin = { version = "0.9" }
 spinlock = { path = "../../crates/spinlock" }
 lazy_static = { version = "1.4", features = ["spin_no_std"] }
 flatten_objects = { path = "../../crates/flatten_objects" }
 page_table = { path = "../../crates/page_table" }
-crate_interface = { path = "../../crates/crate_interface" }
+crate_interface = "0.1.1"
 
 cfg-if = "1.0"
 elf = { version = "0.7", default-features = false }
