@@ -1,0 +1,142 @@
+--- /cxx/CMakeLists.txt
++++ /cxx/CMakeLists.txt
+@@ -3,7 +3,7 @@ foreach(test_path ${BENCHMARK_TESTS})
+   get_filename_component(test_file "${test_path}" NAME)
+   set(target ${test_file}.out)
+   #EXCLUDE_FROM_ALL
+-  add_executable(${target} ${test_file})
++  add_library(${target} ${test_file})
+   # shlwapi for MSVC
+   #target_link_libraries(${target} benchmark -pthread shlwapi)
+   target_link_libraries(${target} benchmark -pthread)
+--- /cxx/mutators.bench.cpp
++++ /cxx/mutators.bench.cpp
+@@ -26,8 +27,8 @@ void BM_write_seq(benchmark::State& state) {
+ template<typename V>
+ void BM_push_back(benchmark::State& state) {
+   int N = state.range(0);
+-  V v;
+   while (state.KeepRunning()) {
++    V v;
+     for (int i = 0; i < N; ++i)
+       v.push_back(i);
+   }
+@@ -37,8 +38,8 @@ void BM_push_back(benchmark::State& state) {
+ template<typename V>
+ void BM_push_back_resize(benchmark::State& state) {
+   int N = state.range(0);
+-  V v(N);
+   while (state.KeepRunning()) {
++    V v(N);
+     for (int i = 0; i < N; ++i)
+       v.push_back(i);
+   }
+@@ -48,9 +49,9 @@ void BM_push_back_resize(benchmark::State& state) {
+ template<typename V>
+ void BM_push_back_vector_reserve(benchmark::State& state) {
+   int N = state.range(0);
+-  V v;
+-  v.reserve(N);
+   while (state.KeepRunning()) {
++    V v;
++    v.reserve(N);
+     for (int i = 0; i < N; ++i)
+       v.push_back(i);
+   }
+@@ -60,9 +61,9 @@ void BM_push_back_vector_reserve(benchmark::State& state) {
+ template<typename V>
+ void BM_insert_begin(benchmark::State& state) {
+   int N = state.range(0);
+-  V v(N, 1);
+-  auto val = *v.begin();
+   while (state.KeepRunning()) {
++    V v(N, 1);
++    auto val = *v.begin();
+     v.insert(v.begin(), val);
+   }
+   state.SetComplexityN(N);
+@@ -101,7 +101,7 @@ void BM_assoc_insert_random(benchmark::State& state) {
+   while (state.KeepRunning()) {
+     v.insert(*it++);
+     if (it == temp.end()) // FIXME: After temp.end insert will just return.
+-      assert(0);//it = temp.begin();
++      it = temp.begin();
+   }
+   state.SetComplexityN(N);
+ }
+--- /cxx/size_metric.bench.cpp
++++ /cxx/size_metric.bench.cpp
+@@ -7,6 +7,8 @@
+ #include<unordered_set>
+ #include<vector>
+ 
++#include "test_configs.h"
++
+ #define GETNAME(T) #T
+ 
+ template<typename T>
+--- /cxx/string.bench.cpp
++++ /cxx/string.bench.cpp
+@@ -77,7 +77,8 @@ static void BM_strcat(benchmark::State& state) {
+     benchmark::DoNotOptimize(s1.append(s2));
+     s1_sz += s2_sz;
+     if (s1_sz >= N) {
+-      //
++      s1_sz = 1;
++      s1 = std::string(N, 0);
+     }
+   }
+   state.SetComplexityN(N);
+--- /include/test_configs.h
++++ /include/test_configs.h
+@@ -1,6 +1,8 @@
+ #ifndef TEST_CONFIGS_H
+ #define TEST_CONFIGS_H
+ 
++void *__dso_handle = 0;
++
+ #define KB << 10
+ #define MB << 20
+ #define GB << 30
+@@ -12,9 +12,9 @@
+ #ifdef i7_4770
+ // To benchmark data residing completely in L1 cache.
+ #ifndef ENABLE_TRAVIS_BUILD
+-#define L1 (32 KB)
++#define L1 (16)
+ // To benchmark data residing in L2 cache.
+-#define L2 (256 KB)
++#define L2 (L1 << 7)
+ #else
+ // For the Travis CI to run the entire test.
+ #define L1 (16 KB)
+--- /benchmark/CMakeLists.txt
++++ /benchmark/CMakeLists.txt
+@@ -177,6 +177,8 @@ endif(BENCHMARK_USE_LIBCXX)
+ cxx_feature_check(STD_REGEX)
+ cxx_feature_check(GNU_POSIX_REGEX)
+ cxx_feature_check(POSIX_REGEX)
++add_compile_definitions(HAVE_STD_REGEX)
++set(HAVE_STD_REGEX 1)
+ if(NOT HAVE_STD_REGEX AND NOT HAVE_GNU_POSIX_REGEX AND NOT HAVE_POSIX_REGEX)
+   message(FATAL_ERROR "Failed to determine the source files for the regular expression backend")
+ endif()
+--- /include/rng_utils.h
++++ /include/rng_utils.h
+@@ -30,9 +30,9 @@ template<class T> using gen = typename uniform_distribution<T>::type;
+ 
+ class random_device {
+ public:
++  random_device() : e(rd()) {}
+   template<typename T>
+   T get_rand(T min, T max) {
+-    std::mt19937 e(rd()); // seed the generator
+     gen<T> d(min, max); // define the range
+     return d(e);
+   }
+@@ -40,6 +40,7 @@ public:
+ private:
+   // TODO: Fix the seed to a constant.
+   std::random_device rd; // obtain a random number from hardware
++  std::mt19937 e; // seed the generator
+ };

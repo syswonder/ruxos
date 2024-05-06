@@ -10,8 +10,8 @@
 use core::ffi::c_int;
 use core::time::Duration;
 
-use crate::ctypes;
 use crate::ctypes::k_sigaction;
+use crate::ctypes::{self, pid_t};
 
 use axerrno::LinuxError;
 use ruxruntime::{rx_sigaction, Signal};
@@ -84,4 +84,10 @@ pub unsafe fn sys_sigaltstack(
 ) -> c_int {
     debug!("sys_sigaltstack <= ss: {:p}, old_ss: {:p}", _ss, _old_ss);
     syscall_body!(sys_sigaltstack, Ok(0))
+}
+
+/// TODO: send a signal to a process
+pub unsafe fn sys_kill(pid: pid_t, sig: c_int) -> c_int {
+    debug!("sys_kill <= pid {} sig {}", pid, sig);
+    syscall_body!(sys_kill, Ok(0))
 }

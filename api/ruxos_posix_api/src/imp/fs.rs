@@ -13,28 +13,31 @@ use core::ffi::{c_char, c_int, c_long, c_void};
 use axerrno::{LinuxError, LinuxResult};
 use axio::{PollState, SeekFrom};
 use axsync::Mutex;
-use ruxfs::fops::{DirEntry, OpenOptions};
+use ruxfs::{
+    api::set_current_dir,
+    fops::{DirEntry, OpenOptions},
+};
 
 use super::fd_ops::{get_file_like, FileLike};
 use crate::{ctypes, utils::char_ptr_to_str};
 use alloc::vec::Vec;
 
 pub struct File {
-    inner: Mutex<ruxfs::fops::File>,
+    pub(crate) inner: Mutex<ruxfs::fops::File>,
 }
 
 impl File {
-    fn new(inner: ruxfs::fops::File) -> Self {
+    pub(crate) fn new(inner: ruxfs::fops::File) -> Self {
         Self {
             inner: Mutex::new(inner),
         }
     }
 
-    fn add_to_fd_table(self) -> LinuxResult<c_int> {
+    pub(crate) fn add_to_fd_table(self) -> LinuxResult<c_int> {
         super::fd_ops::add_file_like(Arc::new(self))
     }
 
-    fn from_fd(fd: c_int) -> LinuxResult<Arc<Self>> {
+    pub(crate) fn from_fd(fd: c_int) -> LinuxResult<Arc<Self>> {
         let f = super::fd_ops::get_file_like(fd)?;
         f.into_any()
             .downcast::<Self>()
@@ -56,8 +59,14 @@ impl FileLike for File {
         let ty = metadata.file_type() as u8;
         let perm = metadata.perm().bits() as u32;
         let st_mode = ((ty as u32) << 12) | perm;
+
+        // Inode of files, for musl dynamic linker.
+        // WARN: there will be collision for files with the same size.
+        // TODO: implement real inode.
+        let st_ino = metadata.size() + st_mode as u64;
+
         Ok(ctypes::stat {
-            st_ino: 1,
+            st_ino,
             st_nlink: 1,
             st_mode,
             st_uid: 1000,
@@ -225,6 +234,46 @@ pub fn sys_openat(fd: usize, path: *const c_char, flags: c_int, mode: ctypes::mo
 
 /// Set the position of the file indicated by `fd`.
 ///
+/// Read data from a file at a specific offset.
+pub fn sys_pread64(
+    fd: c_int,
+    buf: *mut c_void,
+    count: usize,
+    pos: ctypes::off_t,
+) -> ctypes::ssize_t {
+    debug!("sys_pread64 <= {} {} {}", fd, count, pos);
+    syscall_body!(sys_pread64, {
+        if buf.is_null() {
+            return Err(LinuxError::EFAULT);
+        }
+        let dst = unsafe { core::slice::from_raw_parts_mut(buf as *mut u8, count) };
+        let size = File::from_fd(fd)?.inner.lock().read_at(pos as u64, dst)?;
+        Ok(size as ctypes::ssize_t)
+    })
+}
+
+/// Set the position of the file indicated by `fd`.
+///
+/// Write data from a file at a specific offset.
+pub fn sys_pwrite64(
+    fd: c_int,
+    buf: *const c_void,
+    count: usize,
+    pos: ctypes::off_t,
+) -> ctypes::ssize_t {
+    debug!("sys_pwrite64 <= {} {} {}", fd, count, pos);
+    syscall_body!(sys_pwrite64, {
+        if buf.is_null() {
+            return Err(LinuxError::EFAULT);
+        }
+        let src = unsafe { core::slice::from_raw_parts_mut(buf as *mut u8, count) };
+        let size = File::from_fd(fd)?.inner.lock().write_at(pos as u64, src)?;
+        Ok(size as ctypes::ssize_t)
+    })
+}
+
+/// Set the position of the file indicated by `fd`.
+///
 /// Return its position after seek.
 pub fn sys_lseek(fd: c_int, offset: ctypes::off_t, whence: c_int) -> ctypes::off_t {
     debug!("sys_lseek <= {} {} {}", fd, offset, whence);
@@ -298,7 +347,7 @@ pub unsafe fn sys_stat(path: *const c_char, buf: *mut core::ffi::c_void) -> c_in
 }
 
 /// retrieve information about the file pointed by `fd`
-pub unsafe fn sys_fstat(fd: c_int, kst: *mut core::ffi::c_void) -> c_int {
+pub fn sys_fstat(fd: c_int, kst: *mut core::ffi::c_void) -> c_int {
     debug!("sys_fstat <= {} {:#x}", fd, kst as usize);
     syscall_body!(sys_fstat, {
         if kst.is_null() {
@@ -364,7 +413,6 @@ pub unsafe fn sys_newfstatat(
         "sys_newfstatat <= fd: {}, path: {:?}, flag: {:x}",
         _fd, path, flag
     );
-    assert_eq!(_fd, ctypes::AT_FDCWD as c_int);
     syscall_body!(sys_newfstatat, {
         if kst.is_null() {
             return Err(LinuxError::EFAULT);
@@ -589,37 +637,6 @@ pub unsafe fn sys_getdents64(
     })
 }
 
-/// Read data from the file indicated by `fd`, starting at the position given by `offset`.
-///
-/// Return the read size if success.
-pub fn sys_pread(
-    fd: c_int,
-    buf: *mut c_void,
-    count: usize,
-    offset: ctypes::off_t,
-) -> ctypes::ssize_t {
-    debug!(
-        "sys_pread <= fd: {} buf: {:#x} count: {} offset: {}",
-        fd, buf as usize, count, offset
-    );
-    syscall_body!(sys_pread, {
-        if buf.is_null() {
-            return Err(LinuxError::EFAULT);
-        }
-        let dst = unsafe { core::slice::from_raw_parts_mut(buf as *mut u8, count) };
-        #[cfg(feature = "fd")]
-        {
-            Ok(File::from_fd(fd)?.inner.lock().read_at(offset as _, dst)?)
-        }
-        #[cfg(not(feature = "fd"))]
-        match fd {
-            0 => Ok(super::stdio::stdin().read(dst)? as ctypes::ssize_t),
-            1 | 2 => Err(LinuxError::EPERM),
-            _ => Err(LinuxError::EBADF),
-        }
-    })
-}
-
 /// Reads `iocnt` buffers from the file associated with the file descriptor `fd` into the
 /// buffers described by `iov`, starting at the position given by `offset`
 pub unsafe fn sys_preadv(
@@ -643,8 +660,36 @@ pub unsafe fn sys_preadv(
             if iov.iov_base.is_null() {
                 continue;
             }
-            ret += sys_pread(fd, iov.iov_base, iov.iov_len, offset);
+            ret += sys_pread64(fd, iov.iov_base, iov.iov_len, offset);
         }
         Ok(ret)
+    })
+}
+
+/// checks accessibility to the file `pathname`.
+/// If pathname is a symbolic link, it is dereferenced.
+/// The mode is either the value F_OK, for the existence of the file,
+/// or a mask consisting of the bitwise OR of one or more of R_OK, W_OK, and X_OK, for the read, write, execute permissions.
+pub fn sys_faccessat(dirfd: c_int, pathname: *const c_char, mode: c_int, flags: c_int) -> c_int {
+    let path = char_ptr_to_str(pathname).unwrap();
+    debug!(
+        "sys_faccessat <= dirfd {} path {} mode {} flags {}",
+        dirfd, path, mode, flags
+    );
+    syscall_body!(sys_faccessat, {
+        let mut options = OpenOptions::new();
+        options.read(true);
+        let _file = ruxfs::fops::File::open(path, &options)?;
+        Ok(0)
+    })
+}
+
+/// changes the current working directory to the directory specified in path.
+pub fn sys_chdir(path: *const c_char) -> c_int {
+    let p = char_ptr_to_str(path).unwrap();
+    debug!("sys_chdir <= path: {}", p);
+    syscall_body!(sys_chdir, {
+        set_current_dir(p)?;
+        Ok(0)
     })
 }

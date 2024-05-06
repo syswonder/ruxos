@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Leping Wang <xuehao14@126.com>"]
 description = "Device tree basic operations"
-license = "GPL-3.0-or-later OR Apache-2.0"
+license = "Mulan PSL v2"
 homepage = "https://github.com/syswonder/ruxos"
 repository = "https://github.com/syswonder/ruxos/tree/main/crates/dtb"
 

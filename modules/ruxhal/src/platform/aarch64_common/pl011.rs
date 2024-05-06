@@ -24,6 +24,7 @@ struct RxRingBuffer {
     buffer: [u8; BUFFER_SIZE],
     head: usize,
     tail: usize,
+    empty: bool,
 }
 
 #[cfg(feature = "irq")]
@@ -33,22 +34,27 @@ impl RxRingBuffer {
             buffer: [0_u8; BUFFER_SIZE],
             head: 0_usize,
             tail: 0_usize,
+            empty: true,
         }
     }
 
     fn push(&mut self, n: u8) {
-        if self.tail != self.head {
+        if self.tail != self.head || self.empty {
             self.buffer[self.tail] = n;
             self.tail = (self.tail + 1) % BUFFER_SIZE;
+            self.empty = false;
         }
     }
 
     fn pop(&mut self) -> Option<u8> {
-        if self.head == self.tail {
+        if self.empty {
             None
         } else {
             let ret = self.buffer[self.head];
-            self.head += (self.head + 1) % BUFFER_SIZE;
+            self.head = (self.head + 1) % BUFFER_SIZE;
+            if self.head == self.tail {
+                self.empty = true;
+            }
             Some(ret)
         }
     }
@@ -98,18 +104,19 @@ pub fn init_early() {
 pub fn init() {
     #[cfg(feature = "irq")]
     {
-        crate::irq::register_handler(crate::platform::irq::UART_IRQ_NUM, handle);
+        crate::irq::register_handler(crate::platform::irq::UART_IRQ_NUM, irq_handler);
         crate::irq::set_enable(crate::platform::irq::UART_IRQ_NUM, true);
     }
 }
 
 /// UART IRQ Handler
 #[cfg(feature = "irq")]
-pub fn handle() {
-    let is_receive_interrupt = UART.inner.lock().is_receive_interrupt();
+pub fn irq_handler() {
+    let mut dev = UART.inner.lock();
+    let is_receive_interrupt = dev.is_receive_interrupt();
     if is_receive_interrupt {
-        UART.inner.lock().ack_interrupts();
-        while let Some(c) = UART.inner.lock().getchar() {
+        dev.ack_interrupts();
+        while let Some(c) = dev.getchar() {
             UART.buffer.lock().push(c);
         }
     }

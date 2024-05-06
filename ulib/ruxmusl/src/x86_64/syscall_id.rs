@@ -53,6 +53,9 @@ pub enum SyscallId {
     #[cfg(feature = "fs")]
     PREAD64 = 17,
 
+    #[cfg(feature = "fs")]
+    PWRITE64 = 18,
+
     #[cfg(feature = "fd")]
     READV = 19,
 
@@ -69,6 +72,9 @@ pub enum SyscallId {
 
     #[cfg(feature = "alloc")]
     MREMAP = 25,
+
+    #[cfg(feature = "alloc")]
+    MSYNC = 26,
 
     #[cfg(feature = "alloc")]
     MADVISE = 28,
@@ -124,7 +130,13 @@ pub enum SyscallId {
     #[cfg(feature = "multitask")]
     CLONE = 56,
 
+    #[cfg(feature = "fs")]
+    EXECVE = 59,
+
     EXIT = 60,
+
+    #[cfg(feature = "signal")]
+    KILL = 62,
 
     UNAME = 63,
 
@@ -142,6 +154,9 @@ pub enum SyscallId {
 
     #[cfg(feature = "fs")]
     GETCWD = 79,
+
+    #[cfg(feature = "fs")]
+    CHDIR = 80,
 
     #[cfg(feature = "fs")]
     RENAME = 82,
@@ -166,12 +181,31 @@ pub enum SyscallId {
 
     SYSINFO = 99,
 
+    TIMES = 100,
+
+    GETUID = 102,
+
+    GETGID = 104,
+
+    SETUID = 105,
+
+    SETGID = 106,
+
+    GETPPID = 110,
+
+    GETPGID = 121,
+
+    CAPGET = 125,
+
     #[cfg(feature = "signal")]
     SIGALTSTACK = 131,
 
     PRCTL = 157,
 
     ARCH_PRCTL = 158,
+
+    #[cfg(feature = "multitask")]
+    GETTID = 186,
 
     #[cfg(feature = "multitask")]
     FUTEX = 202,
@@ -212,6 +246,9 @@ pub enum SyscallId {
 
     #[cfg(feature = "fs")]
     READLINKAT = 267,
+
+    #[cfg(feature = "fs")]
+    FACCESSAT = 269,
 
     #[cfg(feature = "select")]
     PSELECT6 = 270,

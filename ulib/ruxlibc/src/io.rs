@@ -11,7 +11,9 @@ use core::ffi::{c_int, c_void};
 #[cfg(feature = "fd")]
 use ruxos_posix_api::sys_ioctl;
 
-use ruxos_posix_api::{sys_read, sys_write, sys_writev};
+#[cfg(not(test))]
+use ruxos_posix_api::sys_write;
+use ruxos_posix_api::{sys_read, sys_writev};
 
 use crate::{ctypes, utils::e};
 

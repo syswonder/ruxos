@@ -14,7 +14,7 @@ use axalloc::global_allocator;
 use cfg_if::cfg_if;
 use driver_common::{BaseDriverOps, DevResult, DeviceType};
 use driver_virtio::{BufferDirection, PhysAddr, VirtIoHal};
-use ruxhal::mem::{phys_to_virt, virt_to_phys};
+use ruxhal::mem::{direct_virt_to_phys, phys_to_virt, virt_to_phys};
 
 use crate::{drivers::DriverProbe, AxDeviceEnum};
 
@@ -171,7 +171,7 @@ unsafe impl VirtIoHal for VirtIoHalImpl {
         } else {
             return (0, NonNull::dangling());
         };
-        let paddr = virt_to_phys(vaddr.into());
+        let paddr = direct_virt_to_phys(vaddr.into());
         let ptr = NonNull::new(vaddr as _).unwrap();
         (paddr.as_usize(), ptr)
     }

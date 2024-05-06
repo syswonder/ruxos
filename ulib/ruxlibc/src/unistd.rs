@@ -8,7 +8,7 @@
  */
 
 use core::ffi::c_int;
-use ruxos_posix_api::{sys_exit, sys_getpid};
+use ruxos_posix_api::{sys_exit, sys_getpid, sys_gettid};
 #[cfg(feature = "signal")]
 use {
     crate::getitimer,
@@ -21,6 +21,12 @@ use {
 #[no_mangle]
 pub unsafe extern "C" fn getpid() -> c_int {
     sys_getpid()
+}
+
+/// Get current thread ID.
+#[no_mangle]
+pub unsafe extern "C" fn gettid() -> c_int {
+    sys_gettid()
 }
 
 /// Abort the current process.

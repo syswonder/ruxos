@@ -121,6 +121,7 @@ impl CommonNode {
         const O_RDWR: u8 = 0x02;
         const O_RDONLY: u8 = 0x00;
         const EISDIR: u8 = 21;
+        const ELOOP: u8 = 40;
 
         let result = if *protocol == "9P2000.L" {
             dev.write().l_topen(fid, O_RDWR as u32)
@@ -131,23 +132,36 @@ impl CommonNode {
             Ok(())
         };
 
-        if let Err(EISDIR) = result {
-            if *protocol == "9P2000.L" {
-                handle_result!(
-                    dev.write().l_topen(fid, O_RDONLY as u32),
-                    "9pfs l_topen failed! error code: {}"
-                );
-            } else if *protocol == "9P2000.u" {
-                handle_result!(
-                    dev.write().topen(fid, O_RDONLY),
-                    "9pfs topen failed! error code: {}"
-                );
-            } else {
-                error!("9pfs open failed! Unsupported protocol version");
+        match result {
+            Err(EISDIR) if *protocol == "9P2000.L" => handle_result!(
+                dev.write().l_topen(fid, O_RDONLY as u32),
+                "9pfs l_topen failed! error code: {}"
+            ),
+            Err(EISDIR) if *protocol == "9P2000.u" => handle_result!(
+                dev.write().topen(fid, O_RDONLY),
+                "9pfs topen failed! error code: {}"
+            ),
+            Err(ELOOP) if *protocol == "9P2000.L" => {
+                let try_readlink = dev.write().treadlink(fid);
+                if let Ok(path) = try_readlink {
+                    debug!("read link path ==> {:}", path);
+                    let mut splited: Vec<&str> = path
+                        .split('/')
+                        .filter(|&x| !x.is_empty() && (x != "."))
+                        .collect();
+                    splited.insert(0, "..");
+                    let try_walk = dev.write().twalk(fid, fid, splited.len() as u16, &splited);
+                    match try_walk {
+                        Ok(_) => return Self::new(fid, parent, dev, protocol),
+                        Err(ecode) => error!("9pfs twalk failed! error code: {}", ecode),
+                    }
+                } else {
+                    error!("9pfs treadlink failed! error code: {:?}", try_readlink);
+                }
             }
-        } else if let Err(ecode) = result {
-            error!("9pfs topen failed! error code: {}", ecode);
-        }
+            Err(ecode) => error!("9pfs topen failed! error code: {}", ecode),
+            _ => {}
+        };
 
         Arc::new_cyclic(|this| Self {
             inner: dev,
@@ -224,7 +238,13 @@ impl CommonNode {
     fn try_get(&self, path: &str) -> VfsResult<VfsNodeRef> {
         let (name, rest) = split_path(path);
         if name == ".." {
-            return self.parent().unwrap().lookup(rest.unwrap_or(""));
+            match self.parent() {
+                Some(parent) => return parent.lookup(rest.unwrap_or("")),
+                None => {
+                    error!("9pfs: try_get a directory out of 9pfs boundary");
+                    return Err(VfsError::BadState);
+                }
+            }
         } else if name == "." {
             return self.try_get(rest.unwrap_or(""));
         }
