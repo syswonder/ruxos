@@ -1,0 +1,15 @@
+[package]
+name = "ruxdtb"
+version = "0.1.0"
+edition = "2021"
+authors = ["Juguang Yan <coolyanjg@163.com>"]
+description = "RuxOS dtb parsing module"
+license = "Mulan PSL v2"
+homepage = "https://github.com/syswonder/ruxos"
+
+[features]
+irq = []
+
+[dependencies]
+log = "0.4"
+dtb = { path = "../../crates/dtb" }

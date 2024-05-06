@@ -1532,6 +1532,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ruxdtb"
+version = "0.1.0"
+dependencies = [
+ "dtb",
+ "log",
+]
+
+[[package]]
 name = "ruxfeat"
 version = "0.1.0"
 dependencies = [
@@ -1713,6 +1721,7 @@ dependencies = [
  "ruxconfig",
  "ruxdisplay",
  "ruxdriver",
+ "ruxdtb",
  "ruxfs",
  "ruxfutex",
  "ruxhal",

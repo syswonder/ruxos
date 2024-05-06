@@ -58,7 +58,7 @@ members = [
 
     "apps/display/basic_painting",
     "apps/display/draw_map",
-    "apps/fs/shell",
+    "apps/fs/shell", "modules/ruxdtb",
 ]
 
 [profile.release]
