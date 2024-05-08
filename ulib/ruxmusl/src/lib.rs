@@ -20,6 +20,7 @@ cfg_if::cfg_if! {
         use aarch64::{syscall, syscall_id};
     } else if #[cfg(target_arch = "x86_64")]{
         mod x86_64;
+        #[cfg(feature = "musl")]
         use x86_64::{syscall, syscall_id};
     } else {
         mod dummy;

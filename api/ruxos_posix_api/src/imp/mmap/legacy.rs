@@ -20,27 +20,45 @@ use axerrno::LinuxError;
 /// ing process.
 ///
 /// TODO: Only support `start` equals to NULL, ignore fd, prot, flags
+/// add something for musl interpreter, need improvement.
 pub fn sys_mmap(
     start: *mut c_void,
     len: ctypes::size_t,
     _prot: c_int,
     _flags: c_int,
-    _fd: c_int,
+    fd: c_int,
     _off: ctypes::off_t,
 ) -> *mut c_void {
-    debug!("sys_mmap <= start: {:p}, len: {}, fd: {}", start, len, _fd);
+    debug!("sys_mmap <= start: {:p}, len: {}, fd: {}", start, len, fd);
     syscall_body!(sys_mmap, {
-        if !start.is_null() {
-            debug!("Do not support explicitly specifying start addr");
-            return Ok(core::ptr::null_mut());
+        #[cfg(feature = "fs")]
+        if !start.is_null() && fd > 0 {
+            let ptr = start;
+            use crate::imp::fd_ops::get_file_like;
+            let dst = unsafe { core::slice::from_raw_parts_mut(ptr as *mut u8, len) };
+            crate::sys_lseek(fd, _off, 0);
+            get_file_like(fd)?.read(dst)?;
+            return Ok(ptr);
         }
+
         let layout = Layout::from_size_align(len, 8).unwrap();
-        unsafe {
+
+        let ptr = unsafe {
             let ptr = alloc(layout).cast::<c_void>();
             (ptr as *mut u8).write_bytes(0, len);
             assert!(!ptr.is_null(), "sys_mmap failed");
-            Ok(ptr)
+            ptr
+        };
+
+        #[cfg(feature = "fs")]
+        if fd > 0 {
+            use crate::imp::fd_ops::get_file_like;
+            let dst = unsafe { core::slice::from_raw_parts_mut(ptr as *mut u8, len) };
+            crate::sys_lseek(fd, _off, 0);
+            get_file_like(fd)?.read(dst)?;
         }
+
+        Ok(ptr)
     })
 }
 
@@ -85,6 +103,17 @@ pub fn sys_mremap(
         old_addr, old_size, new_size, _flags, _new_addr
     );
     syscall_body!(sys_mremap, Ok::<*mut c_void, LinuxError>(-1 as _))
+}
+
+/// Synchronizes the calling process's memory pages in the interval [addr, addr+len-1]
+/// with the corresponding physical storage device, ensuring that any modifications
+/// are flushed to the storage.
+pub fn sys_msync(start: *mut c_void, len: ctypes::size_t, flags: c_int) -> c_int {
+    debug!(
+        "sys_msync <= addr: {:p}, len: {}, flags: {}",
+        start, len, flags
+    );
+    syscall_body!(sys_msync, Ok(0))
 }
 
 /// give advice about use of memory

@@ -5,7 +5,7 @@ version = "0.1.0"
 edition = "2021"
 authors = ["Zhi Zhou <saltyfish2233@gmail.com>"]
 description = "Ruxos futex implementation"
-license = "GPL-3.0-or-later OR Apache-2.0"
+license = "Mulan PSL v2"
 homepage = "https://github.com/syswonder/ruxos"
 repository = "https://github.com/syswonder/ruxos/tree/main/modules/ruxfutex"
 
@@ -15,7 +15,7 @@ default = []
 irq = ["ruxtask/irq"]
 
 [dependencies]
-# Ruxos modules
+# RuxOS modules
 axerrno = { path = "../../crates/axerrno" }
 
 ruxconfig = { path = "../ruxconfig" }
@@ -30,4 +30,4 @@ ahash = { version = "0.8.7", default-features = false, features = [
 ] }
 
 [dev-dependencies]
-memory_addr = { path = "../../crates/memory_addr" }
+memory_addr = "0.1.0"

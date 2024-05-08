@@ -14,6 +14,10 @@ phys-memory-size = "0x8000_0000"     # 2G
 kernel-base-paddr = "0x20_0000"
 # Base virtual address of the kernel image.
 kernel-base-vaddr = "0xffff_ff80_0020_0000"
+# virtual start address of the mapping memory.
+mmap-start-vaddr = "0xffff_8000_0000_0000"
+# virtual end address of the mapping memory.
+mmap-end-vaddr = "0xffff_f000_0000_0000"
 # Linear mapping offset, for quick conversions between physical and virtual
 # addresses.
 phys-virt-offset = "0xffff_ff80_0000_0000"

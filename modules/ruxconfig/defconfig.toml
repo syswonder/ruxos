@@ -31,8 +31,8 @@ pci-ranges = []
 timer-frequency = "0"
 
 # Stack size of each task.
-task-stack-size = "0x40000"   # 256 K
-# task-stack-size = "0x80000"   # 512 K
+# task-stack-size = "0x40000"   # 256 K
+task-stack-size = "0x80000"   # 512 K
 
 # Number of timer ticks per second (Hz). A timer tick may contain several timer
 # interrupts.

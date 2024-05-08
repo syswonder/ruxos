@@ -29,6 +29,7 @@ fp_simd = ["ruxfeat/fp_simd"]
 
 # Memory
 alloc = ["ruxos_posix_api/alloc"]
+paging = ["alloc", "ruxos_posix_api/paging"]
 tls = ["alloc", "ruxfeat/tls"]
 
 # Multi-task

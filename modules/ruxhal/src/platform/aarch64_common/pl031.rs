@@ -53,11 +53,11 @@ impl Pl031rtc {
     }
 
     pub unsafe fn read(&self, reg: u32) -> u32 {
-        core::ptr::read_volatile((PHYS_RTC + reg as usize) as *const u32)
+        core::ptr::read_volatile((self.address + reg as usize) as *const u32)
     }
 
     pub unsafe fn write(&self, reg: u32, value: u32) {
-        core::ptr::write_volatile((PHYS_RTC + reg as usize) as *mut u32, value);
+        core::ptr::write_volatile((self.address + reg as usize) as *mut u32, value);
     }
 
     pub fn time(&self) -> u64 {

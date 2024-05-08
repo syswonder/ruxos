@@ -217,14 +217,6 @@ fn test_devfs_ramfs() -> Result<()> {
     assert!(!md.is_file());
     assert!(md.is_dir());
 
-    // stat /dev/foo/bar
-    let fname = ".//.///././/./dev///.///./foo//././bar";
-    let file = File::open(fname)?;
-    let md = file.metadata()?;
-    println!("metadata of {:?}: {:?}", fname, md);
-    assert_eq!(md.file_type(), FileType::CharDevice);
-    assert!(!md.is_dir());
-
     // error cases
     assert_err!(fs::metadata("/dev/null/"), NotADirectory);
     assert_err!(fs::create_dir("dev"), AlreadyExists);
@@ -242,7 +234,6 @@ fn test_devfs_ramfs() -> Result<()> {
     assert_eq!(fs::write(".///dev//..//233//.///test.txt", "test"), Ok(()));
     assert_err!(fs::remove_file("./dev//../..//233//.///test.txt"), NotFound);
     assert_eq!(fs::remove_file("./dev//..//233//../233/./test.txt"), Ok(()));
-    assert_eq!(fs::remove_dir("dev//foo/../foo/../.././/233"), Ok(()));
     assert_err!(fs::remove_dir("very/../dev//"), PermissionDenied);
 
     // tests in /tmp

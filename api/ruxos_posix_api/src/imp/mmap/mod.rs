@@ -7,23 +7,15 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use core::arch::asm;
-
-/// Interrupt Enable Flag (IF)
-const IF_BIT: usize = 1 << 9;
-
-#[inline]
-pub fn local_irq_save_and_disable() -> usize {
-    let flags: usize;
-    unsafe { asm!("pushf; pop {}; cli", out(reg) flags) };
-    flags & IF_BIT
-}
-
-#[inline]
-pub fn local_irq_restore(flags: usize) {
-    if flags != 0 {
-        unsafe { asm!("sti") };
-    } else {
-        unsafe { asm!("cli") };
+cfg_if::cfg_if! {
+    if #[cfg(all(feature = "paging", target_arch = "aarch64"))] {
+        #[macro_use]
+        mod utils;
+        mod api;
+        mod trap;
+        pub use self::api::{sys_madvise, sys_mmap, sys_mprotect, sys_mremap, sys_msync, sys_munmap};
+    }else {
+        mod legacy;
+        pub use self::legacy::{sys_madvise, sys_mmap, sys_mprotect, sys_mremap, sys_msync, sys_munmap};
     }
 }

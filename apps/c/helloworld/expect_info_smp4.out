@@ -10,7 +10,7 @@ Found physcial memory regions:
  .percpu (READ | WRITE | RESERVED)
  boot stack (READ | WRITE | RESERVED)
  .bss (READ | WRITE | RESERVED)
- free memory (READ | WRITE | FREE)
+ free memory (READ | WRITE | EXECUTE | FREE)
 Initialize platform devices...
 CPU 0 init OK
 CPU 1 started

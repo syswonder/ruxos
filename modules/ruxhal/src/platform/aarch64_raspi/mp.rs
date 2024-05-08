@@ -6,7 +6,7 @@
  *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  *   See the Mulan PSL v2 for more details.
  */
-use crate::mem::{phys_to_virt, virt_to_phys, PhysAddr, VirtAddr};
+use crate::mem::{direct_virt_to_phys, phys_to_virt, PhysAddr, VirtAddr};
 
 static mut SECONDARY_STACK_TOP: usize = 0;
 
@@ -39,7 +39,8 @@ pub static CPU_SPIN_TABLE: [PhysAddr; 4] = [
 
 /// Starts the given secondary CPU with its boot stack.
 pub fn start_secondary_cpu(cpu_id: usize, stack_top: PhysAddr) {
-    let entry_paddr = virt_to_phys(VirtAddr::from(modify_stack_and_start as usize)).as_usize();
+    let entry_paddr =
+        direct_virt_to_phys(VirtAddr::from(modify_stack_and_start as usize)).as_usize();
     unsafe {
         // set the boot code address of the given secondary CPU
         let spintable_vaddr = phys_to_virt(CPU_SPIN_TABLE[cpu_id]);

@@ -68,6 +68,8 @@ mod fs;
 mod io_mpx;
 #[cfg(feature = "alloc")]
 mod malloc;
+#[cfg(feature = "alloc")]
+mod mmap;
 #[cfg(feature = "net")]
 mod net;
 #[cfg(feature = "pipe")]
@@ -121,6 +123,8 @@ pub use self::io_mpx::select;
 pub use self::io_mpx::{epoll_create, epoll_ctl, epoll_wait};
 #[cfg(feature = "alloc")]
 pub use self::malloc::{free, malloc};
+#[cfg(feature = "alloc")]
+pub use self::mmap::{mmap, munmap};
 #[cfg(feature = "net")]
 pub use self::net::{
     accept, ax_sendmsg, bind, connect, freeaddrinfo, getaddrinfo, getpeername, getsockname, listen,

@@ -11,5 +11,5 @@ documentation = "https://rcore-os.github.io/arceos/page_table/index.html"
 
 [dependencies]
 log = "0.4"
-memory_addr = { path = "../memory_addr" }
+memory_addr = "0.1.0"
 page_table_entry = { path = "../page_table_entry" }

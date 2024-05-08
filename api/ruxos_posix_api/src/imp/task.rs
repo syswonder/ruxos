@@ -26,8 +26,8 @@ pub fn sys_sched_yield() -> c_int {
 }
 
 /// Get current thread ID.
-pub fn sys_getpid() -> c_int {
-    syscall_body!(sys_getpid,
+pub fn sys_gettid() -> c_int {
+    syscall_body!(sys_gettid,
         #[cfg(feature = "multitask")]
         {
             Ok(ruxtask::current().id().as_u64() as c_int)
@@ -37,6 +37,16 @@ pub fn sys_getpid() -> c_int {
             Ok(2) // `main` task ID
         }
     )
+}
+
+/// Get current process ID.
+pub fn sys_getpid() -> c_int {
+    syscall_body!(sys_getpid, Ok(2))
+}
+
+/// Get parent process's ID.
+pub fn sys_getppid() -> c_int {
+    syscall_body!(sys_getppid, Ok(1))
 }
 
 /// Exit current task
