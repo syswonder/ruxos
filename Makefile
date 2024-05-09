@@ -166,8 +166,19 @@ LD_SCRIPT := $(CURDIR)/modules/ruxhal/linker_$(PLATFORM_NAME).lds
 OUT_ELF := $(OUT_DIR)/$(APP_NAME)_$(PLATFORM_NAME).elf
 OUT_BIN := $(OUT_DIR)/$(APP_NAME)_$(PLATFORM_NAME).bin
 
+PREBUILD := $(CURDIR)/scripts/prebuild/$(ARCH).mk
+
 all: build
 
+# prebuild option to be overriden in `$(PREBUILD)`
+define run_prebuild
+endef
+
+# prebuild makefile might override some variables by their own
+# so it must be placed before the rest of the makefiles
+ifneq ($(wildcard $(PREBUILD)),)
+  include $(PREBUILD)
+endif
 include scripts/make/utils.mk
 include scripts/make/build.mk
 include scripts/make/qemu.mk
@@ -177,6 +188,16 @@ ifeq ($(PLATFORM_NAME), aarch64-raspi4)
 else ifeq ($(PLATFORM_NAME), aarch64-bsta1000b)
   include scripts/make/bsta1000b-fada.mk
 endif
+
+_force: ;
+
+# prebuild scripts must track their dependencies by themselves
+prebuild: _force
+	$(call run_prebuild)
+
+$(OUT_DIR): prebuild
+
+$(OUT_BIN): prebuild
 
 build: $(OUT_DIR) $(OUT_BIN)
 
@@ -248,4 +269,5 @@ clean_musl:
 	rm -rf ulib/ruxmusl/build_*
 	rm -rf ulib/ruxmusl/install
 
-.PHONY: all build disasm run justrun debug clippy fmt fmt_c test test_no_fail_fast clean clean_c clean_musl doc disk_image debug_no_attach
+.PHONY: all build disasm run justrun debug clippy fmt fmt_c test test_no_fail_fast clean clean_c\
+        clean_musl doc disk_image debug_no_attach prebuild _force
