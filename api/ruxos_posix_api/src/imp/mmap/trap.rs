@@ -89,7 +89,7 @@ impl ruxhal::trap::TrapHandler for TrapHandlerImpl {
                 preload_page_with_swap(&mut memory_map, &mut swaped_map, &mut off_pool);
 
             // Fill target data to assigned physical addresses, from file or zero according to mapping type
-            let dst = fake_vaddr.as_mut_ptr();
+            let dst: *mut u8 = fake_vaddr.as_mut_ptr();
             #[cfg(feature = "fs")]
             {
                 if let Some(off) = swaped_map.remove(&vaddr) {

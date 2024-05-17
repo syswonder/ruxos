@@ -10,6 +10,13 @@
 use x86::{controlregs::cr2, irq::*};
 
 use super::context::TrapFrame;
+#[cfg(all(feature = "paging", feature = "irq", feature = "smp"))]
+use crate::arch::{flush_tlb_ipi_handler, INVALID_TLB_VECTOR};
+#[cfg(any(
+    all(feature = "paging", feature = "irq", feature = "smp"),
+    all(feature = "paging", not(feature = "smp"))
+))]
+use crate::trap::PageFaultCause;
 
 core::arch::global_asm!(include_str!("trap.S"));
 
@@ -28,12 +35,25 @@ fn x86_trap_handler(tf: &TrapFrame) {
                     tf.error_code,
                 );
             } else {
+                let vaddr = unsafe { cr2() };
+                #[cfg(any(
+                    all(feature = "paging", feature = "irq", feature = "smp"),
+                    all(feature = "paging", not(feature = "smp"))
+                ))]
+                {
+                    // this cause is coded like linux.
+                    let cause: PageFaultCause = match tf.error_code {
+                        x if x & 0x10 != 0 => PageFaultCause::INSTRUCTION,
+                        x if x & 0x02 != 0 => PageFaultCause::WRITE,
+                        _ => PageFaultCause::READ,
+                    };
+                    if crate::trap::handle_page_fault(vaddr, cause) {
+                        return;
+                    }
+                }
                 panic!(
                     "Kernel #PF @ {:#x}, fault_vaddr={:#x}, error_code={:#x}:\n{:#x?}",
-                    tf.rip,
-                    unsafe { cr2() },
-                    tf.error_code,
-                    tf,
+                    tf.rip, vaddr, tf.error_code, tf,
                 );
             }
         }
@@ -44,6 +64,8 @@ fn x86_trap_handler(tf: &TrapFrame) {
                 tf.rip, tf.error_code, tf
             );
         }
+        #[cfg(all(feature = "paging", feature = "irq", feature = "smp"))]
+        INVALID_TLB_VECTOR => flush_tlb_ipi_handler(),
         IRQ_VECTOR_START..=IRQ_VECTOR_END => crate::trap::handle_irq_extern(tf.vector as _),
         _ => {
             panic!(
