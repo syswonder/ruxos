@@ -41,11 +41,9 @@ impl ruxhal::trap::TrapHandler for TrapHandlerImpl {
             let size = min(PAGE_SIZE_4K, vma.end_addr - vaddr);
             let map_flag = get_mflags_from_usize(vma.prot);
 
-            trace!(
+            debug!(
                 "Page Fault Happening, vaddr:0x{:x?}, casue:{:?}, map_flags:0x{:x?}",
-                vaddr,
-                cause,
-                map_flag
+                vaddr, cause, map_flag
             );
 
             // Check if the access meet the prot
@@ -89,7 +87,8 @@ impl ruxhal::trap::TrapHandler for TrapHandlerImpl {
                 preload_page_with_swap(&mut memory_map, &mut swaped_map, &mut off_pool);
 
             // Fill target data to assigned physical addresses, from file or zero according to mapping type
-            let dst = fake_vaddr.as_mut_ptr();
+            let dst: *mut u8 = fake_vaddr.as_mut_ptr();
+            debug!("cleaning addr:{:x?} {:x?}", vaddr, dst);
             #[cfg(feature = "fs")]
             {
                 if let Some(off) = swaped_map.remove(&vaddr) {

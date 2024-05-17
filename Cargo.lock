@@ -41,6 +41,7 @@ dependencies = [
  "bitmap-allocator",
  "buddy_system_allocator",
  "criterion",
+ "log",
  "rand",
  "rlsf",
  "slab_allocator",
@@ -1773,6 +1774,7 @@ name = "scheduler"
 version = "0.1.0"
 dependencies = [
  "linked_list",
+ "log",
 ]
 
 [[package]]
