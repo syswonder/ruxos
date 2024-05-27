@@ -22,6 +22,7 @@ buddy = ["dep:buddy_system_allocator"]
 allocator_api = []
 
 [dependencies]
+log = "0.4"
 buddy_system_allocator = { version = "0.9", default-features = false, optional = true }
 slab_allocator = { path = "../slab_allocator", optional = true }
 rlsf = { version = "0.2", optional = true }

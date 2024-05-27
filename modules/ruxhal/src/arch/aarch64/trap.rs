@@ -96,12 +96,11 @@ fn handle_sync_exception(tf: &mut TrapFrame) {
 
                 // this cause is coded like linux.
                 let cause: PageFaultCause = match esr.read_as_enum(ESR_EL1::EC) {
-                    Some(ESR_EL1::EC::Value::DataAbortCurrentEL) => {
-                        if iss & 0x40 != 0 {
-                            PageFaultCause::WRITE // = store
-                        } else {
-                            PageFaultCause::READ //  = load
-                        }
+                    Some(ESR_EL1::EC::Value::DataAbortCurrentEL) if iss & 0x40 != 0 => {
+                        PageFaultCause::WRITE // = store
+                    }
+                    Some(ESR_EL1::EC::Value::DataAbortCurrentEL) if iss & 0x40 == 0 => {
+                        PageFaultCause::READ //  = load
                     }
                     _ => {
                         PageFaultCause::INSTRUCTION // = instruction fetch
