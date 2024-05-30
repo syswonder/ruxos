@@ -2,7 +2,7 @@
 
 <p align="center">
     <img src="doc/figures/ruxos-logo0.svg" alt="RuxOS-logo" width="500"><br>
-    An experimental modular operating system (or unikernel) written in Rust.<br/>
+    A unikernel operating system written in Rust.<br/>
     <a href="https://github.com/syswonder/ruxos/actions/workflows/build.yml"><img src="https://github.com/syswonder/ruxos/actions/workflows/build.yml/badge.svg?branch=main" alt="Build CI" style="max-width: 100%;"></a>
     <a href="https://github.com/syswonder/ruxos/actions/workflows/test.yml"><img src="https://github.com/syswonder/ruxos/actions/workflows/test.yml/badge.svg?branch=main" alt="Test CI" style="max-width: 100%;"></a>
     <br/>
