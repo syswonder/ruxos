@@ -18,10 +18,11 @@ use core::{ffi::c_int, time::Duration};
 
 use axerrno::{LinuxError, LinuxResult};
 use axsync::Mutex;
+use ruxfdtable::{FileLike, RuxStat};
 use ruxhal::time::current_time;
 
 use crate::ctypes;
-use crate::imp::fd_ops::{add_file_like, get_file_like, FileLike};
+use crate::imp::fd_ops::{add_file_like, get_file_like};
 
 pub struct EpollInstance {
     events: Mutex<BTreeMap<usize, ctypes::epoll_event>>,
@@ -123,14 +124,18 @@ impl FileLike for EpollInstance {
         Err(LinuxError::ENOSYS)
     }
 
-    fn stat(&self) -> LinuxResult<ctypes::stat> {
+    fn flush(&self) -> LinuxResult {
+        Ok(())
+    }
+
+    fn stat(&self) -> LinuxResult<RuxStat> {
         let st_mode = 0o600u32; // rw-------
-        Ok(ctypes::stat {
+        Ok(RuxStat::from(ctypes::stat {
             st_ino: 1,
             st_nlink: 1,
             st_mode,
             ..Default::default()
-        })
+        }))
     }
 
     fn into_any(self: Arc<Self>) -> alloc::sync::Arc<dyn core::any::Any + Send + Sync> {

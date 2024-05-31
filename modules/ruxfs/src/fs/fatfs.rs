@@ -74,6 +74,10 @@ impl FatFileSystem {
 impl VfsNodeOps for FileWrapper<'static> {
     axfs_vfs::impl_vfs_non_dir_default! {}
 
+    fn fsync(&self) -> VfsResult {
+        self.0.lock().flush().map_err(as_vfs_err)
+    }
+
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
         let size = self.0.lock().seek(SeekFrom::End(0)).map_err(as_vfs_err)?;
         let blocks = (size + BLOCK_SIZE as u64 - 1) / BLOCK_SIZE as u64;
@@ -150,11 +154,20 @@ impl VfsNodeOps for DirWrapper<'static> {
             return self.lookup(rest);
         }
 
-        // TODO: use `fatfs::Dir::find_entry`, but it's not public.
-        if let Ok(file) = self.0.open_file(path) {
-            Ok(FatFileSystem::new_file(file))
-        } else if let Ok(dir) = self.0.open_dir(path) {
-            Ok(FatFileSystem::new_dir(dir))
+        if let Ok(Some(is_dir)) = self.0.check_path_type(path) {
+            if is_dir {
+                if let Ok(dir) = self.0.open_dir(path) {
+                    Ok(FatFileSystem::new_dir(dir))
+                } else {
+                    Err(VfsError::NotADirectory)
+                }
+            } else {
+                if let Ok(file) = self.0.open_file(path) {
+                    Ok(FatFileSystem::new_file(file))
+                } else {
+                    Err(VfsError::IsADirectory)
+                }
+            }
         } else {
             Err(VfsError::NotFound)
         }
@@ -272,7 +285,7 @@ impl Write for Disk {
         Ok(write_len)
     }
     fn flush(&mut self) -> Result<(), Self::Error> {
-        Ok(())
+        self.do_flush().map_err(|_| ())
     }
 }
 

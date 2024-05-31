@@ -133,7 +133,7 @@ pub fn stdout() -> Stdout {
 }
 
 #[cfg(feature = "fd")]
-impl super::fd_ops::FileLike for Stdin {
+impl ruxfdtable::FileLike for Stdin {
     fn read(&self, buf: &mut [u8]) -> LinuxResult<usize> {
         match self.nonblocking.load(Ordering::Relaxed) {
             true => Ok(self.read_nonblocked(buf)?),
@@ -145,14 +145,18 @@ impl super::fd_ops::FileLike for Stdin {
         Err(LinuxError::EPERM)
     }
 
-    fn stat(&self) -> LinuxResult<crate::ctypes::stat> {
+    fn flush(&self) -> LinuxResult {
+        Ok(())
+    }
+
+    fn stat(&self) -> LinuxResult<ruxfdtable::RuxStat> {
         let st_mode = 0o20000 | 0o440u32; // S_IFCHR | r--r-----
-        Ok(crate::ctypes::stat {
+        Ok(ruxfdtable::RuxStat::from(crate::ctypes::stat {
             st_ino: 1,
             st_nlink: 1,
             st_mode,
             ..Default::default()
-        })
+        }))
     }
 
     fn into_any(self: Arc<Self>) -> Arc<dyn core::any::Any + Send + Sync> {
@@ -173,7 +177,7 @@ impl super::fd_ops::FileLike for Stdin {
 }
 
 #[cfg(feature = "fd")]
-impl super::fd_ops::FileLike for Stdout {
+impl ruxfdtable::FileLike for Stdout {
     fn read(&self, _buf: &mut [u8]) -> LinuxResult<usize> {
         Err(LinuxError::EPERM)
     }
@@ -182,14 +186,18 @@ impl super::fd_ops::FileLike for Stdout {
         Ok(self.inner.lock().write(buf)?)
     }
 
-    fn stat(&self) -> LinuxResult<crate::ctypes::stat> {
+    fn flush(&self) -> LinuxResult {
+        Ok(())
+    }
+
+    fn stat(&self) -> LinuxResult<ruxfdtable::RuxStat> {
         let st_mode = 0o20000 | 0o220u32; // S_IFCHR | -w--w----
-        Ok(crate::ctypes::stat {
+        Ok(ruxfdtable::RuxStat::from(crate::ctypes::stat {
             st_ino: 1,
             st_nlink: 1,
             st_mode,
             ..Default::default()
-        })
+        }))
     }
 
     fn into_any(self: Arc<Self>) -> Arc<dyn core::any::Any + Send + Sync> {

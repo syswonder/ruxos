@@ -1,0 +1,20 @@
+[package]
+name = "ruxfdtable"
+version = "0.1.0"
+edition = "2021"
+authors = ["HaoWen Liu <lhw2002426@stu.pku.edu.cn>"]
+description = "fd table for ruxos file system"
+license = "Mulan PSL v2"
+homepage = "https://github.com/syswonder/ruxos"
+repository = "https://github.com/syswonder/ruxos/tree/main/crates/ruxfdtable"
+
+[features]
+default = []
+
+[dependencies]
+log = "0.4"
+spin = "0.9"
+axio = { path = "../../crates/axio" }
+lazy_static = { version = "1.4", features = ["spin_no_std"] }
+flatten_objects = { path = "../../crates/flatten_objects" }
+axerrno = { path = "../../crates/axerrno" }

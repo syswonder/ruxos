@@ -9,7 +9,9 @@
 
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
+use axerrno::{LinuxError, LinuxResult};
 use lazy_init::LazyInit;
+use ruxfdtable::{FD_TABLE, RUX_FILE_LIMIT};
 use scheduler::BaseScheduler;
 use spinlock::SpinNoIrq;
 
@@ -202,8 +204,24 @@ impl AxRunQueue {
     }
 }
 
+fn gc_flush_file(fd: usize) -> LinuxResult {
+    trace!("gc task flush: {}", fd);
+    FD_TABLE
+        .read()
+        .get(fd)
+        .cloned()
+        .ok_or(LinuxError::EBADF)?
+        .flush()
+}
+
 fn gc_entry() {
+    let mut now_file_fd: usize = 3;
     loop {
+        let _ = gc_flush_file(now_file_fd);
+        now_file_fd += 1;
+        if now_file_fd >= RUX_FILE_LIMIT {
+            now_file_fd = 3;
+        }
         // Drop all exited tasks and recycle resources.
         let n = EXITED_TASKS.lock().len();
         for _ in 0..n {

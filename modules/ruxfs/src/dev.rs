@@ -98,4 +98,9 @@ impl Disk {
         };
         Ok(write_size)
     }
+
+    ///flush device cache
+    pub fn do_flush(&mut self) -> DevResult {
+        self.dev.flush()
+    }
 }

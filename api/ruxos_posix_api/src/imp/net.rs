@@ -16,8 +16,8 @@ use axerrno::{LinuxError, LinuxResult};
 use axio::PollState;
 use axnet::{TcpSocket, UdpSocket};
 use axsync::Mutex;
+use ruxfdtable::{FileLike, RuxStat};
 
-use super::fd_ops::FileLike;
 use crate::ctypes;
 use crate::utils::char_ptr_to_str;
 
@@ -148,10 +148,15 @@ impl FileLike for Socket {
         self.send(buf)
     }
 
-    fn stat(&self) -> LinuxResult<ctypes::stat> {
+    ///TODO
+    fn flush(&self) -> LinuxResult {
+        Ok(())
+    }
+
+    fn stat(&self) -> LinuxResult<RuxStat> {
         // not really implemented
         let st_mode = 0o140000 | 0o777u32; // S_IFSOCK | rwxrwxrwx
-        Ok(ctypes::stat {
+        Ok(RuxStat::from(ctypes::stat {
             st_ino: 1,
             st_nlink: 1,
             st_mode,
@@ -159,7 +164,7 @@ impl FileLike for Socket {
             st_gid: 1000,
             st_blksize: 4096,
             ..Default::default()
-        })
+        }))
     }
 
     fn into_any(self: Arc<Self>) -> Arc<dyn core::any::Any + Send + Sync> {
