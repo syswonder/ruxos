@@ -13,6 +13,8 @@ use lazy_init::LazyInit;
 use memory_addr::PhysAddr;
 use spinlock::SpinNoIrq;
 use x2apic::ioapic::IoApic;
+#[cfg(feature = "irq")]
+use x2apic::lapic::IpiAllShorthand;
 use x2apic::lapic::{xapic_base, LocalApic, LocalApicBuilder};
 use x86_64::instructions::port::Port;
 
@@ -71,8 +73,22 @@ pub fn dispatch_irq(vector: usize) {
     crate::irq::dispatch_irq_common(vector);
     unsafe { local_apic().end_of_interrupt() };
 }
+#[cfg(feature = "irq")]
+pub(crate) unsafe fn end_of_interrupt() {
+    local_apic().end_of_interrupt()
+}
 
-pub(super) fn local_apic<'a>() -> &'a mut LocalApic {
+#[cfg(feature = "irq")]
+pub(crate) unsafe fn send_ipi_excluding_self(vector: u8) {
+    local_apic().send_ipi_all(vector, IpiAllShorthand::AllExcludingSelf);
+}
+
+#[cfg(feature = "irq")]
+pub(crate) unsafe fn send_ipi_including_self(vector: u8) {
+    local_apic().send_ipi_all(vector, IpiAllShorthand::AllIncludingSelf);
+}
+
+pub fn local_apic<'a>() -> &'a mut LocalApic {
     // It's safe as LAPIC is per-cpu.
     unsafe { LOCAL_APIC.as_mut().unwrap() }
 }
