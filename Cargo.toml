@@ -42,6 +42,7 @@ members = [
     "modules/ruxconfig",
     "modules/ruxdisplay",
     "modules/ruxdriver",
+    "modules/ruxfdtable",
     "modules/ruxfs",
     "modules/ruxhal",
     "modules/ruxruntime",

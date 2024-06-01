@@ -13,8 +13,9 @@ use core::ffi::c_int;
 use axerrno::{LinuxError, LinuxResult};
 use axio::PollState;
 use axsync::Mutex;
+use ruxfdtable::{FileLike, RuxStat};
 
-use super::fd_ops::{add_file_like, close_file_like, FileLike};
+use super::fd_ops::{add_file_like, close_file_like};
 use crate::{ctypes, sys_fcntl};
 
 #[derive(Copy, Clone, PartialEq)]
@@ -181,9 +182,13 @@ impl FileLike for Pipe {
         }
     }
 
-    fn stat(&self) -> LinuxResult<ctypes::stat> {
+    fn flush(&self) -> LinuxResult {
+        Ok(())
+    }
+
+    fn stat(&self) -> LinuxResult<RuxStat> {
         let st_mode = 0o10000 | 0o600u32; // S_IFIFO | rw-------
-        Ok(ctypes::stat {
+        Ok(RuxStat::from(ctypes::stat {
             st_ino: 1,
             st_nlink: 1,
             st_mode,
@@ -191,7 +196,7 @@ impl FileLike for Pipe {
             st_gid: 1000,
             st_blksize: 4096,
             ..Default::default()
-        })
+        }))
     }
 
     fn into_any(self: Arc<Self>) -> Arc<dyn core::any::Any + Send + Sync> {

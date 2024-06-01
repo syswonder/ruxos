@@ -13,12 +13,13 @@ use core::ffi::{c_char, c_int, c_long, c_void};
 use axerrno::{LinuxError, LinuxResult};
 use axio::{PollState, SeekFrom};
 use axsync::Mutex;
+use ruxfdtable::{FileLike, RuxStat};
 use ruxfs::{
     api::set_current_dir,
     fops::{DirEntry, OpenOptions},
 };
 
-use super::fd_ops::{get_file_like, FileLike};
+use super::fd_ops::get_file_like;
 use crate::{ctypes, utils::char_ptr_to_str};
 use alloc::vec::Vec;
 
@@ -54,7 +55,11 @@ impl FileLike for File {
         Ok(self.inner.lock().write(buf)?)
     }
 
-    fn stat(&self) -> LinuxResult<ctypes::stat> {
+    fn flush(&self) -> LinuxResult {
+        Ok(self.inner.lock().flush()?)
+    }
+
+    fn stat(&self) -> LinuxResult<RuxStat> {
         let metadata = self.inner.lock().get_attr()?;
         let ty = metadata.file_type() as u8;
         let perm = metadata.perm().bits() as u32;
@@ -65,7 +70,7 @@ impl FileLike for File {
         // TODO: implement real inode.
         let st_ino = metadata.size() + st_mode as u64;
 
-        Ok(ctypes::stat {
+        let res = RuxStat::from(ctypes::stat {
             st_ino,
             st_nlink: 1,
             st_mode,
@@ -75,7 +80,9 @@ impl FileLike for File {
             st_blocks: metadata.blocks() as _,
             st_blksize: 512,
             ..Default::default()
-        })
+        });
+
+        Ok(res)
     }
 
     fn into_any(self: Arc<Self>) -> Arc<dyn core::any::Any + Send + Sync> {
@@ -126,12 +133,16 @@ impl FileLike for Directory {
         Err(LinuxError::EACCES)
     }
 
-    fn stat(&self) -> LinuxResult<ctypes::stat> {
+    fn flush(&self) -> LinuxResult {
+        Ok(())
+    }
+
+    fn stat(&self) -> LinuxResult<RuxStat> {
         let metadata = self.inner.lock().get_attr()?;
         let ty = metadata.file_type() as u8;
         let perm = metadata.perm().bits() as u32;
         let st_mode = ((ty as u32) << 12) | perm;
-        Ok(ctypes::stat {
+        Ok(RuxStat::from(ctypes::stat {
             st_ino: 1,
             st_nlink: 1,
             st_mode,
@@ -141,7 +152,7 @@ impl FileLike for Directory {
             st_blocks: metadata.blocks() as _,
             st_blksize: 512,
             ..Default::default()
-        })
+        }))
     }
 
     fn into_any(self: Arc<Self>) -> Arc<dyn core::any::Any + Send + Sync> {
@@ -318,7 +329,7 @@ pub unsafe fn sys_stat(path: *const c_char, buf: *mut core::ffi::c_void) -> c_in
         let mut options = OpenOptions::new();
         options.read(true);
         let file = ruxfs::fops::File::open(path?, &options)?;
-        let st = File::new(file).stat()?;
+        let st: ctypes::stat = File::new(file).stat()?.into();
 
         #[cfg(not(feature = "musl"))]
         {
@@ -356,7 +367,7 @@ pub fn sys_fstat(fd: c_int, kst: *mut core::ffi::c_void) -> c_int {
         #[cfg(not(feature = "musl"))]
         {
             let buf = kst as *mut ctypes::stat;
-            unsafe { *buf = get_file_like(fd)?.stat()? };
+            unsafe { *buf = get_file_like(fd)?.stat()?.into() };
             Ok(0)
         }
         #[cfg(feature = "musl")]

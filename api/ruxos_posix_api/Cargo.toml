@@ -43,6 +43,7 @@ ruxconfig = { path = "../../modules/ruxconfig" }
 axlog = { path = "../../modules/axlog" }
 ruxhal = { path = "../../modules/ruxhal" }
 axsync = { path = "../../modules/axsync" }
+ruxfdtable = { path = "../../modules/ruxfdtable" }
 ruxfutex = { path = "../../modules/ruxfutex", optional = true }
 axalloc = { path = "../../modules/axalloc", optional = true }
 ruxtask = { path = "../../modules/ruxtask", optional = true }
