@@ -24,19 +24,21 @@ fn poll_all(fds: &mut [ctypes::pollfd]) -> LinuxResult<usize> {
             Err(_) => {
                 if (events & ctypes::EPOLLERR as i16) != 0 {
                     *revents |= ctypes::EPOLLERR as i16;
+                    events_num += 1;
                 }
             }
             Ok(state) => {
                 if state.readable && (events & ctypes::EPOLLIN as i16 != 0) {
                     *revents |= ctypes::EPOLLIN as i16;
+                    events_num += 1;
                 }
 
                 if state.writable && (events & ctypes::EPOLLOUT as i16 != 0) {
                     *revents |= ctypes::EPOLLOUT as i16;
+                    events_num += 1;
                 }
             }
         }
-        events_num += 1;
     }
     Ok(events_num)
 }
