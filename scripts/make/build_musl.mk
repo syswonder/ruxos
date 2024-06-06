@@ -3,11 +3,16 @@ rust_lib := target/$(TARGET)/$(MODE)/lib$(rust_lib_name).a
 
 musl_version := 1.2.3
 
+build_suffix := _$(ARCH)_$(MODE)
 muslibc_dir := ulib/ruxmusl
-build_dir := $(muslibc_dir)/build_musl_$(ARCH)
+build_dir := $(muslibc_dir)/build_musl$(build_suffix)
+install_dir_name := install$(build_suffix)
+install_dir := $(muslibc_dir)/$(install_dir_name)
+
 musl_dir := $(muslibc_dir)/musl-$(musl_version)
-inc_dir := $(muslibc_dir)/install/include
-c_lib := $(muslibc_dir)/install/lib/libc.a
+inc_dir := $(install_dir)/include
+c_lib := $(install_dir)/lib/libc.a
+
 libgcc :=
 
 CFLAGS += -nostdinc -fno-builtin -ffreestanding -Wall
@@ -24,6 +29,7 @@ endif
 
 ifeq ($(ARCH), x86_64)
   LDFLAGS += --no-relax
+  CFLAGS += -mno-red-zone
 else ifeq ($(ARCH), riscv64)
   CFLAGS += -march=rv64gc -mabi=lp64d -mcmodel=medany
 endif
@@ -42,14 +48,14 @@ else
 endif
 
 build_musl:
-ifeq ($(wildcard $(build_dir)),)
+ifeq ($(wildcard $(install_dir)),)
   ifeq ($(wildcard $(musl_dir)),)
 	@echo "Download musl-1.2.3 source code"
 	wget https://musl.libc.org/releases/musl-1.2.3.tar.gz -P $(muslibc_dir)
 	tar -zxvf $(muslibc_dir)/musl-1.2.3.tar.gz -C $(muslibc_dir) && rm -f $(muslibc_dir)/musl-1.2.3.tar.gz
   endif
 	mkdir -p $(build_dir)
-	cd $(build_dir) && ../musl-1.2.3/configure --prefix=../install --exec-prefix=../ --syslibdir=../install/lib --disable-shared ARCH=$(RUX_ARCH) CC=$(CC) CROSS_COMPILE=$(CROSS_COMPILE) CFLAGS='$(CFLAGS)'
+	cd $(build_dir) && ../musl-1.2.3/configure --prefix=../$(install_dir_name) --exec-prefix=../ --syslibdir=../$(install_dir_name)/lib --disable-shared ARCH=$(RUX_ARCH) CC=$(CC) CROSS_COMPILE=$(CROSS_COMPILE) CFLAGS='$(CFLAGS)'
 	cd $(build_dir) && $(MAKE) -j && $(MAKE) install
 endif
 
@@ -60,6 +66,8 @@ app-objs := main.o
 -include $(APP)/axbuild.mk  # override `app-objs`
 
 app-objs := $(addprefix $(APP)/,$(app-objs))
+
+$(app-objs): build_musl prebuild
 
 $(APP)/%.o: $(APP)/%.c build_musl
 	$(call run_cmd,$(CC),$(CFLAGS) $(APP_CFLAGS) -c -o $@ $<)

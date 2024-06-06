@@ -18,7 +18,7 @@ ifeq ($(APP_TYPE),c)
   else
     lib_feat_prefix := ruxlibc/
   endif
-  lib_features := fp_simd alloc paging multitask fs net fd pipe select poll epoll random-hw signal
+  lib_features := fp_simd alloc irq sched_rr paging multitask fs net fd pipe select poll epoll random-hw signal
 else
   # TODO: it's better to use `ruxfeat/` as `ax_feat_prefix`, but all apps need to have `ruxfeat` as a dependency
   ax_feat_prefix := axstd/
@@ -27,7 +27,7 @@ else
 endif
 ifeq ($(APP_TYPE),c)
   ifeq ($(MUSL), y)
-    lib_features += irq musl sched_rr
+    lib_features += musl
   endif
 endif
 

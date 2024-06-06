@@ -11,36 +11,130 @@ use alloc::sync::Arc;
 use core::ffi::c_int;
 
 use axerrno::{LinuxError, LinuxResult};
-use axio::PollState;
-use flatten_objects::FlattenObjects;
-use spin::RwLock;
+use ruxfdtable::{FileLike, RuxStat, RuxTimeSpec, FD_TABLE, RUX_FILE_LIMIT};
 
 use super::stdio::{stdin, stdout};
 use crate::ctypes;
 
-/// Maximum number of files per process
-pub const RUX_FILE_LIMIT: usize = 1024;
+impl From<ctypes::timespec> for RuxTimeSpec {
+    fn from(ctimespec: ctypes::timespec) -> Self {
+        RuxTimeSpec {
+            tv_sec: ctimespec.tv_sec,
+            tv_nsec: ctimespec.tv_nsec,
+        }
+    }
+}
 
-pub trait FileLike: Send + Sync {
-    fn read(&self, buf: &mut [u8]) -> LinuxResult<usize>;
-    fn write(&self, buf: &[u8]) -> LinuxResult<usize>;
-    fn stat(&self) -> LinuxResult<ctypes::stat>;
-    fn into_any(self: Arc<Self>) -> Arc<dyn core::any::Any + Send + Sync>;
-    fn poll(&self) -> LinuxResult<PollState>;
-    fn set_nonblocking(&self, nonblocking: bool) -> LinuxResult;
+impl From<ctypes::stat> for RuxStat {
+    #[cfg(target_arch = "aarch64")]
+    fn from(cstat: ctypes::stat) -> Self {
+        RuxStat {
+            st_dev: cstat.st_dev,
+            st_ino: cstat.st_ino,
+            st_mode: cstat.st_mode,
+            st_nlink: cstat.st_nlink,
+            st_uid: cstat.st_uid,
+            st_gid: cstat.st_gid,
+            st_rdev: cstat.st_rdev,
+            __pad: cstat.__pad,
+            st_size: cstat.st_size,
+            st_blksize: cstat.st_blksize,
+            __pad2: cstat.__pad2,
+            st_blocks: cstat.st_blocks,
+            st_atime: RuxTimeSpec::from(cstat.st_atime),
+            st_mtime: RuxTimeSpec::from(cstat.st_mtime),
+            st_ctime: RuxTimeSpec::from(cstat.st_ctime),
+            __unused: cstat.__unused,
+        }
+    }
+
+    #[cfg(any(target_arch = "x86_64", target_arch = "riscv64"))]
+    fn from(cstat: ctypes::stat) -> Self {
+        RuxStat {
+            st_dev: cstat.st_dev,
+            st_ino: cstat.st_ino,
+            st_nlink: cstat.st_nlink,
+            st_mode: cstat.st_mode,
+            st_uid: cstat.st_uid,
+            st_gid: cstat.st_gid,
+            __pad0: cstat.__pad0,
+            st_rdev: cstat.st_rdev,
+            st_size: cstat.st_size,
+            st_blksize: cstat.st_blksize,
+            st_blocks: cstat.st_blocks,
+            st_atime: RuxTimeSpec::from(cstat.st_atime),
+            st_mtime: RuxTimeSpec::from(cstat.st_mtime),
+            st_ctime: RuxTimeSpec::from(cstat.st_ctime),
+            __unused: cstat.__unused,
+        }
+    }
+}
+
+impl From<RuxTimeSpec> for ctypes::timespec {
+    fn from(rtimespec: RuxTimeSpec) -> Self {
+        ctypes::timespec {
+            tv_sec: rtimespec.tv_sec,
+            tv_nsec: rtimespec.tv_nsec,
+        }
+    }
+}
+
+impl From<RuxStat> for ctypes::stat {
+    #[cfg(target_arch = "aarch64")]
+    fn from(rstat: RuxStat) -> Self {
+        ctypes::stat {
+            st_dev: rstat.st_dev,
+            st_ino: rstat.st_ino,
+            st_mode: rstat.st_mode,
+            st_nlink: rstat.st_nlink,
+            st_uid: rstat.st_uid,
+            st_gid: rstat.st_gid,
+            st_rdev: rstat.st_rdev,
+            __pad: rstat.__pad,
+            st_size: rstat.st_size,
+            st_blksize: rstat.st_blksize,
+            __pad2: rstat.__pad2,
+            st_blocks: rstat.st_blocks,
+            st_atime: rstat.st_atime.into(),
+            st_mtime: rstat.st_mtime.into(),
+            st_ctime: rstat.st_ctime.into(),
+            __unused: rstat.__unused,
+        }
+    }
+
+    #[cfg(any(target_arch = "x86_64", target_arch = "riscv64"))]
+    fn from(rstat: RuxStat) -> Self {
+        ctypes::stat {
+            st_dev: rstat.st_dev,
+            st_ino: rstat.st_ino,
+            st_nlink: rstat.st_nlink,
+            st_mode: rstat.st_mode,
+            st_uid: rstat.st_uid,
+            st_gid: rstat.st_gid,
+            __pad0: rstat.__pad0,
+            st_rdev: rstat.st_rdev,
+            st_size: rstat.st_size,
+            st_blksize: rstat.st_blksize,
+            st_blocks: rstat.st_blocks,
+            st_atime: rstat.st_atime.into(),
+            st_mtime: rstat.st_mtime.into(),
+            st_ctime: rstat.st_ctime.into(),
+            __unused: rstat.__unused,
+        }
+    }
 }
 
 lazy_static::lazy_static! {
-    static ref FD_TABLE: RwLock<FlattenObjects<Arc<dyn FileLike>, RUX_FILE_LIMIT>> = {
-        let mut fd_table = FlattenObjects::new();
-        fd_table.add_at(0, Arc::new(stdin()) as _).unwrap(); // stdin
-        fd_table.add_at(1, Arc::new(stdout()) as _).unwrap(); // stdout
-        fd_table.add_at(2, Arc::new(stdout()) as _).unwrap(); // stderr
-        RwLock::new(fd_table)
+    static ref MUST_EXEC: usize  = {
+        FD_TABLE.write().add_at(0, Arc::new(stdin()) as _).unwrap(); // stdin
+        FD_TABLE.write().add_at(1, Arc::new(stdout()) as _).unwrap(); // stdout
+        FD_TABLE.write().add_at(2, Arc::new(stdout()) as _).unwrap(); // stderr
+        0
     };
 }
 
 pub fn get_file_like(fd: c_int) -> LinuxResult<Arc<dyn FileLike>> {
+    let _exec = *MUST_EXEC;
     FD_TABLE
         .read()
         .get(fd as usize)
@@ -49,10 +143,12 @@ pub fn get_file_like(fd: c_int) -> LinuxResult<Arc<dyn FileLike>> {
 }
 
 pub fn add_file_like(f: Arc<dyn FileLike>) -> LinuxResult<c_int> {
+    let _exec = *MUST_EXEC;
     Ok(FD_TABLE.write().add(f).ok_or(LinuxError::EMFILE)? as c_int)
 }
 
 pub fn close_file_like(fd: c_int) -> LinuxResult {
+    let _exec = *MUST_EXEC;
     let f = FD_TABLE
         .write()
         .remove(fd as usize)

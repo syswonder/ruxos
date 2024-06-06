@@ -29,6 +29,7 @@ endif
 
 ifeq ($(ARCH), x86_64)
   LDFLAGS += --no-relax
+  CFLAGS += -mno-red-zone
 else ifeq ($(ARCH), riscv64)
   CFLAGS += -march=rv64gc -mabi=lp64d -mcmodel=medany
 endif
@@ -70,6 +71,8 @@ app-objs := main.o
 app-objs := $(addprefix $(APP)/,$(app-objs))
 
 $(ulib_hdr): _cargo_build
+
+$(app-objs): $(ulib_hdr) prebuild
 
 $(APP)/%.o: $(APP)/%.c $(ulib_hdr)
 	$(call run_cmd,$(CC),$(CFLAGS) $(APP_CFLAGS) -c -o $@ $<)

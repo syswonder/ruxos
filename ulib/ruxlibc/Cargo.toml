@@ -52,6 +52,11 @@ poll = ["ruxos_posix_api/poll"]
 epoll = ["ruxos_posix_api/epoll"]
 random-hw = ["ruxos_posix_api/random-hw"]
 
+# Interrupts
+irq = ["ruxos_posix_api/irq", "ruxfeat/irq"]
+
+sched_rr = ["irq", "ruxfeat/sched_rr"]
+
 [dependencies]
 ruxfeat = { path = "../../api/ruxfeat" }
 ruxos_posix_api = { path = "../../api/ruxos_posix_api" }
