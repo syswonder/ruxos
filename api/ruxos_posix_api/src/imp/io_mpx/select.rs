@@ -144,7 +144,7 @@ pub unsafe fn sys_select(
 
         loop {
             #[cfg(feature = "net")]
-            axnet::poll_interfaces();
+            ruxnet::poll_interfaces();
             let res = fd_sets.poll_all(readfds, writefds, exceptfds)?;
             if res > 0 {
                 return Ok(res);

@@ -18,7 +18,8 @@ alloc = ["dep:axalloc", "ruxfeat/alloc"]
 paging = ["alloc", "ruxfeat/paging"]
 multitask = ["ruxtask/multitask", "ruxfeat/multitask"]
 fs = ["dep:ruxfs", "ruxfeat/fs"]
-net = ["dep:axnet", "ruxfeat/net"]
+net = ["dep:ruxnet", "ruxfeat/net"]
+lwip = ["ruxfeat/lwip"]
 display = ["dep:ruxdisplay", "ruxfeat/display"]
 
 myfs = ["ruxfeat/myfs"]
@@ -37,5 +38,5 @@ ruxhal = { path = "../../modules/ruxhal" }
 axalloc = { path = "../../modules/axalloc", optional = true }
 ruxtask = { path = "../../modules/ruxtask", optional = true }
 ruxfs = { path = "../../modules/ruxfs", optional = true }
-axnet = { path = "../../modules/axnet", optional = true }
+ruxnet = { path = "../../modules/ruxnet", optional = true }
 ruxdisplay = { path = "../../modules/ruxdisplay", optional = true }

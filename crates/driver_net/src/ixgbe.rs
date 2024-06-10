@@ -15,7 +15,7 @@ use driver_common::{BaseDriverOps, DevError, DevResult, DeviceType};
 use ixgbe_driver::{IxgbeDevice, IxgbeError, IxgbeNetBuf, MemPool, NicDevice};
 pub use ixgbe_driver::{IxgbeHal, PhysAddr, INTEL_82599, INTEL_VEND};
 
-use crate::{EthernetAddress, NetBufPtr, NetDriverOps};
+use crate::{EthernetAddress, NetBuf, NetBufPool, NetBufPtr, NetDriverOps};
 
 extern crate alloc;
 
@@ -86,6 +86,16 @@ impl<H: IxgbeHal, const QS: usize, const QN: u16> NetDriverOps for IxgbeNic<H, Q
     fn can_transmit(&self) -> bool {
         // Default implementation is return true forever.
         self.inner.can_send(0).unwrap()
+    }
+
+    ///TODO
+    fn fill_rx_buffers(&mut self, _: &Arc<NetBufPool>) -> DevResult {
+        Ok(())
+    }
+
+    ///TODO
+    fn prepare_tx_buffer(&self, _: &mut NetBuf, _: usize) -> DevResult {
+        Ok(())
     }
 
     fn recycle_rx_buffer(&mut self, rx_buf: NetBufPtr) -> DevResult {

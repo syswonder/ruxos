@@ -121,19 +121,30 @@ ifeq ($(ARCH), x86_64)
   ACCEL ?= $(if $(findstring -microsoft, $(shell uname -r | tr '[:upper:]' '[:lower:]')),n,y)
   PLATFORM_NAME ?= x86_64-qemu-q35
   TARGET := x86_64-unknown-none
+  ifeq ($(findstring fp_simd,$(FEATURES)),)
+    TARGET_CFLAGS := -mno-sse
+  endif
   BUS := pci
 else ifeq ($(ARCH), riscv64)
   ACCEL ?= n
   PLATFORM_NAME ?= riscv64-qemu-virt
   TARGET := riscv64gc-unknown-none-elf
+  ifeq ($(findstring fp_simd,$(FEATURES)),)
+    TARGET_CFLAGS := -mabi=lp64d
+  endif
 else ifeq ($(ARCH), aarch64)
   ACCEL ?= n
   PLATFORM_NAME ?= aarch64-qemu-virt
   TARGET := aarch64-unknown-none-softfloat
+  ifeq ($(findstring fp_simd,$(FEATURES)),)
+    TARGET_CFLAGS := -mgeneral-regs-only
+  endif
 else
   $(error "ARCH" must be one of "x86_64", "riscv64", or "aarch64")
 endif
 
+export TARGET_CC = $(CC)
+export TARGET_CFLAGS
 export RUX_ARCH=$(ARCH)
 export RUX_PLATFORM=$(PLATFORM_NAME)
 export RUX_SMP=$(SMP)

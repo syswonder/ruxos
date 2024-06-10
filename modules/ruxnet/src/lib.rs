@@ -27,23 +27,34 @@
 //! [smoltcp]: https://github.com/smoltcp-rs/smoltcp
 
 #![no_std]
+#![feature(c_variadic)]
 #![feature(ip_in_core)]
+#![feature(ip_bits)]
 #![feature(new_uninit)]
+#![feature(inherent_associated_types)]
 
 #[macro_use]
 extern crate log;
 extern crate alloc;
 
 cfg_if::cfg_if! {
-    if #[cfg(feature = "smoltcp")] {
+    if #[cfg(feature = "lwip")] {
+        mod lwip_impl;
+        use lwip_impl as net_impl;
+        pub use lwip_impl::{IpAddr, Ipv4Addr, SocketAddr};
+    }
+    else if #[cfg(feature = "smoltcp")] {
         mod smoltcp_impl;
         use smoltcp_impl as net_impl;
+        pub use self::net_impl::{bench_receive, bench_transmit};
+    }
+    else {
+        error!("No network stack is selected");
     }
 }
 
 pub use self::net_impl::TcpSocket;
 pub use self::net_impl::UdpSocket;
-pub use self::net_impl::{bench_receive, bench_transmit};
 pub use self::net_impl::{dns_query, poll_interfaces};
 
 use ruxdriver::{prelude::*, AxDeviceContainer};
@@ -54,5 +65,14 @@ pub fn init_network(mut net_devs: AxDeviceContainer<AxNetDevice>) {
 
     let dev = net_devs.take_one().expect("No NIC device found!");
     info!("  use NIC 0: {:?}", dev.device_name());
+    cfg_if::cfg_if! {
+        if #[cfg(feature = "lwip")] {
+            info!("  net stack: lwip");
+        } else if #[cfg(feature = "smoltcp")] {
+            info!("  net stack: smoltcp");
+        } else {
+            compile_error!("No network stack is selected");
+        }
+    }
     net_impl::init(dev);
 }

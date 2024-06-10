@@ -1,15 +1,16 @@
 [package]
-name = "axnet"
+name = "ruxnet"
 version = "0.1.0"
 edition = "2021"
-authors = ["Yuekai Jia <equation618@gmail.com>", "ChengXiang Qi <kuangjux@outlook.com>"]
+authors = ["Yuekai Jia <equation618@gmail.com>", "ChengXiang Qi <kuangjux@outlook.com>", "HaoWen Liu <lhw2002426@stu.pku.edu.cn>"]
 description = "ArceOS network module"
 license = "GPL-3.0-or-later OR Apache-2.0"
 homepage = "https://github.com/rcore-os/arceos"
-repository = "https://github.com/rcore-os/arceos/tree/main/modules/axnet"
-documentation = "https://rcore-os.github.io/arceos/axnet/index.html"
+repository = "https://github.com/rcore-os/arceos/tree/main/modules/ruxnet"
+documentation = "https://rcore-os.github.io/arceos/ruxnet/index.html"
 
 [features]
+lwip = ["dep:lwip_rust"]
 smoltcp = []
 default = ["smoltcp"]
 
@@ -19,11 +20,15 @@ cfg-if = "1.0"
 spin = "0.9"
 driver_net = { path = "../../crates/driver_net" }
 lazy_init = { path = "../../crates/lazy_init" }
+lwip_rust = { path = "../../crates/lwip_rust", optional = true }
+printf-compat = { version = "0.1", default-features = false, optional = true }
 axerrno = { path = "../../crates/axerrno" }
 ruxhal = { path = "../ruxhal" }
 axsync = { path = "../axsync" }
+axlog = { path = "../axlog" }
 ruxtask = { path = "../ruxtask" }
 ruxdriver = { path = "../ruxdriver", features = ["net"] }
+cty = { version = "0.2.2", optional = true }
 axio = { path = "../../crates/axio" }
 
 [dependencies.smoltcp]

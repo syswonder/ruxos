@@ -73,7 +73,7 @@ pub unsafe fn sys_poll(fds: *mut ctypes::pollfd, nfds: ctypes::nfds_t, timeout: 
             .then(|| current_time() + Duration::from_millis(timeout as u64));
         loop {
             #[cfg(feature = "net")]
-            axnet::poll_interfaces();
+            ruxnet::poll_interfaces();
             let fds_num = poll_all(fds)?;
             if fds_num > 0 {
                 return Ok(fds_num as c_int);

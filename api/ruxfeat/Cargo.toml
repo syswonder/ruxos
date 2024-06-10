@@ -52,7 +52,9 @@ myfs = ["ruxfs?/myfs"]
 9pfs = []
 
 # Networking
-net = ["alloc", "ruxdriver/virtio-net", "dep:axnet", "ruxruntime/net"]
+net = ["alloc", "ruxdriver/virtio-net", "dep:ruxnet", "ruxruntime/net"]
+lwip = ["ruxnet/lwip"]
+smoltcp = ["ruxnet/smoltcp"]
 
 # Display
 display = [
@@ -96,7 +98,7 @@ axalloc = { path = "../../modules/axalloc", optional = true }
 ruxdriver = { path = "../../modules/ruxdriver", optional = true }
 ruxfs = { path = "../../modules/ruxfs", optional = true }
 rux9p = { path = "../../modules/rux9p", optional = true }
-axnet = { path = "../../modules/axnet", optional = true }
+ruxnet = { path = "../../modules/ruxnet", optional = true }
 ruxdisplay = { path = "../../modules/ruxdisplay", optional = true }
 axsync = { path = "../../modules/axsync", optional = true }
 ruxtask = { path = "../../modules/ruxtask", optional = true }

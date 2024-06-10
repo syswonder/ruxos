@@ -6,14 +6,15 @@
  *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  *   See the Mulan PSL v2 for more details.
  */
-use axnet::TcpSocket;
+use axsync::Mutex;
 use core::net::{IpAddr, Ipv4Addr, SocketAddr};
 use driver_9p::_9pDriverOps;
 use driver_common::{BaseDriverOps, DeviceType};
 use log::*;
+use ruxnet::TcpSocket;
 
 pub struct Net9pDev {
-    socket: TcpSocket,
+    socket: Mutex<TcpSocket>,
     srv_addr: SocketAddr,
 }
 
@@ -27,7 +28,7 @@ impl Net9pDev {
             }
         };
         Self {
-            socket: TcpSocket::new(),
+            socket: Mutex::new(TcpSocket::new()),
             srv_addr: SocketAddr::new(ip_addr, port),
         }
     }
@@ -47,7 +48,7 @@ impl _9pDriverOps for Net9pDev {
     // initialize self(e.g. setup TCP connection)
     fn init(&self) -> Result<(), u8> {
         info!("9P client connecting to {:?}", self.srv_addr);
-        match self.socket.connect(self.srv_addr) {
+        match self.socket.lock().connect(self.srv_addr) {
             Ok(_) => {
                 info!("net9p connected successfully");
                 Ok(())
@@ -61,7 +62,7 @@ impl _9pDriverOps for Net9pDev {
 
     // send bytes of inputs as request and receive  get answer in outputs
     fn send_with_recv(&mut self, inputs: &[u8], outputs: &mut [u8]) -> Result<u32, u8> {
-        match self.socket.send(inputs) {
+        match self.socket.lock().send(inputs) {
             Ok(length) => {
                 debug!("net9p send successfully,length = {}", length);
             }
@@ -70,7 +71,7 @@ impl _9pDriverOps for Net9pDev {
                 return Err(0);
             }
         }
-        match self.socket.recv(outputs, 0) {
+        match self.socket.lock().recv(outputs, 0) {
             Ok(length) => {
                 debug!("net9p recv successfully,length = {}", length);
                 Ok(length as u32)
