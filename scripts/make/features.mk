@@ -45,6 +45,7 @@ ifeq ($(APP_TYPE), c)
     override FEATURES += fp_simd
     override FEATURES += fd
     override FEATURES += tls
+    override FEATURES += sched_rr
   endif
 endif
 
