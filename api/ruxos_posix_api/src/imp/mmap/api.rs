@@ -46,14 +46,6 @@ pub fn sys_mmap(
     syscall_body!(sys_mmap, {
         // transform C-type into rust-type
         let start = start as usize;
-        let len = VirtAddr::from(len).align_up_4k().as_usize();
-        if !VirtAddr::from(start).is_aligned(PAGE_SIZE_4K) || len == 0 {
-            error!(
-                "mmap failed because start:0x{:x} is not aligned or len:0x{:x} == 0",
-                start, len
-            );
-            return Err(LinuxError::EINVAL);
-        }
         let prot = prot as u32;
         let flags = flags as u32;
         let fid = fd;
@@ -74,6 +66,22 @@ pub fn sys_mmap(
         } else {
             fid
         };
+
+        // align len to PAGE_SIZE_4K depending on `MAP_ANONYMOUS` or not.
+        let len = if fid < 0 {
+            VirtAddr::from(len).align_up_4k().as_usize()
+        } else {
+            VirtAddr::from(len).as_usize()
+        };
+
+        // check if `start` is aligned to `PAGE_SIZE_4K`or len is large than 0.
+        if !VirtAddr::from(start).is_aligned(PAGE_SIZE_4K) || len == 0 {
+            error!(
+                "mmap failed because start:0x{:x} is not aligned or len:0x{:x} == 0",
+                start, len
+            );
+            return Err(LinuxError::EINVAL);
+        }
 
         let mut new = Vma::new(fid, offset, prot, flags);
         let mut vma_map = VMA_MAP.lock();
@@ -103,7 +111,7 @@ pub fn sys_munmap(start: *mut c_void, len: ctypes::size_t) -> c_int {
     syscall_body!(sys_munmap, {
         // transform C-type into rust-type
         let start = start as usize;
-        let end = VirtAddr::from(start + len).align_up_4k().as_usize();
+        let end = VirtAddr::from(start + len).as_usize();
 
         if !VirtAddr::from(start).is_aligned(PAGE_SIZE_4K) || len == 0 {
             error!(
@@ -171,7 +179,7 @@ pub fn sys_munmap(start: *mut c_void, len: ctypes::size_t) -> c_int {
         }
 
         // delete the mapped and swapped page.
-        release_pages_mapped(start, end);
+        release_pages_mapped(start, end, true);
         #[cfg(feature = "fs")]
         release_pages_swaped(start, end);
 
@@ -191,7 +199,7 @@ pub fn sys_mprotect(start: *mut c_void, len: ctypes::size_t, prot: c_int) -> c_i
     syscall_body!(sys_mprotect, {
         // transform C-type into rust-type
         let start = start as usize;
-        let end = VirtAddr::from(start + len).align_up_4k().as_usize();
+        let end = VirtAddr::from(start + len).as_usize();
         if !VirtAddr::from(start).is_aligned(PAGE_SIZE_4K) || len == 0 {
             return Err(LinuxError::EINVAL);
         }
@@ -293,7 +301,7 @@ pub fn sys_msync(start: *mut c_void, len: ctypes::size_t, flags: c_int) -> c_int
         #[cfg(feature = "fs")]
         {
             let start = start as usize;
-            let end = VirtAddr::from(start + len).align_up_4k().as_usize();
+            let end = VirtAddr::from(start + len).as_usize();
             if !VirtAddr::from(start).is_aligned(PAGE_SIZE_4K) || len == 0 {
                 return Err(LinuxError::EINVAL);
             }
@@ -444,7 +452,7 @@ pub fn sys_mremap(
             old_vma.end_addr = new_end;
 
             // delete the mapped and swapped page outside of new vma.
-            release_pages_mapped(new_end, old_end);
+            release_pages_mapped(new_end, old_end, false);
             #[cfg(feature = "fs")]
             release_pages_swaped(new_end, old_end);
 
