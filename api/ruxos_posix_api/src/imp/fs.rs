@@ -7,8 +7,8 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use alloc::sync::Arc;
-use core::ffi::{c_char, c_int, c_long, c_void};
+use alloc::{borrow::Cow, string::String, sync::Arc};
+use core::ffi::{c_char, c_int, c_long, c_void, CStr};
 
 use axerrno::{LinuxError, LinuxResult};
 use axio::{PollState, SeekFrom};
@@ -20,7 +20,7 @@ use ruxfs::{
 };
 
 use super::fd_ops::get_file_like;
-use crate::{ctypes, utils::char_ptr_to_str};
+use crate::ctypes;
 use alloc::vec::Vec;
 
 pub struct File {
@@ -203,40 +203,40 @@ fn flags_to_options(flags: c_int, _mode: ctypes::mode_t) -> OpenOptions {
 /// Return its index in the file table (`fd`). Return `EMFILE` if it already
 /// has the maximum number of files open.
 pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> c_int {
-    let filename = char_ptr_to_str(filename);
+    let filename = char_ptr_to_absolute_path(filename);
     debug!("sys_open <= {:?} {:#o} {:#o}", filename, flags, mode);
     syscall_body!(sys_open, {
         let options = flags_to_options(flags, mode);
-        let file = ruxfs::fops::File::open(filename?, &options)?;
+        let file = ruxfs::fops::File::open(&filename?, &options)?;
         File::new(file).add_to_fd_table()
     })
 }
 
 /// Open a file under a specific dir
 pub fn sys_openat(fd: usize, path: *const c_char, flags: c_int, mode: ctypes::mode_t) -> c_int {
-    let path = char_ptr_to_str(path);
+    let path = char_ptr_to_absolute_path(path);
     let fd: c_int = fd as c_int;
     debug!("sys_openat <= {}, {:?}, {:#o} {:#o}", fd, path, flags, mode);
     syscall_body!(sys_openat, {
         let options = flags_to_options(flags, mode);
         if (flags as u32) & ctypes::O_DIRECTORY != 0 {
             let dir = if fd == ctypes::AT_FDCWD {
-                ruxfs::fops::Directory::open_dir(path?, &options)?
+                ruxfs::fops::Directory::open_dir(&path?, &options)?
             } else {
                 Directory::from_fd(fd)?
                     .inner
                     .lock()
-                    .open_dir_at(path?, &options)?
+                    .open_dir_at(&path?, &options)?
             };
             Directory::new(dir).add_to_fd_table()
         } else {
             let file = if fd == ctypes::AT_FDCWD {
-                ruxfs::fops::File::open(path?, &options)?
+                ruxfs::fops::File::open(&path?, &options)?
             } else {
                 Directory::from_fd(fd)?
                     .inner
                     .lock()
-                    .open_file_at(path?, &options)?
+                    .open_file_at(&path?, &options)?
             };
             File::new(file).add_to_fd_table()
         }
@@ -320,7 +320,7 @@ pub unsafe fn sys_fdatasync(fd: c_int) -> c_int {
 ///
 /// Return 0 if success.
 pub unsafe fn sys_stat(path: *const c_char, buf: *mut core::ffi::c_void) -> c_int {
-    let path = char_ptr_to_str(path);
+    let path = char_ptr_to_absolute_path(path);
     debug!("sys_stat <= {:?} {:#x}", path, buf as usize);
     syscall_body!(sys_stat, {
         if buf.is_null() {
@@ -328,7 +328,7 @@ pub unsafe fn sys_stat(path: *const c_char, buf: *mut core::ffi::c_void) -> c_in
         }
         let mut options = OpenOptions::new();
         options.read(true);
-        let file = ruxfs::fops::File::open(path?, &options)?;
+        let file = ruxfs::fops::File::open(&path?, &options)?;
         let st: ctypes::stat = File::new(file).stat()?.into();
 
         #[cfg(not(feature = "musl"))]
@@ -401,7 +401,7 @@ pub fn sys_fstat(fd: c_int, kst: *mut core::ffi::c_void) -> c_int {
 ///
 /// Return 0 if success.
 pub unsafe fn sys_lstat(path: *const c_char, buf: *mut ctypes::stat) -> ctypes::ssize_t {
-    let path = char_ptr_to_str(path);
+    let path = char_ptr_to_absolute_path(path);
     debug!("sys_lstat <= {:?} {:#x}", path, buf as usize);
     syscall_body!(sys_lstat, {
         if buf.is_null() {
@@ -419,7 +419,7 @@ pub unsafe fn sys_newfstatat(
     kst: *mut ctypes::kstat,
     flag: c_int,
 ) -> c_int {
-    let path = char_ptr_to_str(path);
+    let path = char_ptr_to_absolute_path(path);
     debug!(
         "sys_newfstatat <= fd: {}, path: {:?}, flag: {:x}",
         _fd, path, flag
@@ -430,7 +430,7 @@ pub unsafe fn sys_newfstatat(
         }
         let mut options = OpenOptions::new();
         options.read(true);
-        let file = ruxfs::fops::File::open(path?, &options)?;
+        let file = ruxfs::fops::File::open(&path?, &options)?;
         let st = File::new(file).stat()?;
         unsafe {
             (*kst).st_dev = st.st_dev;
@@ -473,10 +473,10 @@ pub fn sys_getcwd(buf: *mut c_char, size: usize) -> c_int {
 /// Return 0 if the operation succeeds, otherwise return -1.
 pub fn sys_rename(old: *const c_char, new: *const c_char) -> c_int {
     syscall_body!(sys_rename, {
-        let old_path = char_ptr_to_str(old)?;
-        let new_path = char_ptr_to_str(new)?;
+        let old_path = char_ptr_to_absolute_path(old)?;
+        let new_path = char_ptr_to_absolute_path(new)?;
         debug!("sys_rename <= old: {:?}, new: {:?}", old_path, new_path);
-        ruxfs::api::rename(old_path, new_path)?;
+        ruxfs::api::rename(&old_path, &new_path)?;
         Ok(0)
     })
 }
@@ -485,8 +485,8 @@ pub fn sys_rename(old: *const c_char, new: *const c_char) -> c_int {
 ///
 /// TODO: only support `oldfd`, `newfd` equals to AT_FDCWD
 pub fn sys_renameat(oldfd: c_int, old: *const c_char, newfd: c_int, new: *const c_char) -> c_int {
-    let old_path = char_ptr_to_str(old);
-    let new_path = char_ptr_to_str(new);
+    let old_path = char_ptr_to_absolute_path(old);
+    let new_path = char_ptr_to_absolute_path(new);
     debug!(
         "sys_renameat <= oldfd: {}, old: {:?}, newfd: {}, new: {:?}",
         oldfd, old_path, newfd, new_path
@@ -494,7 +494,7 @@ pub fn sys_renameat(oldfd: c_int, old: *const c_char, newfd: c_int, new: *const 
     assert_eq!(oldfd, ctypes::AT_FDCWD as c_int);
     assert_eq!(newfd, ctypes::AT_FDCWD as c_int);
     syscall_body!(sys_renameat, {
-        ruxfs::api::rename(old_path?, new_path?)?;
+        ruxfs::api::rename(&old_path?, &new_path?)?;
         Ok(0)
     })
 }
@@ -502,9 +502,9 @@ pub fn sys_renameat(oldfd: c_int, old: *const c_char, newfd: c_int, new: *const 
 /// Remove a directory, which must be empty
 pub fn sys_rmdir(pathname: *const c_char) -> c_int {
     syscall_body!(sys_rmdir, {
-        let path = char_ptr_to_str(pathname)?;
+        let path = char_ptr_to_absolute_path(pathname)?;
         debug!("sys_rmdir <= path: {:?}", path);
-        ruxfs::api::remove_dir(path)?;
+        ruxfs::api::remove_dir(&path)?;
         Ok(0)
     })
 }
@@ -512,9 +512,9 @@ pub fn sys_rmdir(pathname: *const c_char) -> c_int {
 /// Removes a file from the filesystem.
 pub fn sys_unlink(pathname: *const c_char) -> c_int {
     syscall_body!(sys_unlink, {
-        let path = char_ptr_to_str(pathname)?;
+        let path = char_ptr_to_absolute_path(pathname)?;
         debug!("sys_unlink <= path: {:?}", path);
-        ruxfs::api::remove_file(path)?;
+        ruxfs::api::remove_file(&path)?;
         Ok(0)
     })
 }
@@ -524,7 +524,7 @@ pub fn sys_unlinkat(fd: c_int, pathname: *const c_char, flags: c_int) -> c_int {
     debug!(
         "sys_unlinkat <= fd: {}, pathname: {:?}, flags: {}",
         fd,
-        char_ptr_to_str(pathname),
+        char_ptr_to_absolute_path(pathname),
         flags
     );
     if flags as u32 & ctypes::AT_REMOVEDIR != 0 {
@@ -537,9 +537,9 @@ pub fn sys_unlinkat(fd: c_int, pathname: *const c_char, flags: c_int) -> c_int {
 pub fn sys_mkdir(pathname: *const c_char, mode: ctypes::mode_t) -> c_int {
     // TODO: implement mode
     syscall_body!(sys_mkdir, {
-        let path = char_ptr_to_str(pathname)?;
+        let path = char_ptr_to_absolute_path(pathname)?;
         debug!("sys_mkdir <= path: {:?}, mode: {:?}", path, mode);
-        ruxfs::api::create_dir(path)?;
+        ruxfs::api::create_dir(&path)?;
         Ok(0)
     })
 }
@@ -551,7 +551,7 @@ pub fn sys_mkdirat(fd: c_int, pathname: *const c_char, mode: ctypes::mode_t) -> 
     debug!(
         "sys_mkdirat <= fd: {}, pathname: {:?}, mode: {:x?}",
         fd,
-        char_ptr_to_str(pathname),
+        char_ptr_to_absolute_path(pathname),
         mode
     );
     sys_mkdir(pathname, mode)
@@ -568,7 +568,7 @@ pub fn sys_fchownat(
     debug!(
         "sys_fchownat <= fd: {}, path: {:?}, uid: {}, gid: {}, flag: {}",
         fd,
-        char_ptr_to_str(path),
+        char_ptr_to_absolute_path(path),
         uid,
         gid,
         flag
@@ -584,7 +584,7 @@ pub fn sys_readlinkat(
     buf: *mut c_char,
     bufsize: usize,
 ) -> usize {
-    let path = char_ptr_to_str(pathname);
+    let path = char_ptr_to_absolute_path(pathname);
     debug!(
         "sys_readlinkat <= path = {:?}, fd = {:}, buf = {:p}, bufsize = {:}",
         path, fd, buf, bufsize
@@ -682,7 +682,7 @@ pub unsafe fn sys_preadv(
 /// The mode is either the value F_OK, for the existence of the file,
 /// or a mask consisting of the bitwise OR of one or more of R_OK, W_OK, and X_OK, for the read, write, execute permissions.
 pub fn sys_faccessat(dirfd: c_int, pathname: *const c_char, mode: c_int, flags: c_int) -> c_int {
-    let path = char_ptr_to_str(pathname).unwrap();
+    let path = char_ptr_to_absolute_path(pathname).unwrap();
     debug!(
         "sys_faccessat <= dirfd {} path {} mode {} flags {}",
         dirfd, path, mode, flags
@@ -690,17 +690,49 @@ pub fn sys_faccessat(dirfd: c_int, pathname: *const c_char, mode: c_int, flags: 
     syscall_body!(sys_faccessat, {
         let mut options = OpenOptions::new();
         options.read(true);
-        let _file = ruxfs::fops::File::open(path, &options)?;
+        let _file = ruxfs::fops::File::open(&path, &options)?;
         Ok(0)
     })
 }
 
 /// changes the current working directory to the directory specified in path.
 pub fn sys_chdir(path: *const c_char) -> c_int {
-    let p = char_ptr_to_str(path).unwrap();
+    let p = char_ptr_to_absolute_path(path).unwrap();
     debug!("sys_chdir <= path: {}", p);
     syscall_body!(sys_chdir, {
-        set_current_dir(p)?;
+        set_current_dir(&p)?;
         Ok(0)
     })
+}
+
+/// from char_ptr get absolute_path_str
+pub fn char_ptr_to_absolute_path<'a>(ptr: *const c_char) -> LinuxResult<Cow<'a, str>> {
+    if ptr.is_null() {
+        return Err(LinuxError::EFAULT);
+    }
+
+    let path = unsafe {
+        let cstr = CStr::from_ptr(ptr);
+        cstr.to_str().map_err(|_| LinuxError::EINVAL)?
+    };
+
+    if path.starts_with("..") {
+        let stripped = path.strip_prefix("..").unwrap();
+        let mut cwd = ruxfs::api::current_dir()?;
+        if let Some(index) = cwd.rfind('/') {
+            cwd.truncate(index);
+            if let Some(index) = cwd.rfind('/') {
+                cwd.truncate(index);
+            }
+        }
+        let absolute_path: String = cwd + stripped;
+        Ok(Cow::Owned(absolute_path))
+    } else if path.starts_with('.') {
+        let stripped = path.strip_prefix('.').unwrap();
+        let cwd = ruxfs::api::current_dir()?;
+        let absolute_path: String = cwd + stripped;
+        Ok(Cow::Owned(absolute_path))
+    } else {
+        Ok(Cow::Borrowed(path))
+    }
 }
