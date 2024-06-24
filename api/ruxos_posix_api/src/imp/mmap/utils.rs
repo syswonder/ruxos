@@ -28,8 +28,8 @@ use ruxhal::{
 // use `used_fs` instead of `#[cfg(feature = "fs")]{}` to cancel the scope of code.
 #[cfg(feature = "fs")]
 macro_rules! used_fs {
-    ($($code:tt)*) => {$($code)*};
-}
+      ($($code:tt)*) => {$($code)*};
+  }
 
 #[cfg(not(feature = "fs"))]
 macro_rules! used_fs {
@@ -204,9 +204,11 @@ pub(crate) fn find_free_region(
     }
 
     // Search free region on the top of VMA_LISTS first.
+    const ALIGN_PAGE_MASK: usize = !(PAGE_SIZE_4K - 1);
     if let Some((_, last_vma)) = vma_map.last_key_value() {
-        if VMA_END - last_vma.end_addr >= len {
-            return Some(last_vma.end_addr);
+        let end_boundry = (last_vma.end_addr + PAGE_SIZE_4K) & ALIGN_PAGE_MASK;
+        if (VMA_END - end_boundry) & ALIGN_PAGE_MASK >= len {
+            return Some(end_boundry);
         }
     } else if VMA_END >= VMA_START + len {
         return Some(VMA_START);
@@ -274,7 +276,7 @@ pub(crate) fn snatch_fixed_region(
     }
 
     // delete the mapped and swapped page.
-    release_pages_mapped(start, end);
+    release_pages_mapped(start, end, true);
     #[cfg(feature = "fs")]
     release_pages_swaped(start, end);
 
@@ -283,14 +285,16 @@ pub(crate) fn snatch_fixed_region(
 
 /// release the range of [start, end) in mem_map
 /// take care of AA-deadlock, this function should not be used after `MEM_MAP` is used.
-pub(crate) fn release_pages_mapped(start: usize, end: usize) {
+pub(crate) fn release_pages_mapped(start: usize, end: usize, writeback: bool) {
     let mut memory_map = MEM_MAP.lock();
     let mut removing_vaddr = Vec::new();
     for (&vaddr, _page_info) in memory_map.range(start..end) {
         #[cfg(feature = "fs")]
-        if let Some((file, offset, size)) = _page_info {
-            let src = vaddr as *mut u8;
-            write_into(file, src, *offset as u64, *size);
+        if writeback {
+            if let Some((file, offset, size)) = _page_info {
+                let src = vaddr as *mut u8;
+                write_into(file, src, *offset as u64, *size);
+            }
         }
         if pte_unmap_page(VirtAddr::from(vaddr)).is_err() {
             panic!("Release page failed when munmapping!");
