@@ -31,3 +31,5 @@
 #include <sys/uio.h>
 #include <unistd.h>
 #include <dirent.h>
+
+#include <sys/random.h>
