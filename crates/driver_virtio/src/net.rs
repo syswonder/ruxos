@@ -117,6 +117,21 @@ impl<H: Hal, T: Transport, const QS: usize> NetDriverOps for VirtIoNetDev<H, T, 
         QS
     }
 
+    fn fill_rx_buffers(&mut self, buf_pool: &Arc<NetBufPool>) -> DevResult {
+        for (i, rx_buf_place) in self.rx_buffers.iter_mut().enumerate() {
+            let mut rx_buf = buf_pool.alloc_boxed().ok_or(DevError::NoMemory)?;
+            // Safe because the buffer lives as long as the queue.
+            let token = unsafe {
+                self.inner
+                    .receive_begin(rx_buf.raw_buf_mut())
+                    .map_err(as_dev_err)?
+            };
+            assert_eq!(token, i as u16);
+            *rx_buf_place = Some(rx_buf);
+        }
+        Ok(())
+    }
+
     fn recycle_rx_buffer(&mut self, rx_buf: NetBufPtr) -> DevResult {
         let mut rx_buf = unsafe { NetBuf::from_buf_ptr(rx_buf) };
         // Safe because we take the ownership of `rx_buf` back to `rx_buffers`,
@@ -132,6 +147,19 @@ impl<H: Hal, T: Transport, const QS: usize> NetDriverOps for VirtIoNetDev<H, T, 
             return Err(DevError::BadState);
         }
         self.rx_buffers[new_token as usize] = Some(rx_buf);
+        Ok(())
+    }
+
+    fn prepare_tx_buffer(&self, tx_buf: &mut NetBuf, pkt_len: usize) -> DevResult {
+        let hdr_len = self
+            .inner
+            .fill_buffer_header(tx_buf.raw_buf_mut())
+            .or(Err(DevError::InvalidParam))?;
+        if hdr_len + pkt_len > tx_buf.capacity() {
+            return Err(DevError::InvalidParam);
+        }
+        tx_buf.set_header_len(hdr_len);
+        tx_buf.set_packet_len(pkt_len);
         Ok(())
     }
 

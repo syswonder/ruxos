@@ -71,8 +71,6 @@
 
 #[macro_use]
 extern crate log;
-
-#[cfg(feature = "dyn")]
 extern crate alloc;
 
 #[macro_use]

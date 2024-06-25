@@ -12,13 +12,17 @@ jobs:
       fail-fast: false
     steps:
     - uses: actions/checkout@v3
+      with:
+        submodules: recursive
     - uses: actions-rs/toolchain@v1
       with:
         profile: minimal
         toolchain: ${{ env.rust-toolchain }}
         components: rust-src, clippy, rustfmt
+    - name: Install gcc multilib
+      run: sudo apt update && sudo apt install -y gcc-multilib
     - name: Clippy for the default target
-      run: make clippy
+      run: make clippy        
     - name: Clippy for x86_64
       run: make clippy ARCH=x86_64
     - name: Clippy for riscv64
@@ -37,6 +41,8 @@ jobs:
         arch: [x86_64, riscv64, aarch64]
     steps:
     - uses: actions/checkout@v3
+      with:
+        submodules: recursive
     - uses: actions-rs/toolchain@v1
       with:
         profile: minimal
@@ -47,6 +53,8 @@ jobs:
         crate: cargo-binutils
         version: latest
         use-tool-cache: true
+    - name: Install gcc multilib
+      run: sudo apt update && sudo apt install -y gcc-multilib
     # musl toolchain is also needed in non-musl apps
     # because we need to build opensbi under riscv64
     - uses: ./.github/workflows/actions/setup-musl

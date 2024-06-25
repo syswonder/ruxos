@@ -92,12 +92,12 @@ dependencies = [
  "axerrno",
  "axio",
  "axlog",
- "axnet",
  "ruxconfig",
  "ruxdisplay",
  "ruxfeat",
  "ruxfs",
  "ruxhal",
+ "ruxnet",
  "ruxruntime",
  "ruxtask",
 ]
@@ -197,24 +197,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "axnet"
-version = "0.1.0"
-dependencies = [
- "axerrno",
- "axio",
- "axsync",
- "cfg-if",
- "driver_net",
- "lazy_init",
- "log",
- "ruxdriver",
- "ruxhal",
- "ruxtask",
- "smoltcp",
- "spin 0.9.8",
-]
-
-[[package]]
 name = "axstd"
 version = "0.1.0"
 dependencies = [
@@ -256,6 +238,29 @@ dependencies = [
  "log",
  "tock-registers",
  "volatile 0.2.7",
+]
+
+[[package]]
+name = "bindgen"
+version = "0.65.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cfdf7b466f9a4903edc73f95d6d2bcd5baf8ae620638762244d3f60143643cc5"
+dependencies = [
+ "bitflags 1.3.2",
+ "cexpr",
+ "clang-sys",
+ "lazy_static",
+ "lazycell",
+ "log",
+ "peeking_take_while",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "rustc-hash",
+ "shlex",
+ "syn 2.0.32",
+ "which",
 ]
 
 [[package]]
@@ -357,6 +362,7 @@ version = "1.0.83"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1174fb0b6ec23863f8b971027804a42614e347eafb0a95bf0b12cdae21fc4d0"
 dependencies = [
+ "jobserver",
  "libc",
 ]
 
@@ -514,7 +520,7 @@ dependencies = [
  "clap",
  "criterion-plot",
  "is-terminal",
- "itertools",
+ "itertools 0.10.5",
  "num-traits",
  "once_cell",
  "oorandom",
@@ -535,7 +541,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6b50826342786a51a89e2da3a28f1c32b06e387201bc2d19791f622c673706b1"
 dependencies = [
  "cast",
- "itertools",
+ "itertools 0.10.5",
 ]
 
 [[package]]
@@ -592,6 +598,22 @@ name = "crunchy"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
+
+[[package]]
+name = "cstr_core"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd98742e4fdca832d40cab219dc2e3048de17d873248f83f17df47c1bea70956"
+dependencies = [
+ "cty",
+ "memchr",
+]
+
+[[package]]
+name = "cty"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b365fabc795046672053e29c954733ec3b05e4be654ab130fe8f1f94d7051f35"
 
 [[package]]
 name = "defmt"
@@ -935,6 +957,15 @@ dependencies = [
 
 [[package]]
 name = "itertools"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "284f18f85651fe11e8a991b2adb42cb078325c996ed026d994719efcfca1d54b"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0fd2260e829bddf4cb6ea802289de2f86d6a7a690192fbe91b3f46e0f2c8473"
@@ -958,6 +989,15 @@ dependencies = [
  "log",
  "smoltcp",
  "volatile 0.3.0",
+]
+
+[[package]]
+name = "jobserver"
+version = "0.1.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2b099aaa34a9751c5bf0878add70444e1ed2dd73f347be99003d4577277de6e"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
@@ -1039,6 +1079,14 @@ name = "log"
 version = "0.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b06a4cde4c0f271a446782e3eff8de789548ce57dbc8eca9292c27f4a42004b4"
+
+[[package]]
+name = "lwip_rust"
+version = "0.1.0"
+dependencies = [
+ "bindgen 0.65.1",
+ "cc",
+]
 
 [[package]]
 name = "managed"
@@ -1272,6 +1320,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "printf-compat"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b002af28ffe3d3d67202ae717810a28125a494d5396debc43de01ee136ac404"
+dependencies = [
+ "bitflags 1.3.2",
+ "cstr_core",
+ "cty",
+ "itertools 0.9.0",
+]
+
+[[package]]
 name = "proc-macro-error"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1487,12 +1547,13 @@ name = "rux9p"
 version = "0.1.0"
 dependencies = [
  "axfs_vfs",
- "axnet",
+ "axsync",
  "driver_9p",
  "driver_common",
  "log",
  "ruxdriver",
  "ruxfs",
+ "ruxnet",
  "spin 0.9.8",
 ]
 
@@ -1551,13 +1612,13 @@ version = "0.1.0"
 dependencies = [
  "axalloc",
  "axlog",
- "axnet",
  "axsync",
  "rux9p",
  "ruxdisplay",
  "ruxdriver",
  "ruxfs",
  "ruxhal",
+ "ruxnet",
  "ruxruntime",
  "ruxtask",
  "spinlock",
@@ -1643,7 +1704,7 @@ version = "0.1.0"
 dependencies = [
  "axerrno",
  "axio",
- "bindgen",
+ "bindgen 0.66.1",
  "ruxfeat",
  "ruxos_posix_api",
 ]
@@ -1660,6 +1721,28 @@ dependencies = [
  "ruxfeat",
  "ruxhal",
  "ruxos_posix_api",
+]
+
+[[package]]
+name = "ruxnet"
+version = "0.1.0"
+dependencies = [
+ "axerrno",
+ "axio",
+ "axlog",
+ "axsync",
+ "cfg-if",
+ "cty",
+ "driver_net",
+ "lazy_init",
+ "log",
+ "lwip_rust",
+ "printf-compat",
+ "ruxdriver",
+ "ruxhal",
+ "ruxtask",
+ "smoltcp",
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -1687,9 +1770,8 @@ dependencies = [
  "axerrno",
  "axio",
  "axlog",
- "axnet",
  "axsync",
- "bindgen",
+ "bindgen 0.66.1",
  "bitflags 2.4.0",
  "cfg-if",
  "crate_interface",
@@ -1705,6 +1787,7 @@ dependencies = [
  "ruxfs",
  "ruxfutex",
  "ruxhal",
+ "ruxnet",
  "ruxruntime",
  "ruxtask",
  "spin 0.9.8",
@@ -1718,7 +1801,6 @@ version = "0.1.0"
 dependencies = [
  "axalloc",
  "axlog",
- "axnet",
  "axsync",
  "cfg-if",
  "crate_interface",
@@ -1733,6 +1815,7 @@ dependencies = [
  "ruxfs",
  "ruxfutex",
  "ruxhal",
+ "ruxnet",
  "ruxtask",
  "tty",
 ]

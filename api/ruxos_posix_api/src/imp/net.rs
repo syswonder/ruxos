@@ -14,9 +14,9 @@ use core::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 
 use axerrno::{LinuxError, LinuxResult};
 use axio::PollState;
-use axnet::{TcpSocket, UdpSocket};
 use axsync::Mutex;
 use ruxfdtable::{FileLike, RuxStat};
+use ruxnet::{TcpSocket, UdpSocket};
 
 use crate::ctypes;
 use crate::utils::char_ptr_to_str;
@@ -514,7 +514,7 @@ pub unsafe fn sys_getaddrinfo(
             if let Ok(a) = domain.parse::<IpAddr>() {
                 vec![a]
             } else {
-                axnet::dns_query(domain)?
+                ruxnet::dns_query(domain)?
             }
         } else {
             vec![Ipv4Addr::LOCALHOST.into()]

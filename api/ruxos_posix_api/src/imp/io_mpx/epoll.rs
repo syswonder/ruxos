@@ -219,8 +219,7 @@ pub unsafe fn sys_epoll_wait(
         let epoll_instance = EpollInstance::from_fd(epfd)?;
         loop {
             #[cfg(feature = "net")]
-            axnet::poll_interfaces();
-
+            ruxnet::poll_interfaces();
             let poll_all_res = epoll_instance.poll_all(events);
             let mut events_num = 0;
             match poll_all_res {
@@ -242,7 +241,6 @@ pub unsafe fn sys_epoll_wait(
                 }
                 Err(_) => {}
             }
-
             if events_num > 0 {
                 return Ok(events_num as c_int);
             }

@@ -214,7 +214,7 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
         let all_devices = ruxdriver::init_drivers();
 
         #[cfg(feature = "net")]
-        axnet::init_network(all_devices.net);
+        ruxnet::init_network(all_devices.net);
 
         #[cfg(feature = "fs")]
         {

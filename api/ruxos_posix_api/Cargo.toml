@@ -23,7 +23,7 @@ paging = ["alloc", "ruxfeat/paging"]
 multitask = ["ruxfeat/multitask", "ruxtask/multitask", "dep:ruxfutex"]
 fd = ["alloc"]
 fs = ["dep:ruxfs", "ruxfeat/fs", "fd"]
-net = ["dep:axnet", "ruxfeat/net", "fd"]
+net = ["dep:ruxnet", "ruxfeat/net", "fd"]
 signal = ["ruxruntime/signal"]
 pipe = ["fd"]
 select = ["fd"]
@@ -48,7 +48,7 @@ ruxfutex = { path = "../../modules/ruxfutex", optional = true }
 axalloc = { path = "../../modules/axalloc", optional = true }
 ruxtask = { path = "../../modules/ruxtask", optional = true }
 ruxfs = { path = "../../modules/ruxfs", optional = true }
-axnet = { path = "../../modules/axnet", optional = true }
+ruxnet = { path = "../../modules/ruxnet", optional = true }
 
 # Other crates
 axio = { path = "../../crates/axio" }
