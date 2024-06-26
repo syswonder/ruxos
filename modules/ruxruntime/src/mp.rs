@@ -48,6 +48,9 @@ pub extern "C" fn rust_main_secondary(cpu_id: usize) -> ! {
 
     ruxhal::platform_init_secondary();
 
+    #[cfg(feature = "rand")]
+    ruxrand::init(cpu_id);
+
     #[cfg(feature = "multitask")]
     ruxtask::init_scheduler_secondary();
 
