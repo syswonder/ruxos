@@ -1,0 +1,28 @@
+[package]
+name = "ruxrand"
+version = "0.1.0"
+edition = "2021"
+authors = ["Sssssalty Fish <saltyfish2233@gmail.com>"]
+description = "RNG support for RuxOS"
+license = "GPL-3.0-or-later OR Apache-2.0"
+homepage = "https://github.com/syswonder/ruxos"
+repository = "https://github.com/rcore-os/arceos/tree/main/modules/ruxrand"
+
+[features]
+default = []
+
+easy-spin = []
+
+[dependencies]
+crate_interface = "0.1.1"
+rand = { version = "0.8.5", default-features = false }
+rand_xoshiro = { version = "0.6.0", default-features = false }
+
+spinlock = { version = "0.1.0", path = "../../crates/spinlock", features = [
+    "rand",
+] }
+percpu = { version = "0.1.0", path = "../../crates/percpu" }
+lazy_init = { version = "0.1.0", path = "../../crates/lazy_init", default-features = false }
+
+[dev-dependencies]
+rand = { version = "0.8.5" }

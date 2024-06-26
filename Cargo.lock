@@ -1404,6 +1404,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rand_xoshiro"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f97cdb2a36ed4183de61b2f824cc45c9f1037f28afe0a322e9fff4c108b5aaa"
+dependencies = [
+ "rand_core",
+]
+
+[[package]]
 name = "ratio"
 version = "0.1.0"
 
@@ -1796,6 +1805,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "ruxrand"
+version = "0.1.0"
+dependencies = [
+ "crate_interface",
+ "lazy_init",
+ "percpu",
+ "rand",
+ "rand_xoshiro",
+ "spinlock",
+]
+
+[[package]]
 name = "ruxruntime"
 version = "0.1.0"
 dependencies = [
@@ -1816,6 +1837,7 @@ dependencies = [
  "ruxfutex",
  "ruxhal",
  "ruxnet",
+ "ruxrand",
  "ruxtask",
  "tty",
 ]
@@ -1984,6 +2006,7 @@ name = "spinlock"
 version = "0.1.0"
 dependencies = [
  "cfg-if",
+ "crate_interface",
  "kernel_guard",
 ]
 
