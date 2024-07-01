@@ -23,7 +23,8 @@ alloc = ["axalloc", "dtb"]
 paging = ["ruxhal/paging", "lazy_init"]
 rtc = ["ruxhal/rtc"]
 
-multitask = ["ruxtask/multitask", "dep:ruxfutex"]
+multitask = ["ruxtask/multitask", "dep:ruxfutex", "rand"]
+rand = ["dep:ruxrand"]
 fs = ["ruxdriver", "ruxfs"]
 blkfs = ["fs"]
 virtio-9p = ["fs", "rux9p"]
@@ -49,6 +50,7 @@ ruxdisplay = { path = "../ruxdisplay", optional = true }
 ruxtask = { path = "../ruxtask", optional = true }
 axsync = { path = "../axsync", optional = true }
 ruxfutex = { path = "../ruxfutex", optional = true }
+ruxrand = { path = "../ruxrand", optional = true }
 
 crate_interface = "0.1.1"
 percpu = { path = "../../crates/percpu", optional = true }

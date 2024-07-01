@@ -16,14 +16,25 @@
 //!   environment (without this feature), the lock state is unnecessary and
 //!   optimized out. CPU can always get the lock if we follow the proper guard
 //!   in use. By default, this feature is disabled.
+//! - `rand`: Provide extra contention-alleviating strategy using exponential
+//!   backoff algorithm. The user is responsible for providing the random number
+//!   generator implementation.
 
 #![cfg_attr(not(test), no_std)]
 
 mod base;
 
-use kernel_guard::{NoOp, NoPreempt, NoPreemptIrqSave};
+/// Defines the strategies used when encountering lock contention.
+pub mod strategy;
+
+#[cfg(feature = "rand")]
+mod rand_strategy;
+
+use kernel_guard::{NoPreempt, NoPreemptIrqSave};
 
 pub use self::base::{BaseSpinLock, BaseSpinLockGuard};
+
+pub use self::strategy::*;
 
 /// A spin lock that disables kernel preemption while trying to lock, and
 /// re-enables it after unlocking.
@@ -48,7 +59,7 @@ pub type SpinNoIrqGuard<'a, T> = BaseSpinLockGuard<'a, NoPreemptIrqSave, T>;
 ///
 /// It must be used in the preemption-disabled and local IRQ-disabled context,
 /// or never be used in interrupt handlers.
-pub type SpinRaw<T> = BaseSpinLock<NoOp, T>;
+pub type SpinRaw<T> = BaseSpinLock<kernel_guard::NoOp, T>;
 
 /// A guard that provides mutable data access for [`SpinRaw`].
-pub type SpinRawGuard<'a, T> = BaseSpinLockGuard<'a, NoOp, T>;
+pub type SpinRawGuard<'a, T> = BaseSpinLockGuard<'a, kernel_guard::NoOp, T>;

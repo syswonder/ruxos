@@ -10,16 +10,21 @@
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use axerrno::{LinuxError, LinuxResult};
+use kernel_guard::NoPreemptIrqSave;
 use lazy_init::LazyInit;
 use ruxfdtable::{FD_TABLE, RUX_FILE_LIMIT};
 use scheduler::BaseScheduler;
-use spinlock::SpinNoIrq;
+use spinlock::{BaseSpinLock, Combine, ExpRand, SpinNoIrq};
 
 use crate::task::{CurrentTask, TaskState};
 use crate::{AxTaskRef, Scheduler, TaskInner, WaitQueue};
 
+pub(crate) const BACKOFF_LIMIT: u32 = 8;
+pub(crate) type DefaultStrategy = Combine<ExpRand<BACKOFF_LIMIT>, spinlock::NoOp>;
+pub(crate) type RQLock<T> = BaseSpinLock<NoPreemptIrqSave, T, DefaultStrategy>;
+
 // TODO: per-CPU
-pub(crate) static RUN_QUEUE: LazyInit<SpinNoIrq<AxRunQueue>> = LazyInit::new();
+pub(crate) static RUN_QUEUE: LazyInit<RQLock<AxRunQueue>> = LazyInit::new();
 
 // TODO: per-CPU
 static EXITED_TASKS: SpinNoIrq<VecDeque<AxTaskRef>> = SpinNoIrq::new(VecDeque::new());
@@ -34,11 +39,11 @@ pub(crate) struct AxRunQueue {
 }
 
 impl AxRunQueue {
-    pub fn new() -> SpinNoIrq<Self> {
+    pub fn new() -> RQLock<Self> {
         let gc_task = TaskInner::new(gc_entry, "gc".into(), ruxconfig::TASK_STACK_SIZE);
         let mut scheduler = Scheduler::new();
         scheduler.add_task(gc_task);
-        SpinNoIrq::new(Self { scheduler })
+        RQLock::new(Self { scheduler })
     }
 
     pub fn add_task(&mut self, task: AxTaskRef) {
