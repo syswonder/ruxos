@@ -438,8 +438,8 @@ fn init_interrupt() {
             if signal & (1 << signum) != 0
             /* TODO: && support mask */
             {
-                Signal::sigaction(signum as u8, None, None);
                 Signal::signal(signum as i8, false);
+                Signal::sigaction(signum as u8, None, None);
             }
         }
     }

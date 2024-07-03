@@ -30,7 +30,7 @@ virtio-9p = ["fs", "rux9p"]
 net-9p = ["fs", "rux9p"]
 net = ["ruxdriver", "ruxnet"]
 display = ["ruxdriver", "ruxdisplay"]
-signal = []
+signal = ["ruxhal/signal"]
 
 musl = ["dep:ruxfutex"]
 
