@@ -135,6 +135,7 @@ impl Drv9pOps {
         let mut request = _9PReq::new(_9PType::Tfsync);
         let mut response_buffer: [u8; _9P_MAX_PSIZE as usize] = [0; _9P_MAX_PSIZE as usize];
         request.write_u32(fid);
+        request.write_u32(0_u32); //0: full data sync; 1: file data only.
         request.finish();
         self.request(&request.buffer, &mut response_buffer)
     }
