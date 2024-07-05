@@ -102,9 +102,9 @@ impl TcpListener {
         super::each_addr(addr, |addr: io::Result<&SocketAddr>| {
             let addr = addr?;
             let backlog = 128;
-            let socket = api::ax_tcp_socket();
+            let mut socket = api::ax_tcp_socket();
             api::ax_tcp_bind(&socket, *addr)?;
-            api::ax_tcp_listen(&socket, backlog)?;
+            api::ax_tcp_listen(&mut socket, backlog)?;
             Ok(TcpListener(socket))
         })
     }

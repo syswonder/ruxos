@@ -9,7 +9,7 @@
 
 use crate::io::AxPollState;
 use axerrno::AxResult;
-use axnet::{UdpSocket, TcpSocket};
+use ruxnet::{UdpSocket, TcpSocket};
 use core::net::{IpAddr, SocketAddr};
 
 /// A handle to a TCP socket.
@@ -47,7 +47,7 @@ pub fn ax_tcp_bind(socket: &AxTcpSocketHandle, addr: SocketAddr) -> AxResult {
     socket.0.bind(addr)
 }
 
-pub fn ax_tcp_listen(socket: &AxTcpSocketHandle, _backlog: usize) -> AxResult {
+pub fn ax_tcp_listen(socket: &mut AxTcpSocketHandle, _backlog: usize) -> AxResult {
     socket.0.listen()
 }
 
@@ -131,10 +131,10 @@ pub fn ax_udp_poll(socket: &AxUdpSocketHandle) -> AxResult<AxPollState> {
 ////////////////////////////////////////////////////////////////////////////////
 
 pub fn ax_dns_query(domain_name: &str) -> AxResult<alloc::vec::Vec<IpAddr>> {
-    axnet::dns_query(domain_name)
+    ruxnet::dns_query(domain_name)
 }
 
 pub fn ax_poll_interfaces() -> AxResult {
-    axnet::poll_interfaces();
+    ruxnet::poll_interfaces();
     Ok(())
 }

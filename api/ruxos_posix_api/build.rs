@@ -129,6 +129,7 @@ typedef struct {{
             "PROT_.+",
             "MS_.+",
             "MREMAP_.+",
+            "GRND_.*",
         ];
 
         #[derive(Debug)]

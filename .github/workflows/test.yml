@@ -11,11 +11,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+      with:
+        submodules: recursive
     - uses: actions-rs/toolchain@v1
       with:
         profile: minimal
         toolchain: ${{ env.rust-toolchain }}
-        components: rust-src
+        components: rust-src, llvm-tools-preview
     - name: Run unit tests
       run: make unittest_no_fail_fast
 
@@ -28,16 +30,20 @@ jobs:
         arch: [x86_64, riscv64, aarch64]
     steps:
     - uses: actions/checkout@v3
+      with:
+        submodules: recursive
     - uses: actions-rs/toolchain@v1
       with:
         profile: minimal
         toolchain: ${{ env.rust-toolchain }}
-        components: rust-src
+        components: rust-src, llvm-tools-preview
     - uses: actions-rs/install@v0.1
       with:
         crate: cargo-binutils
         version: latest
         use-tool-cache: true
+    - name: Install gcc multilib
+      run: sudo apt update && sudo apt install -y gcc-multilib
     - uses: ./.github/workflows/actions/setup-qemu
       with:
         qemu-version: ${{ env.qemu-version }}

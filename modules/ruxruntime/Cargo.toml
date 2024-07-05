@@ -28,11 +28,12 @@ fs = ["ruxdriver", "ruxfs"]
 blkfs = ["fs"]
 virtio-9p = ["fs", "rux9p"]
 net-9p = ["fs", "rux9p"]
-net = ["ruxdriver", "axnet"]
+net = ["ruxdriver", "ruxnet"]
 display = ["ruxdriver", "ruxdisplay"]
 signal = []
 
 musl = ["dep:ruxfutex"]
+
 
 [dependencies]
 cfg-if = "1.0"
@@ -43,7 +44,7 @@ axalloc = { path = "../axalloc", optional = true }
 ruxdriver = { path = "../ruxdriver", optional = true }
 ruxfs = { path = "../ruxfs", optional = true }
 rux9p = { path = "../rux9p", optional = true }
-axnet = { path = "../axnet", optional = true }
+ruxnet = { path = "../ruxnet", optional = true }
 ruxdisplay = { path = "../ruxdisplay", optional = true }
 ruxtask = { path = "../ruxtask", optional = true }
 axsync = { path = "../axsync", optional = true }
@@ -54,3 +55,5 @@ percpu = { path = "../../crates/percpu", optional = true }
 kernel_guard = { version = "0.1.0", optional = true }
 lazy_init = { path = "../../crates/lazy_init", optional = true }
 dtb = { path = "../../crates/dtb", optional = true }
+
+tty = { path = "../../crates/tty", optional = true }

@@ -14,7 +14,7 @@
 * [ruxfs](../modules/ruxfs): Ruxos filesystem module.
 * [ruxhal](../modules/ruxhal): Ruxos hardware abstraction layer, provides unified APIs for platform-specific operations.
 * [axlog](../modules/axlog): Macros for multi-level formatted logging used by Ruxos.
-* [axnet](../modules/axnet): Ruxos network module.
+* [ruxnet](../modules/ruxnet): Ruxos network module.
 * [ruxruntime](../modules/ruxruntime): Runtime library of Ruxos.
 * [axsync](../modules/axsync): Ruxos synchronization primitives.
 * [ruxtask](../modules/ruxtask): Ruxos task management module.
@@ -62,10 +62,10 @@
 | [sleep](../apps/task/sleep/) | axalloc, ruxtask | alloc, paging, multitask, sched_fifo, irq | Thread sleeping test |
 | [priority](../apps/task/priority/) | axalloc, ruxtask | alloc, paging, multitask, sched_cfs | Thread priority test |
 | [shell](../apps/fs/shell/) | axalloc, ruxdriver, ruxfs | alloc, paging, fs | A simple shell that responds to filesystem operations |
-| [httpclient](../apps/net/httpclient/) | axalloc, ruxdriver, axnet | alloc, paging, net | A simple client that sends an HTTP request and then prints the response |
-| [echoserver](../apps/net/echoserver/) | axalloc, ruxdriver, axnet, ruxtask | alloc, paging, net, multitask | A multi-threaded TCP server that reverses messages sent by the client  |
-| [httpserver](../apps/net/httpserver/) | axalloc, ruxdriver, axnet, ruxtask | alloc, paging, net, multitask | A multi-threaded HTTP server that serves a static web page |
-| [udpserver](../apps/net/udpserver/) | axalloc, ruxdriver, axnet | alloc, paging, net | A simple echo server using UDP protocol |
+| [httpclient](../apps/net/httpclient/) | axalloc, ruxdriver, ruxnet | alloc, paging, net | A simple client that sends an HTTP request and then prints the response |
+| [echoserver](../apps/net/echoserver/) | axalloc, ruxdriver, ruxnet, ruxtask | alloc, paging, net, multitask | A multi-threaded TCP server that reverses messages sent by the client  |
+| [httpserver](../apps/net/httpserver/) | axalloc, ruxdriver, ruxnet, ruxtask | alloc, paging, net, multitask | A multi-threaded HTTP server that serves a static web page |
+| [udpserver](../apps/net/udpserver/) | axalloc, ruxdriver, ruxnet | alloc, paging, net | A simple echo server using UDP protocol |
 
 ## Applications (C)
 | App | Extra modules | Enabled features | Description |
@@ -73,8 +73,8 @@
 | [helloworld](../apps/c/helloworld/) | | | A minimal C app that just prints a string |
 | [memtest](../apps/c/memtest/) | axalloc | alloc, paging | Dynamic memory allocation test in C |
 | [sqlite3](../apps/c/sqlite3/) | axalloc, ruxdriver, ruxfs | alloc, paging, fp_simd, fs | Porting of [SQLite3](https://sqlite.org/index.html) |
-| [iperf](../apps/c/iperf/) | axalloc, ruxdriver, ruxfs, axnet | alloc, paging, fp_simd, fs, net, select | Porting of [iPerf3](https://iperf.fr/) |
-| [redis](../apps/c/redis/) | axalloc, ruxdriver, ruxtask, ruxfs, axnet | alloc, paging, fp_simd, irq, multitask, fs, net, pipe, epoll | Porting of [Redis](https://redis.io/) |
+| [iperf](../apps/c/iperf/) | axalloc, ruxdriver, ruxfs, ruxnet | alloc, paging, fp_simd, fs, net, select | Porting of [iPerf3](https://iperf.fr/) |
+| [redis](../apps/c/redis/) | axalloc, ruxdriver, ruxtask, ruxfs, ruxnet | alloc, paging, fp_simd, irq, multitask, fs, net, pipe, epoll | Porting of [Redis](https://redis.io/) |
 
 ## Dependencies
 
@@ -112,7 +112,7 @@ M[ruxconfig]
 N[axalloc]
 O[ruxtask]
 P[ruxdriver]
-Q[axnet]
+Q[ruxnet]
 Q1[ruxdisplay]
 M1[ruxfs]
 end

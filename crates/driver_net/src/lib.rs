@@ -14,6 +14,9 @@
 #![feature(const_slice_from_raw_parts_mut)]
 #![feature(box_into_inner)]
 
+extern crate alloc;
+use alloc::sync::Arc;
+
 #[cfg(feature = "ixgbe")]
 /// ixgbe NIC device driver.
 pub mod ixgbe;
@@ -45,6 +48,16 @@ pub trait NetDriverOps: BaseDriverOps {
 
     /// Size of the transmit queue.
     fn tx_queue_size(&self) -> usize;
+
+    /// Fills the receive queue with buffers.
+    ///
+    /// It should be called once when the driver is initialized.
+    fn fill_rx_buffers(&mut self, buf_pool: &Arc<NetBufPool>) -> DevResult;
+
+    /// Prepares a buffer for transmitting.
+    ///
+    /// e.g., fill the header of the packet.
+    fn prepare_tx_buffer(&self, tx_buf: &mut NetBuf, packet_len: usize) -> DevResult;
 
     /// Gives back the `rx_buf` to the receive queue for later receiving.
     ///

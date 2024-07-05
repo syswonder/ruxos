@@ -351,7 +351,7 @@ impl VfsNodeOps for CommonNode {
             ("", src_path)
         };
 
-        let (dst_prefixs, new_name) = if let Some(dst_sindex) = src_path.rfind('/') {
+        let (dst_prefixs, new_name) = if let Some(dst_sindex) = dst_path.rfind('/') {
             (&dst_path[..dst_sindex], &dst_path[dst_sindex + 1..])
         } else {
             ("", dst_path)
