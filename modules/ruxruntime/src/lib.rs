@@ -201,6 +201,9 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     info!("Initialize platform devices...");
     ruxhal::platform_init();
 
+    #[cfg(feature = "rand")]
+    ruxrand::init(cpu_id);
+
     #[cfg(feature = "multitask")]
     {
         ruxtask::init_scheduler();
