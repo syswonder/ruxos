@@ -27,7 +27,7 @@ ruxhal = { path = "../ruxhal" }
 axsync = { path = "../axsync" }
 axlog = { path = "../axlog" }
 ruxtask = { path = "../ruxtask" }
-ruxdriver = { path = "../ruxdriver", features = ["net"] }
+ruxdriver = { path = "../ruxdriver", features = ["net", "dyn"] }
 cty = { version = "0.2.2", optional = true }
 axio = { path = "../../crates/axio" }
 

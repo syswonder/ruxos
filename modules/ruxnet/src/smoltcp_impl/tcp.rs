@@ -1,26 +1,28 @@
 /* Copyright (c) [2023] [Syswonder Community]
- *   [Ruxos] is licensed under Mulan PSL v2.
- *   You can use this software according to the terms and conditions of the Mulan PSL v2.
- *   You may obtain a copy of Mulan PSL v2 at:
- *               http://license.coscl.org.cn/MulanPSL2
- *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
- *   See the Mulan PSL v2 for more details.
- */
+*   [Ruxos] is licensed under Mulan PSL v2.
+*   You can use this software according to the terms and conditions of the Mulan PSL v2.
+*   You may obtain a copy of Mulan PSL v2 at:
+*               http://license.coscl.org.cn/MulanPSL2
+*   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+*   See the Mulan PSL v2 for more details.
+*/
 
 use core::cell::UnsafeCell;
 use core::net::SocketAddr;
+use core::str::FromStr;
 use core::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
+use alloc::string::{String, ToString};
 use axerrno::{ax_err, ax_err_type, AxError, AxResult};
 use axio::PollState;
 use axsync::Mutex;
 
 use smoltcp::iface::SocketHandle;
 use smoltcp::socket::tcp::{self, ConnectError, State};
-use smoltcp::wire::{IpEndpoint, IpListenEndpoint};
+use smoltcp::wire::{IpAddress, IpEndpoint, IpListenEndpoint};
 
 use super::addr::{from_core_sockaddr, into_core_sockaddr, is_unspecified, UNSPECIFIED_ENDPOINT};
-use super::{SocketSetWrapper, ETH0, LISTEN_TABLE, SOCKET_SET};
+use super::{route_dev, to_static_str, SocketSetWrapper, ETH0, LISTEN_TABLE, LO, SOCKET_SET};
 
 // State transitions:
 // CLOSED -(connect)-> BUSY -> CONNECTING -> CONNECTED -(shutdown)-> BUSY -> CLOSED
@@ -49,7 +51,7 @@ const MSG_DONTWAIT: i32 = 4;
 /// [`accept`]: TcpSocket::accept
 pub struct TcpSocket {
     state: AtomicU8,
-    handle: UnsafeCell<Option<SocketHandle>>,
+    handle: UnsafeCell<Option<(SocketHandle, &'static str)>>,
     local_addr: UnsafeCell<IpEndpoint>,
     peer_addr: UnsafeCell<IpEndpoint>,
     nonblock: AtomicBool,
@@ -72,12 +74,13 @@ impl TcpSocket {
     /// Creates a new TCP socket that is already connected.
     const fn new_connected(
         handle: SocketHandle,
+        name: &'static str,
         local_addr: IpEndpoint,
         peer_addr: IpEndpoint,
     ) -> Self {
         Self {
             state: AtomicU8::new(STATE_CONNECTED),
-            handle: UnsafeCell::new(Some(handle)),
+            handle: UnsafeCell::new(Some((handle, name))),
             local_addr: UnsafeCell::new(local_addr),
             peer_addr: UnsafeCell::new(peer_addr),
             nonblock: AtomicBool::new(false),
@@ -133,15 +136,27 @@ impl TcpSocket {
     pub fn connect(&self, remote_addr: SocketAddr) -> AxResult {
         self.update_state(STATE_CLOSED, STATE_CONNECTING, || {
             // SAFETY: no other threads can read or write these fields.
-            let handle = unsafe { self.handle.get().read() }
-                .unwrap_or_else(|| SOCKET_SET.add(SocketSetWrapper::new_tcp_socket()));
+            let iface_name = match remote_addr {
+                SocketAddr::V4(addr) => route_dev(addr.ip().octets()),
+                _ => panic!("IPv6 not supported"),
+            };
+            let iface = match iface_name.as_str() {
+                "lo" => &LO.iface,
+                "eth0" => &ETH0.iface,
+                &_ => todo!(),
+            };
+            let handle = unsafe { self.handle.get().read() }.unwrap_or_else(|| {
+                (
+                    SOCKET_SET.add(SocketSetWrapper::new_tcp_socket(), iface_name.clone()),
+                    to_static_str(iface_name),
+                )
+            });
 
             // TODO: check remote addr unreachable
             let remote_endpoint = from_core_sockaddr(remote_addr);
             let bound_endpoint = self.bound_endpoint()?;
-            let iface = &ETH0.iface;
             let (local_endpoint, remote_endpoint) = SOCKET_SET
-                .with_socket_mut::<tcp::Socket, _, _>(handle, |socket| {
+                .with_socket_mut::<tcp::Socket, _, _>(handle.0, handle.1.to_string(), |socket| {
                     socket
                         .connect(iface.lock().context(), remote_endpoint, bound_endpoint)
                         .or_else(|e| match e {
@@ -208,6 +223,20 @@ impl TcpSocket {
                     return ax_err!(InvalidInput, "socket bind() failed: already bound");
                 }
                 self.local_addr.get().write(from_core_sockaddr(local_addr));
+                let iface_name = match local_addr {
+                    SocketAddr::V4(addr) => route_dev(addr.ip().octets()),
+                    _ => panic!("IPv6 not supported"),
+                };
+                let handle = self.handle.get().read().unwrap_or_else(|| {
+                    (
+                        SOCKET_SET.add(
+                            SocketSetWrapper::new_tcp_socket(),
+                            String::from_str(LO.name()).unwrap(),
+                        ),
+                        to_static_str(iface_name),
+                    )
+                });
+                self.handle.get().write(Some(handle));
             }
             Ok(())
         })
@@ -247,7 +276,13 @@ impl TcpSocket {
         self.block_on(|| {
             let (handle, (local_addr, peer_addr)) = LISTEN_TABLE.accept(local_port)?;
             debug!("TCP socket accepted a new connection {}", peer_addr);
-            Ok(TcpSocket::new_connected(handle, local_addr, peer_addr))
+            let iface_name = match peer_addr.addr {
+                IpAddress::Ipv4(addr) => route_dev(addr.0),
+                _ => panic!("IPv6 not supported"),
+            };
+            let sock =
+                TcpSocket::new_connected(handle, to_static_str(iface_name), local_addr, peer_addr);
+            Ok(sock)
         })
     }
 
@@ -258,10 +293,14 @@ impl TcpSocket {
             // SAFETY: `self.handle` should be initialized in a connected socket, and
             // no other threads can read or write it.
             let handle = unsafe { self.handle.get().read().unwrap() };
-            SOCKET_SET.with_socket_mut::<tcp::Socket, _, _>(handle, |socket| {
-                debug!("TCP socket {}: shutting down", handle);
-                socket.close();
-            });
+            SOCKET_SET.with_socket_mut::<tcp::Socket, _, _>(
+                handle.0,
+                handle.1.to_string(),
+                |socket| {
+                    debug!("TCP socket {}: shutting down", handle.0);
+                    socket.close();
+                },
+            );
             unsafe { self.local_addr.get().write(UNSPECIFIED_ENDPOINT) }; // clear bound address
             SOCKET_SET.poll_interfaces();
             Ok(())
@@ -295,35 +334,39 @@ impl TcpSocket {
         // SAFETY: `self.handle` should be initialized in a connected socket.
         let handle = unsafe { self.handle.get().read().unwrap() };
         self.block_on(|| {
-            SOCKET_SET.with_socket_mut::<tcp::Socket, _, _>(handle, |socket| {
-                if !socket.is_active() {
-                    // not open
-                    ax_err!(ConnectionRefused, "socket recv() failed")
-                } else if !socket.may_recv() {
-                    // connection closed
-                    Ok(0)
-                } else if socket.recv_queue() > 0 {
-                    // data available
-                    // TODO: use socket.recv(|buf| {...})
-                    if flags & MSG_DONTWAIT != 0 {
-                        self.set_nonblocking(true);
-                    }
-                    if flags & MSG_PEEK != 0 {
-                        let len = socket
-                            .peek_slice(buf)
-                            .map_err(|_| ax_err_type!(BadState, "socket recv() failed"))?;
-                        Ok(len)
+            SOCKET_SET.with_socket_mut::<tcp::Socket, _, _>(
+                handle.0,
+                handle.1.to_string(),
+                |socket| {
+                    if !socket.is_active() {
+                        // not open
+                        ax_err!(ConnectionRefused, "socket recv() failed")
+                    } else if !socket.may_recv() {
+                        // connection closed
+                        Ok(0)
+                    } else if socket.recv_queue() > 0 {
+                        // data available
+                        // TODO: use socket.recv(|buf| {...})
+                        if flags & MSG_DONTWAIT != 0 {
+                            self.set_nonblocking(true);
+                        }
+                        if flags & MSG_PEEK != 0 {
+                            let len = socket
+                                .peek_slice(buf)
+                                .map_err(|_| ax_err_type!(BadState, "socket recv() failed"))?;
+                            Ok(len)
+                        } else {
+                            let len = socket
+                                .recv_slice(buf)
+                                .map_err(|_| ax_err_type!(BadState, "socket recv() failed"))?;
+                            Ok(len)
+                        }
                     } else {
-                        let len = socket
-                            .recv_slice(buf)
-                            .map_err(|_| ax_err_type!(BadState, "socket recv() failed"))?;
-                        Ok(len)
+                        // no more data
+                        Err(AxError::WouldBlock)
                     }
-                } else {
-                    // no more data
-                    Err(AxError::WouldBlock)
-                }
-            })
+                },
+            )
         })
     }
 
@@ -339,22 +382,26 @@ impl TcpSocket {
         // SAFETY: `self.handle` should be initialized in a connected socket.
         let handle = unsafe { self.handle.get().read().unwrap() };
         self.block_on(|| {
-            SOCKET_SET.with_socket_mut::<tcp::Socket, _, _>(handle, |socket| {
-                if !socket.is_active() || !socket.may_send() {
-                    // closed by remote
-                    ax_err!(ConnectionReset, "socket send() failed")
-                } else if socket.can_send() {
-                    // connected, and the tx buffer is not full
-                    // TODO: use socket.send(|buf| {...})
-                    let len = socket
-                        .send_slice(buf)
-                        .map_err(|_| ax_err_type!(BadState, "socket send() failed"))?;
-                    Ok(len)
-                } else {
-                    // tx buffer is full
-                    Err(AxError::WouldBlock)
-                }
-            })
+            SOCKET_SET.with_socket_mut::<tcp::Socket, _, _>(
+                handle.0,
+                handle.1.to_string(),
+                |socket| {
+                    if !socket.is_active() || !socket.may_send() {
+                        // closed by remote
+                        ax_err!(ConnectionReset, "socket send() failed")
+                    } else if socket.can_send() {
+                        // connected, and the tx buffer is not full
+                        // TODO: use socket.send(|buf| {...})
+                        let len = socket
+                            .send_slice(buf)
+                            .map_err(|_| ax_err_type!(BadState, "socket send() failed"))?;
+                        Ok(len)
+                    } else {
+                        // tx buffer is full
+                        Err(AxError::WouldBlock)
+                    }
+                },
+            )
         })
     }
 
@@ -449,24 +496,26 @@ impl TcpSocket {
         // SAFETY: `self.handle` should be initialized above.
         let handle = unsafe { self.handle.get().read().unwrap() };
         let writable =
-            SOCKET_SET.with_socket::<tcp::Socket, _, _>(handle, |socket| match socket.state() {
-                State::SynSent => false, // wait for connection
-                State::Established => {
-                    self.set_state(STATE_CONNECTED); // connected
-                    debug!(
-                        "TCP socket {}: connected to {}",
-                        handle,
-                        socket.remote_endpoint().unwrap(),
-                    );
-                    true
-                }
-                _ => {
-                    unsafe {
-                        self.local_addr.get().write(UNSPECIFIED_ENDPOINT);
-                        self.peer_addr.get().write(UNSPECIFIED_ENDPOINT);
+            SOCKET_SET.with_socket::<tcp::Socket, _, _>(handle.0, handle.1.to_string(), |socket| {
+                match socket.state() {
+                    State::SynSent => false, // wait for connection
+                    State::Established => {
+                        self.set_state(STATE_CONNECTED); // connected
+                        debug!(
+                            "TCP socket {}: connected to {}",
+                            handle.0,
+                            socket.remote_endpoint().unwrap(),
+                        );
+                        true
                     }
-                    self.set_state(STATE_CLOSED); // connection failed
-                    true
+                    _ => {
+                        unsafe {
+                            self.local_addr.get().write(UNSPECIFIED_ENDPOINT);
+                            self.peer_addr.get().write(UNSPECIFIED_ENDPOINT);
+                        }
+                        self.set_state(STATE_CLOSED); // connection failed
+                        true
+                    }
                 }
             });
         Ok(PollState {
@@ -478,7 +527,7 @@ impl TcpSocket {
     fn poll_stream(&self) -> AxResult<PollState> {
         // SAFETY: `self.handle` should be initialized in a connected socket.
         let handle = unsafe { self.handle.get().read().unwrap() };
-        SOCKET_SET.with_socket::<tcp::Socket, _, _>(handle, |socket| {
+        SOCKET_SET.with_socket::<tcp::Socket, _, _>(handle.0, handle.1.to_string(), |socket| {
             Ok(PollState {
                 readable: !socket.may_recv() || socket.can_recv(),
                 writable: !socket.may_send() || socket.can_send(),
@@ -524,7 +573,7 @@ impl Drop for TcpSocket {
         self.shutdown().ok();
         // Safe because we have mut reference to `self`.
         if let Some(handle) = unsafe { self.handle.get().read() } {
-            SOCKET_SET.remove(handle);
+            SOCKET_SET.remove(handle.0, handle.1.to_string());
         }
     }
 }

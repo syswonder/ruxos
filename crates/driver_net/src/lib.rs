@@ -20,6 +20,8 @@ use alloc::sync::Arc;
 #[cfg(feature = "ixgbe")]
 /// ixgbe NIC device driver.
 pub mod ixgbe;
+/// loopback device driver
+pub mod loopback;
 mod net_buf;
 
 use core::ptr::NonNull;

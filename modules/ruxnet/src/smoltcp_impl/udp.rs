@@ -1,15 +1,17 @@
 /* Copyright (c) [2023] [Syswonder Community]
- *   [Ruxos] is licensed under Mulan PSL v2.
- *   You can use this software according to the terms and conditions of the Mulan PSL v2.
- *   You may obtain a copy of Mulan PSL v2 at:
- *               http://license.coscl.org.cn/MulanPSL2
- *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
- *   See the Mulan PSL v2 for more details.
- */
+*   [Ruxos] is licensed under Mulan PSL v2.
+*   You can use this software according to the terms and conditions of the Mulan PSL v2.
+*   You may obtain a copy of Mulan PSL v2 at:
+*               http://license.coscl.org.cn/MulanPSL2
+*   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+*   See the Mulan PSL v2 for more details.
+*/
 
+use core::cell::UnsafeCell;
 use core::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use core::sync::atomic::{AtomicBool, Ordering};
 
+use alloc::string::ToString;
 use axerrno::{ax_err, ax_err_type, AxError, AxResult};
 use axio::PollState;
 use axsync::Mutex;
@@ -20,11 +22,11 @@ use smoltcp::socket::udp::{self, BindError, SendError};
 use smoltcp::wire::{IpEndpoint, IpListenEndpoint};
 
 use super::addr::{from_core_sockaddr, into_core_sockaddr, is_unspecified, UNSPECIFIED_ENDPOINT};
-use super::{SocketSetWrapper, SOCKET_SET};
+use super::{route_dev, to_static_str, SocketSetWrapper, SOCKET_SET};
 
 /// A UDP socket that provides POSIX-like APIs.
 pub struct UdpSocket {
-    handle: SocketHandle,
+    handle: UnsafeCell<Option<(SocketHandle, &'static str)>>,
     local_addr: RwLock<Option<IpEndpoint>>,
     peer_addr: RwLock<Option<IpEndpoint>>,
     nonblock: AtomicBool,
@@ -34,10 +36,8 @@ impl UdpSocket {
     /// Creates a new UDP socket.
     #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
-        let socket = SocketSetWrapper::new_udp_socket();
-        let handle = SOCKET_SET.add(socket);
         Self {
-            handle,
+            handle: UnsafeCell::new(None),
             local_addr: RwLock::new(None),
             peer_addr: RwLock::new(None),
             nonblock: AtomicBool::new(false),
@@ -97,15 +97,29 @@ impl UdpSocket {
             addr: (!is_unspecified(local_endpoint.addr)).then_some(local_endpoint.addr),
             port: local_endpoint.port,
         };
-        SOCKET_SET.with_socket_mut::<udp::Socket, _, _>(self.handle, |socket| {
-            socket.bind(endpoint).or_else(|e| match e {
-                BindError::InvalidState => ax_err!(AlreadyExists, "socket bind() failed"),
-                BindError::Unaddressable => ax_err!(InvalidInput, "socket bind() failed"),
-            })
-        })?;
+        let iface_name = match local_addr {
+            SocketAddr::V4(addr) => route_dev(addr.ip().octets()),
+            _ => panic!("IPv6 not supported"),
+        };
+        let handle = unsafe { self.handle.get().read() }.unwrap_or_else(|| {
+            (
+                SOCKET_SET.add(SocketSetWrapper::new_tcp_socket(), iface_name.clone()),
+                to_static_str(iface_name),
+            )
+        });
+        SOCKET_SET.with_socket_mut::<udp::Socket, _, _>(
+            handle.0,
+            handle.1.to_string(),
+            |socket| {
+                socket.bind(endpoint).or_else(|e| match e {
+                    BindError::InvalidState => ax_err!(AlreadyExists, "socket bind() failed"),
+                    BindError::Unaddressable => ax_err!(InvalidInput, "socket bind() failed"),
+                })
+            },
+        )?;
 
         *self_local_addr = Some(local_endpoint);
-        debug!("UDP socket {}: bound on {}", self.handle, endpoint);
+        debug!("UDP socket {}: bound on {}", handle.0, endpoint);
         Ok(())
     }
 
@@ -151,7 +165,13 @@ impl UdpSocket {
         }
 
         *self_peer_addr = Some(from_core_sockaddr(addr));
-        debug!("UDP socket {}: connected to {}", self.handle, addr);
+        unsafe {
+            debug!(
+                "UDP socket {}: connected to {}",
+                self.handle.get().read().unwrap().0,
+                addr
+            );
+        }
         Ok(())
     }
 
@@ -181,8 +201,9 @@ impl UdpSocket {
 
     /// Close the socket.
     pub fn shutdown(&self) -> AxResult {
-        SOCKET_SET.with_socket_mut::<udp::Socket, _, _>(self.handle, |socket| {
-            debug!("UDP socket {}: shutting down", self.handle);
+        let handle = unsafe { self.handle.get().read().unwrap() };
+        SOCKET_SET.with_socket_mut::<udp::Socket, _, _>(handle.0, handle.1.to_string(), |socket| {
+            debug!("UDP socket {}: shutting down", handle.0);
             socket.close();
         });
         SOCKET_SET.poll_interfaces();
@@ -197,7 +218,8 @@ impl UdpSocket {
                 writable: false,
             });
         }
-        SOCKET_SET.with_socket_mut::<udp::Socket, _, _>(self.handle, |socket| {
+        let handle = unsafe { self.handle.get().read().unwrap() };
+        SOCKET_SET.with_socket_mut::<udp::Socket, _, _>(handle.0, handle.1.to_string(), |socket| {
             Ok(PollState {
                 readable: socket.can_recv(),
                 writable: socket.can_send(),
@@ -222,22 +244,27 @@ impl UdpSocket {
         }
 
         self.block_on(|| {
-            SOCKET_SET.with_socket_mut::<udp::Socket, _, _>(self.handle, |socket| {
-                if socket.can_send() {
-                    socket
-                        .send_slice(buf, remote_endpoint)
-                        .map_err(|e| match e {
-                            SendError::BufferFull => AxError::WouldBlock,
-                            SendError::Unaddressable => {
-                                ax_err_type!(ConnectionRefused, "socket send() failed")
-                            }
-                        })?;
-                    Ok(buf.len())
-                } else {
-                    // tx buffer is full
-                    Err(AxError::WouldBlock)
-                }
-            })
+            let handle = unsafe { self.handle.get().read().unwrap() };
+            SOCKET_SET.with_socket_mut::<udp::Socket, _, _>(
+                handle.0,
+                handle.1.to_string(),
+                |socket| {
+                    if socket.can_send() {
+                        socket
+                            .send_slice(buf, remote_endpoint)
+                            .map_err(|e| match e {
+                                SendError::BufferFull => AxError::WouldBlock,
+                                SendError::Unaddressable => {
+                                    ax_err_type!(ConnectionRefused, "socket send() failed")
+                                }
+                            })?;
+                        Ok(buf.len())
+                    } else {
+                        // tx buffer is full
+                        Err(AxError::WouldBlock)
+                    }
+                },
+            )
         })
     }
 
@@ -250,15 +277,20 @@ impl UdpSocket {
         }
 
         self.block_on(|| {
-            SOCKET_SET.with_socket_mut::<udp::Socket, _, _>(self.handle, |socket| {
-                if socket.can_recv() {
-                    // data available
-                    op(socket)
-                } else {
-                    // no more data
-                    Err(AxError::WouldBlock)
-                }
-            })
+            let handle = unsafe { self.handle.get().read().unwrap() };
+            SOCKET_SET.with_socket_mut::<udp::Socket, _, _>(
+                handle.0,
+                handle.1.to_string(),
+                |socket| {
+                    if socket.can_recv() {
+                        // data available
+                        op(socket)
+                    } else {
+                        // no more data
+                        Err(AxError::WouldBlock)
+                    }
+                },
+            )
         })
     }
 
@@ -284,7 +316,8 @@ impl UdpSocket {
 impl Drop for UdpSocket {
     fn drop(&mut self) {
         self.shutdown().ok();
-        SOCKET_SET.remove(self.handle);
+        let handle = unsafe { self.handle.get().read().unwrap() };
+        SOCKET_SET.remove(handle.0, handle.1.to_string());
     }
 }
 

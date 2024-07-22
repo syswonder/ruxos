@@ -1,12 +1,13 @@
 /* Copyright (c) [2023] [Syswonder Community]
- *   [Ruxos] is licensed under Mulan PSL v2.
- *   You can use this software according to the terms and conditions of the Mulan PSL v2.
- *   You may obtain a copy of Mulan PSL v2 at:
- *               http://license.coscl.org.cn/MulanPSL2
- *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
- *   See the Mulan PSL v2 for more details.
- */
+*   [Ruxos] is licensed under Mulan PSL v2.
+*   You can use this software according to the terms and conditions of the Mulan PSL v2.
+*   You may obtain a copy of Mulan PSL v2 at:
+*               http://license.coscl.org.cn/MulanPSL2
+*   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+*   See the Mulan PSL v2 for more details.
+*/
 
+use alloc::string::ToString;
 use alloc::vec::Vec;
 use axerrno::{ax_err_type, AxError, AxResult};
 use core::net::IpAddr;
@@ -28,16 +29,18 @@ impl DnsSocket {
     /// Creates a new DNS socket.
     pub fn new() -> Self {
         let socket = SocketSetWrapper::new_dns_socket();
-        let handle = Some(SOCKET_SET.add(socket));
+        let handle = Some(SOCKET_SET.add(socket, ETH0.name().to_string()));
         Self { handle }
     }
 
     #[allow(dead_code)]
     /// Update the list of DNS servers, will replace all existing servers.
     pub fn update_servers(self, servers: &[smoltcp::wire::IpAddress]) {
-        SOCKET_SET.with_socket_mut::<dns::Socket, _, _>(self.handle.unwrap(), |socket| {
-            socket.update_servers(servers)
-        });
+        SOCKET_SET.with_socket_mut::<dns::Socket, _, _>(
+            self.handle.unwrap(),
+            ETH0.name().to_string(),
+            |socket| socket.update_servers(servers),
+        );
     }
 
     /// Query a address with given DNS query type.
@@ -46,7 +49,7 @@ impl DnsSocket {
         let handle = self.handle.ok_or_else(|| ax_err_type!(InvalidInput))?;
         let iface = &ETH0.iface;
         let query_handle = SOCKET_SET
-            .with_socket_mut::<dns::Socket, _, _>(handle, |socket| {
+            .with_socket_mut::<dns::Socket, _, _>(handle, ETH0.name().to_string(), |socket| {
                 socket.start_query(iface.lock().context(), name, query_type)
             })
             .map_err(|e| match e {
@@ -62,14 +65,18 @@ impl DnsSocket {
             })?;
         loop {
             SOCKET_SET.poll_interfaces();
-            match SOCKET_SET.with_socket_mut::<dns::Socket, _, _>(handle, |socket| {
-                socket.get_query_result(query_handle).map_err(|e| match e {
-                    GetQueryResultError::Pending => AxError::WouldBlock,
-                    GetQueryResultError::Failed => {
-                        ax_err_type!(ConnectionRefused, "socket query() failed")
-                    }
-                })
-            }) {
+            match SOCKET_SET.with_socket_mut::<dns::Socket, _, _>(
+                handle,
+                ETH0.name().to_string(),
+                |socket| {
+                    socket.get_query_result(query_handle).map_err(|e| match e {
+                        GetQueryResultError::Pending => AxError::WouldBlock,
+                        GetQueryResultError::Failed => {
+                            ax_err_type!(ConnectionRefused, "socket query() failed")
+                        }
+                    })
+                },
+            ) {
                 Ok(n) => {
                     let mut res = Vec::with_capacity(n.capacity());
                     for ip in n {
@@ -87,7 +94,7 @@ impl DnsSocket {
 impl Drop for DnsSocket {
     fn drop(&mut self) {
         if let Some(handle) = self.handle {
-            SOCKET_SET.remove(handle);
+            SOCKET_SET.remove(handle, ETH0.name().to_string());
         }
     }
 }

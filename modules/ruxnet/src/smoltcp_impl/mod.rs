@@ -14,6 +14,8 @@ mod listen_table;
 mod tcp;
 mod udp;
 
+use alloc::boxed::Box;
+use alloc::string::{String, ToString};
 use alloc::vec;
 use core::cell::RefCell;
 use core::ops::DerefMut;
@@ -34,6 +36,8 @@ use self::listen_table::ListenTable;
 pub use self::dns::dns_query;
 pub use self::tcp::TcpSocket;
 pub use self::udp::UdpSocket;
+
+pub use driver_net::loopback::LoopbackDevice;
 
 macro_rules! env_or_default {
     ($key:literal) => {
@@ -62,8 +66,25 @@ const LISTEN_QUEUE_SIZE: usize = 512;
 static LISTEN_TABLE: LazyInit<ListenTable> = LazyInit::new();
 static SOCKET_SET: LazyInit<SocketSetWrapper> = LazyInit::new();
 static ETH0: LazyInit<InterfaceWrapper> = LazyInit::new();
+static LO: LazyInit<InterfaceWrapper> = LazyInit::new(); //loopback net device
+static STRING_POOL: LazyInit<Mutex<vec::Vec<String>>> = LazyInit::new();
 
-struct SocketSetWrapper<'a>(Mutex<SocketSet<'a>>);
+fn to_static_str(s: String) -> &'static str {
+    let mut pool = STRING_POOL.lock();
+    pool.push(s);
+    let s_ref = pool.last().unwrap();
+    unsafe { &*(s_ref.as_str() as *const str) }
+}
+
+fn route_dev(addr: [u8; 4]) -> String {
+    if addr[0] == 127 {
+        LO.name().to_string()
+    } else {
+        ETH0.name().to_string()
+    }
+}
+
+struct SocketSetWrapper<'a>(vec::Vec<(Mutex<SocketSet<'a>>, &'a str)>);
 
 struct DeviceWrapper {
     inner: RefCell<AxNetDevice>, // use `RefCell` is enough since it's wrapped in `Mutex` in `InterfaceWrapper`.
@@ -78,7 +99,11 @@ struct InterfaceWrapper {
 
 impl<'a> SocketSetWrapper<'a> {
     fn new() -> Self {
-        Self(Mutex::new(SocketSet::new(vec![])))
+        Self(vec::Vec::new())
+    }
+
+    fn add_iface(&mut self, name: &'a str) {
+        self.0.push((Mutex::new(SocketSet::new(vec![])), name))
     }
 
     pub fn new_tcp_socket() -> socket::tcp::Socket<'a> {
@@ -104,36 +129,81 @@ impl<'a> SocketSetWrapper<'a> {
         socket::dns::Socket::new(&[server_addr], vec![])
     }
 
-    pub fn add<T: AnySocket<'a>>(&self, socket: T) -> SocketHandle {
-        let handle = self.0.lock().add(socket);
+    pub fn add<T: AnySocket<'a>>(&self, socket: T, name: String) -> SocketHandle {
+        let handle = self
+            .0
+            .iter()
+            .find(|socketset| socketset.1 == name)
+            .unwrap()
+            .0
+            .lock()
+            .add(socket);
         debug!("socket {}: created", handle);
         handle
     }
 
-    pub fn with_socket<T: AnySocket<'a>, R, F>(&self, handle: SocketHandle, f: F) -> R
+    pub fn with_socket<T: AnySocket<'a>, R, F>(&self, handle: SocketHandle, name: String, f: F) -> R
     where
         F: FnOnce(&T) -> R,
     {
-        let set = self.0.lock();
+        let set = self
+            .0
+            .iter()
+            .find(|socketset| socketset.1 == name)
+            .unwrap()
+            .0
+            .lock();
         let socket = set.get(handle);
         f(socket)
     }
 
-    pub fn with_socket_mut<T: AnySocket<'a>, R, F>(&self, handle: SocketHandle, f: F) -> R
+    pub fn with_socket_mut<T: AnySocket<'a>, R, F>(
+        &self,
+        handle: SocketHandle,
+        name: String,
+        f: F,
+    ) -> R
     where
         F: FnOnce(&mut T) -> R,
     {
-        let mut set = self.0.lock();
+        let mut set = self
+            .0
+            .iter()
+            .find(|socketset| socketset.1 == name)
+            .unwrap()
+            .0
+            .lock();
         let socket = set.get_mut(handle);
         f(socket)
     }
 
     pub fn poll_interfaces(&self) {
-        ETH0.poll(&self.0);
+        LO.poll(
+            &self
+                .0
+                .iter()
+                .find(|socketset| socketset.1 == LO.name())
+                .unwrap()
+                .0,
+        );
+        ETH0.poll(
+            &self
+                .0
+                .iter()
+                .find(|socketset| socketset.1 == ETH0.name())
+                .unwrap()
+                .0,
+        );
     }
 
-    pub fn remove(&self, handle: SocketHandle) {
-        self.0.lock().remove(handle);
+    pub fn remove(&self, handle: SocketHandle, name: String) {
+        self.0
+            .iter()
+            .find(|socketset| socketset.1 == name)
+            .unwrap()
+            .0
+            .lock()
+            .remove(handle);
         debug!("socket {}: destroyed", handle);
     }
 }
@@ -328,12 +398,28 @@ pub(crate) fn init(net_dev: AxNetDevice) {
     eth0.setup_ip_addr(ip, IP_PREFIX);
     eth0.setup_gateway(gateway);
 
+    let lo_addr = EthernetAddress::default();
+    let lo_device = LoopbackDevice::new(lo_addr.0);
+    let lo = InterfaceWrapper::new("lo", Box::new(lo_device), lo_addr);
+    let local_ip = "127.0.0.1".parse().expect("invalid IP address");
+    lo.setup_ip_addr(local_ip, 8);
+
+    let mut socketset = SocketSetWrapper::new();
+    socketset.add_iface("lo");
+    socketset.add_iface("eth0");
+
     ETH0.init_by(eth0);
-    SOCKET_SET.init_by(SocketSetWrapper::new());
+    LO.init_by(lo);
+    SOCKET_SET.init_by(socketset);
+    STRING_POOL.init_by(Mutex::new(vec::Vec::new()));
     LISTEN_TABLE.init_by(ListenTable::new());
 
     info!("created net interface {:?}:", ETH0.name());
     info!("  ether:    {}", ETH0.ethernet_address());
     info!("  ip:       {}/{}", ip, IP_PREFIX);
     info!("  gateway:  {}", gateway);
+
+    info!("created net interface {:?}:", LO.name());
+    info!("  ether:    {}", LO.ethernet_address());
+    info!("  ip:       {}/{}", local_ip, 8);
 }
