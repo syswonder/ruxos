@@ -84,6 +84,8 @@ pub enum SyscallId {
     #[cfg(feature = "signal")]
     KILL = 129,
     #[cfg(feature = "signal")]
+    TKILL = 130,
+    #[cfg(feature = "signal")]
     SIGALTSTACK = 132,
     #[cfg(feature = "signal")]
     RT_SIGACTION = 134,

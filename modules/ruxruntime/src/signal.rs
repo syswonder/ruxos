@@ -14,6 +14,9 @@ use core::{
     time::Duration,
 };
 
+use crate_interface::impl_interface;
+use ruxhal::trap::TrapHandler;
+
 /// sigaction in kernel
 #[allow(non_camel_case_types)]
 #[allow(dead_code)]
@@ -61,6 +64,25 @@ static mut SIGNAL_IF: Signal = Signal {
     timer_value: [Duration::from_nanos(0); 3],
     timer_interval: [Duration::from_nanos(0); 3],
 };
+
+#[cfg(feature = "signal")]
+struct SignalHandler;
+
+#[impl_interface]
+impl TrapHandler for SignalHandler {
+    #[cfg(feature = "signal")]
+    fn handle_signal() {
+        let signal = Signal::signal(-1, true).unwrap();
+        for signum in 0..32 {
+            if signal & (1 << signum) != 0
+            /* TODO: && support mask */
+            {
+                Signal::signal(signum as i8, false);
+                Signal::sigaction(signum as u8, None, None);
+            }
+        }
+    }
+}
 
 impl Signal {
     /// Set signal
