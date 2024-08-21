@@ -32,6 +32,7 @@ virtio-9p = ["_9p","virtio", "driver_virtio/v9p"]
 ramdisk = ["block", "driver_block/ramdisk"]
 bcm2835-sdhci = ["block", "driver_block/bcm2835-sdhci"]
 ixgbe = ["net", "driver_net/ixgbe", "dep:axalloc", "dep:ruxhal"]
+loopback = ["driver_net/loopback", "dyn"]
 # more devices example: e1000 = ["net", "driver_net/e1000"]
 
 default = ["bus-mmio"]
