@@ -55,7 +55,7 @@ features = [ # no std
 ]
 
 [dev-dependencies]
-ruxdriver = { path = "../ruxdriver", features = ["block", "ramdisk"] }
+ruxdriver = { path = "../ruxdriver", features = ["block", "ramdisk", "dyn"] }
 driver_block = { path = "../../crates/driver_block", features = ["ramdisk"] }
 axsync = { path = "../axsync", features = ["multitask"] }
 ruxtask = { path = "../ruxtask", features = ["test"] }

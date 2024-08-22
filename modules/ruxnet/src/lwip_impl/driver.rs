@@ -3,7 +3,7 @@ use crate::{
     net_impl::addr::{mask_to_prefix, MacAddr},
     IpAddr,
 };
-use alloc::{boxed::Box, collections::VecDeque, sync::Arc};
+use alloc::{boxed::Box, collections::VecDeque, sync::Arc, vec};
 #[cfg(feature = "irq")]
 use axdriver::register_interrupt_handler;
 use axsync::Mutex;
@@ -12,8 +12,8 @@ use driver_net::{DevError, NetBuf, NetBufBox, NetBufPool, NetBufPtr};
 use lazy_init::LazyInit;
 use lwip_rust::bindings::{
     err_enum_t_ERR_MEM, err_enum_t_ERR_OK, err_t, etharp_output, ethernet_input, ip4_addr_t,
-    lwip_htonl, lwip_init, netif, netif_add, netif_set_default, netif_set_link_up, netif_set_up,
-    pbuf, pbuf_free, rx_custom_pbuf_alloc, rx_custom_pbuf_free, rx_custom_pbuf_init,
+    lwip_htonl, lwip_init, netif, netif_add, netif_poll, netif_set_default, netif_set_link_up,
+    netif_set_up, pbuf, pbuf_free, rx_custom_pbuf_alloc, rx_custom_pbuf_free, rx_custom_pbuf_init,
     rx_custom_pbuf_t, sys_check_timeouts, NETIF_FLAG_BROADCAST, NETIF_FLAG_ETHARP,
     NETIF_FLAG_ETHERNET,
 };
@@ -203,6 +203,9 @@ static ETH0: LazyInit<InterfaceWrapper> = LazyInit::new();
 /// packets to the NIC.
 pub fn poll_interfaces() {
     ETH0.poll();
+    unsafe {
+        netif_poll(&mut ETH0.netif.lock().0);
+    }
 }
 
 fn ip4_addr_gen(a: u8, b: u8, c: u8, d: u8) -> ip4_addr_t {
@@ -212,58 +215,67 @@ fn ip4_addr_gen(a: u8, b: u8, c: u8, d: u8) -> ip4_addr_t {
         },
     }
 }
+pub fn init() {}
 
-pub fn init(mut net_dev: AxNetDevice) {
-    LWIP_MUTEX.init_by(Mutex::new(0));
-    let _guard = LWIP_MUTEX.lock();
+pub fn init_netdev(mut net_dev: AxNetDevice) {
+    match net_dev.device_name() {
+        "loopback" => {
+            info!("use lwip netif loopback");
+        }
+        _ => {
+            LWIP_MUTEX.init_by(Mutex::new(0));
+            let _guard = LWIP_MUTEX.lock();
 
-    let ipaddr: ip4_addr_t = ip4_addr_gen(10, 0, 2, 15); // QEMU user networking default IP
-    let netmask: ip4_addr_t = ip4_addr_gen(255, 255, 255, 0);
-    let gw: ip4_addr_t = ip4_addr_gen(10, 0, 2, 2); // QEMU user networking gateway
+            let ipaddr: ip4_addr_t = ip4_addr_gen(10, 0, 2, 15); // QEMU user networking default IP
+            let netmask: ip4_addr_t = ip4_addr_gen(255, 255, 255, 0);
+            let gw: ip4_addr_t = ip4_addr_gen(10, 0, 2, 2); // QEMU user networking gateway
 
-    let dev = net_dev;
-    let mut netif: netif = unsafe { core::mem::zeroed() };
-    netif.hwaddr_len = 6;
-    netif.hwaddr = dev.mac_address().0;
+            let dev = net_dev;
+            let mut netif: netif = unsafe { core::mem::zeroed() };
+            netif.hwaddr_len = 6;
+            netif.hwaddr = dev.mac_address().0;
 
-    ETH0.init_by(InterfaceWrapper {
-        name: "eth0",
-        dev: Arc::new(Mutex::new(DeviceWrapper::new(dev))),
-        netif: Mutex::new(NetifWrapper(netif)),
-    });
+            ETH0.init_by(InterfaceWrapper {
+                name: "eth0",
+                dev: Arc::new(Mutex::new(DeviceWrapper::new(dev))),
+                netif: Mutex::new(NetifWrapper(netif)),
+            });
 
-    unsafe {
-        lwip_init();
-        rx_custom_pbuf_init();
-        netif_add(
-            &mut ETH0.netif.lock().0,
-            &ipaddr,
-            &netmask,
-            &gw,
-            &ETH0 as *const _ as *mut c_void,
-            Some(ethif_init),
-            Some(ethernet_input),
-        );
-        netif_set_link_up(&mut ETH0.netif.lock().0);
-        netif_set_up(&mut ETH0.netif.lock().0);
-        netif_set_default(&mut ETH0.netif.lock().0);
+            unsafe {
+                lwip_init();
+                rx_custom_pbuf_init();
+                netif_add(
+                    &mut ETH0.netif.lock().0,
+                    &ipaddr,
+                    &netmask,
+                    &gw,
+                    &ETH0 as *const _ as *mut c_void,
+                    Some(ethif_init),
+                    Some(ethernet_input),
+                );
+                netif_set_link_up(&mut ETH0.netif.lock().0);
+                netif_set_up(&mut ETH0.netif.lock().0);
+                netif_set_default(&mut ETH0.netif.lock().0);
+            }
+
+            info!("created net interface {:?}:", ETH0.name());
+            info!(
+                "  ether:    {}",
+                MacAddr::from_bytes(&ETH0.netif.lock().0.hwaddr)
+            );
+            let ip = IpAddr::from(ETH0.netif.lock().0.ip_addr);
+            let mask = mask_to_prefix(IpAddr::from(ETH0.netif.lock().0.netmask)).unwrap();
+            info!("  ip:       {}/{}", ip, mask);
+            info!("  gateway:  {}", IpAddr::from(ETH0.netif.lock().0.gw));
+        }
     }
-
-    info!("created net interface {:?}:", ETH0.name());
-    info!(
-        "  ether:    {}",
-        MacAddr::from_bytes(&ETH0.netif.lock().0.hwaddr)
-    );
-    let ip = IpAddr::from(ETH0.netif.lock().0.ip_addr);
-    let mask = mask_to_prefix(IpAddr::from(ETH0.netif.lock().0.netmask)).unwrap();
-    info!("  ip:       {}/{}", ip, mask);
-    info!("  gateway:  {}", IpAddr::from(ETH0.netif.lock().0.gw));
 }
 
 pub fn lwip_loop_once() {
     let guard = LWIP_MUTEX.lock();
     unsafe {
         ETH0.poll();
+        netif_poll(&mut ETH0.netif.lock().0);
         sys_check_timeouts();
     }
     drop(guard);

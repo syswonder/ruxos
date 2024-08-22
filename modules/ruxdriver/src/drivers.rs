@@ -42,6 +42,23 @@ pub trait DriverProbe {
     }
 }
 
+cfg_if::cfg_if! {
+    if #[cfg(net_dev = "loopback")]
+    {
+        pub struct LoopbackDriver;
+        register_net_driver!(LoopbackDriver, driver_net::loopback::LoopbackDevice);
+
+        impl DriverProbe for LoopbackDriver {
+            fn probe_global() -> Option<AxDeviceEnum> {
+                debug!("mmc probe");
+                Some(AxDeviceEnum::from_net(
+                    driver_net::loopback::LoopbackDevice::new(None),
+                ))
+            }
+        }
+    }
+}
+
 #[cfg(net_dev = "virtio-net")]
 register_net_driver!(
     <virtio::VirtIoNet as VirtIoDevMeta>::Driver,
