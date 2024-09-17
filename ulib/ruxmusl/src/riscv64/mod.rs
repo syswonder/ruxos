@@ -191,6 +191,12 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[0] as ctypes::clockid_t,
                 args[1] as *mut ctypes::timespec,
             ) as _,
+            SyscallId::CLOCK_NANOSLEEP => ruxos_posix_api::sys_clock_nanosleep(
+                args[0] as ctypes::clockid_t,
+                args[1] as c_int,
+                args[2] as *const ctypes::timespec,
+                args[3] as *mut ctypes::timespec,
+            ) as _,
             SyscallId::SCHED_YIELD => ruxos_posix_api::sys_sched_yield() as _,
             #[cfg(feature = "signal")]
             SyscallId::SIGALTSTACK => ruxos_posix_api::sys_sigaltstack(
@@ -290,6 +296,14 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[2] as c_int,
                 args[3] as *const core::ffi::c_void,
                 args[4] as ctypes::socklen_t,
+            ) as _,
+            #[cfg(feature = "net")]
+            SyscallId::GETSOCKOPT => ruxos_posix_api::sys_getsockopt(
+                args[0] as c_int,
+                args[1] as c_int,
+                args[2] as c_int,
+                args[3] as *mut core::ffi::c_void,
+                args[4] as *mut ctypes::socklen_t,
             ) as _,
             #[cfg(feature = "net")]
             SyscallId::SHUTDOWN => {

@@ -274,6 +274,15 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[4] as ctypes::socklen_t,
             ) as _,
 
+            #[cfg(feature = "net")]
+            SyscallId::GETSOCKOPT => ruxos_posix_api::sys_getsockopt(
+                args[0] as c_int,
+                args[1] as c_int,
+                args[2] as c_int,
+                args[3] as *mut c_void,
+                args[4] as *mut ctypes::socklen_t,
+            ) as _,
+
             #[cfg(feature = "multitask")]
             SyscallId::CLONE => ruxos_posix_api::sys_clone(
                 args[0] as c_int,
@@ -443,6 +452,13 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
             SyscallId::CLOCK_GETTIME => ruxos_posix_api::sys_clock_gettime(
                 args[0] as c_int,
                 args[1] as *mut ctypes::timespec,
+            ) as _,
+
+            SyscallId::CLOCK_NANOSLEEP => ruxos_posix_api::sys_clock_nanosleep(
+                args[0] as ctypes::clockid_t,
+                args[1] as c_int,
+                args[2] as *const ctypes::timespec,
+                args[3] as *mut ctypes::timespec,
             ) as _,
 
             #[cfg(feature = "epoll")]

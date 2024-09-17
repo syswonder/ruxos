@@ -601,6 +601,74 @@ pub unsafe fn sys_getsockname(
     })
 }
 
+/// get socket option
+///
+/// TODO: some options not impl, just return 0, like SO_RCVBUF SO_SNDBUF
+pub fn sys_getsockopt(
+    socket_fd: c_int,
+    level: c_int,
+    optname: c_int,
+    optval: *mut c_void,
+    optlen: *mut ctypes::socklen_t,
+) -> c_int {
+    unsafe {
+        info!(
+            "sys_getsockopt <= fd: {}, level: {}, optname: {}, optlen: {}, IGNORED",
+            socket_fd,
+            level,
+            optname,
+            core::ptr::read(optlen as *mut usize)
+        );
+    }
+    syscall_body!(sys_getsockopt, {
+        return Ok(0);
+        if optval.is_null() {
+            return Err(LinuxError::EFAULT);
+        }
+        let socket = Socket::from_fd(socket_fd)?;
+        match level as u32 {
+            ctypes::SOL_SOCKET => {
+                let val = match optname as u32 {
+                    ctypes::SO_ACCEPTCONN => match &*socket {
+                        Socket::Udp(_) => 0,
+                        Socket::Tcp(tcpsocket) => {
+                            if tcpsocket.lock().is_listening() {
+                                1
+                            } else {
+                                0
+                            }
+                        }
+                    },
+                    ctypes::SO_TYPE => match &*socket {
+                        Socket::Udp(_) => ctypes::SOCK_DGRAM,
+                        Socket::Tcp(_) => ctypes::SOCK_STREAM,
+                    },
+                    ctypes::SO_RCVLOWAT | ctypes::SO_SNDLOWAT | ctypes::SO_BROADCAST => 1,
+                    ctypes::SO_ERROR
+                    | ctypes::SO_DONTROUTE
+                    | ctypes::SO_KEEPALIVE
+                    | ctypes::SO_LINGER
+                    | ctypes::SO_OOBINLINE
+                    | ctypes::SO_RCVBUF
+                    | ctypes::SO_RCVTIMEO
+                    | ctypes::SO_REUSEADDR
+                    | ctypes::SO_SNDBUF
+                    | ctypes::SO_SNDTIMEO => 0,
+                    _ => return Err(LinuxError::ENOPROTOOPT),
+                };
+
+                unsafe {
+                    core::ptr::write(optlen as *mut usize, core::mem::size_of::<i32>());
+                    core::ptr::write(optval as *mut i32, val as i32);
+                }
+
+                Ok(0)
+            }
+            _ => Err(LinuxError::ENOSYS),
+        }
+    })
+}
+
 /// Get peer address to which the socket sockfd is connected.
 pub unsafe fn sys_getpeername(
     sock_fd: c_int,
