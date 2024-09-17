@@ -7,9 +7,10 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use crate::{imp::fd_ops::get_file_like, sys_getpgid};
+use crate::sys_getpgid;
 use axerrno::LinuxError;
 use core::ffi::c_int;
+use ruxtask::fs::get_file_like;
 
 /// IOCTL oprations
 pub const TCGETS: usize = 0x5401;

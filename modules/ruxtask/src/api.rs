@@ -68,6 +68,7 @@ pub fn current_may_uninit() -> Option<CurrentTask> {
 /// # Panics
 ///
 /// Panics if the current task is not initialized.
+#[inline(never)]
 pub fn current() -> CurrentTask {
     CurrentTask::get()
 }
@@ -126,6 +127,30 @@ where
     F: FnOnce() + Send + 'static,
 {
     TaskInner::new_musl(f, name, stack_size, tls, set_tid, tl)
+}
+
+pub fn fork_task() -> Option<AxTaskRef> {
+    let current_process = current();
+    let current_id = current_process.id().as_u64();
+    let children_process = TaskInner::fork();
+
+    // Judge whether the parent process is blocked, if yes, add it to the blocking queue of the child process
+    if current().id().as_u64() == current_id {
+        RUN_QUEUE.lock().add_task(children_process.clone());
+
+        warn!(
+            "parent process[{}] is leaving, add it to the blocking queue of the child process[{}]",
+            current().id().as_u64(),
+            children_process.id().as_u64()
+        );
+        return Some(children_process.clone());
+    }
+
+    error!(
+        "children process[{}] is forked, return None",
+        current().id().as_u64()
+    );
+    return None;
 }
 
 /// Spawns a new task with the default parameters.

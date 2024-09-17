@@ -1591,6 +1591,7 @@ version = "0.1.0"
 dependencies = [
  "axalloc",
  "cfg-if",
+ "crate_interface",
  "driver_9p",
  "driver_block",
  "driver_common",
@@ -1627,6 +1628,7 @@ dependencies = [
  "ruxdriver",
  "ruxfs",
  "ruxhal",
+ "ruxmm",
  "ruxnet",
  "ruxruntime",
  "ruxtask",
@@ -1643,7 +1645,6 @@ dependencies = [
  "axfs_ramfs",
  "axfs_vfs",
  "axio",
- "axsync",
  "capability",
  "cfg-if",
  "crate_interface",
@@ -1653,7 +1654,7 @@ dependencies = [
  "log",
  "memory_addr",
  "ruxdriver",
- "ruxtask",
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -1716,6 +1717,26 @@ dependencies = [
  "bindgen 0.66.1",
  "ruxfeat",
  "ruxos_posix_api",
+]
+
+[[package]]
+name = "ruxmm"
+version = "0.1.0"
+dependencies = [
+ "axalloc",
+ "bitflags 2.4.0",
+ "cfg-if",
+ "crate_interface",
+ "kernel_guard",
+ "log",
+ "memory_addr",
+ "page_table",
+ "page_table_entry",
+ "ruxdriver",
+ "ruxhal",
+ "ruxtask",
+ "spinlock",
+ "static_assertions",
 ]
 
 [[package]]
@@ -1796,6 +1817,7 @@ dependencies = [
  "ruxfs",
  "ruxfutex",
  "ruxhal",
+ "ruxmm",
  "ruxnet",
  "ruxruntime",
  "ruxtask",
@@ -1836,6 +1858,7 @@ dependencies = [
  "ruxfs",
  "ruxfutex",
  "ruxhal",
+ "ruxmm",
  "ruxnet",
  "ruxrand",
  "ruxtask",
@@ -1846,21 +1869,29 @@ dependencies = [
 name = "ruxtask"
 version = "0.1.0"
 dependencies = [
+ "axalloc",
  "axerrno",
+ "axfs_vfs",
+ "axio",
  "cfg-if",
  "crate_interface",
+ "flatten_objects",
  "kernel_guard",
  "lazy_init",
+ "lazy_static",
  "log",
  "memory_addr",
+ "page_table",
+ "page_table_entry",
  "percpu",
  "rand",
  "ruxconfig",
  "ruxfdtable",
+ "ruxfs",
  "ruxhal",
- "ruxrand",
  "ruxtask",
  "scheduler",
+ "spin 0.9.8",
  "spinlock",
  "timer_list",
 ]

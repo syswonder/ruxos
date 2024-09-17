@@ -1,0 +1,33 @@
+[package]
+name = "ruxmm"
+version = "0.1.0"
+edition = "2021"
+authors = [
+    "Yuekai Jia <equation618@gmail.com>",
+    "yanjuguang <coolyanjg@163.com>",
+]
+description = "Ruxos hardware abstraction layer, provides unified APIs for platform-specific operations"
+license = "GPL-3.0-or-later OR Apache-2.0"
+homepage = "https://github.com/syswonder/ruxos"
+repository = "https://github.com/syswonder/ruxos/tree/main/modules/ruxmm"
+
+[features]
+default = []
+paging = []
+
+[dependencies]
+log = "0.4"
+cfg-if = "1.0"
+bitflags = "2.2"
+static_assertions = "1.1.0"
+kernel_guard = "0.1.0"
+spinlock = { path = "../../crates/spinlock" }
+page_table = { path = "../../crates/page_table"}
+page_table_entry = { path = "../../crates/page_table_entry" }
+memory_addr = "0.1.0"
+crate_interface = "0.1.1"
+
+ruxtask = { path = "../ruxtask" }
+ruxdriver ={ path = "../ruxdriver" }
+axalloc = { path = "../axalloc"}
+ruxhal ={ path = "../ruxhal" }

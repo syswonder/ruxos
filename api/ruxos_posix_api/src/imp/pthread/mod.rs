@@ -92,7 +92,7 @@ impl Pthread {
             inner: task_inner,
             retval: my_packet,
         };
-        let ptr = Box::into_raw(Box::new(thread)) as *mut c_void;
+        let ptr: *mut c_void = Box::into_raw(Box::new(thread)) as *mut c_void;
         TID_TO_PTHREAD.write().insert(tid, ForceSendSync(ptr));
         Ok(ptr)
     }
@@ -119,7 +119,6 @@ impl Pthread {
         };
 
         let task_inner = ruxtask::pspawn(main, tls as usize, set_tid, tl);
-
         let tid = task_inner.id().as_u64();
         let thread = Pthread {
             inner: task_inner.clone(),
@@ -132,6 +131,7 @@ impl Pthread {
 
     fn current_ptr() -> *mut Pthread {
         let tid = ruxtask::current().id().as_u64();
+        error!("current_ptr, tid: {}", tid);
         match TID_TO_PTHREAD.read().get(&tid) {
             None => core::ptr::null_mut(),
             Some(ptr) => ptr.0 as *mut Pthread,
@@ -263,41 +263,60 @@ pub unsafe fn sys_clone(
     );
 
     syscall_body!(sys_clone, {
-        if (flags as u32 & ctypes::CLONE_THREAD) == 0 {
-            debug!("ONLY support thread");
+        if (flags as u32 & ctypes::CLONE_THREAD) != 0 {
+            let func = unsafe {
+                core::mem::transmute::<*const (), extern "C" fn(arg: *mut c_void) -> *mut c_void>(
+                    (*(stack as *mut usize)) as *const (),
+                )
+            };
+            let args = unsafe { *((stack as usize + 8) as *mut usize) } as *mut c_void;
+
+            let set_tid = if (flags as u32 & ctypes::CLONE_CHILD_SETTID) != 0 {
+                core::sync::atomic::AtomicU64::new(ctid as _)
+            } else {
+                core::sync::atomic::AtomicU64::new(0)
+            };
+
+            let (tid, task_inner) = Pthread::pcreate(
+                core::ptr::null(),
+                func,
+                args,
+                tls,
+                set_tid,
+                core::sync::atomic::AtomicU64::from(ctid as u64),
+            )?;
+
+            // write tid to ptid
+            if (flags as u32 & ctypes::CLONE_PARENT_SETTID) != 0 {
+                unsafe { *ptid = tid as c_int };
+            }
+            ruxtask::put_task(task_inner);
+
+            return Ok(tid);
+        } else if (flags as u32 & ctypes::SIGCHLD) != 0 {
+            TID_TO_PTHREAD.read();
+            let pid = if let Some(task_ref) = ruxtask::fork_task() {
+                warn!("fork_task success, pid: {}", task_ref.id().as_u64());
+                task_ref.id().as_u64()
+            } else {
+                let children_ref = ruxtask::current();
+                let tid = children_ref.id().as_u64();
+                let thread = Pthread {
+                    inner: children_ref.clone(),
+                    retval: Arc::new(Packet {
+                        result: UnsafeCell::new(core::ptr::null_mut()),
+                    }),
+                };
+                let ptr = Box::into_raw(Box::new(thread)) as *mut c_void;
+                TID_TO_PTHREAD.write().insert(tid, ForceSendSync(ptr));
+                0
+            };
+            warn!("will sys_clone <= pid: {}", pid);
+            return Ok(pid);
+        } else {
+            debug!("ONLY support CLONE_THREAD and SIGCHLD");
             return Err(LinuxError::EINVAL);
         }
-
-        let func = unsafe {
-            core::mem::transmute::<*const (), extern "C" fn(arg: *mut c_void) -> *mut c_void>(
-                (*(stack as *mut usize)) as *const (),
-            )
-        };
-        let args = unsafe { *((stack as usize + 8) as *mut usize) } as *mut c_void;
-
-        let set_tid = if (flags as u32 & ctypes::CLONE_CHILD_SETTID) != 0 {
-            core::sync::atomic::AtomicU64::new(ctid as _)
-        } else {
-            core::sync::atomic::AtomicU64::new(0)
-        };
-
-        let (tid, task_inner) = Pthread::pcreate(
-            core::ptr::null(),
-            func,
-            args,
-            tls,
-            set_tid,
-            core::sync::atomic::AtomicU64::from(ctid as u64),
-        )?;
-
-        // write tid to ptid
-        if (flags as u32 & ctypes::CLONE_PARENT_SETTID) != 0 {
-            unsafe { *ptid = tid as c_int };
-        }
-
-        ruxtask::put_task(task_inner);
-
-        Ok(tid)
     })
 }
 

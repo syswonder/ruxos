@@ -14,7 +14,7 @@ use axalloc::global_allocator;
 use cfg_if::cfg_if;
 use driver_common::{BaseDriverOps, DevResult, DeviceType};
 use driver_virtio::{BufferDirection, PhysAddr, VirtIoHal};
-use ruxhal::mem::{direct_virt_to_phys, phys_to_virt, virt_to_phys};
+use ruxhal::mem::{direct_virt_to_phys, phys_to_virt, VirtAddr};
 
 use crate::{drivers::DriverProbe, AxDeviceEnum};
 
@@ -162,6 +162,13 @@ impl<D: VirtIoDevMeta> DriverProbe for VirtIoDriver<D> {
     }
 }
 
+#[crate_interface::def_interface]
+pub trait AddressTranslate {
+    fn virt_to_phys(vaddr: VirtAddr) -> Option<usize> {
+        Some(direct_virt_to_phys(vaddr).into())
+    }
+}
+
 pub struct VirtIoHalImpl;
 
 unsafe impl VirtIoHal for VirtIoHalImpl {
@@ -189,7 +196,9 @@ unsafe impl VirtIoHal for VirtIoHalImpl {
     #[inline]
     unsafe fn share(buffer: NonNull<[u8]>, _direction: BufferDirection) -> PhysAddr {
         let vaddr = buffer.as_ptr() as *mut u8 as usize;
-        virt_to_phys(vaddr.into()).into()
+        let paddr =
+            crate_interface::call_interface!(AddressTranslate::virt_to_phys, VirtAddr::from(vaddr));
+        paddr.unwrap()
     }
 
     #[inline]

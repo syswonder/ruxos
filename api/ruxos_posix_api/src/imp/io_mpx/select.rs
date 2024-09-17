@@ -12,7 +12,8 @@ use core::ffi::{c_int, c_void};
 use axerrno::{LinuxError, LinuxResult};
 use ruxhal::time::current_time;
 
-use crate::{ctypes, imp::fd_ops::get_file_like};
+use crate::ctypes;
+use ruxtask::fs::get_file_like;
 
 const FD_SETSIZE: usize = 1024;
 const BITS_PER_USIZE: usize = usize::BITS as usize;

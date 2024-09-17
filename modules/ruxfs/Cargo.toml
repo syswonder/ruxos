@@ -18,7 +18,8 @@ procfs = ["dep:axfs_ramfs"]
 sysfs = ["dep:axfs_ramfs"]
 etcfs = ["dep:axfs_ramfs"]
 fatfs = ["dep:fatfs"]
-myfs = ["dep:crate_interface"]
+# myfs = ["dep:crate_interface"]
+myfs = []
 use-ramdisk = []
 alloc = ["axalloc"]
 fp_simd = []
@@ -36,12 +37,12 @@ axerrno = { path = "../../crates/axerrno" }
 axfs_vfs = { path = "../../crates/axfs_vfs" }
 axfs_devfs = { path = "../../crates/axfs_devfs", optional = true }
 axfs_ramfs = { path = "../../crates/axfs_ramfs", optional = true }
-ruxdriver = { path = "../ruxdriver", features = ["block"] }
-axsync = { path = "../axsync" }
-crate_interface = { version = "0.1.1", optional = true }
-axalloc = { path = "../axalloc", optional = true }
+crate_interface = { version = "0.1.1" }
+spin = "0.9"
 memory_addr = "0.1.0"
 
+ruxdriver = { path = "../ruxdriver", features = ["block"] }
+axalloc = { path = "../axalloc", optional = true }
 [dependencies.fatfs]
 git = "https://github.com/syswonder/rust-fatfs.git"
 rev = "bf8ad02"
@@ -57,5 +58,3 @@ features = [ # no std
 [dev-dependencies]
 ruxdriver = { path = "../ruxdriver", features = ["block", "ramdisk"] }
 driver_block = { path = "../../crates/driver_block", features = ["ramdisk"] }
-axsync = { path = "../axsync", features = ["multitask"] }
-ruxtask = { path = "../ruxtask", features = ["test"] }

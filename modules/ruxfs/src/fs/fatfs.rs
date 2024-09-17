@@ -12,8 +12,8 @@ use core::cell::UnsafeCell;
 
 use axfs_vfs::{VfsDirEntry, VfsError, VfsNodePerm, VfsResult};
 use axfs_vfs::{VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps};
-use axsync::Mutex;
 use fatfs::{Dir, File, LossyOemCpConverter, NullTimeProvider, Read, Seek, SeekFrom, Write};
+use spin::RwLock;
 
 use crate::dev::Disk;
 
@@ -24,7 +24,7 @@ pub struct FatFileSystem {
     root_dir: UnsafeCell<Option<VfsNodeRef>>,
 }
 
-pub struct FileWrapper<'a>(Mutex<File<'a, Disk, NullTimeProvider, LossyOemCpConverter>>);
+pub struct FileWrapper<'a>(RwLock<File<'a, Disk, NullTimeProvider, LossyOemCpConverter>>);
 pub struct DirWrapper<'a>(Dir<'a, Disk, NullTimeProvider, LossyOemCpConverter>);
 
 unsafe impl Sync for FatFileSystem {}
@@ -63,7 +63,7 @@ impl FatFileSystem {
     }
 
     fn new_file(file: File<'_, Disk, NullTimeProvider, LossyOemCpConverter>) -> Arc<FileWrapper> {
-        Arc::new(FileWrapper(Mutex::new(file)))
+        Arc::new(FileWrapper(RwLock::new(file)))
     }
 
     fn new_dir(dir: Dir<'_, Disk, NullTimeProvider, LossyOemCpConverter>) -> Arc<DirWrapper> {
@@ -75,11 +75,11 @@ impl VfsNodeOps for FileWrapper<'static> {
     axfs_vfs::impl_vfs_non_dir_default! {}
 
     fn fsync(&self) -> VfsResult {
-        self.0.lock().flush().map_err(as_vfs_err)
+        self.0.write().flush().map_err(as_vfs_err)
     }
 
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
-        let size = self.0.lock().seek(SeekFrom::End(0)).map_err(as_vfs_err)?;
+        let size = self.0.write().seek(SeekFrom::End(0)).map_err(as_vfs_err)?;
         let blocks = (size + BLOCK_SIZE as u64 - 1) / BLOCK_SIZE as u64;
         // FAT fs doesn't support permissions, we just set everything to 755
         let perm = VfsNodePerm::from_bits_truncate(0o755);
@@ -87,7 +87,7 @@ impl VfsNodeOps for FileWrapper<'static> {
     }
 
     fn read_at(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
-        let mut file = self.0.lock();
+        let mut file = self.0.write();
         file.seek(SeekFrom::Start(offset)).map_err(as_vfs_err)?;
 
         let mut total_read = 0;
@@ -103,7 +103,7 @@ impl VfsNodeOps for FileWrapper<'static> {
     }
 
     fn write_at(&self, offset: u64, buf: &[u8]) -> VfsResult<usize> {
-        let mut file = self.0.lock();
+        let mut file = self.0.write();
         file.seek(SeekFrom::Start(offset)).map_err(as_vfs_err)?; // TODO: more efficient
 
         let mut total_write = 0;
@@ -119,7 +119,7 @@ impl VfsNodeOps for FileWrapper<'static> {
     }
 
     fn truncate(&self, size: u64) -> VfsResult {
-        let mut file = self.0.lock();
+        let mut file = self.0.write();
         file.seek(SeekFrom::Start(size)).map_err(as_vfs_err)?; // TODO: more efficient
         file.truncate().map_err(as_vfs_err)
     }

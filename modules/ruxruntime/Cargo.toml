@@ -20,12 +20,12 @@ smp = ["ruxhal/smp"]
 irq = ["ruxhal/irq", "ruxtask?/irq", "percpu", "kernel_guard"]
 tls = ["ruxhal/tls", "ruxtask?/tls"]
 alloc = ["axalloc", "dtb"]
-paging = ["ruxhal/paging", "lazy_init"]
+paging = ["ruxhal/paging", "lazy_init", "ruxmm"]
 rtc = ["ruxhal/rtc"]
 
 multitask = ["ruxtask/multitask", "dep:ruxfutex", "rand"]
 rand = ["dep:ruxrand"]
-fs = ["ruxdriver", "ruxfs"]
+fs = ["ruxdriver", "ruxfs", "ruxtask/fs"]
 blkfs = ["fs"]
 virtio-9p = ["fs", "rux9p"]
 net-9p = ["fs", "rux9p"]
@@ -48,6 +48,7 @@ rux9p = { path = "../rux9p", optional = true }
 ruxnet = { path = "../ruxnet", optional = true }
 ruxdisplay = { path = "../ruxdisplay", optional = true }
 ruxtask = { path = "../ruxtask", optional = true }
+ruxmm = { path = "../ruxmm", optional = true }
 axsync = { path = "../axsync", optional = true }
 ruxfutex = { path = "../ruxfutex", optional = true }
 ruxrand = { path = "../ruxrand", optional = true }

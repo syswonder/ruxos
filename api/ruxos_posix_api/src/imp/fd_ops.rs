@@ -7,13 +7,13 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use alloc::sync::Arc;
 use core::ffi::c_int;
 
 use axerrno::{LinuxError, LinuxResult};
-use ruxfdtable::{FileLike, RuxStat, RuxTimeSpec, FD_TABLE, RUX_FILE_LIMIT};
+use ruxfdtable::{RuxStat, RuxTimeSpec};
+use ruxtask::current;
+use ruxtask::fs::{add_file_like, close_file_like, get_file_like, RUX_FILE_LIMIT};
 
-use super::stdio::{stdin, stdout};
 use crate::ctypes;
 
 impl From<ctypes::timespec> for RuxTimeSpec {
@@ -124,39 +124,6 @@ impl From<RuxStat> for ctypes::stat {
     }
 }
 
-lazy_static::lazy_static! {
-    static ref MUST_EXEC: usize  = {
-        FD_TABLE.write().add_at(0, Arc::new(stdin()) as _).unwrap(); // stdin
-        FD_TABLE.write().add_at(1, Arc::new(stdout()) as _).unwrap(); // stdout
-        FD_TABLE.write().add_at(2, Arc::new(stdout()) as _).unwrap(); // stderr
-        0
-    };
-}
-
-pub fn get_file_like(fd: c_int) -> LinuxResult<Arc<dyn FileLike>> {
-    let _exec = *MUST_EXEC;
-    FD_TABLE
-        .read()
-        .get(fd as usize)
-        .cloned()
-        .ok_or(LinuxError::EBADF)
-}
-
-pub fn add_file_like(f: Arc<dyn FileLike>) -> LinuxResult<c_int> {
-    let _exec = *MUST_EXEC;
-    Ok(FD_TABLE.write().add(f).ok_or(LinuxError::EMFILE)? as c_int)
-}
-
-pub fn close_file_like(fd: c_int) -> LinuxResult {
-    let _exec = *MUST_EXEC;
-    let f = FD_TABLE
-        .write()
-        .remove(fd as usize)
-        .ok_or(LinuxError::EBADF)?;
-    drop(f);
-    Ok(())
-}
-
 /// Close a file by `fd`.
 pub fn sys_close(fd: c_int) -> c_int {
     debug!("sys_close <= {}", fd);
@@ -169,7 +136,7 @@ pub fn sys_close(fd: c_int) -> c_int {
 fn dup_fd(old_fd: c_int) -> LinuxResult<c_int> {
     let f = get_file_like(old_fd)?;
     let new_fd = add_file_like(f)?;
-    Ok(new_fd)
+    Ok(new_fd as _)
 }
 
 /// Duplicate a file descriptor.
@@ -195,11 +162,13 @@ pub fn sys_dup2(old_fd: c_int, new_fd: c_int) -> c_int {
         if new_fd as usize >= RUX_FILE_LIMIT {
             return Err(LinuxError::EBADF);
         }
-        close_file_like(new_fd)?;
+        close_file_like(new_fd as _)?;
 
-        let f = get_file_like(old_fd)?;
-        FD_TABLE
-            .write()
+        let f = get_file_like(old_fd as _)?;
+        let binding_task = current();
+        let mut binding_fs = binding_task.fs.lock();
+        let fd_table = &mut binding_fs.as_mut().unwrap().fd_table;
+        fd_table
             .add_at(new_fd as usize, f)
             .ok_or(LinuxError::EMFILE)?;
 
@@ -267,8 +236,10 @@ pub fn sys_fcntl(fd: c_int, cmd: c_int, arg: usize) -> c_int {
                 if arg == 0 || arg == 1 || arg == 2 {
                     return Ok(0);
                 }
-                FD_TABLE
-                    .write()
+                let binding_task = current();
+                let mut binding_fs = binding_task.fs.lock();
+                let fd_table = &mut binding_fs.as_mut().unwrap().fd_table;
+                fd_table
                     .add_at(arg, get_file_like(fd)?)
                     .ok_or(LinuxError::EMFILE)?;
                 let _ = close_file_like(fd);

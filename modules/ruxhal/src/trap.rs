@@ -9,9 +9,10 @@
 
 //! Trap handling.
 use crate_interface::{call_interface, def_interface};
+use page_table::MappingFlags;
 
 /// Several reasons for page missing exceptions.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum PageFaultCause {
     /// pageFault caused by memory WRITE.
     WRITE,
@@ -19,6 +20,17 @@ pub enum PageFaultCause {
     READ,
     /// pageFault caused by INSTRUCTION fetch.
     INSTRUCTION,
+}
+
+/// `PageFaultCause` corresponding to `MappingFlags`.
+impl Into<MappingFlags> for PageFaultCause {
+    fn into(self) -> MappingFlags {
+        match self {
+            PageFaultCause::WRITE => MappingFlags::WRITE,
+            PageFaultCause::READ => MappingFlags::READ,
+            PageFaultCause::INSTRUCTION => MappingFlags::EXECUTE,
+        }
+    }
 }
 
 /// Trap handler interface.

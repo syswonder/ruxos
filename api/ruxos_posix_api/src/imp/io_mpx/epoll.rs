@@ -22,7 +22,7 @@ use ruxfdtable::{FileLike, RuxStat};
 use ruxhal::time::current_time;
 
 use crate::ctypes;
-use crate::imp::fd_ops::{add_file_like, get_file_like};
+use ruxtask::fs::{add_file_like, get_file_like};
 
 pub struct EpollInstance {
     events: Mutex<BTreeMap<usize, ctypes::epoll_event>>,

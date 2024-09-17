@@ -7,25 +7,20 @@
  *   See the Mulan PSL v2 for more details.
  */
 
+use crate::{current, fs::RUX_FILE_LIMIT};
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use axerrno::{LinuxError, LinuxResult};
-use kernel_guard::NoPreemptIrqSave;
 use lazy_init::LazyInit;
-use ruxfdtable::{FD_TABLE, RUX_FILE_LIMIT};
-use ruxrand::ExpRand;
 use scheduler::BaseScheduler;
-use spinlock::{BaseSpinLock, Combine, SpinNoIrq};
+use spinlock::SpinNoIrq;
 
 use crate::task::{CurrentTask, TaskState};
 use crate::{AxTaskRef, Scheduler, TaskInner, WaitQueue};
 
-pub(crate) const BACKOFF_LIMIT: u32 = 8;
-pub(crate) type DefaultStrategy = Combine<ExpRand<BACKOFF_LIMIT>, spinlock::NoOp>;
-pub(crate) type RQLock<T> = BaseSpinLock<NoPreemptIrqSave, T, DefaultStrategy>;
-
 // TODO: per-CPU
-pub(crate) static RUN_QUEUE: LazyInit<RQLock<AxRunQueue>> = LazyInit::new();
+pub(crate) static RUN_QUEUE: LazyInit<SpinNoIrq<AxRunQueue>> = LazyInit::new();
+// pub static BLOCKING_QUEUE: LazyInit<SpinNoIrq<AxRunQueue>> = LazyInit::new();
 
 // TODO: per-CPU
 static EXITED_TASKS: SpinNoIrq<VecDeque<AxTaskRef>> = SpinNoIrq::new(VecDeque::new());
@@ -40,11 +35,11 @@ pub(crate) struct AxRunQueue {
 }
 
 impl AxRunQueue {
-    pub fn new() -> RQLock<Self> {
+    pub fn new() -> SpinNoIrq<Self> {
         let gc_task = TaskInner::new(gc_entry, "gc".into(), ruxconfig::TASK_STACK_SIZE);
         let mut scheduler = Scheduler::new();
         scheduler.add_task(gc_task);
-        RQLock::new(Self { scheduler })
+        SpinNoIrq::new(Self { scheduler })
     }
 
     pub fn add_task(&mut self, task: AxTaskRef) {
@@ -79,6 +74,9 @@ impl AxRunQueue {
     #[cfg(feature = "preempt")]
     pub fn preempt_resched(&mut self) {
         let curr = crate::current();
+        if !curr.is_running() {
+            error!("id_name={:#?}", curr.id_name());
+        }
         assert!(curr.is_running());
 
         // When we get the mutable reference of the run queue, we must
@@ -102,10 +100,12 @@ impl AxRunQueue {
 
     pub fn exit_current(&mut self, exit_code: i32) -> ! {
         let curr = crate::current();
+        error!("exit_current current id={}", curr.id_name());
         debug!("task exit: {}, exit_code={}", curr.id_name(), exit_code);
         assert!(curr.is_running());
         assert!(!curr.is_idle());
-        if curr.is_init() {
+
+        if crate::current().is_init() {
             EXITED_TASKS.lock().clear();
             ruxhal::misc::terminate();
         } else {
@@ -179,7 +179,17 @@ impl AxRunQueue {
             // Safety: IRQs must be disabled at this time.
             IDLE_TASK.current_ref_raw().get_unchecked().clone()
         });
-        self.switch_to(prev, next);
+
+        if next.process_id().as_u64() == prev.process_id().as_u64() {
+            self.switch_to(prev, next);
+        } else {
+            error!(
+                "switch_to: prev_task={:?}, next_task={:?}",
+                prev.id_name(),
+                next.id_name()
+            );
+            self.switch_process(prev, next);
+        }
     }
 
     fn switch_to(&mut self, prev_task: CurrentTask, next_task: AxTaskRef) {
@@ -208,16 +218,49 @@ impl AxRunQueue {
             (*prev_ctx_ptr).switch_to(&*next_ctx_ptr);
         }
     }
+
+    fn switch_process(&mut self, prev_task: CurrentTask, next_task: AxTaskRef) {
+        trace!("ret_from_fork : {}", next_task.id_name());
+        #[cfg(feature = "preempt")]
+        next_task.set_preempt_pending(false);
+        next_task.set_state(TaskState::Running);
+
+        let binding = prev_task.clone();
+        let prev_inner = binding.inner();
+        let binding = next_task.clone();
+        let next_inner = binding.inner();
+        unsafe {
+            let cur_ctx_ptr = prev_inner.ctx_mut_ptr();
+            let next_ctx_ptr = next_inner.ctx_mut_ptr();
+
+            let next_page_table_addr = next_inner.pagetable.lock().root_paddr();
+
+            // The strong reference count of `prev_task` will be decremented by 1,
+            // but won't be dropped until `gc_entry()` is called.
+            assert!(Arc::strong_count(prev_task.as_task_ref()) > 1);
+            assert!(Arc::strong_count(&next_task) >= 1);
+
+            // warn!(
+            //     "process switch: prev_task={:?}, stack_top={:?}; next_task={:?}, stack_top={:?}",
+            //     prev_task.id_name(),
+            //     prev_inner.stack_top(),
+            //     next_task.clone().id_name(),
+            //     next_inner.stack_top()
+            // );
+            CurrentTask::set_current(prev_task, next_task);
+
+            // restore the registers content from next_task, and overwrite the content from children's stack.
+            (*cur_ctx_ptr).switch_process_to(&(*next_ctx_ptr), next_page_table_addr);
+        }
+    }
 }
 
 fn gc_flush_file(fd: usize) -> LinuxResult {
     trace!("gc task flush: {}", fd);
-    FD_TABLE
-        .read()
-        .get(fd)
-        .cloned()
-        .ok_or(LinuxError::EBADF)?
-        .flush()
+    let binding = current();
+    let mut fs = binding.fs.lock();
+    let fd_table = &fs.as_mut().unwrap().fd_table;
+    fd_table.get(fd).cloned().ok_or(LinuxError::EBADF)?.flush()
 }
 
 fn gc_entry() {
@@ -249,19 +292,19 @@ fn gc_entry() {
 }
 
 pub(crate) fn init() {
+    let main_task = TaskInner::new_init("main".into());
+    main_task.set_state(TaskState::Running);
+    unsafe { CurrentTask::init_current(main_task) };
+
     const IDLE_TASK_STACK_SIZE: usize = 4096;
     let idle_task = TaskInner::new(|| crate::run_idle(), "idle".into(), IDLE_TASK_STACK_SIZE);
     IDLE_TASK.with_current(|i| i.init_by(idle_task.clone()));
 
-    let main_task = TaskInner::new_init("main".into());
-    main_task.set_state(TaskState::Running);
-
     RUN_QUEUE.init_by(AxRunQueue::new());
-    unsafe { CurrentTask::init_current(main_task) }
 }
 
 pub(crate) fn init_secondary() {
-    let idle_task = TaskInner::new_init("idle".into());
+    let idle_task = TaskInner::new_idle("idle".into());
     idle_task.set_state(TaskState::Running);
     IDLE_TASK.with_current(|i| i.init_by(idle_task.clone()));
     unsafe { CurrentTask::init_current(idle_task) }

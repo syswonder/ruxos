@@ -7,10 +7,22 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use alloc::{boxed::Box, string::String, sync::Arc};
+use crate::fs::FileSystem;
+use alloc::collections::BTreeMap;
+use alloc::{
+    boxed::Box,
+    string::String,
+    sync::{Arc, Weak},
+};
 use core::ops::Deref;
 use core::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, AtomicU8, Ordering};
 use core::{alloc::Layout, cell::UnsafeCell, fmt, ptr::NonNull};
+use page_table::PageSize;
+use page_table_entry::MappingFlags;
+use ruxhal::mem::direct_virt_to_phys;
+#[cfg(feature = "paging")]
+use ruxhal::{mem::phys_to_virt, paging::PageTable};
+use spinlock::SpinNoIrq;
 
 #[cfg(feature = "preempt")]
 use core::sync::atomic::AtomicUsize;
@@ -18,11 +30,13 @@ use core::sync::atomic::AtomicUsize;
 #[cfg(feature = "tls")]
 use ruxhal::tls::TlsArea;
 
-use memory_addr::{align_up_4k, VirtAddr};
-use ruxhal::arch::TaskContext;
+use memory_addr::{align_up_4k, VirtAddr, PAGE_SIZE_4K};
+use ruxhal::arch::{flush_tlb, TaskContext};
 
 #[cfg(not(feature = "musl"))]
 use crate::tsd::{DestrFunction, KEYS, TSD};
+use crate::vma::MmapStruct;
+use crate::current;
 use crate::{AxRunQueue, AxTask, AxTaskRef, WaitQueue};
 
 /// A unique identifier for a thread.
@@ -45,11 +59,12 @@ pub enum TaskState {
 
 /// The inner task structure.
 pub struct TaskInner {
+    parent_process: Option<Weak<AxTask>>,
+    process_task: Weak<AxTask>,
     id: TaskId,
     name: String,
     is_idle: bool,
     is_init: bool,
-
     entry: Option<*mut dyn FnOnce()>,
     state: AtomicU8,
 
@@ -65,7 +80,7 @@ pub struct TaskInner {
     exit_code: AtomicI32,
     wait_for_exit: WaitQueue,
 
-    kstack: Option<TaskStack>,
+    kstack: SpinNoIrq<Arc<Option<TaskStack>>>,
     ctx: UnsafeCell<TaskContext>,
 
     #[cfg(feature = "tls")]
@@ -80,6 +95,13 @@ pub struct TaskInner {
     // clear tid
     #[cfg(feature = "musl")]
     tl: AtomicU64,
+    #[cfg(feature = "paging")]
+    // The page table of the task.
+    pub pagetable: Arc<SpinNoIrq<PageTable>>,
+    // file system
+    pub fs: Arc<SpinNoIrq<Option<FileSystem>>>,
+    // memory management
+    pub mm: Arc<MmapStruct>,
 }
 
 impl TaskId {
@@ -132,6 +154,32 @@ impl TaskInner {
         alloc::format!("Task({}, {:?})", self.id.as_u64(), self.name)
     }
 
+    /// Get pointer for parent process task
+    pub fn parent_process(&self) -> Option<AxTaskRef> {
+        if let Some(parent_process) = self.parent_process.as_ref() {
+            return parent_process.upgrade();
+        }
+        None
+    }
+
+    /// Get process task
+    pub fn process_task(&self) -> Arc<AxTask> {
+        if let Some(process_task) = self.process_task.upgrade() {
+            process_task.clone()
+        } else {
+            current().as_task_ref().clone()
+        }
+    }
+
+    /// Get pid of the process of the task.
+    pub fn process_id(&self) -> TaskId {
+        if let Some(process_task) = self.process_task.upgrade() {
+            process_task.id
+        } else {
+            self.id
+        }
+    }
+
     /// Wait for the task to exit, and return the exit code.
     ///
     /// It will return immediately if the task has already exited (but not dropped).
@@ -152,10 +200,21 @@ impl TaskInner {
     }
 }
 
+static PROCESS_MAP: SpinNoIrq<BTreeMap<u64, Arc<AxTask>>> = SpinNoIrq::new(BTreeMap::new());
+
+use log::error;
 // private methods
 impl TaskInner {
+    // clone a thread
     fn new_common(id: TaskId, name: String) -> Self {
+        error!(
+            "new_common: process_id={:#}, name={:?}",
+            current().id_name(),
+            id.0
+        );
         Self {
+            parent_process: Some(Arc::downgrade(current().as_task_ref())),
+            process_task: Arc::downgrade(&current().process_task()),
             id,
             name,
             is_idle: false,
@@ -171,7 +230,7 @@ impl TaskInner {
             preempt_disable_count: AtomicUsize::new(0),
             exit_code: AtomicI32::new(0),
             wait_for_exit: WaitQueue::new(),
-            kstack: None,
+            kstack: SpinNoIrq::new(Arc::new(None)),
             ctx: UnsafeCell::new(TaskContext::new()),
             #[cfg(feature = "tls")]
             tls: TlsArea::alloc(),
@@ -181,6 +240,10 @@ impl TaskInner {
             set_tid: AtomicU64::new(0),
             #[cfg(feature = "musl")]
             tl: AtomicU64::new(0),
+            #[cfg(feature = "paging")]
+            pagetable: current().pagetable.clone(),
+            fs: current().fs.clone(),
+            mm: current().mm.clone(),
         }
     }
 
@@ -192,7 +255,10 @@ impl TaskInner {
         set_tid: AtomicU64,
         tl: AtomicU64,
     ) -> Self {
+        use crate::current;
         Self {
+            parent_process: Some(Arc::downgrade(current().as_task_ref())),
+            process_task: Arc::downgrade(&current().process_task()),
             id,
             name,
             is_idle: false,
@@ -208,14 +274,30 @@ impl TaskInner {
             preempt_disable_count: AtomicUsize::new(0),
             exit_code: AtomicI32::new(0),
             wait_for_exit: WaitQueue::new(),
-            kstack: None,
+            kstack: SpinNoIrq::new(Arc::new(None)),
             ctx: UnsafeCell::new(TaskContext::new()),
             #[cfg(feature = "tls")]
             tls: TlsArea::new_with_addr(tls),
             set_tid,
             // clear child tid
             tl,
+            #[cfg(feature = "paging")]
+            pagetable: current().pagetable.clone(),
+            fs: current().fs.clone(),
+            mm: current().mm.clone(),
         }
+    }
+
+    pub fn stack_top(&self) -> VirtAddr {
+        self.kstack.lock().as_ref().as_ref().unwrap().top()
+    }
+
+    pub fn set_stack_top(&self, begin: usize, size: usize) {
+        error!("set_stack_top: begin={:#x}, size={:#x}", begin, size);
+        *self.kstack.lock() = Arc::new(Some(TaskStack {
+            ptr: NonNull::new(begin as *mut u8).unwrap(),
+            layout: Layout::from_size_align(size, PAGE_SIZE_4K).unwrap(),
+        }));
     }
 
     /// for set_tid_addr
@@ -239,9 +321,7 @@ impl TaskInner {
         F: FnOnce() + Send + 'static,
     {
         let mut t = Self::new_common_tls(TaskId::new(), name, tls, set_tid, tl);
-        debug!("new task: {}", t.id_name());
         let kstack = TaskStack::alloc(align_up_4k(stack_size));
-
         #[cfg(feature = "tls")]
         let tls = VirtAddr::from(t.tls.tls_ptr() as usize);
         #[cfg(not(feature = "tls"))]
@@ -249,7 +329,7 @@ impl TaskInner {
 
         t.entry = Some(Box::into_raw(Box::new(entry)));
         t.ctx.get_mut().init(task_entry as usize, kstack.top(), tls);
-        t.kstack = Some(kstack);
+        t.kstack = SpinNoIrq::new(Arc::new(Some(kstack)));
         if t.name == "idle" {
             t.is_idle = true;
         }
@@ -272,11 +352,180 @@ impl TaskInner {
 
         t.entry = Some(Box::into_raw(Box::new(entry)));
         t.ctx.get_mut().init(task_entry as usize, kstack.top(), tls);
-        t.kstack = Some(kstack);
+        t.kstack = SpinNoIrq::new(Arc::new(Some(kstack)));
         if t.name == "idle" {
             t.is_idle = true;
         }
         Arc::new(AxTask::new(t))
+    }
+
+    pub fn fork() -> AxTaskRef {
+        use crate::alloc::string::ToString;
+
+        let current_task = crate::current();
+        let name = current_task.as_task_ref().name().to_string();
+        let current_stack_bindings = current_task.as_task_ref().kstack.lock();
+        let current_stack = current_stack_bindings.as_ref().as_ref().clone().unwrap();
+        let current_stack_top = current_stack.top();
+        let stack_size = current_stack.layout.size();
+        debug!(
+            "fork: current_stack_top={:#x}, stack_size={:#x}",
+            current_stack_top, stack_size
+        );
+
+        #[cfg(feature = "paging")]
+        // TODO: clone parent page table, and mark all unshared pages to read-only
+        let mut cloned_page_table = PageTable::try_new().expect("failed to create page table");
+        let cloned_mm = current().mm.as_ref().clone();
+        
+        // clone the global shared pages (as system memory)
+        // TODO: exclude the stack page from the cloned page table
+        #[cfg(feature = "paging")]
+        for r in ruxhal::mem::memory_regions() {
+            cloned_page_table
+                .map_region(
+                    phys_to_virt(r.paddr),
+                    r.paddr,
+                    r.size,
+                    r.flags.into(),
+                    false,
+                )
+                .expect("failed to map region when forking");
+        }
+
+        // mapping the page for stack to the process's stack, stack must keep at the same position.
+        // TODO: merge these code with previous.
+        #[cfg(feature = "paging")]
+        let new_stack = TaskStack::alloc(align_up_4k(stack_size));
+        let new_stack_vaddr = new_stack.end();
+        let stack_paddr = direct_virt_to_phys(new_stack_vaddr);
+
+        // Note: the stack region is mapped to the same position as the parent process's stack, be careful when update the stack region for the forked process.
+        let (_, prev_flag, _) = cloned_page_table
+            .query(current_stack.end())
+            .expect("failed to query stack region when forking");
+        cloned_page_table
+            .unmap_region(current_stack.end(), align_up_4k(stack_size))
+            .expect("failed to unmap stack region when forking");
+        cloned_page_table
+            .map_region(
+                current_stack.end(),
+                stack_paddr,
+                stack_size,
+                prev_flag,
+                true,
+            )
+            .expect("failed to map stack region when forking");
+
+        // clone parent pages in memory, and mark all unshared pages to read-only
+        for (vaddr, page_info) in cloned_mm.mem_map.lock().iter() {
+            let paddr = page_info.paddr;
+            cloned_page_table
+                .map((*vaddr).into(), paddr, PageSize::Size4K, MappingFlags::READ)
+                .expect("failed to map when forking");
+        }
+
+        // mark the parent process's page table to read-only.
+        for (vaddr, _) in current_task.mm.mem_map.lock().iter() {
+            let mut page_table = current_task.pagetable.lock();
+            let vaddr = VirtAddr::from(*vaddr);
+            let (_, mapping_flag, _) = page_table
+                .query(vaddr)
+                .expect("Inconsistent page table with mem_map");
+            if mapping_flag.contains(MappingFlags::EXECUTE) {
+                page_table
+                    .update(
+                        vaddr,
+                        None,
+                        Some(MappingFlags::READ | MappingFlags::EXECUTE),
+                    )
+                    .expect("failed to update mapping when forking");
+
+                cloned_page_table
+                    .update(
+                        vaddr,
+                        None,
+                        Some(MappingFlags::READ | MappingFlags::EXECUTE),
+                    )
+                    .expect("failed to update mapping when forking");
+            } else {
+                page_table
+                    .update(vaddr, None, Some(MappingFlags::READ))
+                    .expect("failed to update mapping when forking");
+                
+            }
+            flush_tlb(Some(vaddr));
+        }
+
+        let mut t = Self {
+            parent_process: Some(Arc::downgrade(current_task.as_task_ref())),
+            process_task: Weak::new(),
+            id: TaskId::new(),
+            name,
+            is_idle: false,
+            is_init: false,
+            entry: None,
+            state: AtomicU8::new(TaskState::Ready as u8),
+            in_wait_queue: AtomicBool::new(false),
+            #[cfg(feature = "irq")]
+            in_timer_list: AtomicBool::new(false),
+            #[cfg(feature = "preempt")]
+            need_resched: AtomicBool::new(false),
+            #[cfg(feature = "preempt")]
+            preempt_disable_count: AtomicUsize::new(0),
+            exit_code: AtomicI32::new(0),
+            wait_for_exit: WaitQueue::new(),
+            kstack: SpinNoIrq::new(Arc::new(Some(new_stack))),
+            ctx: UnsafeCell::new(TaskContext::new()),
+            #[cfg(feature = "tls")]
+            tls: TlsArea::alloc(),
+            #[cfg(not(feature = "musl"))]
+            tsd: spinlock::SpinNoIrq::new([core::ptr::null_mut(); ruxconfig::PTHREAD_KEY_MAX]),
+            #[cfg(feature = "musl")]
+            set_tid: AtomicU64::new(0),
+            #[cfg(feature = "musl")]
+            tl: AtomicU64::new(0),
+            #[cfg(feature = "paging")]
+            pagetable: Arc::new(SpinNoIrq::new(cloned_page_table)),
+            fs: Arc::new(SpinNoIrq::new(current_task.fs.lock().clone())),
+            mm: Arc::new(cloned_mm),
+        };
+
+        debug!("new task forked: {}", t.id_name());
+
+        #[cfg(feature = "tls")]
+        let tls = VirtAddr::from(t.tls.tls_ptr() as usize);
+        #[cfg(not(feature = "tls"))]
+        let tls = VirtAddr::from(0);
+
+        t.entry = None;
+        t.ctx.get_mut().init(
+            task_entry as usize,
+            t.kstack.lock().as_ref().as_ref().unwrap().top(),
+            tls,
+        );
+        let task_ref = Arc::new(AxTask::new(t));
+
+        warn!(
+            "start: copy stack content: current_stack_top={:#x} => new_stack_addr={:#x}",
+            current_stack.end(),
+            new_stack_vaddr
+        );
+        unsafe {
+            // copy the stack content from current stack to new stack
+            (*task_ref.ctx_mut_ptr()).save_current_content(
+                current_stack.end().as_ptr(),
+                new_stack_vaddr.as_mut_ptr(),
+                stack_size,
+            );
+        }
+        warn!(
+            "end: copy stack content: current_stack_top={:#x} => new_stack_addr={:#x}",
+            current_stack.end(),
+            new_stack_vaddr
+        );
+
+        task_ref
     }
 
     /// Creates an "init task" using the current CPU states, to use as the
@@ -288,11 +537,92 @@ impl TaskInner {
     /// And there is no need to set the `entry`, `kstack` or `tls` fields, as
     /// they will be filled automatically when the task is switches out.
     pub(crate) fn new_init(name: String) -> AxTaskRef {
-        let mut t = Self::new_common(TaskId::new(), name);
-        t.is_init = true;
-        if t.name == "idle" {
-            t.is_idle = true;
-        }
+        let mut t = Self {
+            parent_process: None,
+            process_task: Weak::new(),
+            id: TaskId::new(),
+            name,
+            is_idle: false,
+            is_init: true,
+            entry: None,
+            state: AtomicU8::new(TaskState::Ready as u8),
+            in_wait_queue: AtomicBool::new(false),
+            #[cfg(feature = "irq")]
+            in_timer_list: AtomicBool::new(false),
+            #[cfg(feature = "preempt")]
+            need_resched: AtomicBool::new(false),
+            #[cfg(feature = "preempt")]
+            preempt_disable_count: AtomicUsize::new(0),
+            exit_code: AtomicI32::new(0),
+            wait_for_exit: WaitQueue::new(),
+            kstack: SpinNoIrq::new(Arc::new(None)),
+            ctx: UnsafeCell::new(TaskContext::new()),
+            #[cfg(feature = "tls")]
+            tls: TlsArea::alloc(),
+            #[cfg(not(feature = "musl"))]
+            tsd: spinlock::SpinNoIrq::new([core::ptr::null_mut(); ruxconfig::PTHREAD_KEY_MAX]),
+            #[cfg(feature = "musl")]
+            set_tid: AtomicU64::new(0),
+            #[cfg(feature = "musl")]
+            tl: AtomicU64::new(0),
+            #[cfg(feature = "paging")]
+            pagetable: Arc::new(SpinNoIrq::new(
+                PageTable::try_new().expect("failed to create page table"),
+            )),
+            fs: Arc::new(SpinNoIrq::new(None)),
+            mm: Arc::new(MmapStruct::new()),
+        };
+        error!("new init task: {}", t.id_name());
+        t.set_stack_top(boot_stack as usize, ruxconfig::TASK_STACK_SIZE);
+        t.ctx.get_mut().init(
+            task_entry as usize,
+            VirtAddr::from(boot_stack as usize),
+            VirtAddr::from(t.tls.tls_ptr() as usize),
+        );
+        let task_ref = Arc::new(AxTask::new(t));
+        PROCESS_MAP
+            .lock()
+            .insert(task_ref.id().as_u64(), task_ref.clone());
+        task_ref
+    }
+
+    pub fn new_idle(name: String) -> AxTaskRef {
+        let bindings = PROCESS_MAP.lock();
+        let (&_parent_id, &ref task_ref) = bindings.first_key_value().unwrap();
+        let t = Self {
+            parent_process: Some(Arc::downgrade(task_ref)),
+            process_task: task_ref.process_task.clone(),
+            id: TaskId::new(),
+            name,
+            is_idle: true,
+            is_init: false,
+            entry: None,
+            state: AtomicU8::new(TaskState::Ready as u8),
+            in_wait_queue: AtomicBool::new(false),
+            #[cfg(feature = "irq")]
+            in_timer_list: AtomicBool::new(false),
+            #[cfg(feature = "preempt")]
+            need_resched: AtomicBool::new(false),
+            #[cfg(feature = "preempt")]
+            preempt_disable_count: AtomicUsize::new(0),
+            exit_code: AtomicI32::new(0),
+            wait_for_exit: WaitQueue::new(),
+            kstack: SpinNoIrq::new(Arc::new(None)),
+            ctx: UnsafeCell::new(TaskContext::new()),
+            #[cfg(feature = "tls")]
+            tls: TlsArea::alloc(),
+            #[cfg(not(feature = "musl"))]
+            tsd: spinlock::SpinNoIrq::new([core::ptr::null_mut(); ruxconfig::PTHREAD_KEY_MAX]),
+            #[cfg(feature = "musl")]
+            set_tid: AtomicU64::new(0),
+            #[cfg(feature = "musl")]
+            tl: AtomicU64::new(0),
+            #[cfg(feature = "paging")]
+            pagetable: task_ref.pagetable.clone(),
+            fs: task_ref.fs.clone(),
+            mm: task_ref.mm.clone(),
+        };
+
         Arc::new(AxTask::new(t))
     }
 
@@ -450,11 +780,12 @@ impl fmt::Debug for TaskInner {
 
 impl Drop for TaskInner {
     fn drop(&mut self) {
-        debug!("task drop: {}", self.id_name());
+        error!("task drop: {}", self.id_name());
     }
 }
 
-struct TaskStack {
+#[derive(Debug)]
+pub struct TaskStack {
     ptr: NonNull<u8>,
     layout: Layout,
 }
@@ -472,10 +803,23 @@ impl TaskStack {
     pub const fn top(&self) -> VirtAddr {
         unsafe { core::mem::transmute(self.ptr.as_ptr().add(self.layout.size())) }
     }
+
+    pub const fn end(&self) -> VirtAddr {
+        unsafe { core::mem::transmute(self.ptr.as_ptr()) }
+    }
+
+    pub fn size(&self) -> usize {
+        self.layout.size()
+    }
 }
 
 impl Drop for TaskStack {
     fn drop(&mut self) {
+        warn!(
+            "taskStack drop: ptr={:#x}, size={:#x}",
+            self.ptr.as_ptr() as usize,
+            self.layout.size()
+        );
         unsafe { alloc::alloc::dealloc(self.ptr.as_ptr(), self.layout) }
     }
 }
@@ -504,7 +848,7 @@ impl CurrentTask {
         &self.0
     }
 
-    pub(crate) fn clone(&self) -> AxTaskRef {
+    pub fn clone(&self) -> AxTaskRef {
         self.0.deref().clone()
     }
 
@@ -520,6 +864,10 @@ impl CurrentTask {
     }
 
     pub(crate) unsafe fn set_current(prev: Self, next: AxTaskRef) {
+        error!(
+            "-----------set_current-------------,next ptr={:#}",
+            next.id_name()
+        );
         let Self(arc) = prev;
         ManuallyDrop::into_inner(arc); // `call Arc::drop()` to decrease prev task reference count.
         let ptr = Arc::into_raw(next);
@@ -541,7 +889,14 @@ extern "C" fn task_entry() -> ! {
     ruxhal::arch::enable_irqs();
     let task = crate::current();
     if let Some(entry) = task.entry {
-        unsafe { Box::from_raw(entry)() };
+        unsafe {
+            let in_entry = Box::from_raw(entry);
+            in_entry()
+        };
     }
     crate::exit(0);
+}
+
+extern "C" {
+    fn boot_stack();
 }

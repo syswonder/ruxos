@@ -41,7 +41,7 @@ pub fn sys_gettid() -> c_int {
 
 /// Get current process ID.
 pub fn sys_getpid() -> c_int {
-    syscall_body!(sys_getpid, Ok(2))
+    syscall_body!(sys_getpid, Ok(ruxtask::current().id().as_u64() as c_int))
 }
 
 /// Get parent process's ID.

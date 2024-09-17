@@ -189,12 +189,6 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     #[cfg(feature = "alloc")]
     init_allocator();
 
-    #[cfg(feature = "paging")]
-    {
-        info!("Initialize kernel page table...");
-        remap_kernel_memory().expect("remap kernel memoy failed");
-    }
-
     #[cfg(feature = "tty")]
     tty::init();
 
@@ -209,6 +203,12 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
         ruxtask::init_scheduler();
         #[cfg(feature = "musl")]
         ruxfutex::init_futex();
+    }
+
+    #[cfg(feature = "paging")]
+    {
+        info!("Initialize kernel page table...");
+        remap_kernel_memory().expect("remap kernel memoy failed");
     }
 
     #[cfg(any(feature = "fs", feature = "net", feature = "display"))]
@@ -394,7 +394,7 @@ fn init_allocator() {
 }
 
 #[cfg(feature = "paging")]
-use ruxhal::paging::remap_kernel_memory;
+use ruxmm::paging::remap_kernel_memory;
 
 #[cfg(feature = "irq")]
 fn init_interrupt() {

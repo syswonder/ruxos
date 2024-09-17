@@ -235,7 +235,7 @@ pub unsafe fn init_syscall_entry() {
             .has_syscall_sysret());
 
         x86_64::registers::model_specific::LStar::write(x86_64::VirtAddr::new(
-            x86_syscall_entry as usize as u64,
+            x86_syscall_entry as usize,
         ));
         x86_64::registers::model_specific::Efer::update(|efer| {
             efer.insert(
