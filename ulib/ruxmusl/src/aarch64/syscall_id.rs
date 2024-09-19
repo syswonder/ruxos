@@ -80,6 +80,7 @@ pub enum SyscallId {
     NANO_SLEEP = 101,
     CLOCK_SETTIME = 112,
     CLOCK_GETTIME = 113,
+    CLOCK_NANOSLEEP = 115,
     SCHED_YIELD = 124,
     #[cfg(feature = "signal")]
     KILL = 129,
@@ -129,6 +130,8 @@ pub enum SyscallId {
     RECVFROM = 207,
     #[cfg(feature = "net")]
     SETSOCKOPT = 208,
+    #[cfg(feature = "net")]
+    GETSOCKOPT = 209,
     #[cfg(feature = "net")]
     SHUTDOWN = 210,
     #[cfg(feature = "net")]

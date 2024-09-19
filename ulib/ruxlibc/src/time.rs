@@ -8,7 +8,7 @@
  */
 
 use core::ffi::c_int;
-use ruxos_posix_api::{sys_clock_gettime, sys_clock_settime, sys_nanosleep};
+use ruxos_posix_api::{sys_clock_gettime, sys_clock_nanosleep, sys_clock_settime, sys_nanosleep};
 #[cfg(feature = "signal")]
 use ruxos_posix_api::{sys_getitimer, sys_setitimer};
 
@@ -24,6 +24,19 @@ pub unsafe extern "C" fn clock_gettime(clk: ctypes::clockid_t, ts: *mut ctypes::
 #[no_mangle]
 pub unsafe extern "C" fn clock_settime(clk: ctypes::clockid_t, ts: *mut ctypes::timespec) -> c_int {
     e(sys_clock_settime(clk, ts))
+}
+
+/// Sleep until some nanoseconds
+///
+/// TODO: should be woken by signals, and set errno
+#[no_mangle]
+pub unsafe extern "C" fn clock_nanosleep(
+    which_clock: ctypes::clockid_t,
+    flags: c_int,
+    req: *const ctypes::timespec,
+    rem: *mut ctypes::timespec,
+) -> c_int {
+    e(sys_clock_nanosleep(which_clock, flags, req, rem))
 }
 
 /// Sleep some nanoseconds
