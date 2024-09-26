@@ -177,7 +177,7 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
 
     info!("Found physcial memory regions:");
     for r in ruxhal::mem::memory_regions() {
-        info!(
+        error!(
             "  [{:x?}, {:x?}) {} ({:?})",
             r.paddr,
             r.paddr + r.size,

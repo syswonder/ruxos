@@ -133,31 +133,19 @@ impl TaskContext {
         }
     }
 
-    /// Switches to another task in another process.
-    ///
-    /// It first saves the current task's context from CPU to this place, and then
-    /// restores the next task's context from `next_ctx` to CPU.
-    pub fn switch_process_to(&mut self, next_ctx: &Self, page_table_addr: PhysAddr) {
-        #[cfg(feature = "fp_simd")]
-        self.fp_state.switch_to(&next_ctx.fp_state);
-
-        // warn!("switch_to: {:#x?}", next_ctx);
-        unsafe {
-            // switch to the next process's page table, stack would be unavailable before context switch finished
-            write_page_table_root(page_table_addr);             
-            context_switch(self, next_ctx) 
-        }
-    }
-
     /// Switches to another task.
     ///
     /// It first saves the current task's context from CPU to this place, and then
     /// restores the next task's context from `next_ctx` to CPU.
-    pub fn switch_to(&mut self, next_ctx: &Self) {
-        #[cfg(feature = "fp_simd")]
-        self.fp_state.switch_to(&next_ctx.fp_state);
-        // warn!("switch_to: {:#x?}", next_ctx);
-        unsafe { context_switch(self, next_ctx) }
+    #[inline(never)]
+    pub fn switch_to(&mut self, next_ctx: &Self, page_table_addr: PhysAddr) {
+        unsafe {
+            #[cfg(feature = "fp_simd")]
+            fpstate_switch(&mut self.fp_state, &next_ctx.fp_state);
+            // switch to the next process's page table, stack would be unavailable before context switch finished
+            // write_page_table_root(page_table_addr);    
+            context_switch(self, next_ctx, page_table_addr.as_usize() as u64);
+        }
     }
 }
 
@@ -191,9 +179,7 @@ unsafe extern "C" fn save_stack(src: *const u8, dst: *mut u8, size: usize) {
 #[naked]
 #[allow(named_asm_labels)]
 unsafe extern "C" fn save_current_context(
-    _current_task: &mut TaskContext,
-    // temp_stack_top: &u64,
-    // current_stack_top: &u64,
+    _current_task: &mut TaskContext
 ) {
     asm!(
         "
@@ -246,7 +232,8 @@ unsafe extern "C" fn save_fpstate_context(_current_fpstate: &mut FpState) {
 }
 
 #[naked]
-unsafe extern "C" fn context_switch(_current_task: &mut TaskContext, _next_task: &TaskContext) {
+#[allow(named_asm_labels)]
+unsafe extern "C" fn context_switch(_current_task: &mut TaskContext, _next_task: &TaskContext, _page_table_addr: u64) {
     asm!(
         "
         // save old context (callee-saved registers)
@@ -260,6 +247,19 @@ unsafe extern "C" fn context_switch(_current_task: &mut TaskContext, _next_task:
         mrs     x20, tpidr_el0
         stp     x19, x20, [x0]
 
+        // switch to next task's page table
+        mrs     x19, TTBR1_EL1
+        cmp     x19, x2
+        b.eq     _switch_page_table_done
+        _switch_page_table:
+        mov     x19, x2
+        msr     TTBR1_EL1, x19
+        tlbi vmalle1
+        dsb sy
+        isb
+        // no need to switch page table, just continue
+        _switch_page_table_done:
+
         // restore new context
         ldp     x19, x20, [x1]
         mov     sp, x19
@@ -271,6 +271,7 @@ unsafe extern "C" fn context_switch(_current_task: &mut TaskContext, _next_task:
         ldp     x27, x28, [x1, 10 * 8]
         ldp     x29, x30, [x1, 12 * 8]
 
+        isb
         ret",
         options(noreturn),
     )

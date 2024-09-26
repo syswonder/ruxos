@@ -7,10 +7,13 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use crate::{current, fs::RUX_FILE_LIMIT};
+use log::error;
+
+use crate::fs::get_file_like;
+use crate::{ fs::RUX_FILE_LIMIT};
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
-use axerrno::{LinuxError, LinuxResult};
+use axerrno::LinuxResult;
 use lazy_init::LazyInit;
 use scheduler::BaseScheduler;
 use spinlock::SpinNoIrq;
@@ -20,7 +23,6 @@ use crate::{AxTaskRef, Scheduler, TaskInner, WaitQueue};
 
 // TODO: per-CPU
 pub(crate) static RUN_QUEUE: LazyInit<SpinNoIrq<AxRunQueue>> = LazyInit::new();
-// pub static BLOCKING_QUEUE: LazyInit<SpinNoIrq<AxRunQueue>> = LazyInit::new();
 
 // TODO: per-CPU
 static EXITED_TASKS: SpinNoIrq<VecDeque<AxTaskRef>> = SpinNoIrq::new(VecDeque::new());
@@ -100,7 +102,6 @@ impl AxRunQueue {
 
     pub fn exit_current(&mut self, exit_code: i32) -> ! {
         let curr = crate::current();
-        error!("exit_current current id={}", curr.id_name());
         debug!("task exit: {}, exit_code={}", curr.id_name(), exit_code);
         assert!(curr.is_running());
         assert!(!curr.is_idle());
@@ -180,16 +181,7 @@ impl AxRunQueue {
             IDLE_TASK.current_ref_raw().get_unchecked().clone()
         });
 
-        if next.process_id().as_u64() == prev.process_id().as_u64() {
-            self.switch_to(prev, next);
-        } else {
-            error!(
-                "switch_to: prev_task={:?}, next_task={:?}",
-                prev.id_name(),
-                next.id_name()
-            );
-            self.switch_process(prev, next);
-        }
+        self.switch_to(prev, next);
     }
 
     fn switch_to(&mut self, prev_task: CurrentTask, next_task: AxTaskRef) {
@@ -204,7 +196,7 @@ impl AxRunQueue {
         if prev_task.ptr_eq(&next_task) {
             return;
         }
-
+        // error!("next task: {}", next_task.id_name());
         unsafe {
             let prev_ctx_ptr = prev_task.ctx_mut_ptr();
             let next_ctx_ptr = next_task.ctx_mut_ptr();
@@ -214,53 +206,22 @@ impl AxRunQueue {
             assert!(Arc::strong_count(prev_task.as_task_ref()) > 1);
             assert!(Arc::strong_count(&next_task) >= 1);
 
+            let next_page_table = next_task.pagetable.lock();
+            let root_paddr = next_page_table.root_paddr();
+
+            // Drop the `next_page_table` here, so that it will not be dropped after context switch.
+            drop(next_page_table);
+
             CurrentTask::set_current(prev_task, next_task);
-            (*prev_ctx_ptr).switch_to(&*next_ctx_ptr);
+            (*prev_ctx_ptr).switch_to(&*next_ctx_ptr, root_paddr);
         }
     }
 
-    fn switch_process(&mut self, prev_task: CurrentTask, next_task: AxTaskRef) {
-        trace!("ret_from_fork : {}", next_task.id_name());
-        #[cfg(feature = "preempt")]
-        next_task.set_preempt_pending(false);
-        next_task.set_state(TaskState::Running);
-
-        let binding = prev_task.clone();
-        let prev_inner = binding.inner();
-        let binding = next_task.clone();
-        let next_inner = binding.inner();
-        unsafe {
-            let cur_ctx_ptr = prev_inner.ctx_mut_ptr();
-            let next_ctx_ptr = next_inner.ctx_mut_ptr();
-
-            let next_page_table_addr = next_inner.pagetable.lock().root_paddr();
-
-            // The strong reference count of `prev_task` will be decremented by 1,
-            // but won't be dropped until `gc_entry()` is called.
-            assert!(Arc::strong_count(prev_task.as_task_ref()) > 1);
-            assert!(Arc::strong_count(&next_task) >= 1);
-
-            // warn!(
-            //     "process switch: prev_task={:?}, stack_top={:?}; next_task={:?}, stack_top={:?}",
-            //     prev_task.id_name(),
-            //     prev_inner.stack_top(),
-            //     next_task.clone().id_name(),
-            //     next_inner.stack_top()
-            // );
-            CurrentTask::set_current(prev_task, next_task);
-
-            // restore the registers content from next_task, and overwrite the content from children's stack.
-            (*cur_ctx_ptr).switch_process_to(&(*next_ctx_ptr), next_page_table_addr);
-        }
-    }
 }
 
 fn gc_flush_file(fd: usize) -> LinuxResult {
     trace!("gc task flush: {}", fd);
-    let binding = current();
-    let mut fs = binding.fs.lock();
-    let fd_table = &fs.as_mut().unwrap().fd_table;
-    fd_table.get(fd).cloned().ok_or(LinuxError::EBADF)?.flush()
+    get_file_like(fd as i32)?.flush()
 }
 
 fn gc_entry() {

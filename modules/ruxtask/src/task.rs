@@ -35,6 +35,7 @@ use ruxhal::arch::{flush_tlb, TaskContext};
 
 #[cfg(not(feature = "musl"))]
 use crate::tsd::{DestrFunction, KEYS, TSD};
+#[cfg(feature = "paging")]
 use crate::vma::MmapStruct;
 use crate::current;
 use crate::{AxRunQueue, AxTask, AxTaskRef, WaitQueue};
@@ -202,12 +203,11 @@ impl TaskInner {
 
 static PROCESS_MAP: SpinNoIrq<BTreeMap<u64, Arc<AxTask>>> = SpinNoIrq::new(BTreeMap::new());
 
-use log::error;
 // private methods
 impl TaskInner {
     // clone a thread
     fn new_common(id: TaskId, name: String) -> Self {
-        error!(
+        debug!(
             "new_common: process_id={:#}, name={:?}",
             current().id_name(),
             id.0
@@ -293,7 +293,7 @@ impl TaskInner {
     }
 
     pub fn set_stack_top(&self, begin: usize, size: usize) {
-        error!("set_stack_top: begin={:#x}, size={:#x}", begin, size);
+        debug!("set_stack_top: begin={:#x}, size={:#x}", begin, size);
         *self.kstack.lock() = Arc::new(Some(TaskStack {
             ptr: NonNull::new(begin as *mut u8).unwrap(),
             layout: Layout::from_size_align(size, PAGE_SIZE_4K).unwrap(),
@@ -395,7 +395,6 @@ impl TaskInner {
 
         // mapping the page for stack to the process's stack, stack must keep at the same position.
         // TODO: merge these code with previous.
-        #[cfg(feature = "paging")]
         let new_stack = TaskStack::alloc(align_up_4k(stack_size));
         let new_stack_vaddr = new_stack.end();
         let stack_paddr = direct_virt_to_phys(new_stack_vaddr);
@@ -506,11 +505,6 @@ impl TaskInner {
         );
         let task_ref = Arc::new(AxTask::new(t));
 
-        warn!(
-            "start: copy stack content: current_stack_top={:#x} => new_stack_addr={:#x}",
-            current_stack.end(),
-            new_stack_vaddr
-        );
         unsafe {
             // copy the stack content from current stack to new stack
             (*task_ref.ctx_mut_ptr()).save_current_content(
@@ -519,11 +513,6 @@ impl TaskInner {
                 stack_size,
             );
         }
-        warn!(
-            "end: copy stack content: current_stack_top={:#x} => new_stack_addr={:#x}",
-            current_stack.end(),
-            new_stack_vaddr
-        );
 
         task_ref
     }
@@ -572,7 +561,7 @@ impl TaskInner {
             fs: Arc::new(SpinNoIrq::new(None)),
             mm: Arc::new(MmapStruct::new()),
         };
-        error!("new init task: {}", t.id_name());
+        debug!("new init task: {}", t.id_name());
         t.set_stack_top(boot_stack as usize, ruxconfig::TASK_STACK_SIZE);
         t.ctx.get_mut().init(
             task_entry as usize,
@@ -704,7 +693,7 @@ impl TaskInner {
         self.preempt_disable_count.fetch_add(1, Ordering::Relaxed);
     }
 
-    #[inline]
+
     #[cfg(feature = "preempt")]
     pub(crate) fn enable_preempt(&self, resched: bool) {
         if self.preempt_disable_count.fetch_sub(1, Ordering::Relaxed) == 1 && resched {
@@ -864,7 +853,7 @@ impl CurrentTask {
     }
 
     pub(crate) unsafe fn set_current(prev: Self, next: AxTaskRef) {
-        error!(
+        debug!(
             "-----------set_current-------------,next ptr={:#}",
             next.id_name()
         );

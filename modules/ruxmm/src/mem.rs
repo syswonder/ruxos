@@ -9,11 +9,9 @@
 
 #[cfg(feature = "paging")]
 use crate::paging::pte_query;
-
 use ruxdriver::virtio::AddressTranslate;
 use ruxhal::mem::{direct_virt_to_phys, PhysAddr, VirtAddr};
 
-#[cfg(feature = "paging")]
 struct AddressTranslateImpl;
 
 /// Converts a virtual address to a physical address.
@@ -37,6 +35,6 @@ impl AddressTranslate for AddressTranslateImpl {
 #[crate_interface::impl_interface]
 impl AddressTranslate for AddressTranslateImpl {
     fn virt_to_phys(vaddr: VirtAddr) -> Option<usize> {
-        Some(direct_virt_to_phys(vaddr))
+        Some(direct_virt_to_phys(vaddr).into())
     }
 }

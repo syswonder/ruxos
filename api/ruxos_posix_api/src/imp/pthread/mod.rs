@@ -131,7 +131,6 @@ impl Pthread {
 
     fn current_ptr() -> *mut Pthread {
         let tid = ruxtask::current().id().as_u64();
-        error!("current_ptr, tid: {}", tid);
         match TID_TO_PTHREAD.read().get(&tid) {
             None => core::ptr::null_mut(),
             Some(ptr) => ptr.0 as *mut Pthread,

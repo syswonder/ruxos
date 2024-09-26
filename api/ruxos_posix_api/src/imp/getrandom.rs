@@ -158,6 +158,7 @@ pub unsafe extern "C" fn sys_getrandom(buf: *mut c_void, buflen: size_t, flags: 
             return Err(LinuxError::EFAULT);
         }
 
+        // BUG: flags are implemented wrongly, flags should be checks bit by bit
         match flags as _ {
             crate::ctypes::GRND_NONBLOCK => {}
             crate::ctypes::GRND_RANDOM => {}

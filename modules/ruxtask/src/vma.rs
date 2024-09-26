@@ -13,6 +13,7 @@
 //! TODO: use `Mutex` to replace `SpinNoIrq` to make it more efficient.
 
 use crate::current;
+use crate::fs::get_file_like;
 use crate::{fs::File, TaskId};
 use alloc::vec::Vec;
 use alloc::{collections::BTreeMap, sync::Arc};
@@ -159,10 +160,7 @@ impl Vma {
         let file = if _fid < 0 {
             None
         } else {
-            let binding = current();
-            let fs = binding.fs.lock();
-            let fd_table = &fs.as_ref().unwrap().fd_table;
-            let f = fd_table.get(_fid as usize).unwrap();
+            let f = get_file_like(_fid).expect("invaild fd for vma");
             Some(
                 f.clone()
                     .into_any()

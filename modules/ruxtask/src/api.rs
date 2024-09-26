@@ -9,6 +9,8 @@
 
 //! Task APIs for multi-task configuration.
 
+use core::mem::ManuallyDrop;
+
 use alloc::{string::String, sync::Arc};
 
 pub(crate) use crate::run_queue::{AxRunQueue, RUN_QUEUE};
@@ -137,19 +139,12 @@ pub fn fork_task() -> Option<AxTaskRef> {
     // Judge whether the parent process is blocked, if yes, add it to the blocking queue of the child process
     if current().id().as_u64() == current_id {
         RUN_QUEUE.lock().add_task(children_process.clone());
-
-        warn!(
-            "parent process[{}] is leaving, add it to the blocking queue of the child process[{}]",
-            current().id().as_u64(),
-            children_process.id().as_u64()
-        );
-        return Some(children_process.clone());
+        return Some(children_process);
     }
 
-    error!(
-        "children process[{}] is forked, return None",
-        current().id().as_u64()
-    );
+    // should not drop the children_process here, because it will be taken in the parent process
+    let _ = ManuallyDrop::new(children_process);
+
     return None;
 }
 

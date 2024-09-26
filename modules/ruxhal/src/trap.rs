@@ -9,6 +9,7 @@
 
 //! Trap handling.
 use crate_interface::{call_interface, def_interface};
+#[cfg(feature = "paging")]
 use page_table::MappingFlags;
 
 /// Several reasons for page missing exceptions.
@@ -23,6 +24,7 @@ pub enum PageFaultCause {
 }
 
 /// `PageFaultCause` corresponding to `MappingFlags`.
+#[cfg(feature = "paging")]
 impl Into<MappingFlags> for PageFaultCause {
     fn into(self) -> MappingFlags {
         match self {

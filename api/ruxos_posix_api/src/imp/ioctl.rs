@@ -40,12 +40,18 @@ pub fn sys_ioctl(fd: c_int, request: usize, data: usize) -> c_int {
                 }
                 Ok(0)
             }
+            // TODO: a temporary solution for TIOCGWINSZ.
             TIOCGWINSZ => {
                 let winsize = data as *mut ConsoleWinSize;
                 unsafe {
                     *winsize = ConsoleWinSize::default();
                 }
-                Ok(0)
+                if fd == 0 || fd == 1 || fd == 2{
+                    Ok(0)
+                }
+                else{
+                    Ok(-1)
+                }
             }
             TCGETS => {
                 debug!("sys_ioctl: tty TCGETS");
