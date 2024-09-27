@@ -78,11 +78,13 @@ pub fn sys_wait4(
                 } else if options & WNOHANG != 0 {
                     return 0; // No child process
                 }
-                // for single-cpu system, we must yield to other tasks instead of dead-looping here.
-                yield_now();
             } else {
                 return -1; // No such process
             }
+            // drop lock before yielding to other tasks
+            drop(process_map);
+            // for single-cpu system, we must yield to other tasks instead of dead-looping here.
+            yield_now();
         }
     } else if pid == -1 {
         let mut to_remove: Option<u64> = None;
@@ -104,6 +106,8 @@ pub fn sys_wait4(
             if options & WNOHANG != 0 {
                 return 0; // No child process
             }
+            // drop lock before yielding to other tasks
+            drop(process_map);
             // for single-cpu system, we must yield to other tasks instead of dead-looping here.
             yield_now();
         }
