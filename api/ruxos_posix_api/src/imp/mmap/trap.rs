@@ -21,7 +21,8 @@ use crate::imp::mmap::utils::get_mflags_from_usize;
 use alloc::sync::Arc;
 use core::{
     cmp::min,
-    ops::{Bound, DerefMut}, sync::atomic::{fence, Ordering},
+    ops::{Bound, DerefMut},
+    sync::atomic::{fence, Ordering},
 };
 use memory_addr::PAGE_SIZE_4K;
 use page_table::MappingFlags;
@@ -41,9 +42,6 @@ struct TrapHandlerImpl;
 #[crate_interface::impl_interface]
 impl ruxhal::trap::TrapHandler for TrapHandlerImpl {
     fn handle_page_fault(vaddr: usize, cause: PageFaultCause) -> bool {
-        // warn!("----->handle_page_fault: vaddr=0x{:x?}, cause={:?}", vaddr, cause);
-        
-        // debug!("handle_page_fault: vaddr=0x{:x?}, cause={:?}", vaddr, cause);
         let binding_task = current();
         let mut binding_mem_map = binding_task.mm.vma_map.lock();
         let vma_map = binding_mem_map.deref_mut();
@@ -209,11 +207,7 @@ impl ruxhal::trap::TrapHandler for TrapHandlerImpl {
                     dst.copy_from(vaddr as *mut u8, size);
                 }
                 let paddr = direct_virt_to_phys(fake_vaddr);
-                let mapping_file = memory_map
-                    .get(&vaddr.into())
-                    .unwrap()
-                    .mapping_file
-                    .clone();
+                let mapping_file = memory_map.get(&vaddr.into()).unwrap().mapping_file.clone();
                 memory_map.remove(&vaddr.into());
                 memory_map.insert(
                     vaddr.into(),

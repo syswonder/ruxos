@@ -105,6 +105,7 @@ typedef struct {{
             "kstat",
             "stack_t",
             "ino_t",
+            "rusage",
             "dirent",
         ];
         let allow_vars = [

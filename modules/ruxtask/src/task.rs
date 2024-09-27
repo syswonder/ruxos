@@ -33,11 +33,11 @@ use ruxhal::tls::TlsArea;
 use memory_addr::{align_up_4k, VirtAddr, PAGE_SIZE_4K};
 use ruxhal::arch::{flush_tlb, TaskContext};
 
+use crate::current;
 #[cfg(not(feature = "musl"))]
 use crate::tsd::{DestrFunction, KEYS, TSD};
 #[cfg(feature = "paging")]
 use crate::vma::MmapStruct;
-use crate::current;
 use crate::{AxRunQueue, AxTask, AxTaskRef, WaitQueue};
 
 /// A unique identifier for a thread.
@@ -201,7 +201,7 @@ impl TaskInner {
     }
 }
 
-static PROCESS_MAP: SpinNoIrq<BTreeMap<u64, Arc<AxTask>>> = SpinNoIrq::new(BTreeMap::new());
+pub static PROCESS_MAP: SpinNoIrq<BTreeMap<u64, Arc<AxTask>>> = SpinNoIrq::new(BTreeMap::new());
 
 // private methods
 impl TaskInner {
@@ -377,7 +377,7 @@ impl TaskInner {
         // TODO: clone parent page table, and mark all unshared pages to read-only
         let mut cloned_page_table = PageTable::try_new().expect("failed to create page table");
         let cloned_mm = current().mm.as_ref().clone();
-        
+
         // clone the global shared pages (as system memory)
         // TODO: exclude the stack page from the cloned page table
         #[cfg(feature = "paging")]
@@ -451,27 +451,29 @@ impl TaskInner {
                 page_table
                     .update(vaddr, None, Some(MappingFlags::READ))
                     .expect("failed to update mapping when forking");
-                
             }
             flush_tlb(Some(vaddr));
         }
 
+        let new_pid = TaskId::new();
         let mut t = Self {
             parent_process: Some(Arc::downgrade(current_task.as_task_ref())),
             process_task: Weak::new(),
-            id: TaskId::new(),
+            id: new_pid,
             name,
             is_idle: false,
             is_init: false,
             entry: None,
             state: AtomicU8::new(TaskState::Ready as u8),
-            in_wait_queue: AtomicBool::new(false),
+            in_wait_queue: AtomicBool::new(current_task.in_wait_queue.load(Ordering::Relaxed)),
             #[cfg(feature = "irq")]
-            in_timer_list: AtomicBool::new(false),
+            in_timer_list: AtomicBool::new(current_task.in_timer_list.load(Ordering::Relaxed)),
             #[cfg(feature = "preempt")]
-            need_resched: AtomicBool::new(false),
+            need_resched: AtomicBool::new(current_task.need_resched.load(Ordering::Relaxed)),
             #[cfg(feature = "preempt")]
-            preempt_disable_count: AtomicUsize::new(0),
+            preempt_disable_count: AtomicUsize::new(
+                current_task.preempt_disable_count.load(Ordering::Relaxed),
+            ),
             exit_code: AtomicI32::new(0),
             wait_for_exit: WaitQueue::new(),
             kstack: SpinNoIrq::new(Arc::new(Some(new_stack))),
@@ -504,6 +506,9 @@ impl TaskInner {
             tls,
         );
         let task_ref = Arc::new(AxTask::new(t));
+        PROCESS_MAP
+            .lock()
+            .insert(new_pid.as_u64(), task_ref.clone());
 
         unsafe {
             // copy the stack content from current stack to new stack
@@ -692,7 +697,6 @@ impl TaskInner {
     pub(crate) fn disable_preempt(&self) {
         self.preempt_disable_count.fetch_add(1, Ordering::Relaxed);
     }
-
 
     #[cfg(feature = "preempt")]
     pub(crate) fn enable_preempt(&self, resched: bool) {

@@ -33,7 +33,11 @@ pub fn get_file_like(fd: i32) -> LinuxResult<Arc<dyn FileLike>> {
     let binding_task = current();
     let mut binding_fs = binding_task.fs.lock();
     let fd_table = &mut binding_fs.as_mut().unwrap().fd_table;
-    fd_table.get(fd as usize).cloned().ok_or(LinuxError::EBADF).clone()
+    fd_table
+        .get(fd as usize)
+        .cloned()
+        .ok_or(LinuxError::EBADF)
+        .clone()
 }
 
 pub fn add_file_like(f: Arc<dyn FileLike>) -> LinuxResult<i32> {

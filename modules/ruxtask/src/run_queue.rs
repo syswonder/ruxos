@@ -10,7 +10,7 @@
 use log::error;
 
 use crate::fs::get_file_like;
-use crate::{ fs::RUX_FILE_LIMIT};
+use crate::fs::RUX_FILE_LIMIT;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use axerrno::LinuxResult;
@@ -216,7 +216,6 @@ impl AxRunQueue {
             (*prev_ctx_ptr).switch_to(&*next_ctx_ptr, root_paddr);
         }
     }
-
 }
 
 fn gc_flush_file(fd: usize) -> LinuxResult {

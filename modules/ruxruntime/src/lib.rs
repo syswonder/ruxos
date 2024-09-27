@@ -177,7 +177,7 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
 
     info!("Found physcial memory regions:");
     for r in ruxhal::mem::memory_regions() {
-        error!(
+        info!(
             "  [{:x?}, {:x?}) {} ({:?})",
             r.paddr,
             r.paddr + r.size,
@@ -422,7 +422,7 @@ fn init_interrupt() {
     fn do_signal() {
         let now_ns = ruxhal::time::current_time_nanos();
         // timer signal num
-        let timers = [14, 26, 27];
+        let timers = [14, 26, 27]; // what is the number?
         for (which, timer) in timers.iter().enumerate() {
             let mut ddl = Signal::timer_deadline(which, None).unwrap();
             let interval = Signal::timer_interval(which, None).unwrap();

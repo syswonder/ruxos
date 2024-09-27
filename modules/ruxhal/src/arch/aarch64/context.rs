@@ -13,8 +13,6 @@ use core::{
 };
 use memory_addr::{PhysAddr, VirtAddr};
 
-use super::write_page_table_root;
-
 /// Saved registers when a trap (exception) occurs.
 #[repr(C)]
 #[derive(Default, Clone, Copy)]
@@ -62,13 +60,6 @@ pub struct FpState {
     pub fpcr: u32,
     /// Floating-point Status Register (FPSR)
     pub fpsr: u32,
-}
-
-#[cfg(feature = "fp_simd")]
-impl FpState {
-    fn switch_to(&mut self, next_fpstate: &FpState) {
-        unsafe { fpstate_switch(self, next_fpstate) }
-    }
 }
 
 /// Saved hardware states of a task.
@@ -143,7 +134,6 @@ impl TaskContext {
             #[cfg(feature = "fp_simd")]
             fpstate_switch(&mut self.fp_state, &next_ctx.fp_state);
             // switch to the next process's page table, stack would be unavailable before context switch finished
-            // write_page_table_root(page_table_addr);    
             context_switch(self, next_ctx, page_table_addr.as_usize() as u64);
         }
     }
@@ -178,9 +168,7 @@ unsafe extern "C" fn save_stack(src: *const u8, dst: *mut u8, size: usize) {
 
 #[naked]
 #[allow(named_asm_labels)]
-unsafe extern "C" fn save_current_context(
-    _current_task: &mut TaskContext
-) {
+unsafe extern "C" fn save_current_context(_current_task: &mut TaskContext) {
     asm!(
         "
         stp     x29, x30, [x0, 12 * 8]
@@ -233,7 +221,11 @@ unsafe extern "C" fn save_fpstate_context(_current_fpstate: &mut FpState) {
 
 #[naked]
 #[allow(named_asm_labels)]
-unsafe extern "C" fn context_switch(_current_task: &mut TaskContext, _next_task: &TaskContext, _page_table_addr: u64) {
+unsafe extern "C" fn context_switch(
+    _current_task: &mut TaskContext,
+    _next_task: &TaskContext,
+    _page_table_addr: u64,
+) {
     asm!(
         "
         // save old context (callee-saved registers)

@@ -207,6 +207,11 @@ pub fn sys_fcntl(fd: c_int, cmd: c_int, arg: usize) -> c_int {
     syscall_body!(sys_fcntl, {
         match cmd as u32 {
             ctypes::F_DUPFD => dup_fd(fd),
+            ctypes::F_GETFD => {
+                // Return (as the function result) the file descriptor flags; the arg is ignored.
+                // temporary unsupport CLOEXEC flag
+                Ok(0)
+            }
             ctypes::F_DUPFD_CLOEXEC => {
                 // TODO: Change fd flags
                 dup_fd(fd)

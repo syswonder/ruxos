@@ -57,9 +57,10 @@ pub use imp::stat::{
 };
 pub use imp::sys::{sys_sysinfo, sys_uname};
 pub use imp::sys_invalid;
-pub use imp::task::{sys_exit, sys_getpid, sys_getppid, sys_gettid, sys_sched_yield};
+pub use imp::task::{sys_exit, sys_getpid, sys_getppid, sys_gettid, sys_sched_yield, sys_wait4};
 pub use imp::time::{
-    sys_clock_gettime, sys_clock_settime, sys_gettimeofday, sys_nanosleep, sys_times,
+    sys_clock_gettime, sys_clock_nanosleep, sys_clock_settime, sys_gettimeofday, sys_nanosleep,
+    sys_times,
 };
 
 #[cfg(all(feature = "fd", feature = "musl"))]

@@ -15,10 +15,14 @@ use crate::{
 
 /// int execve(const char *pathname, char *const argv[], char *const envp[] );
 pub fn sys_execve(pathname: *const c_char, argv: usize, envp: usize) -> ! {
-    error!("execve: pathname {:?}, argv {:?}, envp {:?}", pathname, argv, envp);
+    debug!(
+        "execve: pathname {:?}, argv {:?}, envp {:?}",
+        pathname, argv, envp
+    );
     use auxv::*;
 
     let path = char_ptr_to_str(pathname).unwrap();
+    debug!("sys_execve: path is {}", path);
     let prog = load_elf::ElfProg::new(path);
 
     // get entry

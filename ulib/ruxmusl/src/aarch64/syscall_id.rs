@@ -80,6 +80,7 @@ pub enum SyscallId {
     NANO_SLEEP = 101,
     CLOCK_SETTIME = 112,
     CLOCK_GETTIME = 113,
+    CLOCK_NANOSLEEP = 115,
     SCHED_YIELD = 124,
     #[cfg(feature = "signal")]
     KILL = 129,
@@ -147,6 +148,7 @@ pub enum SyscallId {
     MSYNC = 227,
     #[cfg(feature = "alloc")]
     MADVISE = 233,
+    WAIT4 = 260,
     PRLIMIT64 = 261,
     GETRANDOM = 278,
 }

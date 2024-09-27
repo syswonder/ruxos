@@ -110,6 +110,22 @@ pub unsafe fn sys_nanosleep(req: *const ctypes::timespec, rem: *mut ctypes::time
     })
 }
 
+/// Sleep some nanoseconds
+///
+/// TODO: clockid is not used, should be woken by signals, and set errno
+///
+pub unsafe fn sys_clock_nanosleep(
+    _clockid: *const ctypes::clockid_t,
+    _flags: c_int,
+    _t: *const ctypes::timespec,
+    _remain: *mut ctypes::timespec,
+) -> c_int {
+    syscall_body!(sys_nanosleep, {
+        warn!("sys_clock_nanosleep is not implemented yet, but returns 0 for compatibility");
+        Ok(0)
+    })
+}
+
 /// Get time of the day, ignore second parameter
 pub unsafe fn sys_gettimeofday(ts: *mut ctypes::timespec, flags: c_int) -> c_int {
     debug!("sys_gettimeofday <= flags: {}", flags);

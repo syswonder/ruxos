@@ -46,10 +46,9 @@ pub fn sys_ioctl(fd: c_int, request: usize, data: usize) -> c_int {
                 unsafe {
                     *winsize = ConsoleWinSize::default();
                 }
-                if fd == 0 || fd == 1 || fd == 2{
+                if fd == 0 || fd == 1 || fd == 2 {
                     Ok(0)
-                }
-                else{
+                } else {
                     Ok(-1)
                 }
             }
