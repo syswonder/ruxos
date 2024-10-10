@@ -44,7 +44,6 @@ memory_addr = "0.1.0"
 
 [dependencies.fatfs]
 git = "https://github.com/syswonder/rust-fatfs.git"
-rev = "bf8ad02"
 optional = true
 default-features = false
 features = [ # no std

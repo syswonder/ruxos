@@ -120,7 +120,7 @@ impl Directory {
         let f = super::fd_ops::get_file_like(fd)?;
         f.into_any()
             .downcast::<Self>()
-            .map_err(|_| LinuxError::EINVAL)
+            .map_err(|_| LinuxError::ENOTDIR)
     }
 }
 
@@ -216,7 +216,7 @@ pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> 
 pub fn sys_openat(fd: usize, path: *const c_char, flags: c_int, mode: ctypes::mode_t) -> c_int {
     let path = char_ptr_to_absolute_path(path);
     let fd: c_int = fd as c_int;
-    debug!("sys_openat <= {}, {:?}, {:#o} {:#o}", fd, path, flags, mode);
+    debug!("sys_openat <= {}, {:?}, {:#o}, {:#o}", fd, path, flags, mode);
     syscall_body!(sys_openat, {
         let options = flags_to_options(flags, mode);
         if (flags as u32) & ctypes::O_DIRECTORY != 0 {
@@ -595,6 +595,8 @@ pub fn sys_readlinkat(
 }
 
 type LinuxDirent64 = ctypes::dirent;
+/// `d_ino` + `d_off` + `d_reclen` + `d_type`
+const DIRENT64_FIXED_SIZE: usize = 19;
 
 fn convert_name_to_array(name: &[u8]) -> [i8; 256] {
     let mut array = [0i8; 256];
@@ -612,39 +614,61 @@ fn convert_name_to_array(name: &[u8]) -> [i8; 256] {
 /// Read directory entries from a directory file descriptor.
 ///
 /// TODO: check errors, change 280 to a special value
-pub unsafe fn sys_getdents64(
-    fd: c_int,
-    dirent: *mut LinuxDirent64,
-    count: ctypes::size_t,
-) -> c_long {
+pub unsafe fn sys_getdents64(fd: c_int, dirp: *mut LinuxDirent64, count: ctypes::size_t) -> c_long {
     debug!(
-        "sys_getdents64 <= fd: {}, dirent: {:p}, count: {}",
-        fd, dirent, count
+        "sys_getdents64 <= fd: {}, dirp: {:p}, count: {}",
+        fd, dirp, count
     );
 
     syscall_body!(sys_getdents64, {
-        let expect_entries = count / 280;
+        if count < DIRENT64_FIXED_SIZE {
+            return Err(LinuxError::EINVAL);
+        }
+        let buf = unsafe { core::slice::from_raw_parts_mut(dirp, count) };
+        // EBADFD handles here
         let dir = Directory::from_fd(fd)?;
-        let mut my_dirent: Vec<DirEntry> =
-            (0..expect_entries).map(|_| DirEntry::default()).collect();
+        // bytes written in buf
+        let mut written = 0;
 
-        let n = dir.inner.lock().read_dir(&mut my_dirent)?;
-
-        for (i, entry) in my_dirent.iter().enumerate() {
-            let linux_dirent = LinuxDirent64 {
-                d_ino: 1,
-                d_off: 280,
-                d_reclen: 280,
-                d_type: entry.entry_type() as u8,
-                d_name: convert_name_to_array(entry.name_as_bytes()),
-            };
-
-            unsafe {
-                core::ptr::write(dirent.add(i), linux_dirent);
+        loop {
+            let mut entry = [DirEntry::default()];
+            let offset = dir.inner.lock().entry_idx();
+            let n = dir.inner.lock().read_dir(&mut entry)?;
+            if n == 0 {
+                return Ok(0);
             }
+            let entry = &entry[0];
+
+            let name = entry.name_as_bytes();
+            let name_len = name.len();
+            let entry_size = DIRENT64_FIXED_SIZE + name_len + 1;
+
+            // buf not big enough to hold the entry
+            if written + entry_size > count {
+                debug!("buf not big enough");
+                // revert the offset
+                dir.inner.lock().set_entry_idx(offset);
+                break;
+            }
+
+            // write entry to buffer
+            let dirent: &mut LinuxDirent64 =
+                unsafe { &mut *(buf.as_mut_ptr().add(written) as *mut LinuxDirent64) };
+            // 设置定长部分
+            dirent.d_ino = 1;
+            dirent.d_off = offset as i64;
+            dirent.d_reclen = entry_size as u16;
+            dirent.d_type = entry.entry_type() as u8;
+            // 写入文件名
+            dirent.d_name[..name_len].copy_from_slice(unsafe {
+                core::slice::from_raw_parts(name.as_ptr() as *const i8, name_len)
+            });
+            dirent.d_name[name_len] = 0 as i8;
+
+            written += entry_size;
         }
 
-        Ok(n * 280)
+        Ok(written as isize)
     })
 }
 

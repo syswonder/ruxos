@@ -338,6 +338,16 @@ impl Directory {
         Ok(n)
     }
 
+    /// Get the entry cursor of the directory.
+    pub fn entry_idx(&self) -> usize {
+        self.entry_idx
+    }
+
+    /// Set the entry cursor of the directory.
+    pub fn set_entry_idx(&mut self, idx: usize) {
+        self.entry_idx = idx;
+    }
+
     /// Rename a file or directory to a new name.
     /// Delete the original file if `old` already exists.
     ///
