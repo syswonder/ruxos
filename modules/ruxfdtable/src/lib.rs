@@ -16,9 +16,8 @@ use core::marker::Sync;
 
 use axerrno::LinuxResult;
 use axio::PollState;
-use flatten_objects::FlattenObjects;
-use spin::RwLock;
 
+#[derive(Default)]
 ///Rust version for struct timespec in ctypes. Represents a high-resolution time specification.
 pub struct RuxTimeSpec {
     /// Whole seconds part of the timespec.
@@ -29,6 +28,7 @@ pub struct RuxTimeSpec {
 
 ///Rust version for struct stat in ctypes. Represents file status information.
 #[cfg(target_arch = "aarch64")]
+#[derive(Default)]
 pub struct RuxStat {
     /// Device identifier.
     pub st_dev: u64,
@@ -124,14 +124,4 @@ pub trait FileLike: Send + Sync {
 
     /// Sets or clears the non-blocking I/O mode for the file-like object.
     fn set_nonblocking(&self, nonblocking: bool) -> LinuxResult;
-}
-/// Maximum number of files per process
-pub const RUX_FILE_LIMIT: usize = 1024;
-
-lazy_static::lazy_static! {
-    /// Global file descriptor table protected by a read-write lock.
-    pub static ref FD_TABLE: RwLock<FlattenObjects<Arc<dyn FileLike>, RUX_FILE_LIMIT>> = {
-        let fd_table = FlattenObjects::new();
-        RwLock::new(fd_table)
-    };
 }

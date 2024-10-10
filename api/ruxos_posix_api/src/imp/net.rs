@@ -28,11 +28,11 @@ pub enum Socket {
 
 impl Socket {
     fn add_to_fd_table(self) -> LinuxResult<c_int> {
-        super::fd_ops::add_file_like(Arc::new(self))
+        ruxtask::fs::add_file_like(Arc::new(self))
     }
 
     fn from_fd(fd: c_int) -> LinuxResult<Arc<Self>> {
-        let f = super::fd_ops::get_file_like(fd)?;
+        let f = ruxtask::fs::get_file_like(fd)?;
         f.into_any()
             .downcast::<Self>()
             .map_err(|_| LinuxError::EINVAL)

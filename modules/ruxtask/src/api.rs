@@ -9,6 +9,8 @@
 
 //! Task APIs for multi-task configuration.
 
+use core::mem::ManuallyDrop;
+
 use alloc::{string::String, sync::Arc};
 
 pub(crate) use crate::run_queue::{AxRunQueue, RUN_QUEUE};
@@ -68,6 +70,7 @@ pub fn current_may_uninit() -> Option<CurrentTask> {
 /// # Panics
 ///
 /// Panics if the current task is not initialized.
+#[inline(never)]
 pub fn current() -> CurrentTask {
     CurrentTask::get()
 }
@@ -126,6 +129,23 @@ where
     F: FnOnce() + Send + 'static,
 {
     TaskInner::new_musl(f, name, stack_size, tls, set_tid, tl)
+}
+
+pub fn fork_task() -> Option<AxTaskRef> {
+    let current_process = current();
+    let current_id = current_process.id().as_u64();
+    let children_process = TaskInner::fork();
+
+    // Judge whether the parent process is blocked, if yes, add it to the blocking queue of the child process
+    if current().id().as_u64() == current_id {
+        RUN_QUEUE.lock().add_task(children_process.clone());
+        return Some(children_process);
+    }
+
+    // should not drop the children_process here, because it will be taken in the parent process
+    let _ = ManuallyDrop::new(children_process);
+
+    return None;
 }
 
 /// Spawns a new task with the default parameters.

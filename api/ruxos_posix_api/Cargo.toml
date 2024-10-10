@@ -19,7 +19,7 @@ default = []
 
 smp = ["ruxfeat/smp"]
 alloc = ["dep:axalloc", "ruxfeat/alloc"]
-paging = ["alloc", "ruxfeat/paging"]
+paging = ["alloc", "ruxfeat/paging", "ruxmm"]
 multitask = ["ruxfeat/multitask", "ruxtask/multitask", "dep:ruxfutex"]
 fd = ["alloc"]
 fs = ["dep:ruxfs", "ruxfeat/fs", "fd"]
@@ -44,6 +44,7 @@ axlog = { path = "../../modules/axlog" }
 ruxhal = { path = "../../modules/ruxhal" }
 axsync = { path = "../../modules/axsync" }
 ruxfdtable = { path = "../../modules/ruxfdtable" }
+ruxmm = { path = "../../modules/ruxmm", optional = true }
 ruxfutex = { path = "../../modules/ruxfutex", optional = true }
 axalloc = { path = "../../modules/axalloc", optional = true }
 ruxtask = { path = "../../modules/ruxtask", optional = true }

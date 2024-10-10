@@ -37,7 +37,7 @@ impl RxRingBuffer {
             empty: true,
         }
     }
-
+    #[cfg(not(feature = "tty"))]
     fn push(&mut self, n: u8) {
         if self.tail != self.head || self.empty {
             self.buffer[self.tail] = n;

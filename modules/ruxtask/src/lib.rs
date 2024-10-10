@@ -45,9 +45,13 @@ cfg_if::cfg_if! {
         extern crate alloc;
 
         mod run_queue;
-        mod task;
+        pub mod task;
         mod api;
         mod wait_queue;
+        #[cfg(feature = "paging")]
+        pub mod vma;
+        // #[cfg(feature = "fs")]
+        pub mod fs;
         #[cfg(feature = "irq")]
         /// load average
         pub mod loadavg;

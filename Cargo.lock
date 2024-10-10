@@ -1404,6 +1404,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "rand_xoshiro"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f97cdb2a36ed4183de61b2f824cc45c9f1037f28afe0a322e9fff4c108b5aaa"
+dependencies = [
+ "rand_core",
+]
+
+[[package]]
 name = "ratio"
 version = "0.1.0"
 
@@ -1582,6 +1591,7 @@ version = "0.1.0"
 dependencies = [
  "axalloc",
  "cfg-if",
+ "crate_interface",
  "driver_9p",
  "driver_block",
  "driver_common",
@@ -1618,6 +1628,7 @@ dependencies = [
  "ruxdriver",
  "ruxfs",
  "ruxhal",
+ "ruxmm",
  "ruxnet",
  "ruxruntime",
  "ruxtask",
@@ -1634,7 +1645,6 @@ dependencies = [
  "axfs_ramfs",
  "axfs_vfs",
  "axio",
- "axsync",
  "capability",
  "cfg-if",
  "crate_interface",
@@ -1644,7 +1654,7 @@ dependencies = [
  "log",
  "memory_addr",
  "ruxdriver",
- "ruxtask",
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -1707,6 +1717,26 @@ dependencies = [
  "bindgen 0.66.1",
  "ruxfeat",
  "ruxos_posix_api",
+]
+
+[[package]]
+name = "ruxmm"
+version = "0.1.0"
+dependencies = [
+ "axalloc",
+ "bitflags 2.4.0",
+ "cfg-if",
+ "crate_interface",
+ "kernel_guard",
+ "log",
+ "memory_addr",
+ "page_table",
+ "page_table_entry",
+ "ruxdriver",
+ "ruxhal",
+ "ruxtask",
+ "spinlock",
+ "static_assertions",
 ]
 
 [[package]]
@@ -1787,12 +1817,25 @@ dependencies = [
  "ruxfs",
  "ruxfutex",
  "ruxhal",
+ "ruxmm",
  "ruxnet",
  "ruxruntime",
  "ruxtask",
  "spin 0.9.8",
  "spinlock",
  "static_assertions",
+]
+
+[[package]]
+name = "ruxrand"
+version = "0.1.0"
+dependencies = [
+ "crate_interface",
+ "lazy_init",
+ "percpu",
+ "rand",
+ "rand_xoshiro",
+ "spinlock",
 ]
 
 [[package]]
@@ -1815,7 +1858,9 @@ dependencies = [
  "ruxfs",
  "ruxfutex",
  "ruxhal",
+ "ruxmm",
  "ruxnet",
+ "ruxrand",
  "ruxtask",
  "tty",
 ]
@@ -1824,20 +1869,29 @@ dependencies = [
 name = "ruxtask"
 version = "0.1.0"
 dependencies = [
+ "axalloc",
  "axerrno",
+ "axfs_vfs",
+ "axio",
  "cfg-if",
  "crate_interface",
+ "flatten_objects",
  "kernel_guard",
  "lazy_init",
+ "lazy_static",
  "log",
  "memory_addr",
+ "page_table",
+ "page_table_entry",
  "percpu",
  "rand",
  "ruxconfig",
  "ruxfdtable",
+ "ruxfs",
  "ruxhal",
  "ruxtask",
  "scheduler",
+ "spin 0.9.8",
  "spinlock",
  "timer_list",
 ]

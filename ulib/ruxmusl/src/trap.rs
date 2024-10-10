@@ -12,6 +12,7 @@ impl ruxhal::trap::TrapHandler for TrapHandlerImpl {
     fn handle_irq(_irq_num: usize) {
         #[cfg(feature = "irq")]
         {
+            // error!("irq {}", _irq_num);
             let guard = kernel_guard::NoPreempt::new();
             ruxhal::irq::dispatch_irq(_irq_num);
             drop(guard); // rescheduling may occur when preemption is re-enabled.
@@ -21,6 +22,9 @@ impl ruxhal::trap::TrapHandler for TrapHandlerImpl {
     #[cfg(feature = "musl")]
     fn handle_syscall(syscall_id: usize, args: [usize; 6]) -> isize {
         let id = SyscallId::try_from(syscall_id).unwrap_or(SyscallId::INVALID);
+        if id == SyscallId::INVALID {
+            error!("Invalid syscall id {}", syscall_id);
+        }
         crate::syscall(id, args)
     }
 }

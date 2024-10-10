@@ -15,8 +15,8 @@ use axio::PollState;
 use axsync::Mutex;
 use ruxfdtable::{FileLike, RuxStat};
 
-use super::fd_ops::{add_file_like, close_file_like};
 use crate::{ctypes, sys_fcntl};
+use ruxtask::fs::{add_file_like, close_file_like};
 
 #[derive(Copy, Clone, PartialEq)]
 enum RingBufferStatus {

@@ -222,13 +222,7 @@ justrun:
 	$(call run_qemu)
 
 debug: build
-	$(call run_qemu_debug) &
-	sleep 1
-	$(GDB) $(OUT_ELF) \
-	  -ex 'target remote localhost:1234' \
-	  -ex 'b rust_entry' \
-	  -ex 'continue' \
-	  -ex 'disp /16i $$pc'
+	$(call run_qemu_debug) 
 
 debug_no_attach: build
 	$(call run_qemu_debug)

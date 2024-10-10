@@ -189,23 +189,26 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     #[cfg(feature = "alloc")]
     init_allocator();
 
-    #[cfg(feature = "paging")]
-    {
-        info!("Initialize kernel page table...");
-        remap_kernel_memory().expect("remap kernel memoy failed");
-    }
-
     #[cfg(feature = "tty")]
     tty::init();
 
     info!("Initialize platform devices...");
     ruxhal::platform_init();
 
+    #[cfg(feature = "rand")]
+    ruxrand::init(cpu_id);
+
     #[cfg(feature = "multitask")]
     {
         ruxtask::init_scheduler();
         #[cfg(feature = "musl")]
         ruxfutex::init_futex();
+    }
+
+    #[cfg(feature = "paging")]
+    {
+        info!("Initialize kernel page table...");
+        remap_kernel_memory().expect("remap kernel memoy failed");
     }
 
     #[cfg(any(feature = "fs", feature = "net", feature = "display"))]
@@ -391,7 +394,7 @@ fn init_allocator() {
 }
 
 #[cfg(feature = "paging")]
-use ruxhal::paging::remap_kernel_memory;
+use ruxmm::paging::remap_kernel_memory;
 
 #[cfg(feature = "irq")]
 fn init_interrupt() {
@@ -419,7 +422,7 @@ fn init_interrupt() {
     fn do_signal() {
         let now_ns = ruxhal::time::current_time_nanos();
         // timer signal num
-        let timers = [14, 26, 27];
+        let timers = [14, 26, 27]; // what is the number?
         for (which, timer) in timers.iter().enumerate() {
             let mut ddl = Signal::timer_deadline(which, None).unwrap();
             let interval = Signal::timer_interval(which, None).unwrap();

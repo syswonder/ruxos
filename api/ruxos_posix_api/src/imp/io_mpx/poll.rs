@@ -7,10 +7,11 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use crate::{ctypes, imp::fd_ops::get_file_like};
 use axerrno::{LinuxError, LinuxResult};
 use ruxhal::time::current_time;
+use ruxtask::fs::get_file_like;
 
+use crate::ctypes;
 use core::{ffi::c_int, time::Duration};
 
 fn poll_all(fds: &mut [ctypes::pollfd]) -> LinuxResult<usize> {

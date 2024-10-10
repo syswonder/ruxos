@@ -31,7 +31,7 @@ alloc = ["axalloc", "ruxruntime/alloc", "ruxfs/alloc", "ruxhal/alloc"]
 alloc-tlsf = ["axalloc/tlsf"]
 alloc-slab = ["axalloc/slab"]
 alloc-buddy = ["axalloc/buddy"]
-paging = ["alloc", "ruxhal/paging", "ruxruntime/paging"]
+paging = ["alloc", "ruxhal/paging", "ruxtask/paging", "ruxruntime/paging", "ruxmm/paging"]
 tls = ["alloc", "ruxhal/tls", "ruxruntime/tls", "ruxtask?/tls"]
 
 # Multi-threading and scheduler
@@ -93,6 +93,7 @@ tty = ["ruxhal/tty", "ruxruntime/tty", "alloc", "irq"]
 [dependencies]
 ruxruntime = { path = "../../modules/ruxruntime" }
 ruxhal = { path = "../../modules/ruxhal" }
+ruxmm = { path = "../../modules/ruxmm" }
 axlog = { path = "../../modules/axlog" }
 axalloc = { path = "../../modules/axalloc", optional = true }
 ruxdriver = { path = "../../modules/ruxdriver", optional = true }

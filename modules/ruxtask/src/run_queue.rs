@@ -7,11 +7,14 @@
  *   See the Mulan PSL v2 for more details.
  */
 
+use log::error;
+
+use crate::fs::get_file_like;
+use crate::fs::RUX_FILE_LIMIT;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
-use axerrno::{LinuxError, LinuxResult};
+use axerrno::LinuxResult;
 use lazy_init::LazyInit;
-use ruxfdtable::{FD_TABLE, RUX_FILE_LIMIT};
 use scheduler::BaseScheduler;
 use spinlock::SpinNoIrq;
 
@@ -73,6 +76,9 @@ impl AxRunQueue {
     #[cfg(feature = "preempt")]
     pub fn preempt_resched(&mut self) {
         let curr = crate::current();
+        if !curr.is_running() {
+            error!("id_name={:#?}", curr.id_name());
+        }
         assert!(curr.is_running());
 
         // When we get the mutable reference of the run queue, we must
@@ -99,7 +105,8 @@ impl AxRunQueue {
         debug!("task exit: {}, exit_code={}", curr.id_name(), exit_code);
         assert!(curr.is_running());
         assert!(!curr.is_idle());
-        if curr.is_init() {
+
+        if crate::current().is_init() {
             EXITED_TASKS.lock().clear();
             ruxhal::misc::terminate();
         } else {
@@ -173,6 +180,7 @@ impl AxRunQueue {
             // Safety: IRQs must be disabled at this time.
             IDLE_TASK.current_ref_raw().get_unchecked().clone()
         });
+
         self.switch_to(prev, next);
     }
 
@@ -188,7 +196,7 @@ impl AxRunQueue {
         if prev_task.ptr_eq(&next_task) {
             return;
         }
-
+        // error!("next task: {}", next_task.id_name());
         unsafe {
             let prev_ctx_ptr = prev_task.ctx_mut_ptr();
             let next_ctx_ptr = next_task.ctx_mut_ptr();
@@ -198,20 +206,21 @@ impl AxRunQueue {
             assert!(Arc::strong_count(prev_task.as_task_ref()) > 1);
             assert!(Arc::strong_count(&next_task) >= 1);
 
+            let next_page_table = next_task.pagetable.lock();
+            let root_paddr = next_page_table.root_paddr();
+
+            // Drop the `next_page_table` here, so that it will not be dropped after context switch.
+            drop(next_page_table);
+
             CurrentTask::set_current(prev_task, next_task);
-            (*prev_ctx_ptr).switch_to(&*next_ctx_ptr);
+            (*prev_ctx_ptr).switch_to(&*next_ctx_ptr, root_paddr);
         }
     }
 }
 
 fn gc_flush_file(fd: usize) -> LinuxResult {
     trace!("gc task flush: {}", fd);
-    FD_TABLE
-        .read()
-        .get(fd)
-        .cloned()
-        .ok_or(LinuxError::EBADF)?
-        .flush()
+    get_file_like(fd as i32)?.flush()
 }
 
 fn gc_entry() {
@@ -243,19 +252,19 @@ fn gc_entry() {
 }
 
 pub(crate) fn init() {
+    let main_task = TaskInner::new_init("main".into());
+    main_task.set_state(TaskState::Running);
+    unsafe { CurrentTask::init_current(main_task) };
+
     const IDLE_TASK_STACK_SIZE: usize = 4096;
     let idle_task = TaskInner::new(|| crate::run_idle(), "idle".into(), IDLE_TASK_STACK_SIZE);
     IDLE_TASK.with_current(|i| i.init_by(idle_task.clone()));
 
-    let main_task = TaskInner::new_init("main".into());
-    main_task.set_state(TaskState::Running);
-
     RUN_QUEUE.init_by(AxRunQueue::new());
-    unsafe { CurrentTask::init_current(main_task) }
 }
 
 pub(crate) fn init_secondary() {
-    let idle_task = TaskInner::new_init("idle".into());
+    let idle_task = TaskInner::new_idle("idle".into());
     idle_task.set_state(TaskState::Running);
     IDLE_TASK.with_current(|i| i.init_by(idle_task.clone()));
     unsafe { CurrentTask::init_current(idle_task) }
