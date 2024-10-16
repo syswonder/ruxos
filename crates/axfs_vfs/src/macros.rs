@@ -46,16 +46,16 @@ macro_rules! impl_vfs_non_dir_default {
     () => {
         fn lookup(
             self: $crate::__priv::Arc<Self>,
-            _path: &str,
+            _path: &$crate::path::RelPath,
         ) -> $crate::VfsResult<$crate::VfsNodeRef> {
             $crate::__priv::ax_err!(NotADirectory)
         }
 
-        fn create(&self, _path: &str, _ty: $crate::VfsNodeType) -> $crate::VfsResult {
+        fn create(&self, _path: &$crate::path::RelPath, _ty: $crate::VfsNodeType) -> $crate::VfsResult {
             $crate::__priv::ax_err!(NotADirectory)
         }
 
-        fn remove(&self, _path: &str) -> $crate::VfsResult {
+        fn remove(&self, _path: &$crate::path::RelPath) -> $crate::VfsResult {
             $crate::__priv::ax_err!(NotADirectory)
         }
 

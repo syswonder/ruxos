@@ -54,6 +54,7 @@ pub mod path;
 
 use alloc::sync::Arc;
 use axerrno::{ax_err, AxError, AxResult};
+use path::{AbsPath, RelPath};
 
 pub use self::structs::{FileSystemInfo, VfsDirEntry, VfsNodeAttr, VfsNodePerm, VfsNodeType};
 
@@ -69,7 +70,7 @@ pub type VfsResult<T = ()> = AxResult<T>;
 /// Filesystem operations.
 pub trait VfsOps: Send + Sync {
     /// Do something when the filesystem is mounted.
-    fn mount(&self, _path: &str, _mount_point: VfsNodeRef) -> VfsResult {
+    fn mount(&self, _path: &AbsPath, _mount_point: VfsNodeRef) -> VfsResult {
         Ok(())
     }
 
@@ -143,19 +144,19 @@ pub trait VfsNodeOps: Send + Sync {
     /// Lookup the node with given `path` in the directory.
     ///
     /// Return the node if found.
-    fn lookup(self: Arc<Self>, _path: &str) -> VfsResult<VfsNodeRef> {
+    fn lookup(self: Arc<Self>, _path: &RelPath) -> VfsResult<VfsNodeRef> {
         ax_err!(Unsupported)
     }
 
     /// Create a new node with the given `path` in the directory
     ///
     /// Return [`Ok(())`](Ok) if it already exists.
-    fn create(&self, _path: &str, _ty: VfsNodeType) -> VfsResult {
+    fn create(&self, _path: &RelPath, _ty: VfsNodeType) -> VfsResult {
         ax_err!(Unsupported)
     }
 
     /// Remove the node with the given `path` in the directory.
-    fn remove(&self, _path: &str) -> VfsResult {
+    fn remove(&self, _path: &RelPath) -> VfsResult {
         ax_err!(Unsupported)
     }
 
@@ -165,7 +166,7 @@ pub trait VfsNodeOps: Send + Sync {
     }
 
     /// Renames or moves existing file or directory.
-    fn rename(&self, _src_path: &str, _dst_path: &str) -> VfsResult {
+    fn rename(&self, _src_path: &RelPath, _dst_path: &RelPath) -> VfsResult {
         ax_err!(Unsupported)
     }
 
@@ -184,18 +185,14 @@ pub trait VfsNodeOps: Send + Sync {
     /// implementor may provide a more efficient impl.
     ///
     /// Return [`Ok(())`](Ok) if already exists.
-    fn create_recursive(&self, path: &str, ty: VfsNodeType) -> VfsResult {
-        if path.starts_with('/') {
-            return ax_err!(InvalidInput);
-        }
-        let path = path.trim_end_matches('/');
+    fn create_recursive(&self, path: &RelPath, ty: VfsNodeType) -> VfsResult {
         for (i, c) in path.char_indices() {
             let part = if c == '/' {
                 unsafe { path.get_unchecked(..i) }
             } else {
                 continue;
             };
-            match self.create(part, VfsNodeType::Dir) {
+            match self.create(&RelPath::new(part), VfsNodeType::Dir) {
                 Ok(()) | Err(AxError::AlreadyExists) => {}
                 err @ Err(_) => return err,
             }
