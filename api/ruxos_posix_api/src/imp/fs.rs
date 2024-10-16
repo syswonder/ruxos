@@ -215,15 +215,15 @@ pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> 
 /// Open a file under a specific dir
 pub fn sys_openat(fd: usize, path: *const c_char, flags: c_int, mode: ctypes::mode_t) -> c_int {
     let path = char_ptr_to_absolute_path(path);
-    let path = path?;
     let fd: c_int = fd as c_int;
     debug!(
         "sys_openat <= {}, {:?}, {:#o}, {:#o}",
         fd, path, flags, mode
     );
     syscall_body!(sys_openat, {
+        let path = path?;
         let options = flags_to_options(flags, mode);
-        if fd == ctypes::AT_FDCWD {
+        if fd == ctypes::AT_FDCWD || path.starts_with("/") {
             let is_dir = ruxfs::fops::Directory::get_child_attr(&path)?.is_dir();
             // O_DIRECTORY flag is set but the path is not a directory, return ENOTDIR
             if (flags as u32 & ctypes::O_DIRECTORY != 0) && !is_dir {
