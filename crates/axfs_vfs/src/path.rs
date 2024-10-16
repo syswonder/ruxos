@@ -9,7 +9,10 @@
 
 //! Utilities for path manipulation.
 
-use alloc::string::String;
+use alloc::{
+    borrow::{Cow, ToOwned},
+    string::String,
+};
 
 /// Returns the canonical form of the path with all intermediate components
 /// normalized.
@@ -58,6 +61,81 @@ pub fn canonicalize(path: &str) -> String {
         buf.push('/');
     }
     buf
+}
+
+/// CANONICALIZED absolute path type, starting with '/'.
+///
+/// Using `Cow` type to avoid unnecessary allocations.
+#[derive(Debug)]
+pub struct AbsPath<'a>(Cow<'a, str>);
+
+impl<'a> AbsPath<'a> {
+    /// Simply wrap a string into a `AbsPath`.
+    pub fn new(path: &'a str) -> Self {
+        Self(Cow::Borrowed(path))
+    }
+
+    /// Parse and canonicalize an absolute path from a string.
+    pub fn new_canonicalized(path: &str) -> Self {
+        if !path.starts_with('/') {
+            Self(Cow::Owned(canonicalize(&("/".to_owned() + path))))
+        } else {
+            Self(Cow::Owned(canonicalize(path)))
+        }
+    }
+}
+
+impl core::ops::Deref for AbsPath<'_> {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl core::fmt::Display for AbsPath<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+/// CANONICALIZED relative path type, no starting '.' or '/'.
+/// possibly starts with '..'.
+///
+/// Valid examples:
+/// - ""
+/// - ".."
+/// - "../b"
+/// - "../.."
+/// - "a/b/c"
+///
+/// Using `Cow` type to avoid unnecessary allocations.
+pub struct RelPath<'a>(Cow<'a, str>);
+
+impl<'a> RelPath<'a> {
+    /// Wrap a string into a `RelPath`.
+    pub fn new(path: &'a str) -> Self {
+        Self(Cow::Borrowed(path))
+    }
+
+    /// Parse and canonicalize a relative path from a string.
+    pub fn new_canonicalized(path: &str) -> Self {
+        Self(Cow::Owned(canonicalize(path.trim_start_matches("/"))))
+    }
+}
+
+impl core::ops::Deref for RelPath<'_> {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl core::fmt::Display for RelPath<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.0)
+    }
 }
 
 #[cfg(test)]
