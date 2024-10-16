@@ -10,10 +10,10 @@
 //! Low-level filesystem operations.
 
 use axerrno::{ax_err, ax_err_type, AxResult};
-use axfs_vfs::{VfsError, VfsNodeRef};
+use axfs_vfs::{VfsError, VfsNodeAttr, VfsNodeRef};
 use axio::SeekFrom;
 use capability::{Cap, WithCap};
-use core::fmt;
+use core::{fmt, ops};
 
 #[cfg(feature = "myfs")]
 pub use crate::dev::Disk;
@@ -288,12 +288,29 @@ impl Directory {
         })
     }
 
+    fn _get_child_attr_at(dir: Option<&VfsNodeRef>, path: &str) -> AxResult<VfsNodeAttr> {
+        let node = crate::root::lookup(dir, path)?;
+        Ok(node.get_attr()?)
+    }
+
     fn access_at(&self, path: &str) -> AxResult<Option<&VfsNodeRef>> {
         if path.starts_with('/') {
             Ok(None)
         } else {
             Ok(Some(self.node.access(Cap::EXECUTE)?))
         }
+    }
+
+    /// Gets the file attributes of the file at the path relative to current directory.
+    /// Returns a [`FileAttr`] object.
+    pub fn get_child_attr(path: &str) -> AxResult<FileAttr> {
+        Self::_get_child_attr_at(None, path)
+    }
+
+    /// Gets the file attributes of the file at the path relative to this directory.
+    /// Returns a [`FileAttr`] object.
+    pub fn get_child_attr_at(&self, path: &str) -> AxResult<FileAttr> {
+        Self::_get_child_attr_at(self.access_at(path)?, path)
     }
 
     /// Opens a directory at the path relative to the current directory.
