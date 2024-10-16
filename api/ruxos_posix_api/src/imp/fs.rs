@@ -15,7 +15,7 @@ use axio::{PollState, SeekFrom};
 use axsync::Mutex;
 use ruxfdtable::{FileLike, RuxStat};
 use ruxfs::{
-    api::set_current_dir,
+    api::{current_dir, set_current_dir},
     fops::{DirEntry, OpenOptions},
 };
 
@@ -215,30 +215,41 @@ pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> 
 /// Open a file under a specific dir
 pub fn sys_openat(fd: usize, path: *const c_char, flags: c_int, mode: ctypes::mode_t) -> c_int {
     let path = char_ptr_to_absolute_path(path);
+    let path = path?;
     let fd: c_int = fd as c_int;
-    debug!("sys_openat <= {}, {:?}, {:#o}, {:#o}", fd, path, flags, mode);
+    debug!(
+        "sys_openat <= {}, {:?}, {:#o}, {:#o}",
+        fd, path, flags, mode
+    );
     syscall_body!(sys_openat, {
         let options = flags_to_options(flags, mode);
-        if (flags as u32) & ctypes::O_DIRECTORY != 0 {
-            let dir = if fd == ctypes::AT_FDCWD {
-                ruxfs::fops::Directory::open_dir(&path?, &options)?
+        if fd == ctypes::AT_FDCWD {
+            let is_dir = ruxfs::fops::Directory::get_child_attr(&path)?.is_dir();
+            // O_DIRECTORY flag is set but the path is not a directory, return ENOTDIR
+            if (flags as u32 & ctypes::O_DIRECTORY != 0) && !is_dir {
+                return Err(LinuxError::ENOTDIR);
+            }
+            if is_dir {
+                let dir = ruxfs::fops::Directory::open_dir(&path, &options)?;
+                Directory::new(dir).add_to_fd_table()
             } else {
-                Directory::from_fd(fd)?
-                    .inner
-                    .lock()
-                    .open_dir_at(&path?, &options)?
-            };
-            Directory::new(dir).add_to_fd_table()
+                let file = ruxfs::fops::File::open(&path, &options)?;
+                File::new(file).add_to_fd_table()
+            }
         } else {
-            let file = if fd == ctypes::AT_FDCWD {
-                ruxfs::fops::File::open(&path?, &options)?
+            let dir = Directory::from_fd(fd)?;
+            let is_dir = dir.inner.lock().get_child_attr_at(&path)?.is_dir();
+            // O_DIRECTORY flag is set but the path is not a directory, return ENOTDIR
+            if (flags as u32 & ctypes::O_DIRECTORY != 0) && !is_dir {
+                return Err(LinuxError::ENOTDIR);
+            }
+            if is_dir {
+                let dir = dir.inner.lock().open_dir_at(&path, &options)?;
+                Directory::new(dir).add_to_fd_table()
             } else {
-                Directory::from_fd(fd)?
-                    .inner
-                    .lock()
-                    .open_file_at(&path?, &options)?
-            };
-            File::new(file).add_to_fd_table()
+                let file = dir.inner.lock().open_file_at(&path, &options)?;
+                File::new(file).add_to_fd_table()
+            }
         }
     })
 }
