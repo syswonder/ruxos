@@ -25,7 +25,7 @@ pub use self::dir::DirNode;
 pub use self::file::FileNode;
 
 use alloc::sync::Arc;
-use axfs_vfs::{VfsNodeRef, VfsOps, VfsResult};
+use axfs_vfs::{path::AbsPath, VfsNodeRef, VfsOps, VfsResult};
 use spin::once::Once;
 
 /// A RAM filesystem that implements [`axfs_vfs::VfsOps`].
@@ -50,7 +50,7 @@ impl RamFileSystem {
 }
 
 impl VfsOps for RamFileSystem {
-    fn mount(&self, _path: &str, mount_point: VfsNodeRef) -> VfsResult {
+    fn mount(&self, _path: &AbsPath, mount_point: VfsNodeRef) -> VfsResult {
         if let Some(parent) = mount_point.parent() {
             self.root.set_parent(Some(self.parent.call_once(|| parent)));
         } else {
