@@ -29,8 +29,16 @@ qemu_args-aarch64 := \
   -machine virt \
   -kernel $(OUT_BIN)
 
+
 qemu_args-y := -m 2G -smp $(SMP) $(qemu_args-$(ARCH)) \
   -append ";$(ARGS);$(ENVS)"
+
+qemu_args-$(CONSOLE) += \
+  -global virtio-mmio.force-legacy=false \
+  -device virtio-serial-device,id=virtio-serial0 \
+  -chardev stdio,id=char0,mux=on\
+  -device virtconsole,chardev=char0 \
+  -serial chardev:char0
 
 qemu_args-$(BLK) += \
   -device virtio-blk-$(vdev-suffix),drive=disk0 \
@@ -59,7 +67,9 @@ qemu_args-$(GRAPHIC) += \
   -device virtio-gpu-$(vdev-suffix) -vga none \
   -serial mon:stdio
 
-ifeq ($(GRAPHIC), n)
+ifeq ($(CONSOLE), y)
+  qemu_args-y += -display none
+else ifeq ($(GRAPHIC), n)
   qemu_args-y += -nographic
 endif
 

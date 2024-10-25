@@ -15,20 +15,23 @@ repository = "https://github.com/syswonder/ruxos/tree/main/modules/ruxdriver"
 [features]
 dyn = []
 bus-mmio = []
-bus-pci = ["dep:driver_pci", "dep:ruxhal", "dep:ruxconfig"]
+bus-pci = ["dep:driver_pci", "dep:ruxhal", "dep:ruxconfig", "virtio_hal"]
 net = ["driver_net"]
 block = ["driver_block"]
 display = ["driver_display"]
 _9p = ["driver_9p"]
 
+
+
 # Enabled by features `virtio-*`
 virtio = ["driver_virtio", "dep:axalloc", "dep:ruxhal", "dep:ruxconfig"]
-
+virtio_hal = ["ruxhal/virtio_hal"]
 # various types of drivers
-virtio-blk = ["block", "virtio", "driver_virtio/block"]
-virtio-net = ["net", "virtio", "driver_virtio/net"]
-virtio-gpu = ["display", "virtio", "driver_virtio/gpu"]
-virtio-9p = ["_9p","virtio", "driver_virtio/v9p"]
+virtio-blk = ["block", "virtio", "driver_virtio/block","virtio_hal"]
+virtio-net = ["net", "virtio", "driver_virtio/net", "virtio_hal"]
+virtio-gpu = ["display", "virtio", "driver_virtio/gpu", "virtio_hal"]
+virtio-9p = ["_9p","virtio", "driver_virtio/v9p", "virtio_hal"]
+virtio_console = ["virtio"]
 ramdisk = ["block", "driver_block/ramdisk"]
 bcm2835-sdhci = ["block", "driver_block/bcm2835-sdhci"]
 ixgbe = ["net", "driver_net/ixgbe", "dep:axalloc", "dep:ruxhal"]

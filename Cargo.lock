@@ -670,6 +670,13 @@ name = "driver_common"
 version = "0.1.0"
 
 [[package]]
+name = "driver_console"
+version = "0.1.0"
+dependencies = [
+ "driver_common",
+]
+
+[[package]]
 name = "driver_display"
 version = "0.1.0"
 dependencies = [
@@ -700,6 +707,7 @@ dependencies = [
  "driver_9p",
  "driver_block",
  "driver_common",
+ "driver_console",
  "driver_display",
  "driver_net",
  "log",
@@ -1682,12 +1690,16 @@ dependencies = [
  "bitflags 2.4.0",
  "cfg-if",
  "crate_interface",
+ "driver_common",
+ "driver_console",
+ "driver_virtio",
  "dtb",
  "dw_apb_uart",
  "embedded-hal",
  "handler_table",
  "kernel_guard",
  "lazy_init",
+ "lazy_static",
  "log",
  "memory_addr",
  "page_table",
@@ -1702,6 +1714,7 @@ dependencies = [
  "static_assertions",
  "tock-registers",
  "tty",
+ "virtio-drivers",
  "x2apic",
  "x86",
  "x86_64",
