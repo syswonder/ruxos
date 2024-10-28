@@ -10,8 +10,7 @@
 //! Utilities for path manipulation.
 
 use alloc::{
-    borrow::{Cow, ToOwned},
-    string::String,
+    borrow::{Cow, ToOwned}, format, string::String
 };
 
 /// Returns the canonical form of the path with all intermediate components
@@ -66,12 +65,12 @@ pub fn canonicalize(path: &str) -> String {
 /// CANONICALIZED absolute path type, starting with '/'.
 ///
 /// Using `Cow` type to avoid unnecessary allocations.
-#[derive(Debug)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AbsPath<'a>(Cow<'a, str>);
 
 impl<'a> AbsPath<'a> {
     /// Simply wrap a string into a `AbsPath`.
-    pub fn new(path: &'a str) -> Self {
+    pub const fn new(path: &'a str) -> Self {
         Self(Cow::Borrowed(path))
     }
 
@@ -82,6 +81,16 @@ impl<'a> AbsPath<'a> {
         } else {
             Self(Cow::Owned(canonicalize(path)))
         }
+    }
+
+    /// Transform into a `RelPath`.
+    pub fn to_rel(&self) -> RelPath {
+        RelPath(Cow::Borrowed(self.0.trim_start_matches('/')))
+    }
+
+    /// Concatenate a relative path to this absolute path.
+    pub fn join(&self, rel: &RelPath) -> Self {
+        Self::new_canonicalized(&format!("{}/{}", self.0, rel.0))
     }
 }
 
@@ -110,6 +119,7 @@ impl core::fmt::Display for AbsPath<'_> {
 /// - "a/b/c"
 ///
 /// Using `Cow` type to avoid unnecessary allocations.
+#[derive(Debug, Clone)]
 pub struct RelPath<'a>(Cow<'a, str>);
 
 impl<'a> RelPath<'a> {

@@ -16,31 +16,26 @@ pub use self::dir::{DirBuilder, DirEntry, ReadDir};
 pub use self::file::{File, FileType, Metadata, OpenOptions, Permissions};
 
 use alloc::{string::String, vec::Vec};
+use axfs_vfs::path::AbsPath;
 use axio::{self as io, prelude::*};
 
 /// Returns an iterator over the entries within a directory.
-pub fn read_dir(path: &str) -> io::Result<ReadDir> {
+pub fn read_dir<'a>(path: &'a AbsPath<'a>) -> io::Result<ReadDir<'a>> {
     ReadDir::new(path)
 }
 
-/// Returns the canonical, absolute form of a path with all intermediate
-/// components normalized.
-pub fn canonicalize(path: &str) -> io::Result<String> {
-    crate::root::absolute_path(path)
-}
-
-/// Returns the current working directory as a [`String`].
-pub fn current_dir() -> io::Result<String> {
+/// Returns the current working directory as a [`AbsPath`].
+pub fn current_dir() -> io::Result<AbsPath<'static>> {
     crate::root::current_dir()
 }
 
 /// Changes the current working directory to the specified path.
-pub fn set_current_dir(path: &str) -> io::Result<()> {
+pub fn set_current_dir(path: AbsPath<'static>) -> io::Result<()> {
     crate::root::set_current_dir(path)
 }
 
 /// Read the entire contents of a file into a bytes vector.
-pub fn read(path: &str) -> io::Result<Vec<u8>> {
+pub fn read(path: &AbsPath) -> io::Result<Vec<u8>> {
     let mut file = File::open(path)?;
     let size = file.metadata().map(|m| m.len()).unwrap_or(0);
     let mut bytes = Vec::with_capacity(size as usize);
@@ -49,7 +44,7 @@ pub fn read(path: &str) -> io::Result<Vec<u8>> {
 }
 
 /// Read the entire contents of a file into a string.
-pub fn read_to_string(path: &str) -> io::Result<String> {
+pub fn read_to_string(path: &AbsPath) -> io::Result<String> {
     let mut file = File::open(path)?;
     let size = file.metadata().map(|m| m.len()).unwrap_or(0);
     let mut string = String::with_capacity(size as usize);
@@ -58,41 +53,41 @@ pub fn read_to_string(path: &str) -> io::Result<String> {
 }
 
 /// Write a slice as the entire contents of a file.
-pub fn write<C: AsRef<[u8]>>(path: &str, contents: C) -> io::Result<()> {
+pub fn write<C: AsRef<[u8]>>(path: &AbsPath, contents: C) -> io::Result<()> {
     File::create(path)?.write_all(contents.as_ref())
 }
 
 /// Given a path, query the file system to get information about a file,
 /// directory, etc.
-pub fn metadata(path: &str) -> io::Result<Metadata> {
+pub fn metadata(path: &AbsPath) -> io::Result<Metadata> {
     File::open(path)?.metadata()
 }
 
 /// Creates a new, empty directory at the provided path.
-pub fn create_dir(path: &str) -> io::Result<()> {
+pub fn create_dir(path: &AbsPath) -> io::Result<()> {
     DirBuilder::new().create(path)
 }
 
 /// Recursively create a directory and all of its parent components if they
 /// are missing.
-pub fn create_dir_all(path: &str) -> io::Result<()> {
+pub fn create_dir_all(path: &AbsPath) -> io::Result<()> {
     DirBuilder::new().recursive(true).create(path)
 }
 
 /// Removes an empty directory.
-pub fn remove_dir(path: &str) -> io::Result<()> {
-    crate::root::remove_dir(None, path)
+pub fn remove_dir(path: &AbsPath) -> io::Result<()> {
+    crate::root::remove_dir(path)
 }
 
 /// Removes a file from the filesystem.
-pub fn remove_file(path: &str) -> io::Result<()> {
-    crate::root::remove_file(None, path)
+pub fn remove_file(path: &AbsPath) -> io::Result<()> {
+    crate::root::remove_file(path)
 }
 
 /// Rename a file or directory to a new name.
 /// Delete the original file if `old` already exists.
 ///
 /// This only works then the new path is in the same mounted fs.
-pub fn rename(old: &str, new: &str) -> io::Result<()> {
+pub fn rename(old: &AbsPath, new: &AbsPath) -> io::Result<()> {
     crate::root::rename(old, new)
 }
