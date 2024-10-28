@@ -7,10 +7,10 @@
  *   See the Mulan PSL v2 for more details.
  */
 
+use axfs_vfs::path::AbsPath;
 use axio::{prelude::*, Result, SeekFrom};
 use core::fmt;
-
-use crate::fops;
+use crate::fops::{self, Directory};
 
 /// A structure representing a type of file with accessors for each file type.
 /// It is returned by [`Metadata::file_type`] method.
@@ -74,8 +74,13 @@ impl OpenOptions {
     }
 
     /// Opens a file at `path` with the options specified by `self`.
-    pub fn open(&self, path: &str) -> Result<File> {
-        fops::File::open(path, &self.0).map(|inner| File { inner })
+    pub fn open(&self, path: &AbsPath) -> Result<File> {
+        crate::root::open_file(&path, &self.0).map(|inner| File { inner })
+    }
+
+    /// Opens a directory at `path` with the options specified by `self`.
+    pub fn open_dir(&self, path: &AbsPath) -> Result<Directory> {
+        crate::root::open_dir(&path, &self.0)
     }
 }
 
@@ -134,12 +139,12 @@ impl fmt::Debug for Metadata {
 
 impl File {
     /// Attempts to open a file in read-only mode.
-    pub fn open(path: &str) -> Result<Self> {
+    pub fn open(path: &AbsPath) -> Result<Self> {
         OpenOptions::new().read(true).open(path)
     }
 
     /// Opens a file in write-only mode.
-    pub fn create(path: &str) -> Result<Self> {
+    pub fn create(path: &AbsPath) -> Result<Self> {
         OpenOptions::new()
             .write(true)
             .create(true)
@@ -148,7 +153,7 @@ impl File {
     }
 
     /// Creates a new file in read-write mode; error if the file exists.
-    pub fn create_new(path: &str) -> Result<Self> {
+    pub fn create_new(path: &AbsPath) -> Result<Self> {
         OpenOptions::new()
             .read(true)
             .write(true)

@@ -38,13 +38,16 @@ extern crate alloc;
 mod dev;
 mod fs;
 mod mounts;
-mod root;
 
 #[cfg(feature = "alloc")]
 mod arch;
 
 pub mod api;
 pub mod fops;
+pub mod root;
+
+pub type AbsPath<'a> = axfs_vfs::path::AbsPath<'a>;
+pub type RelPath<'a> = axfs_vfs::path::RelPath<'a>;
 
 use alloc::vec::Vec;
 
@@ -63,7 +66,7 @@ pub use root::MountPoint;
 /// Initialize an empty filesystems by ramfs.
 #[cfg(not(any(feature = "blkfs", feature = "virtio-9p", feature = "net-9p")))]
 pub fn init_tempfs() -> MountPoint {
-    MountPoint::new("/", mounts::ramfs())
+    MountPoint::new(AbsPath::new("/"), mounts::ramfs())
 }
 
 /// Initializes filesystems by block devices.
@@ -85,32 +88,32 @@ pub fn init_blkfs(mut blk_devs: AxDeviceContainer<AxBlockDevice>) -> MountPoint 
         }
     }
 
-    MountPoint::new("/", blk_fs)
+    MountPoint::new(AbsPath::new("/"), blk_fs)
 }
 
 /// Initializes common filesystems.
 pub fn prepare_commonfs(mount_points: &mut Vec<self::root::MountPoint>) {
     #[cfg(feature = "devfs")]
-    let mount_point = MountPoint::new("/dev", mounts::devfs());
+    let mount_point = MountPoint::new(AbsPath::new("/dev"), mounts::devfs());
     mount_points.push(mount_point);
 
     #[cfg(feature = "ramfs")]
-    let mount_point = MountPoint::new("/tmp", mounts::ramfs());
+    let mount_point = MountPoint::new(AbsPath::new("/tmp"), mounts::ramfs());
     mount_points.push(mount_point);
 
     // Mount another ramfs as procfs
     #[cfg(feature = "procfs")]
-    let mount_point = MountPoint::new("/proc", mounts::procfs().unwrap());
+    let mount_point = MountPoint::new(AbsPath::new("/proc"), mounts::procfs().unwrap());
     mount_points.push(mount_point);
 
     // Mount another ramfs as sysfs
     #[cfg(feature = "sysfs")]
-    let mount_point = MountPoint::new("/sys", mounts::sysfs().unwrap());
+    let mount_point = MountPoint::new(AbsPath::new("/sys"), mounts::sysfs().unwrap());
     mount_points.push(mount_point);
 
     // Mount another ramfs as etcfs
     #[cfg(feature = "etcfs")]
-    let mount_point = MountPoint::new("/etc", mounts::etcfs().unwrap());
+    let mount_point = MountPoint::new(AbsPath::new("/etc"), mounts::etcfs().unwrap());
     mount_points.push(mount_point);
 }
 
