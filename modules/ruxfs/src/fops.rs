@@ -9,12 +9,13 @@
 
 //! Low-level filesystem operations.
 
-use axerrno::{ax_err, ax_err_type, AxResult, AxError};
-use axfs_vfs::path::RelPath;
-use axfs_vfs::{VfsError, VfsNodeRef, VfsNodeType};
+use axerrno::{ax_err, ax_err_type, AxResult};
+use axfs_vfs::path::{AbsPath, RelPath};
+use axfs_vfs::{VfsNodeRef, VfsNodeType, VfsNodeOps};
 use axio::SeekFrom;
 use capability::{Cap, WithCap};
-use core::fmt;
+
+use crate::root::{CURRENT_DIR, CURRENT_DIR_PATH, ROOT_DIR};
 
 #[cfg(feature = "myfs")]
 pub use crate::dev::Disk;
@@ -70,7 +71,6 @@ impl OpenOptions {
             truncate: false,
             create: false,
             create_new: false,
-            cloexec: false,
             // system-specific
             _custom_flags: 0,
             _mode: 0o666,
@@ -99,14 +99,6 @@ impl OpenOptions {
     /// Sets the option to create a new file, failing if it already exists.
     pub fn create_new(&mut self, create_new: bool) {
         self.create_new = create_new;
-    }
-    /// Sets the option for automatically close file discripter when doing execve
-    pub fn cloexec(&mut self, cloexec: bool) {
-        self.cloexec = cloexec;
-    }
-    /// Check if there are cloexec flag in OpenOptions
-    pub const fn is_cloexec(&self) -> bool {
-        self.cloexec
     }
 
     pub const fn is_valid(&self) -> bool {
@@ -231,120 +223,86 @@ impl Directory {
         }
     }
 
+    /// Gets the file attributes.
+    pub fn get_attr(&self) -> AxResult<FileAttr> {
+        self.node.access(Cap::empty())?.get_attr()
+    }
+
+    /// Looks up a child node by name.
+    pub fn lookup(&self, path: &RelPath) -> AxResult<VfsNodeRef> {
+        self.access_node()?.clone().lookup(path)
+    }
+
     /// Gets the file attributes of the file at the path relative to this directory.
     /// Returns a [`FileAttr`] object.
-    pub fn get_child_attr_at(&self, path: &RelPath) -> AxResult<FileAttr> {
-        self.access_node()?.clone().lookup(path)?.get_attr()
+    pub fn get_child_attr(&self, path: &RelPath) -> AxResult<FileAttr> {
+        let node = self.lookup(path)?;
+        node.get_attr()
     }
 
     /// Opens a directory at the path relative to this directory. Returns a
     /// [`Directory`] object.
-    pub fn open_dir_at(&self, path: &RelPath, opts: &OpenOptions) -> AxResult<Self> {
+    ///
+    /// This function will not check if the path exists or is a directory,
+    /// check it with [`get_child_attr`] first.
+    pub fn open_dir(&self, path: &RelPath, cap: Cap) -> AxResult<Directory> {
         debug!("open dir: {}", path);
-        if !opts.read {
-            return ax_err!(InvalidInput);
-        }
-        if opts.create || opts.create_new || opts.write || opts.append || opts.truncate {
-            return ax_err!(InvalidInput);
-        }
-        let node = self.access_node()?.clone().lookup(path)?;
+        let node = self.lookup(path)?;
         let attr = node.get_attr()?;
-        if !attr.is_dir() {
-            return ax_err!(NotADirectory);
-        }
-        let access_cap = opts.into();
-        if !perm_to_cap(attr.perm()).contains(access_cap) {
+        if !perm_to_cap(attr.perm()).contains(cap) {
             return ax_err!(PermissionDenied);
         }
         node.open()?;
-        Ok(Self::new(node, access_cap | Cap::EXECUTE))
+        Ok(Self::new(node, cap | Cap::EXECUTE))
     }
 
     /// Opens a file at the path relative to this directory. Returns a [`File`]
     /// object.
-    pub fn open_file_at(&self, path: &RelPath, opts: &OpenOptions) -> AxResult<File> {
-        debug!("open file: {} {:?}", path, opts);
-        if !opts.is_valid() {
-            return ax_err!(InvalidInput);
-        }
-        let node = match self.access_node()?.clone().lookup(path) {
-            Ok(node) => {
-                if opts.create_new {
-                    return ax_err!(AlreadyExists);
-                }
-                node
-            }
-            Err(VfsError::NotFound) => {
-                if !opts.create || !opts.create_new {
-                    return ax_err!(NotFound);
-                }
-                self.access_node()?.clone().create(path, VfsNodeType::File)?;
-                self.access_node()?.clone().lookup(path)?
-            }
-            Err(e) => return Err(e),
-        };
-
+    ///
+    /// This function will not check if the path exists or is a file, check it
+    /// with [`get_child_attr`] first.
+    pub fn open_file(&self, path: &RelPath, cap: Cap, append: bool) -> AxResult<File> {
+        debug!("open file: {}", path);
+        let node = self.lookup(path)?;
         let attr = node.get_attr()?;
-        if attr.is_dir() {
-            return ax_err!(IsADirectory);
-        }
-        let access_cap = opts.into();
-        if !perm_to_cap(attr.perm()).contains(access_cap) {
+        if !perm_to_cap(attr.perm()).contains(cap) {
             return ax_err!(PermissionDenied);
         }
-
         node.open()?;
-        if opts.truncate {
-            node.truncate(0)?;
-        }
-        Ok(File::new(node, access_cap, opts.append))
+        Ok(File::new(node, cap, append))
     }
 
     /// Creates an empty file at the path relative to this directory.
-    pub fn create_file(&self, path: &RelPath) -> AxResult<VfsNodeRef> {
-        match self.access_node()?.clone().lookup(path) {
-            Ok(_) => ax_err!(AlreadyExists),
-            Err(AxError::NotFound) => {
-                self.access_node()?.clone().create(path, VfsNodeType::File)?;
-                self.access_node()?.clone().lookup(path)
-            }
-            Err(e) => Err(e),
-        }
+    ///
+    /// This function will not check if the path exists, check it with
+    /// [`lookup`] first.
+    pub fn create_file(&self, path: &RelPath) -> AxResult {
+        self.access_node()?.clone().create(path, VfsNodeType::File)
     }
 
     /// Creates an empty directory at the path relative to this directory.
+    ///
+    /// This function will not check if the path exists, check it with
+    /// [`lookup`] first.
     pub fn create_dir(&self, path: &RelPath) -> AxResult {
-        match self.access_node()?.clone().lookup(path) {
-            Ok(_) => ax_err!(AlreadyExists),
-            Err(AxError::NotFound) => self.access_node()?.create(path, VfsNodeType::Dir),
-            Err(e) => Err(e),
-        }
+        self.access_node()?.clone().create(path, VfsNodeType::Dir)
     }
 
-    /// Removes a file at the path relative to this directory.
-    pub fn remove_file(&self, path: &RelPath) -> AxResult {
-        let node = self.access_node()?.clone().lookup(path)?;
-        let attr = node.get_attr()?;
-        if attr.is_dir() {
-            ax_err!(IsADirectory)
-        } else if !attr.perm().owner_writable() {
-            ax_err!(PermissionDenied)
-        } else {
-            self.access_node()?.remove(path)
-        }
+    /// Removes a file (or directory) at the path relative to this directory.
+    ///
+    /// This function will not check if the file (or directory) exits or removeable,
+    /// check it with [`lookup`] first.
+    pub fn remove(&self, path: &RelPath) -> AxResult {
+        self.access_node()?.remove(path)
     }
 
-    /// Removes a directory at the path relative to this directory.
-    pub fn remove_dir(&self, path: &RelPath) -> AxResult {
-        let node = self.access_node()?.clone().lookup(path)?;
-        let attr = node.get_attr()?;
-        if !attr.is_dir() {
-            ax_err!(NotADirectory)
-        } else if !attr.perm().owner_writable() {
-            ax_err!(PermissionDenied)
-        } else {
-            self.access_node()?.remove(path)
-        }
+    /// Rename a file or directory to a new name. This only works then the new path
+    /// is in the same mounted fs.
+    ///
+    /// This function will not check if the old path or new path exists, check it with
+    /// [`lookup`] first.
+    pub fn rename(&self, old: &RelPath, new: &RelPath) -> AxResult {
+        self.access_node()?.rename(old, new)
     }
 
     /// Reads directory entries starts from the current position into the
@@ -370,23 +328,123 @@ impl Directory {
     pub fn set_entry_idx(&mut self, idx: usize) {
         self.entry_idx = idx;
     }
+}
 
-    /// Rename a file or directory to a new name.
-    /// Delete the original file if `old` already exists.
-    ///
-    /// This only works then the new path is in the same mounted fs.
-    pub fn rename(&self, old: &RelPath, new: &RelPath) -> AxResult {
-        if self.access_node()?.clone().lookup(new).is_ok() {
-            warn!("dst file already exist, now remove it");
-            ax_err!(AlreadyExists)
-        } else {
-            self.access_node()?.rename(old, new)
-        }
+/* File operations with absolute path */
+
+/// Look up a file given an absolute path.
+pub fn lookup(path: &AbsPath) -> AxResult<VfsNodeRef> {
+    ROOT_DIR.clone().lookup(&path.to_rel())
+}
+
+/// Get the file attributes given an absolute path.
+pub fn get_attr(path: &AbsPath) -> AxResult<FileAttr> {
+    let node = lookup(path)?;
+    node.get_attr()
+}
+
+/// Open a file given an absolute path.
+///
+/// This function will not check if the file exists or is a file.
+/// Call [`lookup`] to check if first.
+pub fn open_file(path: &AbsPath, cap: Cap, append: bool) -> AxResult<File> {
+    debug!("open file: {}", path);
+    let node = lookup(path)?;
+    let attr = node.get_attr()?;
+    if !perm_to_cap(attr.perm()).contains(cap) {
+        return ax_err!(PermissionDenied);
     }
+    node.open()?;
+    Ok(File::new(node, cap, append))
+}
 
-    /// Gets the file attributes.
-    pub fn get_attr(&self) -> AxResult<FileAttr> {
-        self.node.access(Cap::empty())?.get_attr()
+/// Open a directory given an absolute path.
+///
+/// This function will not check if the path exists or is a directory,
+/// check it with [`get_attr`] first.
+pub fn open_dir(path: &AbsPath, cap: Cap) -> AxResult<Directory> {
+    debug!("open dir: {}", path);
+    let node = lookup(path)?;
+    let attr = node.get_attr()?;
+    if !perm_to_cap(attr.perm()).contains(cap) {
+        return ax_err!(PermissionDenied);
+    }
+    node.open()?;
+    Ok(Directory::new(node, cap | Cap::EXECUTE))
+}
+
+/// Create a file given an absolute path.
+///
+/// This function will not check if the file exists, check it with [`lookup`] first.
+pub fn create_file(path: &AbsPath) -> AxResult {
+    ROOT_DIR.create(&path.to_rel(), VfsNodeType::File)
+}
+
+/// Create a directory given an absolute path.
+///
+/// This function will not check if the directory exists, check it with [`lookup`] first.
+pub fn create_dir(path: &AbsPath) -> AxResult {
+    ROOT_DIR.create(&path.to_rel(), VfsNodeType::Dir)
+}
+
+/// Create a directory recursively given an absolute path.
+///
+/// This function will not check if the directory exists, check it with [`lookup`] first.
+pub fn create_dir_all(path: &AbsPath) -> AxResult {
+    ROOT_DIR.create_recursive(&path.to_rel(), VfsNodeType::Dir)
+}
+
+/// Remove a file given an absolute path.
+///
+/// This function will not check if the file exits or removeable,
+/// check it with [`lookup`] first.
+pub fn remove_file(path: &AbsPath) -> AxResult {
+    ROOT_DIR.remove(&path.to_rel())
+}
+
+/// Remove a directory given an absolute path.
+///
+/// This function will not check if the directory exists or is empty,
+/// check it with [`lookup`] first.
+pub fn remove_dir(path: &AbsPath) -> AxResult {
+    if ROOT_DIR.contains(path) {
+        return ax_err!(PermissionDenied);
+    }
+    ROOT_DIR.remove(&path.to_rel())
+}
+
+/// Rename a file given an old and a new absolute path.
+///
+/// This function will not check if the old path or new path exists, check it with
+/// [`lookup`] first.
+pub fn rename(old: &AbsPath, new: &AbsPath) -> AxResult {
+    ROOT_DIR.rename(&old.to_rel(), &new.to_rel())
+}
+
+/// Get current working directory.
+pub fn current_dir<'a>() -> AbsPath<'a> {
+    CURRENT_DIR_PATH.lock().clone()
+}
+
+/// Concatenate a path to the current working directory.
+pub fn concat_path(path: &RelPath) -> AbsPath<'static> {
+    current_dir().join(path)
+}
+
+/// Set current working directory.
+///
+/// Returns error if the path does not exist or is not a directory.
+pub fn set_current_dir(path: AbsPath<'static>) -> AxResult {
+    let node = lookup(&path)?;
+    let attr = node.get_attr()?;
+    if !attr.is_dir() {
+        ax_err!(NotADirectory)
+    } else if !attr.perm().owner_executable() {
+        ax_err!(PermissionDenied)
+    } else {
+        *CURRENT_DIR.lock() = node;
+        *CURRENT_DIR_PATH.lock() = path;
+        Ok(())
     }
 }
 
@@ -399,44 +457,6 @@ impl Drop for File {
 impl Drop for Directory {
     fn drop(&mut self) {
         unsafe { self.node.access_unchecked().release().ok() };
-    }
-}
-
-impl fmt::Debug for OpenOptions {
-    #[allow(unused_assignments)]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut written = false;
-        macro_rules! fmt_opt {
-            ($field: ident, $label: literal) => {
-                if self.$field {
-                    if written {
-                        write!(f, " | ")?;
-                    }
-                    write!(f, $label)?;
-                    written = true;
-                }
-            };
-        }
-        fmt_opt!(read, "READ");
-        fmt_opt!(write, "WRITE");
-        fmt_opt!(append, "APPEND");
-        fmt_opt!(truncate, "TRUNC");
-        fmt_opt!(create, "CREATE");
-        fmt_opt!(create_new, "CREATE_NEW");
-        Ok(())
-    }
-}
-
-impl From<&OpenOptions> for Cap {
-    fn from(opts: &OpenOptions) -> Cap {
-        let mut cap = Cap::empty();
-        if opts.read {
-            cap |= Cap::READ;
-        }
-        if opts.write | opts.append {
-            cap |= Cap::WRITE;
-        }
-        cap
     }
 }
 

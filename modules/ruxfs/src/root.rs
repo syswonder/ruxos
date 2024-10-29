@@ -12,22 +12,18 @@
 //! TODO: it doesn't work very well if the mount points have containment relationships.
 
 use alloc::{format, sync::Arc, vec::Vec};
-use axerrno::{ax_err, AxError, AxResult};
+use axerrno::{ax_err, AxResult};
 use axfs_vfs::{
     path::{AbsPath, RelPath},
     VfsError, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps, VfsResult,
 };
 use axsync::Mutex;
-use capability::Cap;
 use lazy_init::LazyInit;
 
-use crate::{
-    api::FileType,
-    fops::{perm_to_cap, Directory, File, OpenOptions},
-};
+use crate::api::FileType;
 
-static CURRENT_DIR_PATH: Mutex<AbsPath> = Mutex::new(AbsPath::new("/"));
-static CURRENT_DIR: LazyInit<Mutex<VfsNodeRef>> = LazyInit::new();
+pub(crate) static CURRENT_DIR_PATH: Mutex<AbsPath> = Mutex::new(AbsPath::new("/"));
+pub(crate) static CURRENT_DIR: LazyInit<Mutex<VfsNodeRef>> = LazyInit::new();
 
 /// mount point information
 pub struct MountPoint {
@@ -38,12 +34,12 @@ pub struct MountPoint {
 }
 
 /// fs root directory
-pub struct RootDirectory {
+pub pub(crate) struct RootDirectory {
     main_fs: Arc<dyn VfsOps>,
     mounts: Vec<MountPoint>,
 }
 
-// static ROOT_DIR: LazyInit<Arc<RootDirectory>> = LazyInit::new();
+// pub(crate) static ROOT_DIR: LazyInit<Arc<RootDirectory>> = LazyInit::new();
 
 impl MountPoint {
     /// create new MountPoint from data

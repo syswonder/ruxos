@@ -7,10 +7,15 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use axfs_vfs::path::AbsPath;
+use crate::fops;
+use axerrno::ax_err;
+use axfs_vfs::{
+    path::{AbsPath, RelPath},
+    VfsError,
+};
 use axio::{prelude::*, Result, SeekFrom};
+use capability::Cap;
 use core::fmt;
-use crate::fops::{self, Directory};
 
 /// A structure representing a type of file with accessors for each file type.
 /// It is returned by [`Metadata::file_type`] method.
@@ -28,59 +33,170 @@ pub struct File {
 pub struct Metadata(fops::FileAttr);
 
 /// Options and flags which can be used to configure how a file is opened.
-#[derive(Clone, Debug)]
-pub struct OpenOptions(fops::OpenOptions);
+#[derive(Clone)]
+pub struct OpenOptions {
+    // generic
+    read: bool,
+    write: bool,
+    append: bool,
+    truncate: bool,
+    create: bool,
+    create_new: bool,
+    // system-specific
+    _custom_flags: i32,
+    _mode: u32,
+}
 
 impl OpenOptions {
     /// Creates a blank new set of options ready for configuration.
     pub const fn new() -> Self {
-        OpenOptions(fops::OpenOptions::new())
+        Self {
+            // generic
+            read: false,
+            write: false,
+            append: false,
+            truncate: false,
+            create: false,
+            create_new: false,
+            // system-specific
+            _custom_flags: 0,
+            _mode: 0o666,
+        }
     }
 
     /// Sets the option for read access.
     pub fn read(&mut self, read: bool) -> &mut Self {
-        self.0.read(read);
+        self.read = read;
         self
     }
 
     /// Sets the option for write access.
     pub fn write(&mut self, write: bool) -> &mut Self {
-        self.0.write(write);
+        self.write = write;
         self
     }
 
     /// Sets the option for the append mode.
     pub fn append(&mut self, append: bool) -> &mut Self {
-        self.0.append(append);
+        self.append = append;
         self
     }
 
     /// Sets the option for truncating a previous file.
     pub fn truncate(&mut self, truncate: bool) -> &mut Self {
-        self.0.truncate(truncate);
+        self.truncate = truncate;
         self
     }
 
     /// Sets the option to create a new file, or open it if it already exists.
     pub fn create(&mut self, create: bool) -> &mut Self {
-        self.0.create(create);
+        self.create = create;
         self
     }
 
     /// Sets the option to create a new file, failing if it already exists.
     pub fn create_new(&mut self, create_new: bool) -> &mut Self {
-        self.0.create_new(create_new);
+        self.create_new = create_new;
         self
     }
 
-    /// Opens a file at `path` with the options specified by `self`.
-    pub fn open(&self, path: &AbsPath) -> Result<File> {
-        crate::root::open_file(&path, &self.0).map(|inner| File { inner })
+    /// Check if the options are valid.
+    pub const fn is_valid(&self) -> bool {
+        if !self.read && !self.write && !self.append {
+            return false;
+        }
+        match (self.write, self.append) {
+            (true, false) => {}
+            (false, false) => {
+                if self.truncate || self.create || self.create_new {
+                    return false;
+                }
+            }
+            (_, true) => {
+                if self.truncate && !self.create_new {
+                    return false;
+                }
+            }
+        }
+        true
     }
 
-    /// Opens a directory at `path` with the options specified by `self`.
-    pub fn open_dir(&self, path: &AbsPath) -> Result<Directory> {
-        crate::root::open_dir(&path, &self.0)
+    /// Opens a file at `path` with the options specified by `self`.
+    pub fn open(&self, path: &str) -> Result<File> {
+        // Check options
+        if !self.is_valid() {
+            return ax_err!(InvalidInput);
+        }
+        // Find node
+        let path = if path.starts_with("/") {
+            AbsPath::new_canonicalized(path)
+        } else {
+            fops::concat_path(&RelPath::new_canonicalized(path))
+        };
+        // Check flag and attr
+        let node = match fops::lookup(&path) {
+            Ok(node) => {
+                if self.create_new {
+                    return ax_err!(AlreadyExists);
+                }
+                node
+            }
+            Err(VfsError::NotFound) => {
+                if !self.create {
+                    return ax_err!(NotFound);
+                }
+                fops::create_file(&path)?;
+                fops::lookup(&path)?
+            }
+            Err(e) => return Err(e),
+        };
+        if node.get_attr()?.is_dir() {
+            return ax_err!(IsADirectory);
+        }
+        // Truncate
+        if self.truncate {
+            node.truncate(0)?;
+        }
+        // Open
+        fops::open_file(&path, self.into(), self.append).map(|inner| File { inner })
+    }
+}
+
+impl From<&OpenOptions> for Cap {
+    fn from(opts: &OpenOptions) -> Cap {
+        let mut cap = Cap::empty();
+        if opts.read {
+            cap |= Cap::READ;
+        }
+        if opts.write | opts.append {
+            cap |= Cap::WRITE;
+        }
+        cap
+    }
+}
+
+impl fmt::Debug for OpenOptions {
+    #[allow(unused_assignments)]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut written = false;
+        macro_rules! fmt_opt {
+            ($field: ident, $label: literal) => {
+                if self.$field {
+                    if written {
+                        write!(f, " | ")?;
+                    }
+                    write!(f, $label)?;
+                    written = true;
+                }
+            };
+        }
+        fmt_opt!(read, "READ");
+        fmt_opt!(write, "WRITE");
+        fmt_opt!(append, "APPEND");
+        fmt_opt!(truncate, "TRUNC");
+        fmt_opt!(create, "CREATE");
+        fmt_opt!(create_new, "CREATE_NEW");
+        Ok(())
     }
 }
 
