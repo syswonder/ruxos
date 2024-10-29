@@ -12,22 +12,18 @@
 //! TODO: it doesn't work very well if the mount points have containment relationships.
 
 use alloc::{format, sync::Arc, vec::Vec};
-use axerrno::{ax_err, AxError, AxResult};
+use axerrno::{ax_err, AxResult};
 use axfs_vfs::{
     path::{AbsPath, RelPath},
     VfsError, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps, VfsResult,
 };
 use axsync::Mutex;
-use capability::Cap;
 use lazy_init::LazyInit;
 
-use crate::{
-    api::FileType,
-    fops::{perm_to_cap, Directory, File, OpenOptions},
-};
+use crate::api::FileType;
 
-static CURRENT_DIR_PATH: Mutex<AbsPath> = Mutex::new(AbsPath::new("/"));
-static CURRENT_DIR: LazyInit<Mutex<VfsNodeRef>> = LazyInit::new();
+pub(crate) static CURRENT_DIR_PATH: Mutex<AbsPath> = Mutex::new(AbsPath::new("/"));
+pub(crate) static CURRENT_DIR: LazyInit<Mutex<VfsNodeRef>> = LazyInit::new();
 
 /// mount point information
 pub struct MountPoint {
@@ -35,12 +31,12 @@ pub struct MountPoint {
     fs: Arc<dyn VfsOps>,
 }
 
-struct RootDirectory {
+pub(crate) struct RootDirectory {
     main_fs: Arc<dyn VfsOps>,
     mounts: Vec<MountPoint>,
 }
 
-static ROOT_DIR: LazyInit<Arc<RootDirectory>> = LazyInit::new();
+pub(crate) static ROOT_DIR: LazyInit<Arc<RootDirectory>> = LazyInit::new();
 
 impl MountPoint {
     /// create new MountPoint from data
@@ -180,164 +176,4 @@ pub(crate) fn init_rootfs(mount_points: Vec<MountPoint>) {
     ROOT_DIR.init_by(Arc::new(root_dir));
     CURRENT_DIR.init_by(Mutex::new(ROOT_DIR.clone()));
     *CURRENT_DIR_PATH.lock() = AbsPath::new("/");
-}
-
-/// Look up a file given an absolute path.
-pub(crate) fn lookup(path: &AbsPath) -> AxResult<VfsNodeRef> {
-    ROOT_DIR.clone().lookup(&path.to_rel())
-}
-
-/// Open a file given an absolute path.
-pub fn open_file(path: &AbsPath, opts: &OpenOptions) -> AxResult<File> {
-    debug!("open file: {} {:?}", path, opts);
-    if !opts.is_valid() {
-        return ax_err!(InvalidInput);
-    }
-    let node = match lookup(path) {
-        Ok(node) => {
-            if opts.create_new {
-                return ax_err!(AlreadyExists);
-            }
-            node
-        }
-        Err(VfsError::NotFound) => {
-            if !opts.create || !opts.create_new {
-                return ax_err!(NotFound);
-            }
-            create_file(path)?;
-            lookup(path)?
-        }
-        Err(e) => return Err(e),
-    };
-
-    let attr = node.get_attr()?;
-    if attr.is_dir() {
-        return ax_err!(IsADirectory);
-    }
-    let access_cap = opts.into();
-    if !perm_to_cap(attr.perm()).contains(access_cap) {
-        return ax_err!(PermissionDenied);
-    }
-
-    node.open()?;
-    if opts.truncate {
-        node.truncate(0)?;
-    }
-    Ok(File::new(node, access_cap, opts.append))
-}
-
-/// Open a directory given an absolute path.
-pub fn open_dir(path: &AbsPath, opts: &OpenOptions) -> AxResult<Directory> {
-    debug!("open dir: {}", path);
-    if !opts.read {
-        return ax_err!(InvalidInput);
-    }
-    if opts.create || opts.create_new || opts.write || opts.append || opts.truncate {
-        return ax_err!(InvalidInput);
-    }
-    let node = lookup(path)?;
-    let attr = node.get_attr()?;
-    if !attr.is_dir() {
-        return ax_err!(NotADirectory);
-    }
-    let access_cap = opts.into();
-    if !perm_to_cap(attr.perm()).contains(access_cap) {
-        return ax_err!(PermissionDenied);
-    }
-    node.open()?;
-    Ok(Directory::new(node, access_cap | Cap::EXECUTE))
-}
-
-/// Get the file attributes given an absolute path.
-pub fn get_attr(path: &AbsPath) -> AxResult<VfsNodeAttr> {
-    let node = lookup(path)?;
-    node.get_attr()
-}
-
-/// Create a file given an absolute path.
-pub(crate) fn create_file(path: &AbsPath) -> AxResult<VfsNodeRef> {
-    match lookup(path) {
-        Ok(_) => ax_err!(AlreadyExists),
-        Err(AxError::NotFound) => {
-            ROOT_DIR.create(&path.to_rel(), VfsNodeType::File)?;
-            lookup(path)
-        }
-        Err(e) => Err(e),
-    }
-}
-
-/// Create a directory given an absolute path.
-pub(crate) fn create_dir(path: &AbsPath) -> AxResult {
-    match lookup(path) {
-        Ok(_) => ax_err!(AlreadyExists),
-        Err(AxError::NotFound) => ROOT_DIR.create(&path.to_rel(), VfsNodeType::Dir),
-        Err(e) => Err(e),
-    }
-}
-
-/// Create a directory recursively given an absolute path.
-pub(crate) fn create_dir_all(path: &AbsPath) -> AxResult {
-    match lookup(path) {
-        Ok(_) => ax_err!(AlreadyExists),
-        Err(AxError::NotFound) => ROOT_DIR.create_recursive(&path.to_rel(), VfsNodeType::Dir),
-        Err(e) => Err(e),
-    }
-}
-
-/// Rename a file given an absolute path.
-pub(crate) fn remove_file(path: &AbsPath) -> AxResult {
-    let node = lookup(path)?;
-    let attr = node.get_attr()?;
-    if attr.is_dir() {
-        ax_err!(IsADirectory)
-    } else if !attr.perm().owner_writable() {
-        ax_err!(PermissionDenied)
-    } else {
-        ROOT_DIR.remove(&path.to_rel())
-    }
-}
-
-/// Remove a directory given an absolute path.
-pub(crate) fn remove_dir(path: &AbsPath) -> AxResult {
-    if ROOT_DIR.contains(path) {
-        return ax_err!(PermissionDenied);
-    }
-    let node = lookup(path)?;
-    let attr = node.get_attr()?;
-    if !attr.is_dir() {
-        ax_err!(NotADirectory)
-    } else if !attr.perm().owner_writable() {
-        ax_err!(PermissionDenied)
-    } else {
-        ROOT_DIR.remove(&path.to_rel())
-    }
-}
-
-/// Get current working directory.
-pub(crate) fn current_dir<'a>() -> AxResult<AbsPath<'a>> {
-    Ok(CURRENT_DIR_PATH.lock().clone())
-}
-
-/// Set current working directory.
-pub(crate) fn set_current_dir(path: AbsPath<'static>) -> AxResult {
-    let node = lookup(&path)?;
-    let attr = node.get_attr()?;
-    if !attr.is_dir() {
-        ax_err!(NotADirectory)
-    } else if !attr.perm().owner_executable() {
-        ax_err!(PermissionDenied)
-    } else {
-        *CURRENT_DIR.lock() = node;
-        *CURRENT_DIR_PATH.lock() = path;
-        Ok(())
-    }
-}
-
-/// Rename a file given an old and a new absolute path.
-pub(crate) fn rename(old: &AbsPath, new: &AbsPath) -> AxResult {
-    if lookup(new).is_ok() {
-        ax_err!(AlreadyExists)
-    } else {
-        ROOT_DIR.rename(&old.to_rel(), &new.to_rel())
-    }
 }

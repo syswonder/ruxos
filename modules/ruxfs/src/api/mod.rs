@@ -16,8 +16,12 @@ pub use self::dir::{DirBuilder, DirEntry, ReadDir};
 pub use self::file::{File, FileType, Metadata, OpenOptions, Permissions};
 
 use alloc::{string::String, vec::Vec};
+use axerrno::ax_err;
 use axfs_vfs::path::AbsPath;
+use axfs_vfs::VfsError;
 use axio::{self as io, prelude::*};
+
+use crate::fops;
 
 /// Returns an iterator over the entries within a directory.
 pub fn read_dir<'a>(path: &'a AbsPath<'a>) -> io::Result<ReadDir<'a>> {
@@ -26,12 +30,12 @@ pub fn read_dir<'a>(path: &'a AbsPath<'a>) -> io::Result<ReadDir<'a>> {
 
 /// Returns the current working directory as a [`AbsPath`].
 pub fn current_dir() -> io::Result<AbsPath<'static>> {
-    crate::root::current_dir()
+    Ok(fops::current_dir())
 }
 
 /// Changes the current working directory to the specified path.
 pub fn set_current_dir(path: AbsPath<'static>) -> io::Result<()> {
-    crate::root::set_current_dir(path)
+    fops::set_current_dir(path)
 }
 
 /// Read the entire contents of a file into a bytes vector.
@@ -76,12 +80,29 @@ pub fn create_dir_all(path: &AbsPath) -> io::Result<()> {
 
 /// Removes an empty directory.
 pub fn remove_dir(path: &AbsPath) -> io::Result<()> {
-    crate::root::remove_dir(path)
+    let node = fops::lookup(path)?;
+    let attr = node.get_attr()?;
+    if !attr.is_dir() {
+        return ax_err!(NotADirectory);
+    }
+    if !attr.perm().owner_writable() {
+        return ax_err!(PermissionDenied);
+    }
+    // TODO: check empty
+    fops::remove_dir(path)
 }
 
 /// Removes a file from the filesystem.
 pub fn remove_file(path: &AbsPath) -> io::Result<()> {
-    crate::root::remove_file(path)
+    let node = fops::lookup(path)?;
+    let attr = node.get_attr()?;
+    if !attr.is_dir() {
+        return ax_err!(NotADirectory);
+    }
+    if !attr.perm().owner_writable() {
+        return ax_err!(PermissionDenied);
+    }
+    fops::remove_file(path)
 }
 
 /// Rename a file or directory to a new name.
@@ -89,5 +110,10 @@ pub fn remove_file(path: &AbsPath) -> io::Result<()> {
 ///
 /// This only works then the new path is in the same mounted fs.
 pub fn rename(old: &AbsPath, new: &AbsPath) -> io::Result<()> {
-    crate::root::rename(old, new)
+    let old_node = fops::lookup(old)?;
+    match fops::lookup(new) {
+        Ok(node) => return ax_err!(AlreadyExists),
+        Err(VfsError::NotFound) => fops::rename(old, new),
+        Err(e) => return ax_err!(e),
+    }
 }

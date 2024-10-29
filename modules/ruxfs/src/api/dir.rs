@@ -8,11 +8,12 @@
  */
 
 use alloc::string::String;
-use axfs_vfs::path::AbsPath;
+use axerrno::ax_err;
+use axfs_vfs::{path::AbsPath, VfsError};
 use axio::Result;
 use core::fmt;
 
-use super::FileType;
+use super::{FileType, OpenOptions};
 use crate::fops;
 
 /// Iterator over the entries in a directory.
@@ -40,9 +41,9 @@ pub struct DirBuilder {
 
 impl<'a> ReadDir<'a> {
     pub(super) fn new(path: &'a AbsPath<'a>) -> Result<Self> {
-        let mut opts = fops::OpenOptions::new();
+        let mut opts = OpenOptions::new();
         opts.read(true);
-        let inner = crate::root::open_dir(path, &opts)?;
+        let inner = fops::open_dir(path, (&opts).into())?;
         const EMPTY: fops::DirEntry = fops::DirEntry::default();
         let dirent_buf = [EMPTY; 31];
         Ok(ReadDir {
@@ -147,13 +148,23 @@ impl DirBuilder {
         if self.recursive {
             self.create_dir_all(path)
         } else {
-            crate::root::create_dir(path)
+            match fops::lookup(path) {
+                Ok(_) => return ax_err!(AlreadyExists),
+                Err(VfsError::NotFound) => {}
+                Err(e) => return ax_err!(e),
+            }
+            fops::create_dir(path)
         }
     }
 
     /// Recursively create a directory and all of its parent components if they
     /// are missing.
     pub fn create_dir_all(&self, path: &AbsPath) -> Result<()> {
-        crate::root::create_dir_all(path)
+        match fops::lookup(path) {
+            Ok(_) => return ax_err!(AlreadyExists),
+            Err(VfsError::NotFound) => {}
+            Err(e) => return ax_err!(e),
+        }
+        fops::create_dir_all(path)
     }
 }
