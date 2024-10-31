@@ -7,22 +7,21 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use alloc::{borrow::Cow, string::String, sync::Arc};
+use alloc::{sync::Arc, string::ToString};
 use core::ffi::{c_char, c_int, c_long, c_void, CStr};
 
 use axerrno::{LinuxError, LinuxResult};
 use axio::{Error, PollState, SeekFrom};
 use axsync::Mutex;
+use capability::Cap;
 use ruxfdtable::{FileLike, RuxStat};
 use ruxfs::{
-    api::{current_dir, set_current_dir},
-    fops::{DirEntry, OpenOptions},
+    fops::{self, DirEntry},
     AbsPath, RelPath,
 };
 
 use super::fd_ops::get_file_like;
 use crate::ctypes;
-use alloc::vec::Vec;
 
 pub struct File {
     pub(crate) inner: Mutex<ruxfs::fops::File>,
@@ -172,31 +171,13 @@ impl FileLike for Directory {
     }
 }
 
-/// Convert open flags to [`OpenOptions`].
-fn flags_to_options(flags: c_int, _mode: ctypes::mode_t) -> OpenOptions {
-    let flags = flags as u32;
-    let mut options = OpenOptions::new();
+/// Convert open flags to [`Cap`].
+fn flags_to_cap(flags: u32) -> Cap {
     match flags & 0b11 {
-        ctypes::O_RDONLY => options.read(true),
-        ctypes::O_WRONLY => options.write(true),
-        _ => {
-            options.read(true);
-            options.write(true)
-        }
-    };
-    if flags & ctypes::O_APPEND != 0 {
-        options.append(true);
+        ctypes::O_RDONLY => Cap::READ,
+        ctypes::O_WRONLY => Cap::WRITE,
+        _ => Cap::READ | Cap::WRITE,
     }
-    if flags & ctypes::O_TRUNC != 0 {
-        options.truncate(true);
-    }
-    if flags & ctypes::O_CREAT != 0 {
-        options.create(true);
-    }
-    if flags & ctypes::O_EXEC != 0 {
-        options.create_new(true);
-    }
-    options
 }
 
 /// Open a file by `filename` and insert it into the file descriptor table.
@@ -204,88 +185,123 @@ fn flags_to_options(flags: c_int, _mode: ctypes::mode_t) -> OpenOptions {
 /// Return its index in the file table (`fd`). Return `EMFILE` if it already
 /// has the maximum number of files open.
 pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> c_int {
-    let filename = char_ptr_to_path(filename);
+    let path = char_ptr_to_path(filename);
+    let flags = flags as u32;
     debug!("sys_open <= {:?} {:#o} {:#o}", filename, flags, mode);
+
     syscall_body!(sys_open, {
-        let options = flags_to_options(flags, mode);
-        let file = ruxfs::root::open_file(&filename?.absolute(), &options)?;
+        let path = path?;
+        // Check flag and attr
+        let node = match fops::lookup(&path.to_abs()) {
+            Ok(node) => {
+                if flags & ctypes::O_EXCL != 0 {
+                    return Err(LinuxError::EEXIST);
+                }
+                node
+            }
+            Err(Error::NotFound) => {
+                if !(flags & ctypes::O_CREAT != 0) {
+                    return Err(LinuxError::ENOENT);
+                }
+                fops::create_file(&path.to_abs())?;
+                fops::lookup(&path.to_abs())?
+            }
+            Err(e) => return Err(e.into()),
+        };
+        if node.get_attr()?.is_dir() {
+            return Err(LinuxError::EISDIR);
+        }
+        // Truncate
+        if flags & ctypes::O_TRUNC != 0 {
+            node.truncate(0)?;
+        }
+        // Open
+        let append = flags & ctypes::O_APPEND != 0;
+        let file = fops::open_file(node, flags_to_cap(flags), append)?;
         File::new(file).add_to_fd_table()
     })
 }
 
 /// Open a file under a specific dir
-pub fn sys_openat(fd: usize, path: *const c_char, flags: c_int, mode: ctypes::mode_t) -> c_int {
+pub fn sys_openat(fd: c_int, path: *const c_char, flags: c_int, mode: ctypes::mode_t) -> c_int {
     let path = char_ptr_to_path(path);
-    let fd: c_int = fd as c_int;
+    let flags = flags as u32;
+    let cap = flags_to_cap(flags);
     debug!(
         "sys_openat <= {}, {:?}, {:#o}, {:#o}",
         fd, path, flags, mode
     );
+
     syscall_body!(sys_openat, {
         let path = path?;
-        let options = flags_to_options(flags, mode);
-        let dflag = flags as u32 & ctypes::O_DIRECTORY != 0;
-        let cflag = flags as u32 & ctypes::O_CREAT != 0;
-
-        let attr = match &path {
-            Path::Absolute(path) => {
-                ruxfs::root::get_attr(&path)
-            }
-            Path::Relative(path) => {
-                if fd == ctypes::AT_FDCWD {
-                    ruxfs::root::get_attr(&current_dir()?.join(&path))
-                } else {
-                    let dir = Directory::from_fd(fd)?;
-                    let attr = dir.inner.lock().get_child_attr_at(&path);
-                    attr
-                }
-            }
+        let absolute = matches!(path, Path::Absolute(_)) || fd == ctypes::AT_FDCWD;
+        // Get child node
+        let lookup_res = if absolute {
+            fops::lookup(&path.to_abs())
+        } else {
+            let dir = Directory::from_fd(fd)?;
+            let node = dir.inner.lock().lookup(&path.to_rel());
+            node
         };
-        // Check child attributes first
-        let is_dir = match attr {
-            Ok(inner) => {
-                if !inner.is_dir() && dflag {
+        // Check node attributes and handle not found
+        let node = match lookup_res {
+            Ok(node) => {
+                let attr = node.get_attr()?;
+                // Node exists but O_EXCL is set
+                if flags & ctypes::O_EXCL != 0 {
+                    return Err(LinuxError::EEXIST);
+                }
+                // Node is not a directory but O_DIRECTORY is set
+                if !attr.is_dir() && (flags & ctypes::O_DIRECTORY != 0) {
                     return Err(LinuxError::ENOTDIR);
                 }
-                inner.is_dir()
+                // Truncate
+                if attr.is_file() && (flags & ctypes::O_TRUNC != 0) {
+                    node.truncate(0)?;
+                }
+                node
             }
             Err(Error::NotFound) => {
-                if !cflag {
+                // O_CREAT is not set or O_DIRECTORY is set
+                if (flags & ctypes::O_DIRECTORY != 0) || (flags & ctypes::O_CREAT == 0) {
                     return Err(LinuxError::ENOENT);
                 }
-                dflag
+                // Create file
+                if absolute {
+                    let path = path.to_abs();
+                    fops::create_file(&path)?;
+                    fops::lookup(&path)?
+                } else {
+                    let path = path.to_rel();
+                    let dir = Directory::from_fd(fd)?;
+                    dir.inner.lock().create_file(&path)?;
+                    let node = dir.inner.lock().lookup(&path)?;
+                    node
+                }
             }
             Err(e) => return Err(e.into()),
         };
         // Open file or directory
-        match path {
-            Path::Absolute(path) => {
-                if is_dir {
-                    let dir =  ruxfs::root::open_dir(&path, &options)?;
-                    Directory::new(dir).add_to_fd_table()
-                } else {
-                    let file = ruxfs::root::open_file(&path, &options)?;
-                    File::new(file).add_to_fd_table()
-                }
+        let append = flags & ctypes::O_APPEND != 0;
+        match (absolute, node.get_attr()?.is_dir()) {
+            (true, true) => {
+                let dir = fops::open_dir(node, cap)?;
+                Directory::new(dir).add_to_fd_table()
             }
-            Path::Relative(ref path) => {
-                if fd == ctypes::AT_FDCWD {
-                    if is_dir {
-                        let dir = ruxfs::root::open_dir(&current_dir()?.join(&path), &options)?;
-                        Directory::new(dir).add_to_fd_table()
-                    } else {
-                        let file = ruxfs::root::open_file(&current_dir()?.join(&path), &options)?;
-                        File::new(file).add_to_fd_table()
-                    }
-                } else {
-                    if is_dir {
-                        let dir = Directory::from_fd(fd)?.inner.lock().open_dir_at(&path, &options)?;
-                        Directory::new(dir).add_to_fd_table()
-                    } else {
-                        let file = Directory::from_fd(fd)?.inner.lock().open_file_at(&path, &options)?;
-                        File::new(file).add_to_fd_table()
-                    }
-                }
+            (true, false) => {
+                let file = fops::open_file(node, cap, append)?;
+                File::new(file).add_to_fd_table()
+            }
+            (false, true) => {
+                let dir = Directory::from_fd(fd)?.inner.lock().open_dir(node, cap)?;
+                Directory::new(dir).add_to_fd_table()
+            }
+            (false, false) => {
+                let file = Directory::from_fd(fd)?
+                    .inner
+                    .lock()
+                    .open_file(node, cap, append)?;
+                File::new(file).add_to_fd_table()
             }
         }
     })
@@ -374,10 +390,15 @@ pub unsafe fn sys_stat(path: *const c_char, buf: *mut core::ffi::c_void) -> c_in
         if buf.is_null() {
             return Err(LinuxError::EFAULT);
         }
-        let mut options = OpenOptions::new();
-        options.read(true);
-        let file = ruxfs::root::open_file(&path?.absolute(), &options)?;
-        let st: ctypes::stat = File::new(file).stat()?.into();
+        let node = fops::lookup(&path?.to_abs())?;
+        let attr = node.get_attr()?;
+        let st = if attr.is_dir() {
+            let dir = fops::open_dir(node, Cap::READ)?;
+            Directory::new(dir).stat()?.into()
+        } else {
+            let file = fops::open_file(node, Cap::READ, false)?;
+            File::new(file).stat()?.into()
+        };
 
         #[cfg(not(feature = "musl"))]
         {
@@ -462,7 +483,7 @@ pub unsafe fn sys_lstat(path: *const c_char, buf: *mut ctypes::stat) -> ctypes::
 
 /// `newfstatat` used by A64
 pub unsafe fn sys_newfstatat(
-    _fd: c_int,
+    fd: c_int,
     path: *const c_char,
     kst: *mut ctypes::kstat,
     flag: c_int,
@@ -470,16 +491,27 @@ pub unsafe fn sys_newfstatat(
     let path = char_ptr_to_path(path);
     debug!(
         "sys_newfstatat <= fd: {}, path: {:?}, flag: {:x}",
-        _fd, path, flag
+        fd, path, flag
     );
     syscall_body!(sys_newfstatat, {
+        let path = path?;
         if kst.is_null() {
             return Err(LinuxError::EFAULT);
         }
-        let mut options = OpenOptions::new();
-        options.read(true);
-        let file = ruxfs::root::open_file(&path?.absolute(), &options)?;
-        let st = File::new(file).stat()?;
+        let absolute = matches!(path, Path::Absolute(_)) || fd == ctypes::AT_FDCWD;
+        let node = if absolute {
+            fops::lookup(&path.to_abs())?
+        } else {
+            Directory::from_fd(fd)?
+                .inner
+                .lock()
+                .lookup(&path.to_rel())?
+        };
+        let st = if node.get_attr()?.is_dir() {
+            Directory::new(fops::open_dir(node, Cap::READ)?).stat()?
+        } else {
+            File::new(fops::open_file(node, Cap::READ, false)?).stat()?
+        };
         unsafe {
             (*kst).st_dev = st.st_dev;
             (*kst).st_ino = st.st_ino;
@@ -503,7 +535,7 @@ pub fn sys_getcwd(buf: *mut c_char, size: usize) -> c_int {
             return Err(LinuxError::EINVAL);
         }
         let dst = unsafe { core::slice::from_raw_parts_mut(buf as *mut u8, size as _) };
-        let cwd = ruxfs::api::current_dir()?;
+        let cwd = fops::current_dir();
         let cwd = cwd.as_bytes();
         if cwd.len() < size {
             dst[..cwd.len()].copy_from_slice(cwd);
@@ -524,7 +556,19 @@ pub fn sys_rename(old: *const c_char, new: *const c_char) -> c_int {
         let old_path = char_ptr_to_path(old)?;
         let new_path = char_ptr_to_path(new)?;
         debug!("sys_rename <= old: {:?}, new: {:?}", old_path, new_path);
-        ruxfs::api::rename(&old_path.absolute(), &new_path.absolute())?;
+        if old_path == new_path {
+            return Ok(0);
+        }
+        match fops::lookup(&old_path.to_abs()) {
+            Ok(_) => {}
+            Err(e) => return Err(e.into()),
+        }
+        match fops::lookup(&new_path.to_abs()) {
+            Ok(_) => return Err(LinuxError::EEXIST),
+            Err(Error::NotFound) => {}
+            Err(e) => return Err(e.into()),
+        }
+        fops::rename(&old_path.to_abs(), &new_path.to_abs())?;
         Ok(0)
     })
 }
@@ -542,7 +586,7 @@ pub fn sys_renameat(oldfd: c_int, old: *const c_char, newfd: c_int, new: *const 
     assert_eq!(oldfd, ctypes::AT_FDCWD as c_int);
     assert_eq!(newfd, ctypes::AT_FDCWD as c_int);
     syscall_body!(sys_renameat, {
-        ruxfs::api::rename(&old_path?.absolute(), &new_path?.absolute())?;
+        fops::rename(&old_path?.to_abs(), &new_path?.to_abs())?;
         Ok(0)
     })
 }
@@ -552,7 +596,7 @@ pub fn sys_rmdir(pathname: *const c_char) -> c_int {
     syscall_body!(sys_rmdir, {
         let path = char_ptr_to_path(pathname)?;
         debug!("sys_rmdir <= path: {:?}", path);
-        ruxfs::api::remove_dir(&path.absolute())?;
+        fops::remove_dir(&path.to_abs())?;
         Ok(0)
     })
 }
@@ -562,7 +606,7 @@ pub fn sys_unlink(pathname: *const c_char) -> c_int {
     syscall_body!(sys_unlink, {
         let path = char_ptr_to_path(pathname)?;
         debug!("sys_unlink <= path: {:?}", path);
-        ruxfs::api::remove_file(&path.absolute())?;
+        fops::remove_file(&path.to_abs())?;
         Ok(0)
     })
 }
@@ -587,13 +631,11 @@ pub fn sys_mkdir(pathname: *const c_char, mode: ctypes::mode_t) -> c_int {
     syscall_body!(sys_mkdir, {
         let path = char_ptr_to_path(pathname)?;
         debug!("sys_mkdir <= path: {:?}, mode: {:?}", path, mode);
-        match path {
-            Path::Absolute(p) => {
-                ruxfs::api::create_dir(&p)?
-            }
-            Path::Relative(p) => {
-                ruxfs::api::create_dir(&current_dir()?.join(&p))?
-            }
+        let node = fops::lookup(&path.to_abs());
+        match node {
+            Ok(_) => return Err(LinuxError::EEXIST),
+            Err(Error::NotFound) => fops::create_dir(&path.to_abs())?,
+            Err(e) => return Err(e.into()),
         }
         Ok(0)
     })
@@ -652,19 +694,6 @@ pub fn sys_readlinkat(
 type LinuxDirent64 = ctypes::dirent;
 /// `d_ino` + `d_off` + `d_reclen` + `d_type`
 const DIRENT64_FIXED_SIZE: usize = 19;
-
-fn convert_name_to_array(name: &[u8]) -> [i8; 256] {
-    let mut array = [0i8; 256];
-    let len = name.len();
-    let name_ptr = name.as_ptr() as *const i8;
-    let array_ptr = array.as_mut_ptr();
-
-    unsafe {
-        core::ptr::copy_nonoverlapping(name_ptr, array_ptr, len);
-    }
-
-    array
-}
 
 /// Read directory entries from a directory file descriptor.
 ///
@@ -777,33 +806,42 @@ pub fn sys_faccessat(dirfd: c_int, pathname: *const c_char, mode: c_int, flags: 
 
 /// changes the current working directory to the directory specified in path.
 pub fn sys_chdir(path: *const c_char) -> c_int {
-    let p = char_ptr_to_path(path).unwrap();
-    debug!("sys_chdir <= path: {}", p);
+    let path = char_ptr_to_path(path);
+    debug!("sys_chdir <= path: {:?}", path);
     syscall_body!(sys_chdir, {
-        match p {
-            Path::Absolute(p) => set_current_dir(p)?,
-            Path::Relative(p) => set_current_dir(current_dir()?.join(&p))?,
-        }
+        let path = path?;
+        fops::set_current_dir(AbsPath::new_owned(path.to_abs().to_string()))?;
         Ok(0)
     })
 }
 
 /// Generic path type.
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 enum Path<'a> {
     Absolute(AbsPath<'a>),
     Relative(RelPath<'a>),
 }
 
 impl<'a> Path<'a> {
-    /// Transforms the path into a `AbsPath`.
-    /// 
+    /// Translate the path into a `RelPath`.
+    ///
+    /// * If the path is already a relative path, it is returned as is.
+    /// * If the path is an absolute path, its root is stripped.
+    pub fn to_rel(&'a self) -> RelPath<'a> {
+        match self {
+            Path::Absolute(p) => p.to_rel(),
+            Path::Relative(p) => p.clone(),
+        }
+    }
+
+    /// Translate the path into a `AbsPath`.
+    ///
     /// * If the path is already an absolute path, it is returned as is.
     /// * If the path is a relative path, it is resolved against the current working directory.
-    pub fn absolute(self) -> AbsPath<'a> {
+    pub fn to_abs(&'a self) -> AbsPath<'a> {
         match self {
-            Path::Absolute(p) => p,
-            Path::Relative(p) => current_dir().unwrap().join(&p),
+            Path::Absolute(p) => p.clone(),
+            Path::Relative(p) => fops::current_dir().join(&p),
         }
     }
 }
@@ -818,14 +856,19 @@ impl core::fmt::Display for Path<'_> {
 }
 
 /// from char_ptr get path_str
-pub fn char_ptr_to_path<'a>(ptr: *const c_char) -> LinuxResult<Path<'a>> {
+pub fn char_ptr_to_path_str<'a>(ptr: *const c_char) -> LinuxResult<&'a str> {
     if ptr.is_null() {
         return Err(LinuxError::EFAULT);
     }
-    let path = unsafe {
+    unsafe {
         let cstr = CStr::from_ptr(ptr);
-        cstr.to_str().map_err(|_| LinuxError::EINVAL)?
-    };
+        cstr.to_str().map_err(|_| LinuxError::EINVAL)
+    }
+}
+
+/// from char_ptr get wrapped path type
+fn char_ptr_to_path<'a>(ptr: *const c_char) -> LinuxResult<Path<'a>> {
+    let path = char_ptr_to_path_str(ptr)?;
     if path.starts_with('/') {
         Ok(Path::Absolute(AbsPath::new_canonicalized(path)))
     } else {
