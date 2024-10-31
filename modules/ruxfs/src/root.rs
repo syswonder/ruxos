@@ -115,7 +115,7 @@ impl RootDirectory {
         if max_len == 0 {
             f(self.main_fs.clone(), path) // not matched any mount point
         } else {
-            f(self.mounts[idx].fs.clone(), &RelPath::new(&path[max_len..])) // matched at `idx`
+            f(self.mounts[idx].fs.clone(), &RelPath::new_trimmed(&path[max_len..])) // matched at `idx`
         }
     }
 }
