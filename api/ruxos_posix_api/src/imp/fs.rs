@@ -7,8 +7,8 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use alloc::{sync::Arc, string::ToString};
-use core::ffi::{c_char, c_int, c_long, c_void, CStr};
+use alloc::{string::ToString, sync::Arc};
+use core::{ffi::{c_char, c_int, c_long, c_void, CStr}, str};
 
 use axerrno::{LinuxError, LinuxResult};
 use axio::{Error, PollState, SeekFrom};
@@ -464,7 +464,29 @@ pub fn sys_rmdir(pathname: *const c_char) -> c_int {
     syscall_body!(sys_rmdir, {
         let path = char_ptr_to_path(pathname)?;
         debug!("sys_rmdir <= path: {:?}", path);
-        fops::remove_dir(&path.to_abs())?;
+        match fops::lookup(&path.to_abs()) {
+            Ok(node) => {
+                let attr = node.get_attr()?;
+                if !attr.is_dir() {
+                    return Err(LinuxError::ENOTDIR);
+                }
+                if !attr.perm().owner_writable() {
+                    return Err(LinuxError::EPERM);
+                }
+                let mut buf = [
+                    DirEntry::default(),
+                    DirEntry::default(),
+                    DirEntry::default(),
+                ];
+                if let Ok(n) = node.read_dir(0, &mut buf) {
+                    if n > 2 {
+                        return Err(LinuxError::ENOTEMPTY);
+                    }
+                }
+                fops::remove_dir(&path.to_abs())?;
+            }
+            Err(e) => return Err(e.into()),
+        }
         Ok(0)
     })
 }
@@ -474,7 +496,19 @@ pub fn sys_unlink(pathname: *const c_char) -> c_int {
     syscall_body!(sys_unlink, {
         let path = char_ptr_to_path(pathname)?;
         debug!("sys_unlink <= path: {:?}", path);
-        fops::remove_file(&path.to_abs())?;
+        match fops::lookup(&path.to_abs()) {
+            Ok(node) => {
+                let attr = node.get_attr()?;
+                if attr.is_dir() {
+                    return Err(LinuxError::EISDIR);
+                }
+                if !attr.perm().owner_writable() {
+                    return Err(LinuxError::EPERM);
+                }
+                fops::remove_file(&path.to_abs())?;
+            }
+            Err(e) => return Err(e.into()),
+        }
         Ok(0)
     })
 }
@@ -490,7 +524,36 @@ pub fn sys_unlinkat(fd: c_int, pathname: *const c_char, flags: c_int) -> c_int {
     if flags as u32 & ctypes::AT_REMOVEDIR != 0 {
         return sys_rmdir(pathname);
     }
-    sys_unlink(pathname)
+    syscall_body!(sys_unlinkat, {
+        let path = char_ptr_to_path(pathname)?;
+        let absolute = matches!(path, Path::Absolute(_)) || fd == ctypes::AT_FDCWD;
+        let node = if absolute {
+            fops::lookup(&path.to_abs())
+        } else {
+            Directory::from_fd(fd)?.inner.lock().lookup(&path.to_rel())
+        };
+        match node {
+            Ok(node) => {
+                let attr = node.get_attr()?;
+                if attr.is_dir() {
+                    return Err(LinuxError::EISDIR);
+                }
+                if !attr.perm().owner_writable() {
+                    return Err(LinuxError::EPERM);
+                }
+                if absolute {
+                    fops::remove_file(&path.to_abs())?;
+                } else {
+                    Directory::from_fd(fd)?
+                        .inner
+                        .lock()
+                        .remove(&path.to_rel())?;
+                }
+            }
+            Err(e) => return Err(e.into()),
+        }
+        Ok(0)
+    })
 }
 
 /// Creates a new, empty directory at the provided path.
@@ -510,8 +573,6 @@ pub fn sys_mkdir(pathname: *const c_char, mode: ctypes::mode_t) -> c_int {
 }
 
 /// attempts to create a directory named pathname under directory pointed by `fd`
-///
-/// TODO: currently fd is not used
 pub fn sys_mkdirat(fd: c_int, pathname: *const c_char, mode: ctypes::mode_t) -> c_int {
     debug!(
         "sys_mkdirat <= fd: {}, pathname: {:?}, mode: {:x?}",
@@ -519,7 +580,30 @@ pub fn sys_mkdirat(fd: c_int, pathname: *const c_char, mode: ctypes::mode_t) -> 
         char_ptr_to_path(pathname),
         mode
     );
-    sys_mkdir(pathname, mode)
+    syscall_body!(sys_mkdirat, {
+        let path = char_ptr_to_path(pathname)?;
+        let absolute = matches!(path, Path::Absolute(_)) || fd == ctypes::AT_FDCWD;
+        let node = if absolute {
+            fops::lookup(&path.to_abs())
+        } else {
+            Directory::from_fd(fd)?.inner.lock().lookup(&path.to_rel())
+        };
+        match node {
+            Ok(_) => return Err(LinuxError::EEXIST),
+            Err(Error::NotFound) => {
+                if absolute {
+                    fops::create_dir(&path.to_abs())?;
+                } else {
+                    Directory::from_fd(fd)?
+                        .inner
+                        .lock()
+                        .create_dir(&path.to_rel())?;
+                }
+            }
+            Err(e) => return Err(e.into()),
+        }
+        Ok(0)
+    })
 }
 
 /// Changes the ownership of the file referred to by the open file descriptor fd
@@ -586,8 +670,9 @@ pub unsafe fn sys_getdents64(fd: c_int, dirp: *mut LinuxDirent64, count: ctypes:
             let mut entry = [DirEntry::default()];
             let offset = dir.inner.lock().entry_idx();
             let n = dir.inner.lock().read_dir(&mut entry)?;
+            debug!("entry {:?}", str::from_utf8(entry[0].name_as_bytes()).unwrap());
             if n == 0 {
-                return Ok(0);
+                return Ok(written as isize);
             }
             let entry = &entry[0];
 
