@@ -75,7 +75,7 @@ impl<'a> AbsPath<'a> {
     }
 
     /// Simply wrap a string into a `AbsPath`.
-    pub fn new_owned(path: String) -> Self {
+    pub const fn new_owned(path: String) -> Self {
         Self(Cow::Owned(path))
     }
 
@@ -128,14 +128,19 @@ impl core::fmt::Display for AbsPath<'_> {
 pub struct RelPath<'a>(Cow<'a, str>);
 
 impl<'a> RelPath<'a> {
-    /// Wrap a string into a `RelPath`.
-    pub fn new(path: &'a str) -> Self {
+    /// Simply wrap a string into a `RelPath`.
+    pub const fn new(path: &'a str) -> Self {
         Self(Cow::Borrowed(path))
+    }
+
+    /// Wrap a string into a `RelPath` with possibly leading '/' trimmed.
+    pub fn new_trimmed(path: &'a str) -> Self {
+        Self(Cow::Borrowed(path.trim_start_matches('/')))
     }
 
     /// Parse and canonicalize a relative path from a string.
     pub fn new_canonicalized(path: &str) -> Self {
-        Self(Cow::Owned(canonicalize(path.trim_start_matches("/"))))
+        Self(Cow::Owned(canonicalize(path.trim_start_matches('/'))))
     }
 }
 

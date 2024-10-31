@@ -11,7 +11,7 @@
 
 use axerrno::{ax_err, ax_err_type, AxResult};
 use axfs_vfs::path::{AbsPath, RelPath};
-use axfs_vfs::{VfsNodeRef, VfsNodeType, VfsNodeOps};
+use axfs_vfs::{VfsError, VfsNodeOps, VfsNodeRef, VfsNodeType};
 use axio::SeekFrom;
 use capability::{Cap, WithCap};
 
@@ -135,7 +135,7 @@ impl File {
 impl Directory {
     /// Access the underlying `VfsNode`
     fn access_node(&self) -> AxResult<&VfsNodeRef> {
-        self.node.access(Cap::EXECUTE).or(ax_err!(PermissionDenied))
+        self.node.access(Cap::EXECUTE).map_err(|_| VfsError::PermissionDenied)
     }
 
     /// Creates an opened directory.
