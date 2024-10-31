@@ -110,9 +110,9 @@ pub fn remove_file(path: &AbsPath) -> io::Result<()> {
 ///
 /// This only works then the new path is in the same mounted fs.
 pub fn rename(old: &AbsPath, new: &AbsPath) -> io::Result<()> {
-    let old_node = fops::lookup(old)?;
+    fops::lookup(old)?;
     match fops::lookup(new) {
-        Ok(node) => return ax_err!(AlreadyExists),
+        Ok(_) => return ax_err!(AlreadyExists),
         Err(VfsError::NotFound) => fops::rename(old, new),
         Err(e) => return ax_err!(e),
     }

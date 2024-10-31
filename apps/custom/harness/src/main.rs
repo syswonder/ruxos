@@ -31,7 +31,7 @@ harness_command!(km_command::fs, Openat, {
     let mut path = get!(path).clone();
     path.push('\0').unwrap();
     sys_openat(
-        get!(dirfd) as usize,
+        get!(dirfd) as i32,
         path.as_ptr() as *const i8,
         get!(flags).bits() as i32,
         get!(mode).bits(),

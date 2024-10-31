@@ -1862,6 +1862,7 @@ dependencies = [
  "axsync",
  "bindgen 0.66.1",
  "bitflags 2.6.0",
+ "capability",
  "cfg-if",
  "crate_interface",
  "elf",

@@ -43,7 +43,8 @@ impl<'a> ReadDir<'a> {
     pub(super) fn new(path: &'a AbsPath<'a>) -> Result<Self> {
         let mut opts = OpenOptions::new();
         opts.read(true);
-        let inner = fops::open_dir(path, (&opts).into())?;
+        let node = fops::lookup(path)?;
+        let inner = fops::open_dir(node, (&opts).into())?;
         const EMPTY: fops::DirEntry = fops::DirEntry::default();
         let dirent_buf = [EMPTY; 31];
         Ok(ReadDir {

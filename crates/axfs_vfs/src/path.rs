@@ -69,9 +69,14 @@ pub fn canonicalize(path: &str) -> String {
 pub struct AbsPath<'a>(Cow<'a, str>);
 
 impl<'a> AbsPath<'a> {
-    /// Simply wrap a string into a `AbsPath`.
+    /// Simply wrap a str slice into a `AbsPath`.
     pub const fn new(path: &'a str) -> Self {
         Self(Cow::Borrowed(path))
+    }
+
+    /// Simply wrap a string into a `AbsPath`.
+    pub fn new_owned(path: String) -> Self {
+        Self(Cow::Owned(path))
     }
 
     /// Parse and canonicalize an absolute path from a string.
@@ -119,7 +124,7 @@ impl core::fmt::Display for AbsPath<'_> {
 /// - "a/b/c"
 ///
 /// Using `Cow` type to avoid unnecessary allocations.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RelPath<'a>(Cow<'a, str>);
 
 impl<'a> RelPath<'a> {

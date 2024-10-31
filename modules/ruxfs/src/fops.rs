@@ -240,14 +240,8 @@ impl Directory {
         node.get_attr()
     }
 
-    /// Opens a directory at the path relative to this directory. Returns a
-    /// [`Directory`] object.
-    ///
-    /// This function will not check if the path exists or is a directory,
-    /// check it with [`get_child_attr`] first.
-    pub fn open_dir(&self, path: &RelPath, cap: Cap) -> AxResult<Directory> {
-        debug!("open dir: {}", path);
-        let node = self.lookup(path)?;
+    /// Opens a node as a directory, with permission checked.
+    pub fn open_dir(&self, node: VfsNodeRef, cap: Cap) -> AxResult<Directory> {
         let attr = node.get_attr()?;
         if !perm_to_cap(attr.perm()).contains(cap) {
             return ax_err!(PermissionDenied);
@@ -256,14 +250,8 @@ impl Directory {
         Ok(Self::new(node, cap | Cap::EXECUTE))
     }
 
-    /// Opens a file at the path relative to this directory. Returns a [`File`]
-    /// object.
-    ///
-    /// This function will not check if the path exists or is a file, check it
-    /// with [`get_child_attr`] first.
-    pub fn open_file(&self, path: &RelPath, cap: Cap, append: bool) -> AxResult<File> {
-        debug!("open file: {}", path);
-        let node = self.lookup(path)?;
+    /// Opens a node as a file, with permission checked.
+    pub fn open_file(&self, node: VfsNodeRef, cap: Cap, append: bool) -> AxResult<File> {
         let attr = node.get_attr()?;
         if !perm_to_cap(attr.perm()).contains(cap) {
             return ax_err!(PermissionDenied);
@@ -343,13 +331,8 @@ pub fn get_attr(path: &AbsPath) -> AxResult<FileAttr> {
     node.get_attr()
 }
 
-/// Open a file given an absolute path.
-///
-/// This function will not check if the file exists or is a file.
-/// Call [`lookup`] to check if first.
-pub fn open_file(path: &AbsPath, cap: Cap, append: bool) -> AxResult<File> {
-    debug!("open file: {}", path);
-    let node = lookup(path)?;
+/// Open a node as a file, with permission checked.
+pub fn open_file(node: VfsNodeRef, cap: Cap, append: bool) -> AxResult<File> {
     let attr = node.get_attr()?;
     if !perm_to_cap(attr.perm()).contains(cap) {
         return ax_err!(PermissionDenied);
@@ -358,13 +341,8 @@ pub fn open_file(path: &AbsPath, cap: Cap, append: bool) -> AxResult<File> {
     Ok(File::new(node, cap, append))
 }
 
-/// Open a directory given an absolute path.
-///
-/// This function will not check if the path exists or is a directory,
-/// check it with [`get_attr`] first.
-pub fn open_dir(path: &AbsPath, cap: Cap) -> AxResult<Directory> {
-    debug!("open dir: {}", path);
-    let node = lookup(path)?;
+/// Open a node as a directory, with permission checked.
+pub fn open_dir(node: VfsNodeRef, cap: Cap) -> AxResult<Directory> {
     let attr = node.get_attr()?;
     if !perm_to_cap(attr.perm()).contains(cap) {
         return ax_err!(PermissionDenied);

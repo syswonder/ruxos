@@ -142,7 +142,7 @@ impl OpenOptions {
                 node
             }
             Err(VfsError::NotFound) => {
-                if !self.create {
+                if !self.create && !self.create_new {
                     return ax_err!(NotFound);
                 }
                 fops::create_file(&path)?;
@@ -158,7 +158,7 @@ impl OpenOptions {
             node.truncate(0)?;
         }
         // Open
-        fops::open_file(&path, self.into(), self.append).map(|inner| File { inner })
+        fops::open_file(node, self.into(), self.append).map(|inner| File { inner })
     }
 }
 
