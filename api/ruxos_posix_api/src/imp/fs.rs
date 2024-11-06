@@ -8,7 +8,10 @@
  */
 
 use alloc::{string::ToString, sync::Arc};
-use core::{ffi::{c_char, c_int, c_long, c_void, CStr}, str};
+use core::{
+    ffi::{c_char, c_int, c_long, c_void, CStr},
+    str,
+};
 
 use axerrno::{LinuxError, LinuxResult};
 use axio::{Error, PollState, SeekFrom};
@@ -195,6 +198,7 @@ pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> 
         let node = match fops::lookup(&path.to_abs()) {
             Ok(node) => {
                 if flags & ctypes::O_EXCL != 0 {
+                    debug!("exist {} {}", flags, ctypes::O_EXCL);
                     return Err(LinuxError::EEXIST);
                 }
                 node
@@ -249,6 +253,7 @@ pub fn sys_openat(fd: c_int, path: *const c_char, flags: c_int, mode: ctypes::mo
                 let attr = node.get_attr()?;
                 // Node exists but O_EXCL is set
                 if flags & ctypes::O_EXCL != 0 {
+                    debug!("exist {} {}", flags, ctypes::O_EXCL);
                     return Err(LinuxError::EEXIST);
                 }
                 // Node is not a directory but O_DIRECTORY is set
@@ -605,6 +610,8 @@ pub fn sys_rmdir(pathname: *const c_char) -> c_int {
                 if !attr.perm().owner_writable() {
                     return Err(LinuxError::EPERM);
                 }
+                // Directory has no check_empty() method, so
+                // we uses a brute force way to check it.
                 let mut buf = [
                     DirEntry::default(),
                     DirEntry::default(),
@@ -653,9 +660,7 @@ pub fn sys_unlinkat(fd: c_int, pathname: *const c_char, flags: c_int) -> c_int {
         char_ptr_to_path(pathname),
         flags
     );
-    if flags as u32 & ctypes::AT_REMOVEDIR != 0 {
-        return sys_rmdir(pathname);
-    }
+    let rmdir = flags as u32 & ctypes::AT_REMOVEDIR != 0;
     syscall_body!(sys_unlinkat, {
         let path = char_ptr_to_path(pathname)?;
         let absolute = matches!(path, Path::Absolute(_)) || fd == ctypes::AT_FDCWD;
@@ -667,19 +672,48 @@ pub fn sys_unlinkat(fd: c_int, pathname: *const c_char, flags: c_int) -> c_int {
         match node {
             Ok(node) => {
                 let attr = node.get_attr()?;
-                if attr.is_dir() {
-                    return Err(LinuxError::EISDIR);
-                }
-                if !attr.perm().owner_writable() {
-                    return Err(LinuxError::EPERM);
-                }
-                if absolute {
-                    fops::remove_file(&path.to_abs())?;
+                if rmdir {
+                    if !attr.is_dir() {
+                        return Err(LinuxError::ENOTDIR);
+                    }
+                    if !attr.perm().owner_writable() {
+                        return Err(LinuxError::EPERM);
+                    }
+                    // Directory has no check_empty() method, so
+                    // we uses a brute force way to check it.
+                    let mut buf = [
+                        DirEntry::default(),
+                        DirEntry::default(),
+                        DirEntry::default(),
+                    ];
+                    if let Ok(n) = node.read_dir(0, &mut buf) {
+                        if n > 2 {
+                            return Err(LinuxError::ENOTEMPTY);
+                        }
+                    }
+                    if absolute {
+                        fops::remove_dir(&path.to_abs())?;
+                    } else {
+                        Directory::from_fd(fd)?
+                            .inner
+                            .lock()
+                            .remove(&path.to_rel())?;
+                    }
                 } else {
-                    Directory::from_fd(fd)?
-                        .inner
-                        .lock()
-                        .remove(&path.to_rel())?;
+                    if attr.is_dir() {
+                        return Err(LinuxError::EISDIR);
+                    }
+                    if !attr.perm().owner_writable() {
+                        return Err(LinuxError::EPERM);
+                    }
+                    if absolute {
+                        fops::remove_file(&path.to_abs())?;
+                    } else {
+                        Directory::from_fd(fd)?
+                            .inner
+                            .lock()
+                            .remove(&path.to_rel())?;
+                    }
                 }
             }
             Err(e) => return Err(e.into()),
@@ -802,7 +836,10 @@ pub unsafe fn sys_getdents64(fd: c_int, dirp: *mut LinuxDirent64, count: ctypes:
             let mut entry = [DirEntry::default()];
             let offset = dir.inner.lock().entry_idx();
             let n = dir.inner.lock().read_dir(&mut entry)?;
-            debug!("entry {:?}", str::from_utf8(entry[0].name_as_bytes()).unwrap());
+            debug!(
+                "entry {:?}",
+                str::from_utf8(entry[0].name_as_bytes()).unwrap()
+            );
             if n == 0 {
                 return Ok(written as isize);
             }
@@ -941,7 +978,7 @@ impl core::fmt::Display for Path<'_> {
 }
 
 /// from char_ptr get path_str
-pub fn char_ptr_to_path_str<'a>(ptr: *const c_char) -> LinuxResult<&'a str> {
+fn char_ptr_to_path_str<'a>(ptr: *const c_char) -> LinuxResult<&'a str> {
     if ptr.is_null() {
         return Err(LinuxError::EFAULT);
     }
