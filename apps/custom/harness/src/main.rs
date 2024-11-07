@@ -129,6 +129,13 @@ fn main() {
     println!("CMD_BUF at {:p}", unsafe { CMD_BUF.as_ptr() });
     println!("RETV_BUF at {:p}", unsafe { RETV_BUF.as_ptr() });
     println!("OUTPUT_BUF at {:p}", unsafe { OUTPUT_BUF.as_ptr() });
+    
+    // Make test directory.
+    let test_dir = b"test\0" as *const _ as *const i8;
+    sys_mkdirat(-100, test_dir, 0o755);
+    // Chdir to test directory.
+    sys_chdir(test_dir);
+
     let mut harness = Harness::<MemPort, FsSyscallExecutor, HARNESS_BUF_SIZE>::new(
         unsafe { MemPort::new(&CMD_BUF, &mut RETV_BUF, &mut OUTPUT_BUF) },
         FsSyscallExecutor,

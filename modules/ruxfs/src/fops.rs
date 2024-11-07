@@ -339,9 +339,9 @@ pub fn set_current_dir(path: AbsPath<'static>) -> AxResult {
     let node = lookup(&path)?;
     let attr = node.get_attr()?;
     if !attr.is_dir() {
-        ax_err!(NotADirectory)
+        Err(VfsError::NotADirectory)
     } else if !attr.perm().owner_executable() {
-        ax_err!(PermissionDenied)
+        Err(VfsError::PermissionDenied)
     } else {
         *CURRENT_DIR.lock() = node;
         *CURRENT_DIR_PATH.lock() = path;
