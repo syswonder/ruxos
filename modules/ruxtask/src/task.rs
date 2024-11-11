@@ -163,6 +163,11 @@ impl TaskInner {
         None
     }
 
+    /// Get pointer for process task
+    pub fn exit_code(&self) -> i32 {
+        self.exit_code.load(Ordering::Acquire)
+    }
+
     /// Get process task
     pub fn process_task(&self) -> Arc<AxTask> {
         if let Some(process_task) = self.process_task.upgrade() {
@@ -581,16 +586,19 @@ impl TaskInner {
     }
 
     pub fn new_idle(name: String) -> AxTaskRef {
+        const IDLE_STACK_SIZE: usize = 4096;
         let bindings = PROCESS_MAP.lock();
         let (&_parent_id, &ref task_ref) = bindings.first_key_value().unwrap();
-        let t = Self {
+        let idle_kstack = TaskStack::alloc(align_up_4k(IDLE_STACK_SIZE));
+
+        let mut t = Self {
             parent_process: Some(Arc::downgrade(task_ref)),
             process_task: task_ref.process_task.clone(),
             id: TaskId::new(),
             name,
             is_idle: true,
             is_init: false,
-            entry: None,
+            entry: Some(Box::into_raw(Box::new(|| crate::run_idle()))),
             state: AtomicU8::new(TaskState::Ready as u8),
             in_wait_queue: AtomicBool::new(false),
             #[cfg(feature = "irq")]
@@ -617,7 +625,21 @@ impl TaskInner {
             mm: task_ref.mm.clone(),
         };
 
-        Arc::new(AxTask::new(t))
+        #[cfg(feature = "tls")]
+        let tls = VirtAddr::from(t.tls.tls_ptr() as usize);
+        #[cfg(not(feature = "tls"))]
+        let tls = VirtAddr::from(0);
+        
+        debug!("new idle task: {}", t.id_name());
+        t.ctx.get_mut().init(
+            task_entry as usize,
+            idle_kstack.top(),
+            tls,
+        );
+        
+        let task_ref = Arc::new(AxTask::new(t));
+
+        task_ref
     }
 
     /// Get task state
@@ -771,12 +793,6 @@ impl fmt::Debug for TaskInner {
     }
 }
 
-impl Drop for TaskInner {
-    fn drop(&mut self) {
-        error!("task drop: {}", self.id_name());
-    }
-}
-
 #[derive(Debug)]
 pub struct TaskStack {
     ptr: NonNull<u8>,
@@ -786,7 +802,6 @@ pub struct TaskStack {
 impl TaskStack {
     pub fn alloc(size: usize) -> Self {
         let layout = Layout::from_size_align(size, 8).unwrap();
-        debug!("taskStack::layout = {:?}", layout);
         Self {
             ptr: NonNull::new(unsafe { alloc::alloc::alloc(layout) }).unwrap(),
             layout,

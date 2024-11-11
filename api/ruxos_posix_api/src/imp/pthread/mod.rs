@@ -226,6 +226,18 @@ pub fn sys_pthread_exit(retval: *mut c_void) -> ! {
     Pthread::exit_current(retval);
 }
 
+/// Exits the current thread. The value `retval` will be returned to the joiner.
+pub fn sys_exit_group(status: c_int) -> ! {
+    error!("sys_exit_group <= {:#?}", status);
+
+    // TODO: exit all threads, send signal to all threads
+
+    #[cfg(feature = "multitask")]
+    ruxtask::exit(status);
+    #[cfg(not(feature = "multitask"))]
+    ruxhal::misc::terminate();
+}
+
 /// Waits for the given thread to exit, and stores the return value in `retval`.
 pub unsafe fn sys_pthread_join(thread: ctypes::pthread_t, retval: *mut *mut c_void) -> c_int {
     debug!("sys_pthread_join <= {:#x}", retval as usize);

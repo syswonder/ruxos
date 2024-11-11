@@ -73,6 +73,7 @@ pub enum SyscallId {
     FDATASYNC = 83,
     CAP_GET = 90,
     EXIT = 93,
+    EXIT_GROUP = 94,
     #[cfg(feature = "multitask")]
     SET_TID_ADDRESS = 96,
     #[cfg(feature = "multitask")]
