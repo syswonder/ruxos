@@ -18,6 +18,9 @@ procfs = ["dep:axfs_ramfs"]
 sysfs = ["dep:axfs_ramfs"]
 etcfs = ["dep:axfs_ramfs"]
 fatfs = ["dep:fatfs"]
+lwext4_rust = ["dep:lwext4_rust"]
+ext4_rs = ["dep:ext4_rs"]
+another_ext4 = ["dep:another_ext4"]
 # myfs = ["dep:crate_interface"]
 myfs = []
 use-ramdisk = []
@@ -43,6 +46,11 @@ memory_addr = "0.1.0"
 
 ruxdriver = { path = "../ruxdriver", features = ["block"] }
 axalloc = { path = "../axalloc", optional = true }
+memory_addr = "0.1.0"
+lwext4_rust = { path = "../../crates/lwext4_rust", optional = true }
+ext4_rs = { git = "https://github.com/yuoo655/ext4_rs.git", rev= "6bcc7f5", optional = true }
+another_ext4 = { git = "https://github.com/LJxTHUCS/another_ext4.git", optional = true }
+
 [dependencies.fatfs]
 git = "https://github.com/syswonder/rust-fatfs.git"
 rev = "bf8ad02"
