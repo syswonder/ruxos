@@ -16,6 +16,7 @@ members = [
     "crates/driver_block",
     "crates/driver_common",
     "crates/driver_display",
+    "crates/driver_console",
     "crates/driver_net",
     "crates/driver_pci",
     "crates/driver_virtio",

@@ -51,6 +51,7 @@ FEATURES ?=
 APP_FEATURES ?=
 
 # QEMU options
+CONSOLE ?= n
 BLK ?= n
 NET ?= n
 GRAPHIC ?= n

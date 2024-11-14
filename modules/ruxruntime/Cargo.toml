@@ -22,6 +22,7 @@ tls = ["ruxhal/tls", "ruxtask?/tls"]
 alloc = ["axalloc", "dtb"]
 paging = ["ruxhal/paging", "lazy_init"]
 rtc = ["ruxhal/rtc"]
+virtio_console = []
 
 multitask = ["ruxtask/multitask", "dep:ruxfutex", "rand"]
 rand = ["dep:ruxrand"]
