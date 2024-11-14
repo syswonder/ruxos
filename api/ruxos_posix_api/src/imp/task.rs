@@ -54,7 +54,7 @@ pub fn sys_getppid() -> c_int {
 
 /// Wait for a child process to exit and return its status.
 ///
-/// TOSO, wstatus, options, and rusage are not implemented yet.
+/// TODO: part of options, and rusage are not implemented yet.
 pub fn sys_wait4(
     pid: c_int,
     wstatus: *mut c_int,
@@ -104,7 +104,6 @@ pub fn sys_wait4(
                 if parent_pid == ruxtask::current().id().as_u64() {
                     if task.state() == ruxtask::task::TaskState::Exited {
                         // add to to_remove list
-                        let task_ref = process_map.get(child_pid).unwrap();
                         unsafe {
                             // lower 8 bits of exit_code is the signal number, while upper 8 bits of exit_code is the exit status
                             // according to "bits/waitstatus.h" in glibc source code.
