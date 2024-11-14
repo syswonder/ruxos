@@ -69,6 +69,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4b46cbb362ab8752921c97e041f5e366ee6297bd428a31275b9fcf1e380f7299"
 
 [[package]]
+name = "another_ext4"
+version = "0.1.0"
+source = "git+https://github.com/LJxTHUCS/another_ext4.git#282418b4b197472acaae60469b608499ef1161d2"
+dependencies = [
+ "bitflags 2.6.0",
+ "log",
+]
+
+[[package]]
 name = "anstyle"
 version = "1.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -778,6 +787,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "ext4_rs"
+version = "1.0.0"
+source = "git+https://github.com/yuoo655/ext4_rs.git?rev=6bcc7f5#6bcc7f5d6382ba1940f29f9a15869f35fe77b5c0"
+dependencies = [
+ "bitflags 2.6.0",
+ "log",
+]
+
+[[package]]
 name = "fallible-iterator"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1124,6 +1142,14 @@ name = "log"
 version = "0.4.22"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a7a70ba024b9dc04c27ea2f0c0548feb474ec5c54bba33a7f72f873a39d07b24"
+
+[[package]]
+name = "lwext4_rust"
+version = "0.2.0"
+dependencies = [
+ "log",
+ "printf-compat",
+]
 
 [[package]]
 name = "lwip_rust"
@@ -1666,6 +1692,7 @@ dependencies = [
 name = "ruxfs"
 version = "0.1.0"
 dependencies = [
+ "another_ext4",
  "axalloc",
  "axerrno",
  "axfs_devfs",
@@ -1677,9 +1704,11 @@ dependencies = [
  "cfg-if",
  "crate_interface",
  "driver_block",
+ "ext4_rs",
  "fatfs",
  "lazy_init",
  "log",
+ "lwext4_rust",
  "memory_addr",
  "ruxdriver",
  "ruxtask",

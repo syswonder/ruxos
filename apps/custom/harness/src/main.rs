@@ -1,14 +1,13 @@
 #![no_std]
 #![no_main]
 
-use axstd::println;
-use core::{clone::Clone, format_args, panic};
+use core::{clone::Clone, panic};
 use core::{ffi::c_void, mem::size_of};
 use km_command::{fs::LibcDirent, FromBytes};
 use km_harness::{executor, harness_command, Command, Harness, MemPort};
 use ruxos_posix_api::{
     ctypes::dirent, sys_chdir, sys_close, sys_dup, sys_fstat, sys_getcwd, sys_getdents64,
-    sys_mkdirat, sys_openat, sys_unlinkat,
+    sys_mkdirat, sys_openat, sys_unlinkat
 };
 
 /// Size of harness buffer.
@@ -126,9 +125,9 @@ executor!(
 
 #[no_mangle]
 fn main() {
-    println!("CMD_BUF at {:p}", unsafe { CMD_BUF.as_ptr() });
-    println!("RETV_BUF at {:p}", unsafe { RETV_BUF.as_ptr() });
-    println!("OUTPUT_BUF at {:p}", unsafe { OUTPUT_BUF.as_ptr() });
+    log::warn!("CMD_BUF at {:p}", unsafe { CMD_BUF.as_ptr() });
+    log::warn!("RETV_BUF at {:p}", unsafe { RETV_BUF.as_ptr() });
+    log::warn!("OUTPUT_BUF at {:p}", unsafe { OUTPUT_BUF.as_ptr() });
     
     // Make test directory.
     let test_dir = b"test\0" as *const _ as *const i8;

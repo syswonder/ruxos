@@ -50,6 +50,10 @@ fs = ["alloc", "dep:ruxfs", "ruxruntime/fs"]
 blkfs = ["ruxdriver/virtio-blk", "ruxruntime/blkfs"]
 myfs = ["ruxfs?/myfs"]
 9pfs = []
+fatfs = ["ruxfs?/fatfs"]
+lwext4_rust = ["ruxfs?/lwext4_rust"]
+ext4_rs = ["ruxfs?/ext4_rs"]
+another_ext4 = ["ruxfs?/another_ext4"]
 
 # Networking
 net = ["alloc", "ruxdriver/virtio-net", "dep:ruxnet", "ruxruntime/net"]
