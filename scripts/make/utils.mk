@@ -18,6 +18,13 @@ define make_disk_image_fat32
   @mkfs.fat -F 32 $(1)
 endef
 
+define make_disk_image_ext4
+  @printf "    $(GREEN_C)Creating$(END_C) EXT4 disk image \"$(1)\" ...\n"
+  @dd if=/dev/zero of=$(1) bs=1M count=1024
+  @mkfs.ext4 -b 4096 $(1)
+endef
+
 define make_disk_image
   $(if $(filter $(1),fat32), $(call make_disk_image_fat32,$(2)))
+  $(if $(filter $(1),ext4), $(call make_disk_image_ext4,$(2)))
 endef

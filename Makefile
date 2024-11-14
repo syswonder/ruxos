@@ -261,11 +261,18 @@ unittest:
 unittest_no_fail_fast:
 	$(call unit_test,--no-fail-fast)
 
-disk_img:
+fat_img:
 ifneq ($(wildcard $(DISK_IMG)),)
 	@printf "$(YELLOW_C)warning$(END_C): disk image \"$(DISK_IMG)\" already exists!\n"
 else
 	$(call make_disk_image,fat32,$(DISK_IMG))
+endif
+
+ext4_img:
+ifneq ($(wildcard $(DISK_IMG)),)
+	@printf "$(YELLOW_C)warning$(END_C): disk image \"$(DISK_IMG)\" already exists!\n"
+else
+	$(call make_disk_image,ext4,$(DISK_IMG))
 endif
 
 clean: clean_c clean_musl
