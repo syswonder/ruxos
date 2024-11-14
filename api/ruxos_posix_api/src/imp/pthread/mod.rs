@@ -12,7 +12,7 @@ use core::cell::UnsafeCell;
 use core::ffi::{c_int, c_void};
 
 use axerrno::{LinuxError, LinuxResult};
-use ruxtask::AxTaskRef;
+use ruxtask::{current, AxTaskRef};
 use spin::RwLock;
 
 use crate::ctypes;
@@ -226,6 +226,21 @@ pub fn sys_pthread_exit(retval: *mut c_void) -> ! {
     Pthread::exit_current(retval);
 }
 
+/// Exits the current thread. The value `retval` will be returned to the joiner.
+pub fn sys_exit_group(status: c_int) -> ! {
+    debug!("sys_exit_group <= status: {:#?}", status);
+
+    // TODO: exit all threads, send signal to all threads
+    
+    //  drop all file opened by current task
+    current().fs.lock().as_mut().unwrap().close_all_files();
+
+    #[cfg(feature = "multitask")]
+    ruxtask::exit(status);
+    #[cfg(not(feature = "multitask"))]
+    ruxhal::misc::terminate();
+}
+
 /// Waits for the given thread to exit, and stores the return value in `retval`.
 pub unsafe fn sys_pthread_join(thread: ctypes::pthread_t, retval: *mut *mut c_void) -> c_int {
     debug!("sys_pthread_join <= {:#x}", retval as usize);
@@ -310,7 +325,7 @@ pub unsafe fn sys_clone(
                 TID_TO_PTHREAD.write().insert(tid, ForceSendSync(ptr));
                 0
             };
-            warn!("will sys_clone <= pid: {}", pid);
+            debug!("will sys_clone <= pid: {}", pid);
             return Ok(pid);
         } else {
             debug!("ONLY support CLONE_THREAD and SIGCHLD");

@@ -216,6 +216,16 @@ pub struct FileSystem {
     pub root_dir: Arc<RootDirectory>,
 }
 
+impl FileSystem {
+    pub fn close_all_files(&mut self) {
+        for fd in 0..self.fd_table.capacity() {
+            if let Some(_) = self.fd_table.get(fd) {
+                self.fd_table.remove(fd).unwrap();
+            }
+        }
+    }
+}
+
 impl Clone for FileSystem {
     fn clone(&self) -> Self {
         let mut new_fd_table = FlattenObjects::new();

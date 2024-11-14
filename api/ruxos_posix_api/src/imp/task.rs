@@ -54,7 +54,7 @@ pub fn sys_getppid() -> c_int {
 
 /// Wait for a child process to exit and return its status.
 ///
-/// TOSO, wstatus, options, and rusage are not implemented yet.
+/// TODO: part of options, and rusage are not implemented yet.
 pub fn sys_wait4(
     pid: c_int,
     wstatus: *mut c_int,
@@ -63,7 +63,7 @@ pub fn sys_wait4(
 ) -> c_int {
     const WNOHANG: c_int = 0x00000001;
 
-    error!(
+    debug!(
         "sys_wait4 <= pid: {}, wstatus: {:?}, options: {}, rusage: {:?}",
         pid, wstatus, options, rusage
     );
@@ -73,6 +73,12 @@ pub fn sys_wait4(
             let mut process_map = PROCESS_MAP.lock();
             if let Some(task) = process_map.get(&(pid as u64)) {
                 if task.state() == ruxtask::task::TaskState::Exited {
+                    unsafe {
+                        // lower 8 bits of exit_code is the signal number, while upper 8 bits of exit_code is the exit status
+                        // according to "bits/waitstatus.h" in glibc source code.
+                        // TODO: add signal number to wstatus
+                        wstatus.write(task.exit_code()<<8);
+                    }
                     process_map.remove(&(pid as u64));
                     return pid;
                 } else if options & WNOHANG != 0 {
@@ -98,6 +104,12 @@ pub fn sys_wait4(
                 if parent_pid == ruxtask::current().id().as_u64() {
                     if task.state() == ruxtask::task::TaskState::Exited {
                         // add to to_remove list
+                        unsafe {
+                            // lower 8 bits of exit_code is the signal number, while upper 8 bits of exit_code is the exit status
+                            // according to "bits/waitstatus.h" in glibc source code.
+                            // TODO: add signal number to wstatus
+                            wstatus.write(task.exit_code()<<8);
+                        }
                         let _ = to_remove.insert(*child_pid);
                         break;
                     }
@@ -108,6 +120,10 @@ pub fn sys_wait4(
             }
             // drop lock before yielding to other tasks
             drop(process_map);
+            // check if the condition is meet
+            if !to_remove.is_none() {
+                break;
+            }
             // for single-cpu system, we must yield to other tasks instead of dead-looping here.
             yield_now();
         }

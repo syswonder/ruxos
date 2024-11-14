@@ -132,18 +132,24 @@ where
 }
 
 pub fn fork_task() -> Option<AxTaskRef> {
-    let current_process = current();
-    let current_id = current_process.id().as_u64();
+    let current_id = current().id().as_u64();
     let children_process = TaskInner::fork();
 
     // Judge whether the parent process is blocked, if yes, add it to the blocking queue of the child process
     if current().id().as_u64() == current_id {
         RUN_QUEUE.lock().add_task(children_process.clone());
+        
         return Some(children_process);
     }
-
+    
+    unsafe {RUN_QUEUE.force_unlock(); }
+    
     // should not drop the children_process here, because it will be taken in the parent process
+    // and dropped in the parent process
     let _ = ManuallyDrop::new(children_process);
+
+    #[cfg(feature = "irq")]
+    ruxhal::arch::enable_irqs();
 
     return None;
 }

@@ -7,7 +7,7 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use alloc::sync::Arc;
+use alloc::sync::{Weak, Arc};
 use core::ffi::c_int;
 
 use axerrno::{LinuxError, LinuxResult};
@@ -87,6 +87,8 @@ impl PipeRingBuffer {
 pub struct Pipe {
     readable: bool,
     buffer: Arc<Mutex<PipeRingBuffer>>,
+    // to find the write end when the read end is closed
+    _write_end_closed: Option<Weak<Mutex<PipeRingBuffer>>>,
 }
 
 impl Pipe {
@@ -95,10 +97,12 @@ impl Pipe {
         let read_end = Pipe {
             readable: true,
             buffer: buffer.clone(),
+            _write_end_closed: None,
         };
         let write_end = Pipe {
             readable: false,
-            buffer,
+            buffer: buffer.clone(),
+            _write_end_closed: Some(Arc::downgrade(&buffer)),
         };
         (read_end, write_end)
     }
@@ -112,7 +116,9 @@ impl Pipe {
     }
 
     pub fn write_end_close(&self) -> bool {
-        Arc::strong_count(&self.buffer) == 1
+        let write_end_count = Arc::weak_count(&self.buffer);
+        // error!("Pipe::write_end_close <= buffer: {:#?} {:#?}", write_end_count, Arc::as_ptr(&self.buffer));
+        write_end_count == 0
     }
 }
 
