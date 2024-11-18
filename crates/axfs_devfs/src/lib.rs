@@ -29,7 +29,7 @@ pub use self::random::RandomDev;
 pub use self::zero::ZeroDev;
 
 use alloc::sync::Arc;
-use axfs_vfs::{path::AbsPath, VfsNodeRef, VfsOps, VfsResult};
+use axfs_vfs::{AbsPath, VfsNodeRef, VfsOps, VfsResult};
 use spin::once::Once;
 
 /// A device filesystem that implements [`axfs_vfs::VfsOps`].

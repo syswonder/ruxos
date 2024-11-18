@@ -9,7 +9,7 @@
 
 use std::sync::Arc;
 
-use axfs_vfs::{path::RelPath, VfsError, VfsNodeType, VfsResult};
+use axfs_vfs::{RelPath, VfsError, VfsNodeType, VfsResult};
 
 use crate::*;
 

@@ -25,7 +25,7 @@ pub use self::dir::DirNode;
 pub use self::file::FileNode;
 
 use alloc::sync::Arc;
-use axfs_vfs::{path::AbsPath, VfsNodeRef, VfsOps, VfsResult};
+use axfs_vfs::{AbsPath, VfsNodeRef, VfsOps, VfsResult};
 use spin::once::Once;
 
 /// A RAM filesystem that implements [`axfs_vfs::VfsOps`].
