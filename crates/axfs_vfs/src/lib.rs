@@ -48,14 +48,13 @@
 extern crate alloc;
 
 mod macros;
+mod path;
 mod structs;
-
-pub mod path;
 
 use alloc::sync::Arc;
 use axerrno::{ax_err, AxError, AxResult};
-use path::{AbsPath, RelPath};
 
+pub use self::path::{AbsPath, RelPath};
 pub use self::structs::{FileSystemInfo, VfsDirEntry, VfsNodeAttr, VfsNodePerm, VfsNodeType};
 
 /// A wrapper of [`Arc<dyn VfsNodeOps>`].
@@ -110,6 +109,19 @@ pub trait VfsNodeOps: Send + Sync {
         ax_err!(Unsupported)
     }
 
+    /// Set the attributes of the node.
+    ///
+    /// TODO: add time attributes
+    fn setattr(
+        &mut self,
+        _mode: Option<u32>,
+        _uid: Option<u32>,
+        _gid: Option<u32>,
+        _size: Option<u64>,
+    ) -> VfsResult {
+        ax_err!(Unsupported)
+    }
+
     // file operations:
 
     /// Read data from the file at the given offset.
@@ -155,18 +167,23 @@ pub trait VfsNodeOps: Send + Sync {
         ax_err!(Unsupported)
     }
 
-    /// Remove the node with the given `path` in the directory.
-    fn remove(&self, _path: &RelPath) -> VfsResult {
+    /// Create a new hard link to the src dentry
+    fn link(&self, _name: &RelPath, _src: Arc<dyn VfsNodeOps>) -> VfsResult<Arc<dyn VfsNodeOps>> {
+        ax_err!(Unsupported)
+    }
+
+    /// Remove (the hard link of) the node with the given `path` in the directory.
+    fn unlink(&self, _path: &RelPath) -> VfsResult {
+        ax_err!(Unsupported)
+    }
+
+    /// Rename the node `src_path` to `dst_path` in the directory.
+    fn rename(&self, _src_path: &RelPath, _dst_path: &RelPath) -> VfsResult<()> {
         ax_err!(Unsupported)
     }
 
     /// Read directory entries into `dirents`, starting from `start_idx`.
     fn read_dir(&self, _start_idx: usize, _dirents: &mut [VfsDirEntry]) -> VfsResult<usize> {
-        ax_err!(Unsupported)
-    }
-
-    /// Renames or moves existing file or directory.
-    fn rename(&self, _src_path: &RelPath, _dst_path: &RelPath) -> VfsResult {
         ax_err!(Unsupported)
     }
 

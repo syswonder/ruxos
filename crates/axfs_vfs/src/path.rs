@@ -18,6 +18,7 @@ use alloc::{
 /// - Starting with `/`
 /// - No `.` or `..` components
 /// - No redundant or tailing `/`
+/// - Valid examples: "/", "/root/foo/bar"
 ///
 /// Using `Cow` type to avoid unnecessary allocations.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -77,7 +78,8 @@ impl core::fmt::Display for AbsPath<'_> {
 
 /// Canonicalized relative path type.
 /// 
-/// - No starting '.' or '/'
+/// - No starting '/'
+/// - No `.` components
 /// - No redundant or tailing '/'
 /// - Possibly starts with '..'
 /// - Valid examples: "", "..", "../b", "../.."
@@ -139,7 +141,7 @@ impl core::fmt::Display for RelPath<'_> {
 /// assert_eq!(canonicalize("./foo/./bar"), "foo/bar");
 /// assert_eq!(canonicalize("../foo/.."), "..");
 /// ```
-pub fn canonicalize(path: &str) -> String {
+fn canonicalize(path: &str) -> String {
     let mut buf = String::new();
     let is_absolute = path.starts_with('/');
     for part in path.split('/') {
