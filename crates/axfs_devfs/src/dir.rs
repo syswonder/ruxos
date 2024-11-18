@@ -9,8 +9,7 @@
 
 use alloc::collections::BTreeMap;
 use alloc::sync::{Arc, Weak};
-use axfs_vfs::path::RelPath;
-use axfs_vfs::{VfsDirEntry, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType};
+use axfs_vfs::{RelPath, VfsDirEntry, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType};
 use axfs_vfs::{VfsError, VfsResult};
 use spin::RwLock;
 
@@ -116,22 +115,21 @@ impl VfsNodeOps for DirNode {
         }
     }
 
-    fn remove(&self, path: &RelPath) -> VfsResult {
-        log::debug!("remove at devfs: {}", path);
+    fn unlink(&self, path: &RelPath) -> VfsResult {
+        log::debug!("unlink at devfs: {}", path);
         let (name, rest) = split_path(path);
         if let Some(rest) = rest {
             match name {
-                "" | "." => self.remove(&rest),
-                ".." => self.parent().ok_or(VfsError::NotFound)?.remove(&rest),
+                ".." => self.parent().ok_or(VfsError::NotFound)?.unlink(&rest),
                 _ => self
                     .children
                     .read()
                     .get(name)
                     .ok_or(VfsError::NotFound)?
-                    .remove(&rest),
+                    .unlink(&rest),
             }
         } else {
-            Err(VfsError::PermissionDenied) // do not support to remove nodes dynamically
+            Err(VfsError::PermissionDenied) // do not support to unlink nodes dynamically
         }
     }
 

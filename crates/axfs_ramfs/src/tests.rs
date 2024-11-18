@@ -9,7 +9,7 @@
 
 use std::sync::Arc;
 
-use axfs_vfs::{path::RelPath, VfsError, VfsNodeType, VfsResult};
+use axfs_vfs::{RelPath, VfsError, VfsNodeType, VfsResult};
 
 use crate::*;
 
@@ -124,18 +124,18 @@ fn test_ramfs() {
     test_get_parent(&ramfs).unwrap();
 
     let root = ramfs.root_dir();
-    assert_eq!(root.remove(&RelPath::new_canonicalized("f1")), Ok(()));
-    assert_eq!(root.remove(&RelPath::new_canonicalized("//f2")), Ok(()));
-    assert_eq!(root.remove(&RelPath::new_canonicalized("f3")).err(), Some(VfsError::NotFound));
-    assert_eq!(root.remove(&RelPath::new_canonicalized("foo")).err(), Some(VfsError::DirectoryNotEmpty));
-    assert_eq!(root.remove(&RelPath::new_canonicalized("foo/..")).err(), Some(VfsError::InvalidInput));
+    assert_eq!(root.unlink(&RelPath::new_canonicalized("f1")), Ok(()));
+    assert_eq!(root.unlink(&RelPath::new_canonicalized("//f2")), Ok(()));
+    assert_eq!(root.unlink(&RelPath::new_canonicalized("f3")).err(), Some(VfsError::NotFound));
+    assert_eq!(root.unlink(&RelPath::new_canonicalized("foo")).err(), Some(VfsError::DirectoryNotEmpty));
+    assert_eq!(root.unlink(&RelPath::new_canonicalized("foo/..")).err(), Some(VfsError::InvalidInput));
     assert_eq!(
-        root.remove(&RelPath::new_canonicalized("foo/./bar")).err(),
+        root.unlink(&RelPath::new_canonicalized("foo/./bar")).err(),
         Some(VfsError::DirectoryNotEmpty)
     );
-    assert_eq!(root.remove(&RelPath::new_canonicalized("foo/bar/f4")), Ok(()));
-    assert_eq!(root.remove(&RelPath::new_canonicalized("foo/bar")), Ok(()));
-    assert_eq!(root.remove(&RelPath::new_canonicalized("./foo//.//f3")), Ok(()));
-    assert_eq!(root.remove(&RelPath::new_canonicalized("./foo")), Ok(()));
+    assert_eq!(root.unlink(&RelPath::new_canonicalized("foo/bar/f4")), Ok(()));
+    assert_eq!(root.unlink(&RelPath::new_canonicalized("foo/bar")), Ok(()));
+    assert_eq!(root.unlink(&RelPath::new_canonicalized("./foo//.//f3")), Ok(()));
+    assert_eq!(root.unlink(&RelPath::new_canonicalized("./foo")), Ok(()));
     assert!(ramfs.root_dir_node().get_entries().is_empty());
 }
