@@ -17,8 +17,7 @@ pub use self::file::{File, FileType, Metadata, OpenOptions, Permissions};
 
 use alloc::{string::String, vec::Vec};
 use axerrno::ax_err;
-use axfs_vfs::path::AbsPath;
-use axfs_vfs::VfsError;
+use axfs_vfs::{AbsPath, VfsError};
 use axio::{self as io, prelude::*};
 
 use crate::fops;
@@ -96,8 +95,8 @@ pub fn remove_dir(path: &AbsPath) -> io::Result<()> {
 pub fn remove_file(path: &AbsPath) -> io::Result<()> {
     let node = fops::lookup(path)?;
     let attr = node.get_attr()?;
-    if !attr.is_dir() {
-        return ax_err!(NotADirectory);
+    if attr.is_dir() {
+        return ax_err!(IsADirectory);
     }
     if !attr.perm().owner_writable() {
         return ax_err!(PermissionDenied);

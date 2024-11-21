@@ -9,7 +9,7 @@
 
 use alloc::string::String;
 use axerrno::ax_err;
-use axfs_vfs::{path::AbsPath, VfsError};
+use axfs_vfs::{AbsPath, VfsError};
 use axio::Result;
 use core::fmt;
 

@@ -1,7 +1,7 @@
 use crate::alloc::string::String;
 use alloc::sync::Arc;
 use axerrno::AxError;
-use axfs_vfs::{VfsDirEntry, VfsError, VfsNodePerm, VfsResult, path::RelPath};
+use axfs_vfs::{VfsDirEntry, VfsError, VfsNodePerm, VfsResult, RelPath};
 use axfs_vfs::{VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps};
 use axsync::Mutex;
 use lwext4_rust::bindings::{
@@ -176,7 +176,7 @@ impl VfsNodeOps for FileWrapper {
         }
     }
 
-    fn remove(&self, path: &RelPath) -> VfsResult {
+    fn unlink(&self, path: &RelPath) -> VfsResult {
         info!("remove ext4fs: {}", path);
         let fpath = self.path_deal_with(path);
         let fpath = fpath.as_str();

@@ -14,8 +14,7 @@
 use alloc::{format, sync::Arc, vec::Vec};
 use axerrno::{ax_err, AxResult};
 use axfs_vfs::{
-    path::{AbsPath, RelPath},
-    VfsError, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps, VfsResult,
+    AbsPath, RelPath, VfsError, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps, VfsResult,
 };
 use axsync::Mutex;
 use lazy_init::LazyInit;
@@ -31,6 +30,7 @@ pub struct MountPoint {
     fs: Arc<dyn VfsOps>,
 }
 
+/// Root directory of the main filesystem
 pub(crate) struct RootDirectory {
     main_fs: Arc<dyn VfsOps>,
     mounts: Vec<MountPoint>,
@@ -69,11 +69,13 @@ impl RootDirectory {
         // create the mount point in the main filesystem if it does not exist
         match self.main_fs.root_dir().lookup(&path.to_rel()) {
             Ok(_) => {}
-            Err(err_code) => {
-                if err_code == VfsError::NotFound {
+            Err(e) => {
+                if e == VfsError::NotFound {
                     self.main_fs
                         .root_dir()
                         .create(&path.to_rel(), FileType::Dir)?;
+                } else {
+                    return Err(e);
                 }
             }
         }
@@ -90,10 +92,9 @@ impl RootDirectory {
         self.mounts.iter().any(|mp| mp.path == *path)
     }
 
-    fn lookup_mounted_fs<F, T>(&self, path: &RelPath, f: F) -> AxResult<T>
-    where
-        F: FnOnce(Arc<dyn VfsOps>, &RelPath) -> AxResult<T>,
-    {
+    /// Check if path matches a mountpoint, return the index of the matched
+    /// mountpoint and the matched length.
+    fn lookup_mounted_fs(&self, path: &RelPath) -> (usize, usize) {
         debug!("lookup at root: {}", path);
         let mut idx = 0;
         let mut max_len = 0;
@@ -101,17 +102,31 @@ impl RootDirectory {
         // Find the filesystem that has the longest mounted path match
         // TODO: more efficient, e.g. trie
         for (i, mp) in self.mounts.iter().enumerate() {
-            // skip the first '/'
-            if path.starts_with(&mp.path[1..]) && mp.path.len() - 1 > max_len {
+            let rel_mp = mp.path.to_rel();
+            // path must have format: "<mountpoint>" or "<mountpoint>/..."
+            if (rel_mp == *path || path.starts_with(&format!("{}/", rel_mp)))
+                && rel_mp.len() > max_len
+            {
                 max_len = mp.path.len() - 1;
                 idx = i;
             }
         }
+        return (idx, max_len);
+    }
 
-        if max_len == 0 {
-            f(self.main_fs.clone(), path) // not matched any mount point
+    /// Check if path matches a mountpoint, dispatch the operation to the matched filesystem
+    fn lookup_mounted_fs_then<F, T>(&self, path: &RelPath, f: F) -> AxResult<T>
+    where
+        F: FnOnce(Arc<dyn VfsOps>, &RelPath) -> AxResult<T>,
+    {
+        let (idx, len) = self.lookup_mounted_fs(path);
+        if len > 0 {
+            f(
+                self.mounts[idx].fs.clone(),
+                &RelPath::new_trimmed(&path[len..]),
+            )
         } else {
-            f(self.mounts[idx].fs.clone(), &RelPath::new_trimmed(&path[max_len..])) // matched at `idx`
+            f(self.main_fs.clone(), path)
         }
     }
 }
@@ -124,11 +139,11 @@ impl VfsNodeOps for RootDirectory {
     }
 
     fn lookup(self: Arc<Self>, path: &RelPath) -> VfsResult<VfsNodeRef> {
-        self.lookup_mounted_fs(path, |fs, rest_path| fs.root_dir().lookup(rest_path))
+        self.lookup_mounted_fs_then(path, |fs, rest_path| fs.root_dir().lookup(rest_path))
     }
 
     fn create(&self, path: &RelPath, ty: VfsNodeType) -> VfsResult {
-        self.lookup_mounted_fs(path, |fs, rest_path| {
+        self.lookup_mounted_fs_then(path, |fs, rest_path| {
             if rest_path.is_empty() {
                 Ok(()) // already exists
             } else {
@@ -137,24 +152,29 @@ impl VfsNodeOps for RootDirectory {
         })
     }
 
-    fn remove(&self, path: &RelPath) -> VfsResult {
-        self.lookup_mounted_fs(path, |fs, rest_path| {
+    fn unlink(&self, path: &RelPath) -> VfsResult {
+        self.lookup_mounted_fs_then(path, |fs, rest_path| {
             if rest_path.is_empty() {
                 ax_err!(PermissionDenied) // cannot remove mount points
             } else {
-                fs.root_dir().remove(rest_path)
+                fs.root_dir().unlink(rest_path)
             }
         })
     }
 
     fn rename(&self, src_path: &RelPath, dst_path: &RelPath) -> VfsResult {
-        self.lookup_mounted_fs(src_path, |fs, rest_path| {
-            if rest_path.is_empty() {
-                ax_err!(PermissionDenied) // cannot rename mount points
-            } else {
-                fs.root_dir().rename(rest_path, dst_path)
-            }
-        })
+        let (src_idx, src_len) = self.lookup_mounted_fs(src_path);
+        let (dst_idx, dst_len) = self.lookup_mounted_fs(dst_path);
+        if src_idx != dst_idx {
+            return ax_err!(PermissionDenied); // cannot rename across mount points
+        }
+        if src_path.len() == src_len {
+            return ax_err!(PermissionDenied); // cannot rename mount points
+        }
+        self.mounts[src_idx].fs.root_dir().rename(
+            &RelPath::new_trimmed(&src_path[src_len..]),
+            &RelPath::new_trimmed(&dst_path[dst_len..]),
+        )
     }
 }
 

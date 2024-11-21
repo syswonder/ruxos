@@ -2,7 +2,7 @@ use crate::dev::Disk;
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::*;
-use axfs_vfs::{VfsDirEntry, VfsError, VfsNodePerm, VfsResult, path::RelPath};
+use axfs_vfs::{VfsDirEntry, VfsError, VfsNodePerm, VfsResult, RelPath};
 use axfs_vfs::{VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps};
 use axsync::Mutex;
 use core::cell::RefCell;
@@ -264,7 +264,7 @@ impl VfsNodeOps for Ext4FileWrapper {
     }
 
     /// Remove the node with the given `path` in the directory.
-    fn remove(&self, _path: &RelPath) -> VfsResult {
+    fn unlink(&self, _path: &RelPath) -> VfsResult {
         todo!()
     }
 
