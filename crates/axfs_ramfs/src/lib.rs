@@ -26,20 +26,44 @@ pub use self::file::FileNode;
 
 use alloc::sync::Arc;
 use axfs_vfs::{AbsPath, VfsNodeRef, VfsOps, VfsResult};
+use core::sync::atomic::AtomicU64;
 use spin::once::Once;
+
+/// An auto-increasing inode number allocator.
+pub struct InoAllocator {
+    current: AtomicU64,
+}
+
+impl InoAllocator {
+    /// Create a new allocator instance.
+    pub fn new(start: u64) -> Self {
+        Self {
+            current: AtomicU64::new(start),
+        }
+    }
+
+    /// Allocate a new inode number.
+    pub fn alloc(&self) -> u64 {
+        self.current
+            .fetch_add(1, core::sync::atomic::Ordering::SeqCst)
+    }
+}
 
 /// A RAM filesystem that implements [`axfs_vfs::VfsOps`].
 pub struct RamFileSystem {
     parent: Once<VfsNodeRef>,
     root: Arc<DirNode>,
+    _ialloc: Arc<InoAllocator>,
 }
 
 impl RamFileSystem {
     /// Create a new instance.
     pub fn new() -> Self {
+        let ialloc = Arc::new(InoAllocator::new(0));
         Self {
             parent: Once::new(),
-            root: DirNode::new(None),
+            root: DirNode::new(ialloc.alloc(), None, Arc::downgrade(&ialloc)),
+            _ialloc: ialloc,
         }
     }
 
