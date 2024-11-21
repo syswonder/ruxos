@@ -30,20 +30,44 @@ pub use self::zero::ZeroDev;
 
 use alloc::sync::Arc;
 use axfs_vfs::{AbsPath, VfsNodeRef, VfsOps, VfsResult};
+use core::sync::atomic::AtomicU64;
 use spin::once::Once;
+
+/// An auto-increasing inode number allocator.
+pub struct InoAllocator {
+    current: AtomicU64,
+}
+
+impl InoAllocator {
+    /// Create a new allocator instance.
+    pub fn new(start: u64) -> Self {
+        Self {
+            current: AtomicU64::new(start),
+        }
+    }
+
+    /// Allocate a new inode number.
+    pub fn alloc(&self) -> u64 {
+        self.current
+            .fetch_add(1, core::sync::atomic::Ordering::SeqCst)
+    }
+}
 
 /// A device filesystem that implements [`axfs_vfs::VfsOps`].
 pub struct DeviceFileSystem {
     parent: Once<VfsNodeRef>,
     root: Arc<DirNode>,
+    _ialloc: Arc<InoAllocator>,
 }
 
 impl DeviceFileSystem {
     /// Create a new instance.
     pub fn new() -> Self {
+        let ialloc = Arc::new(InoAllocator::new(10));
         Self {
             parent: Once::new(),
-            root: DirNode::new(None),
+            root: DirNode::new(2, None, Arc::downgrade(&ialloc)),
+            _ialloc: ialloc,
         }
     }
 

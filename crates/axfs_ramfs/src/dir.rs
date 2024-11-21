@@ -16,22 +16,31 @@ use axfs_vfs::{VfsError, VfsResult};
 use spin::RwLock;
 
 use crate::file::FileNode;
+use crate::InoAllocator;
 
 /// The directory node in the RAM filesystem.
 ///
 /// It implements [`axfs_vfs::VfsNodeOps`].
 pub struct DirNode {
+    ino: u64,
     this: Weak<DirNode>,
     parent: RwLock<Weak<dyn VfsNodeOps>>,
     children: RwLock<BTreeMap<String, VfsNodeRef>>,
+    ialloc: Weak<InoAllocator>,
 }
 
 impl DirNode {
-    pub(super) fn new(parent: Option<Weak<dyn VfsNodeOps>>) -> Arc<Self> {
+    pub(super) fn new(
+        ino: u64,
+        parent: Option<Weak<dyn VfsNodeOps>>,
+        ialloc: Weak<InoAllocator>,
+    ) -> Arc<Self> {
         Arc::new_cyclic(|this| Self {
+            ino,
             this: this.clone(),
             parent: RwLock::new(parent.unwrap_or_else(|| Weak::<Self>::new())),
             children: RwLock::new(BTreeMap::new()),
+            ialloc,
         })
     }
 
@@ -56,8 +65,12 @@ impl DirNode {
             return Err(VfsError::AlreadyExists);
         }
         let node: VfsNodeRef = match ty {
-            VfsNodeType::File => Arc::new(FileNode::new()),
-            VfsNodeType::Dir => Self::new(Some(self.this.clone())),
+            VfsNodeType::File => Arc::new(FileNode::new(self.ialloc.upgrade().unwrap().alloc())),
+            VfsNodeType::Dir => Self::new(
+                self.ialloc.upgrade().unwrap().alloc(),
+                Some(self.this.clone()),
+                self.ialloc.clone(),
+            ),
             _ => return Err(VfsError::Unsupported),
         };
         self.children.write().insert(name.into(), node);
@@ -80,7 +93,7 @@ impl DirNode {
 
 impl VfsNodeOps for DirNode {
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
-        Ok(VfsNodeAttr::new_dir(4096, 0))
+        Ok(VfsNodeAttr::new_dir(self.ino, 4096, 0))
     }
 
     fn parent(&self) -> Option<VfsNodeRef> {

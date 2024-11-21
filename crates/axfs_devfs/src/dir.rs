@@ -13,20 +13,30 @@ use axfs_vfs::{RelPath, VfsDirEntry, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNod
 use axfs_vfs::{VfsError, VfsResult};
 use spin::RwLock;
 
+use crate::InoAllocator;
+
 /// The directory node in the device filesystem.
 ///
 /// It implements [`axfs_vfs::VfsNodeOps`].
 pub struct DirNode {
+    ino: u64,
     parent: RwLock<Weak<dyn VfsNodeOps>>,
     children: RwLock<BTreeMap<&'static str, VfsNodeRef>>,
+    ialloc: Weak<InoAllocator>,
 }
 
 impl DirNode {
-    pub(super) fn new(parent: Option<&VfsNodeRef>) -> Arc<Self> {
+    pub(super) fn new(
+        ino: u64,
+        parent: Option<&VfsNodeRef>,
+        ialloc: Weak<InoAllocator>,
+    ) -> Arc<Self> {
         let parent = parent.map_or(Weak::<Self>::new() as _, Arc::downgrade);
         Arc::new(Self {
+            ino,
             parent: RwLock::new(parent),
             children: RwLock::new(BTreeMap::new()),
+            ialloc,
         })
     }
 
@@ -37,7 +47,11 @@ impl DirNode {
     /// Create a subdirectory at this directory.
     pub fn mkdir(self: &Arc<Self>, name: &'static str) -> Arc<Self> {
         let parent = self.clone() as VfsNodeRef;
-        let node = Self::new(Some(&parent));
+        let node = Self::new(
+            self.ialloc.upgrade().unwrap().alloc(),
+            Some(&parent),
+            self.ialloc.clone(),
+        );
         self.children.write().insert(name, node.clone());
         node
     }
@@ -50,7 +64,7 @@ impl DirNode {
 
 impl VfsNodeOps for DirNode {
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
-        Ok(VfsNodeAttr::new_dir(4096, 0))
+        Ok(VfsNodeAttr::new_dir(self.ino, 4096, 0))
     }
 
     fn parent(&self) -> Option<VfsNodeRef> {
