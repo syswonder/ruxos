@@ -4,7 +4,7 @@ use another_ext4::{
     Block, BlockDevice, ErrCode as Ext4ErrorCode, Ext4, Ext4Error, FileType as EXt4FileType,
     InodeMode as Ext4InodeMode, BLOCK_SIZE as EXT4_BLOCK_SIZE, EXT4_ROOT_INO,
 };
-use axfs_vfs::{VfsDirEntry, VfsError, VfsNodePerm, VfsResult, path::RelPath};
+use axfs_vfs::{VfsDirEntry, VfsError, VfsNodePerm, VfsResult, RelPath};
 use axfs_vfs::{VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps};
 use axsync::Mutex;
 
@@ -164,7 +164,7 @@ impl VfsNodeOps for Ext4VirtInode {
             .map_err(map_error)
     }
 
-    fn remove(&self, path: &RelPath) -> VfsResult {
+    fn unlink(&self, path: &RelPath) -> VfsResult {
         self.fs.unlink(self.id, path).map_err(map_error)
     }
 

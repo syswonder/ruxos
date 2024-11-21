@@ -27,7 +27,7 @@ use-ramdisk = []
 alloc = ["axalloc"]
 fp_simd = []
 
-default = ["devfs", "ramfs", "fatfs", "procfs", "sysfs", "etcfs"]
+default = ["devfs", "ramfs", "procfs", "sysfs", "etcfs"]
 
 [dependencies]
 log = "0.4"

@@ -8,7 +8,7 @@
  */
 
 use alloc::sync::Arc;
-use axfs_vfs::{VfsNodeType, VfsOps, VfsResult, path::RelPath};
+use axfs_vfs::{VfsNodeType, VfsOps, VfsResult, RelPath};
 
 #[cfg(feature = "alloc")]
 use crate::arch::{get_cpuinfo, get_meminfo};

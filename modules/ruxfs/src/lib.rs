@@ -46,8 +46,8 @@ pub mod api;
 pub mod fops;
 pub mod root;
 
-pub type AbsPath<'a> = axfs_vfs::path::AbsPath<'a>;
-pub type RelPath<'a> = axfs_vfs::path::RelPath<'a>;
+pub type AbsPath<'a> = axfs_vfs::AbsPath<'a>;
+pub type RelPath<'a> = axfs_vfs::RelPath<'a>;
 
 use alloc::vec::Vec;
 

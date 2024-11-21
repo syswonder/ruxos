@@ -10,8 +10,7 @@
 //! Low-level filesystem operations.
 
 use axerrno::{ax_err, ax_err_type, AxResult};
-use axfs_vfs::path::{AbsPath, RelPath};
-use axfs_vfs::{VfsError, VfsNodeOps, VfsNodeRef, VfsNodeType};
+use axfs_vfs::{AbsPath, RelPath, VfsError, VfsNodeOps, VfsNodeRef, VfsNodeType};
 use axio::SeekFrom;
 use capability::{Cap, WithCap};
 
@@ -212,7 +211,9 @@ impl File {
 impl Directory {
     /// Access the underlying `VfsNode`
     fn access_node(&self) -> AxResult<&VfsNodeRef> {
-        self.node.access(Cap::EXECUTE).map_err(|_| VfsError::PermissionDenied)
+        self.node
+            .access(Cap::EXECUTE)
+            .map_err(|_| VfsError::PermissionDenied)
     }
 
     /// Creates an opened directory.
@@ -280,11 +281,11 @@ impl Directory {
     ///
     /// This function will not check if the file (or directory) exits or removeable,
     /// check it with [`lookup`] first.
-    pub fn remove(&self, path: &RelPath) -> AxResult {
-        self.access_node()?.remove(path)
+    pub fn unlink(&self, path: &RelPath) -> AxResult {
+        self.access_node()?.unlink(path)
     }
 
-    /// Rename a file or directory to a new name. This only works then the new path
+    /// Rename a file or directory to a new name. This only works when the new path
     /// is in the same mounted fs.
     ///
     /// This function will not check if the old path or new path exists, check it with
@@ -377,7 +378,7 @@ pub fn create_dir_all(path: &AbsPath) -> AxResult {
 /// This function will not check if the file exits or removeable,
 /// check it with [`lookup`] first.
 pub fn remove_file(path: &AbsPath) -> AxResult {
-    ROOT_DIR.remove(&path.to_rel())
+    ROOT_DIR.unlink(&path.to_rel())
 }
 
 /// Remove a directory given an absolute path.
@@ -388,7 +389,7 @@ pub fn remove_dir(path: &AbsPath) -> AxResult {
     if ROOT_DIR.contains(path) {
         return ax_err!(PermissionDenied);
     }
-    ROOT_DIR.remove(&path.to_rel())
+    ROOT_DIR.unlink(&path.to_rel())
 }
 
 /// Rename a file given an old and a new absolute path.

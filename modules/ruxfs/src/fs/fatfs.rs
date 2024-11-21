@@ -9,7 +9,7 @@
 
 use alloc::sync::Arc;
 use axerrno::ax_err;
-use axfs_vfs::path::RelPath;
+use axfs_vfs::RelPath;
 use core::cell::UnsafeCell;
 
 use crate::dev::Disk;
@@ -186,7 +186,7 @@ impl VfsNodeOps for DirWrapper<'static> {
         }
     }
 
-    fn remove(&self, path: &RelPath) -> VfsResult {
+    fn unlink(&self, path: &RelPath) -> VfsResult {
         debug!("remove at fatfs: {}", path);
         if path.is_empty() {
             return ax_err!(PermissionDenied)

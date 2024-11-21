@@ -565,7 +565,7 @@ pub fn sys_unlinkat(fd: c_int, pathname: *const c_char, flags: c_int) -> c_int {
                         Directory::from_fd(fd)?
                             .inner
                             .lock()
-                            .remove(&path.to_rel())?;
+                            .unlink(&path.to_rel())?;
                     }
                 } else {
                     if attr.is_dir() {
@@ -580,7 +580,7 @@ pub fn sys_unlinkat(fd: c_int, pathname: *const c_char, flags: c_int) -> c_int {
                         Directory::from_fd(fd)?
                             .inner
                             .lock()
-                            .remove(&path.to_rel())?;
+                            .unlink(&path.to_rel())?;
                     }
                 }
             }

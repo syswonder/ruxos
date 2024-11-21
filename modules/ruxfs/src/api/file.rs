@@ -9,10 +9,7 @@
 
 use crate::fops;
 use axerrno::ax_err;
-use axfs_vfs::{
-    path::{AbsPath, RelPath},
-    VfsError,
-};
+use axfs_vfs::{AbsPath, RelPath, VfsError};
 use axio::{prelude::*, Result, SeekFrom};
 use capability::Cap;
 use core::fmt;
