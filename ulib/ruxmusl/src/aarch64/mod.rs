@@ -237,6 +237,8 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
             #[cfg(feature = "signal")]
             SyscallId::KILL => ruxos_posix_api::sys_kill(args[0] as pid_t, args[1] as c_int) as _,
             #[cfg(feature = "signal")]
+            SyscallId::TKILL => ruxos_posix_api::sys_tkill(args[0] as pid_t, args[1] as c_int) as _,
+            #[cfg(feature = "signal")]
             SyscallId::SIGALTSTACK => ruxos_posix_api::sys_sigaltstack(
                 args[0] as *const core::ffi::c_void,
                 args[1] as *mut core::ffi::c_void,

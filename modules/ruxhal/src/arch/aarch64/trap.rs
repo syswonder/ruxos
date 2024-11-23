@@ -134,6 +134,10 @@ fn handle_sync_exception(tf: &mut TrapFrame) {
             );
         }
     }
+    #[cfg(feature = "signal")]
+    {
+        crate::trap::handle_signal();
+    }
 }
 
 #[no_mangle]

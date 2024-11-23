@@ -58,9 +58,9 @@ fn test_ramfs() {
                                // By default, mount_points[0] will be rootfs
     let mut mount_points: Vec<ruxfs::MountPoint> = Vec::new();
     // setup and initialize blkfs as one mountpoint for rootfs
-    mount_points.push(ruxfs::init_blkfs(AxDeviceContainer::from_one(
+    mount_points.push(ruxfs::init_blkfs(AxDeviceContainer::from_one(Box::new(
         RamDisk::default(),
-    )));
+    ))));
     ruxfs::prepare_commonfs(&mut mount_points);
 
     // setup and initialize rootfs

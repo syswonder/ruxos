@@ -21,6 +21,7 @@ rtc = []
 tls = ["alloc"]
 default = []
 musl = []
+signal = []
 
 [dependencies]
 log = "0.4"
