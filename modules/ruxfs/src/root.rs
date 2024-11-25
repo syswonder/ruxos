@@ -21,8 +21,7 @@ use lazy_init::LazyInit;
 
 use crate::api::FileType;
 
-pub(crate) static CURRENT_DIR_PATH: Mutex<AbsPath> = Mutex::new(AbsPath::new("/"));
-pub(crate) static CURRENT_DIR: LazyInit<Mutex<VfsNodeRef>> = LazyInit::new();
+pub(crate) static CURRENT_DIR: Mutex<AbsPath> = Mutex::new(AbsPath::new("/"));
 
 /// mount point information
 pub struct MountPoint {
@@ -194,6 +193,5 @@ pub(crate) fn init_rootfs(mount_points: Vec<MountPoint>) {
     }
 
     ROOT_DIR.init_by(Arc::new(root_dir));
-    CURRENT_DIR.init_by(Mutex::new(ROOT_DIR.clone()));
-    *CURRENT_DIR_PATH.lock() = AbsPath::new("/");
+    *CURRENT_DIR.lock() = AbsPath::new("/");
 }

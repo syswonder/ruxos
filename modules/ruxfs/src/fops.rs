@@ -9,12 +9,13 @@
 
 //! Low-level filesystem operations.
 
+use alloc::borrow::ToOwned;
 use axerrno::{ax_err, ax_err_type, AxResult};
-use axfs_vfs::{AbsPath, RelPath, VfsError, VfsNodeOps, VfsNodeRef, VfsNodeType};
+use axfs_vfs::{AbsPath, VfsError, VfsNodeOps, VfsNodeRef, VfsNodeType};
 use axio::SeekFrom;
 use capability::{Cap, WithCap};
 
-use crate::root::{CURRENT_DIR, CURRENT_DIR_PATH, ROOT_DIR};
+use crate::root::{CURRENT_DIR, ROOT_DIR};
 
 #[cfg(feature = "myfs")]
 pub use crate::dev::Disk;
@@ -32,32 +33,36 @@ pub type FilePerm = axfs_vfs::VfsNodePerm;
 
 /// An opened file object, with open permissions and a cursor.
 pub struct File {
+    path: AbsPath<'static>,
     node: WithCap<VfsNodeRef>,
     is_append: bool,
     offset: u64,
 }
 
-/// An opened directory object, with open permissions and a cursor for
-/// [`read_dir`](Directory::read_dir).
-pub struct Directory {
-    node: WithCap<VfsNodeRef>,
-    entry_idx: usize,
-}
-
 impl File {
     /// Create an opened file.
-    pub fn new(node: VfsNodeRef, cap: Cap, is_append: bool) -> Self {
+    pub fn new(path: AbsPath<'static>, node: VfsNodeRef, cap: Cap, is_append: bool) -> Self {
         Self {
+            path,
             node: WithCap::new(node, cap),
             offset: 0,
             is_append,
         }
     }
 
+    /// Get the abcolute path of the file.
+    pub fn path(&self) -> &AbsPath {
+        &self.path
+    }
+
+    /// Gets the file attributes.
+    pub fn get_attr(&self) -> AxResult<FileAttr> {
+        self.node.access(Cap::empty())?.get_attr()
+    }
+
     /// Truncates the file to the specified size.
     pub fn truncate(&self, size: u64) -> AxResult {
-        self.node.access(Cap::WRITE)?.truncate(size)?;
-        Ok(())
+        self.node.access(Cap::WRITE)?.truncate(size)
     }
 
     /// Reads the file at the current position. Returns the number of bytes
@@ -65,8 +70,7 @@ impl File {
     ///
     /// After the read, the cursor will be advanced by the number of bytes read.
     pub fn read(&mut self, buf: &mut [u8]) -> AxResult<usize> {
-        let node = self.node.access(Cap::READ)?;
-        let read_len = node.read_at(self.offset, buf)?;
+        let read_len = self.node.access(Cap::READ)?.read_at(self.offset, buf)?;
         self.offset += read_len as u64;
         Ok(read_len)
     }
@@ -75,9 +79,7 @@ impl File {
     ///
     /// It does not update the file cursor.
     pub fn read_at(&self, offset: u64, buf: &mut [u8]) -> AxResult<usize> {
-        let node = self.node.access(Cap::READ)?;
-        let read_len = node.read_at(offset, buf)?;
-        Ok(read_len)
+        self.node.access(Cap::READ)?.read_at(offset, buf)
     }
 
     /// Writes the file at the current position. Returns the number of bytes
@@ -100,15 +102,12 @@ impl File {
     ///
     /// It does not update the file cursor.
     pub fn write_at(&self, offset: u64, buf: &[u8]) -> AxResult<usize> {
-        let node = self.node.access(Cap::WRITE)?;
-        let write_len = node.write_at(offset, buf)?;
-        Ok(write_len)
+        self.node.access(Cap::WRITE)?.write_at(offset, buf)
     }
 
     /// Flushes the file, writes all buffered data to the underlying device.
     pub fn flush(&self) -> AxResult {
-        self.node.access(Cap::WRITE)?.fsync()?;
-        Ok(())
+        self.node.access(Cap::WRITE)?.fsync()
     }
 
     /// Sets the cursor of the file to the specified offset. Returns the new
@@ -124,97 +123,34 @@ impl File {
         self.offset = new_offset;
         Ok(new_offset)
     }
+}
 
-    /// Gets the file attributes.
-    pub fn get_attr(&self) -> AxResult<FileAttr> {
-        self.node.access(Cap::empty())?.get_attr()
-    }
+/// An opened directory object, with open permissions and a cursor for
+/// [`read_dir`](Directory::read_dir).
+pub struct Directory {
+    path: AbsPath<'static>,
+    node: WithCap<VfsNodeRef>,
+    entry_idx: usize,
 }
 
 impl Directory {
-    /// Access the underlying `VfsNode`
-    fn access_node(&self) -> AxResult<&VfsNodeRef> {
-        self.node
-            .access(Cap::EXECUTE)
-            .map_err(|_| VfsError::PermissionDenied)
-    }
-
     /// Creates an opened directory.
-    pub fn new(node: VfsNodeRef, cap: Cap) -> Self {
+    pub fn new(path: AbsPath<'static>, node: VfsNodeRef, cap: Cap) -> Self {
         Self {
+            path,
             node: WithCap::new(node, cap),
             entry_idx: 0,
         }
     }
 
+    /// Gets the absolute path of the directory.
+    pub fn path(&self) -> &AbsPath {
+        &self.path
+    }
+
     /// Gets the file attributes.
     pub fn get_attr(&self) -> AxResult<FileAttr> {
         self.node.access(Cap::empty())?.get_attr()
-    }
-
-    /// Looks up a child node by name.
-    pub fn lookup(&self, path: &RelPath) -> AxResult<VfsNodeRef> {
-        self.access_node()?.clone().lookup(path)
-    }
-
-    /// Gets the file attributes of the file at the path relative to this directory.
-    /// Returns a [`FileAttr`] object.
-    pub fn get_child_attr(&self, path: &RelPath) -> AxResult<FileAttr> {
-        let node = self.lookup(path)?;
-        node.get_attr()
-    }
-
-    /// Opens a node as a directory, with permission checked.
-    pub fn open_dir(&self, node: VfsNodeRef, cap: Cap) -> AxResult<Directory> {
-        let attr = node.get_attr()?;
-        if !perm_to_cap(attr.perm()).contains(cap) {
-            return ax_err!(PermissionDenied);
-        }
-        node.open()?;
-        Ok(Self::new(node, cap | Cap::EXECUTE))
-    }
-
-    /// Opens a node as a file, with permission checked.
-    pub fn open_file(&self, node: VfsNodeRef, cap: Cap, append: bool) -> AxResult<File> {
-        let attr = node.get_attr()?;
-        if !perm_to_cap(attr.perm()).contains(cap) {
-            return ax_err!(PermissionDenied);
-        }
-        node.open()?;
-        Ok(File::new(node, cap, append))
-    }
-
-    /// Creates an empty file at the path relative to this directory.
-    ///
-    /// This function will not check if the path exists, check it with
-    /// [`lookup`] first.
-    pub fn create_file(&self, path: &RelPath) -> AxResult {
-        self.access_node()?.clone().create(path, VfsNodeType::File)
-    }
-
-    /// Creates an empty directory at the path relative to this directory.
-    ///
-    /// This function will not check if the path exists, check it with
-    /// [`lookup`] first.
-    pub fn create_dir(&self, path: &RelPath) -> AxResult {
-        self.access_node()?.clone().create(path, VfsNodeType::Dir)
-    }
-
-    /// Removes a file (or directory) at the path relative to this directory.
-    ///
-    /// This function will not check if the file (or directory) exits or removeable,
-    /// check it with [`lookup`] first.
-    pub fn unlink(&self, path: &RelPath) -> AxResult {
-        self.access_node()?.unlink(path)
-    }
-
-    /// Rename a file or directory to a new name. This only works when the new path
-    /// is in the same mounted fs.
-    ///
-    /// This function will not check if the old path or new path exists, check it with
-    /// [`lookup`] first.
-    pub fn rename(&self, old: &RelPath, new: &RelPath) -> AxResult {
-        self.access_node()?.rename(old, new)
     }
 
     /// Reads directory entries starts from the current position into the
@@ -251,28 +187,27 @@ pub fn lookup(path: &AbsPath) -> AxResult<VfsNodeRef> {
 
 /// Get the file attributes given an absolute path.
 pub fn get_attr(path: &AbsPath) -> AxResult<FileAttr> {
-    let node = lookup(path)?;
-    node.get_attr()
+    lookup(path)?.get_attr()
 }
 
 /// Open a node as a file, with permission checked.
-pub fn open_file(node: VfsNodeRef, cap: Cap, append: bool) -> AxResult<File> {
+pub fn open_file(path: &AbsPath, node: VfsNodeRef, cap: Cap, append: bool) -> AxResult<File> {
     let attr = node.get_attr()?;
     if !perm_to_cap(attr.perm()).contains(cap) {
         return ax_err!(PermissionDenied);
     }
     node.open()?;
-    Ok(File::new(node, cap, append))
+    Ok(File::new(path.to_owned(), node, cap, append))
 }
 
 /// Open a node as a directory, with permission checked.
-pub fn open_dir(node: VfsNodeRef, cap: Cap) -> AxResult<Directory> {
+pub fn open_dir(path: &AbsPath, node: VfsNodeRef, cap: Cap) -> AxResult<Directory> {
     let attr = node.get_attr()?;
     if !perm_to_cap(attr.perm()).contains(cap) {
         return ax_err!(PermissionDenied);
     }
     node.open()?;
-    Ok(Directory::new(node, cap | Cap::EXECUTE))
+    Ok(Directory::new(path.to_owned(), node, cap | Cap::EXECUTE))
 }
 
 /// Create a file given an absolute path.
@@ -325,12 +260,7 @@ pub fn rename(old: &AbsPath, new: &AbsPath) -> AxResult {
 
 /// Get current working directory.
 pub fn current_dir<'a>() -> AbsPath<'a> {
-    CURRENT_DIR_PATH.lock().clone()
-}
-
-/// Concatenate a path to the current working directory.
-pub fn concat_path(path: &RelPath) -> AbsPath<'static> {
-    current_dir().join(path)
+    CURRENT_DIR.lock().clone()
 }
 
 /// Set current working directory.
@@ -344,8 +274,7 @@ pub fn set_current_dir(path: AbsPath<'static>) -> AxResult {
     } else if !attr.perm().owner_executable() {
         Err(VfsError::PermissionDenied)
     } else {
-        *CURRENT_DIR.lock() = node;
-        *CURRENT_DIR_PATH.lock() = path;
+        *CURRENT_DIR.lock() = path;
         Ok(())
     }
 }
