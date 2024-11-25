@@ -44,7 +44,7 @@ impl<'a> ReadDir<'a> {
         let mut opts = OpenOptions::new();
         opts.read(true);
         let node = fops::lookup(path)?;
-        let inner = fops::open_dir(node, (&opts).into())?;
+        let inner = fops::open_dir(path, node, (&opts).into())?;
         const EMPTY: fops::DirEntry = fops::DirEntry::default();
         let dirent_buf = [EMPTY; 31];
         Ok(ReadDir {

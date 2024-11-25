@@ -7,7 +7,7 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use crate::fops;
+use crate::fops::{self, current_dir};
 use axerrno::ax_err;
 use axfs_vfs::{AbsPath, RelPath, VfsError};
 use axio::{prelude::*, Result, SeekFrom};
@@ -128,7 +128,7 @@ impl OpenOptions {
         let path = if path.starts_with("/") {
             AbsPath::new_canonicalized(path)
         } else {
-            fops::concat_path(&RelPath::new_canonicalized(path))
+            current_dir().join(&RelPath::new_canonicalized(path))
         };
         // Check flag and attr
         let node = match fops::lookup(&path) {
@@ -155,7 +155,7 @@ impl OpenOptions {
             node.truncate(0)?;
         }
         // Open
-        fops::open_file(node, self.into(), self.append).map(|inner| File { inner })
+        fops::open_file(&path, node, self.into(), self.append).map(|inner| File { inner })
     }
 }
 
