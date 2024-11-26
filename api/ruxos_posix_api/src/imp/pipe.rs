@@ -7,7 +7,7 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use alloc::sync::{Weak, Arc};
+use alloc::sync::{Arc, Weak};
 use core::ffi::c_int;
 
 use axerrno::{LinuxError, LinuxResult};

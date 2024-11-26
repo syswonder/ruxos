@@ -20,7 +20,7 @@ use smoltcp::socket::tcp::{self, ConnectError, State};
 use smoltcp::wire::{IpEndpoint, IpListenEndpoint};
 
 use super::addr::{from_core_sockaddr, into_core_sockaddr, is_unspecified, UNSPECIFIED_ENDPOINT};
-use super::{SocketSetWrapper, ETH0, LISTEN_TABLE, SOCKET_SET};
+use super::{route_dev, SocketSetWrapper, IFACE_LIST, LISTEN_TABLE, SOCKET_SET};
 
 // State transitions:
 // CLOSED -(connect)-> BUSY -> CONNECTING -> CONNECTED -(shutdown)-> BUSY -> CLOSED
@@ -139,7 +139,16 @@ impl TcpSocket {
             // TODO: check remote addr unreachable
             let remote_endpoint = from_core_sockaddr(remote_addr);
             let bound_endpoint = self.bound_endpoint()?;
-            let iface = &ETH0.iface;
+            let binding = IFACE_LIST.lock();
+            let iface_name = match remote_addr {
+                SocketAddr::V4(addr) => route_dev(addr.ip().octets()),
+                _ => panic!("IPv6 not supported"),
+            };
+            let iface = &binding
+                .iter()
+                .find(|iface| iface.name() == iface_name)
+                .unwrap()
+                .iface;
             let (local_endpoint, remote_endpoint) = SOCKET_SET
                 .with_socket_mut::<tcp::Socket, _, _>(handle, |socket| {
                     socket

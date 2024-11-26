@@ -50,7 +50,6 @@ pub use imp::getrandom::{sys_getrandom, sys_rand, sys_random, sys_srand};
 pub use imp::io::{sys_read, sys_readv, sys_write, sys_writev};
 pub use imp::prctl::{sys_arch_prctl, sys_prctl};
 pub use imp::resources::{sys_getrlimit, sys_prlimit64, sys_setrlimit};
-pub use imp::rt_sig::{sys_rt_sigaction, sys_rt_sigprocmask};
 pub use imp::stat::{
     sys_getegid, sys_geteuid, sys_getgid, sys_getpgid, sys_getuid, sys_setgid, sys_setpgid,
     sys_setuid, sys_umask,
@@ -108,7 +107,11 @@ pub use imp::pthread::{
     sys_pthread_setspecific,
 };
 #[cfg(feature = "signal")]
-pub use imp::signal::{sys_getitimer, sys_kill, sys_setitimer, sys_sigaction, sys_sigaltstack};
+pub use imp::rt_sig::{sys_rt_sigaction, sys_rt_sigprocmask};
+#[cfg(feature = "signal")]
+pub use imp::signal::{
+    sys_getitimer, sys_kill, sys_setitimer, sys_sigaction, sys_sigaltstack, sys_tkill,
+};
 
 #[cfg(feature = "multitask")]
 pub use imp::pthread::futex::sys_futex;
@@ -117,7 +120,9 @@ pub use imp::pthread::sys_clone;
 #[cfg(all(feature = "multitask", feature = "musl"))]
 pub use imp::pthread::sys_set_tid_address;
 #[cfg(feature = "multitask")]
-pub use imp::pthread::{sys_pthread_create, sys_pthread_exit, sys_exit_group, sys_pthread_join, sys_pthread_self};
+pub use imp::pthread::{
+    sys_exit_group, sys_pthread_create, sys_pthread_exit, sys_pthread_join, sys_pthread_self,
+};
 
 #[cfg(feature = "fs")]
 pub use imp::execve::sys_execve;

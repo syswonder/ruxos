@@ -629,14 +629,12 @@ impl TaskInner {
         let tls = VirtAddr::from(t.tls.tls_ptr() as usize);
         #[cfg(not(feature = "tls"))]
         let tls = VirtAddr::from(0);
-        
+
         debug!("new idle task: {}", t.id_name());
-        t.ctx.get_mut().init(
-            task_entry as usize,
-            idle_kstack.top(),
-            tls,
-        );
-        
+        t.ctx
+            .get_mut()
+            .init(task_entry as usize, idle_kstack.top(), tls);
+
         let task_ref = Arc::new(AxTask::new(t));
 
         task_ref

@@ -6,7 +6,7 @@ mod udp;
 
 pub use self::addr::{IpAddr, Ipv4Addr, SocketAddr};
 pub use self::dns::{dns_query, resolve_socket_addr};
-pub use self::driver::{init, poll_interfaces};
+pub use self::driver::{init, init_netdev, poll_interfaces};
 pub use self::tcp::TcpSocket;
 pub use self::udp::UdpSocket;
 use core::ffi::c_uint;

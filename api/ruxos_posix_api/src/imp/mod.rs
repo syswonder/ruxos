@@ -14,7 +14,6 @@ pub mod getrandom;
 pub mod io;
 pub mod prctl;
 pub mod resources;
-pub mod rt_sig;
 pub mod stat;
 pub mod sys;
 pub mod task;
@@ -38,6 +37,8 @@ pub mod net;
 pub mod pipe;
 #[cfg(feature = "multitask")]
 pub mod pthread;
+#[cfg(feature = "signal")]
+pub mod rt_sig;
 #[cfg(feature = "signal")]
 pub mod signal;
 

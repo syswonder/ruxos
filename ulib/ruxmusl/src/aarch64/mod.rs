@@ -201,9 +201,7 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
             SyscallId::EXIT => {
                 ruxos_posix_api::sys_pthread_exit(args[0] as *mut core::ffi::c_void) as _
             }
-            SyscallId::EXIT_GROUP => {
-                ruxos_posix_api::sys_exit_group(args[0] as c_int)
-            }            
+            SyscallId::EXIT_GROUP => ruxos_posix_api::sys_exit_group(args[0] as c_int),
             #[cfg(feature = "multitask")]
             SyscallId::SET_TID_ADDRESS => ruxos_posix_api::sys_set_tid_address(args[0]) as _,
             #[cfg(feature = "multitask")]
@@ -236,6 +234,8 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
             SyscallId::SCHED_YIELD => ruxos_posix_api::sys_sched_yield() as _,
             #[cfg(feature = "signal")]
             SyscallId::KILL => ruxos_posix_api::sys_kill(args[0] as pid_t, args[1] as c_int) as _,
+            #[cfg(feature = "signal")]
+            SyscallId::TKILL => ruxos_posix_api::sys_tkill(args[0] as pid_t, args[1] as c_int) as _,
             #[cfg(feature = "signal")]
             SyscallId::SIGALTSTACK => ruxos_posix_api::sys_sigaltstack(
                 args[0] as *const core::ffi::c_void,
