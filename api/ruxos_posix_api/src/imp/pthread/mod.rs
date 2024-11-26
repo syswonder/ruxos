@@ -231,7 +231,7 @@ pub fn sys_exit_group(status: c_int) -> ! {
     debug!("sys_exit_group <= status: {:#?}", status);
 
     // TODO: exit all threads, send signal to all threads
-    
+
     //  drop all file opened by current task
     current().fs.lock().as_mut().unwrap().close_all_files();
 
