@@ -16,6 +16,7 @@ use core::marker::Sync;
 
 use axerrno::LinuxResult;
 use axio::PollState;
+use axfs_vfs::AbsPath;
 use flatten_objects::FlattenObjects;
 use spin::RwLock;
 
@@ -100,6 +101,9 @@ pub struct RuxStat {
 
 /// Trait for file-like objects in a file descriptor table.
 pub trait FileLike: Send + Sync {
+    /// Get the absolute path of the file-like object.
+    fn path(&self) -> AbsPath;
+
     /// Reads data from the file-like object into the provided buffer.
     ///
     /// Returns the number of bytes read on success.
@@ -125,6 +129,7 @@ pub trait FileLike: Send + Sync {
     /// Sets or clears the non-blocking I/O mode for the file-like object.
     fn set_nonblocking(&self, nonblocking: bool) -> LinuxResult;
 }
+
 /// Maximum number of files per process
 pub const RUX_FILE_LIMIT: usize = 1024;
 
