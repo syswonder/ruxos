@@ -10,11 +10,13 @@
 //! Utilities for path manipulation.
 
 use alloc::{
-    borrow::{Cow, ToOwned}, format, string::String
+    borrow::{Cow, ToOwned},
+    format,
+    string::{String, ToString},
 };
 
 /// Canonicalized absolute path type.
-/// 
+///
 /// - Starting with `/`
 /// - No `.` or `..` components
 /// - No redundant or tailing `/`
@@ -24,23 +26,16 @@ use alloc::{
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AbsPath<'a>(Cow<'a, str>);
 
-impl<'a> AbsPath<'a> {
-    /// Simply wrap a str slice into a `AbsPath`.
-    /// 
-    /// Caller should ensure that the path is absolute and canonicalized.
-    pub const fn new(path: &'a str) -> Self {
-        Self(Cow::Borrowed(path))
-    }
-
+impl AbsPath<'static> {
     /// Simply wrap a string into a `AbsPath`.
-    /// 
+    ///
     /// Caller should ensure that the path is absolute and canonicalized.
     pub const fn new_owned(path: String) -> Self {
         Self(Cow::Owned(path))
     }
 
     /// Parse and canonicalize an absolute path from a string.
-    /// 
+    ///
     /// - If the given path is not canonicalized, it will be canonicalized.
     /// - If the given path is not absolute, it will be prefixed with `/`.
     pub fn new_canonicalized(path: &str) -> Self {
@@ -50,15 +45,29 @@ impl<'a> AbsPath<'a> {
             Self(Cow::Owned(canonicalize(path)))
         }
     }
+}
+
+impl<'a> AbsPath<'a> {
+    /// Simply wrap a str slice into a `AbsPath`.
+    ///
+    /// Caller should ensure that the path is absolute and canonicalized.
+    pub const fn new(path: &'a str) -> Self {
+        Self(Cow::Borrowed(path))
+    }
 
     /// Trim the starting `/` to transform this `AbsPath` into a `RelPath`.
     pub fn to_rel(&self) -> RelPath {
         RelPath(Cow::Borrowed(self.0.trim_start_matches('/')))
     }
 
+    /// Create a new `AbsPath` with 'static lifetime.
+    pub fn to_owned(&self) -> AbsPath<'static> {
+        AbsPath::new_owned(self.0.to_string())
+    }
+
     /// Concatenate a `RelPath` to this `AbsPath`.
-    pub fn join(&self, rel: &RelPath) -> Self {
-        Self::new_canonicalized(&format!("{}/{}", self.0, rel.0))
+    pub fn join(&self, rel: &RelPath) -> AbsPath<'static> {
+        AbsPath::new_canonicalized(&format!("{}/{}", self.0, rel.0))
     }
 }
 
@@ -77,7 +86,7 @@ impl core::fmt::Display for AbsPath<'_> {
 }
 
 /// Canonicalized relative path type.
-/// 
+///
 /// - No starting '/'
 /// - No `.` components
 /// - No redundant or tailing '/'
@@ -88,27 +97,36 @@ impl core::fmt::Display for AbsPath<'_> {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct RelPath<'a>(Cow<'a, str>);
 
+impl RelPath<'static> {
+    /// Simply wrap a string into a `RelPath`.
+    ///
+    /// Caller should ensure that the path is relative and canonicalized.
+    pub const fn new_owned(path: String) -> Self {
+        Self(Cow::Owned(path))
+    }
+
+    /// Parse and canonicalize a relative path from a string.
+    ///
+    /// - If the given path is not canonicalized, it will be canonicalized.
+    /// - If the given path is absolute, the starting '/' will be trimmed.
+    pub fn new_canonicalized(path: &str) -> Self {
+        Self(Cow::Owned(canonicalize(path.trim_start_matches('/'))))
+    }
+}
+
 impl<'a> RelPath<'a> {
     /// Simply wrap a string into a `RelPath`.
-    /// 
+    ///
     /// Caller should ensure that the path is relative and canonicalized.
     pub const fn new(path: &'a str) -> Self {
         Self(Cow::Borrowed(path))
     }
 
     /// Wrap a string into a `RelPath` with possibly leading '/' trimmed.
-    /// 
+    ///
     /// Caller should ensure that the path is canonicalized.
     pub fn new_trimmed(path: &'a str) -> Self {
         Self(Cow::Borrowed(path.trim_start_matches('/')))
-    }
-
-    /// Parse and canonicalize a relative path from a string.
-    /// 
-    /// - If the given path is not canonicalized, it will be canonicalized.
-    /// - If the given path is absolute, the starting '/' will be trimmed.
-    pub fn new_canonicalized(path: &str) -> Self {
-        Self(Cow::Owned(canonicalize(path.trim_start_matches('/'))))
     }
 }
 
@@ -148,7 +166,7 @@ fn canonicalize(path: &str) -> String {
         match part {
             "" | "." => continue,
             ".." => {
-                if !is_absolute && buf.is_empty(){
+                if !is_absolute && buf.is_empty() {
                     buf.push_str("..");
                     continue;
                 }
