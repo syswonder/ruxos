@@ -16,6 +16,9 @@ use core::marker::Sync;
 
 use axerrno::LinuxResult;
 use axio::PollState;
+use axfs_vfs::AbsPath;
+use flatten_objects::FlattenObjects;
+use spin::RwLock;
 
 #[derive(Default)]
 ///Rust version for struct timespec in ctypes. Represents a high-resolution time specification.
@@ -101,6 +104,9 @@ pub struct RuxStat {
 
 /// Trait for file-like objects in a file descriptor table.
 pub trait FileLike: Send + Sync {
+    /// Get the absolute path of the file-like object.
+    fn path(&self) -> AbsPath;
+
     /// Reads data from the file-like object into the provided buffer.
     ///
     /// Returns the number of bytes read on success.
