@@ -7,7 +7,7 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use alloc::{string::ToString, sync::Arc};
+use alloc::sync::Arc;
 use core::{
     ffi::{c_char, c_int, c_long, c_void, CStr},
     str,
@@ -56,17 +56,14 @@ fn flags_to_cap(flags: u32) -> Cap {
 /// Return its index in the file table (`fd`). Return `EMFILE` if it already
 /// has the maximum number of files open.
 pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> c_int {
-    let path = char_ptr_to_path(filename);
-    let flags = flags as u32;
-    debug!("sys_open <= {:?} {:#o} {:#o}", filename, flags, mode);
-
     syscall_body!(sys_open, {
-        let path = path?;
+        let path = parse_path(filename)?;
+        let flags = flags as u32;
+        debug!("sys_open <= {:?} {:#o} {:#o}", path, flags, mode);
         // Check flag and attr
-        let node = match fops::lookup(&path.to_abs()) {
+        let node = match fops::lookup(&path) {
             Ok(node) => {
                 if flags & ctypes::O_EXCL != 0 {
-                    debug!("exist {} {}", flags, ctypes::O_EXCL);
                     return Err(LinuxError::EEXIST);
                 }
                 node
@@ -75,8 +72,8 @@ pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> 
                 if !(flags & ctypes::O_CREAT != 0) {
                     return Err(LinuxError::ENOENT);
                 }
-                fops::create_file(&path.to_abs())?;
-                fops::lookup(&path.to_abs())?
+                fops::create_file(&path)?;
+                fops::lookup(&path)?
             }
             Err(e) => return Err(e.into()),
         };
@@ -89,34 +86,23 @@ pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> 
         }
         // Open
         let append = flags & ctypes::O_APPEND != 0;
-        let file = fops::open_file(node, flags_to_cap(flags), append)?;
+        let file = fops::open_file(&path, node, flags_to_cap(flags), append)?;
         File::new(file).add_to_fd_table()
     })
 }
 
 /// Open a file under a specific dir
 pub fn sys_openat(fd: c_int, path: *const c_char, flags: c_int, mode: ctypes::mode_t) -> c_int {
-    let path = char_ptr_to_path(path);
-    let flags = flags as u32;
-    let cap = flags_to_cap(flags);
-    debug!(
-        "sys_openat <= {}, {:?}, {:#o}, {:#o}",
-        fd, path, flags, mode
-    );
-
     syscall_body!(sys_openat, {
-        let path = path?;
-        let absolute = matches!(path, Path::Absolute(_)) || fd == ctypes::AT_FDCWD;
-        // Get child node
-        let lookup_res = if absolute {
-            fops::lookup(&path.to_abs())
-        } else {
-            let dir = Directory::from_fd(fd)?;
-            let node = dir.inner.lock().lookup(&path.to_rel());
-            node
-        };
+        let path = parse_path_at(fd, path)?;
+        let flags = flags as u32;
+        let cap = flags_to_cap(flags);
+        debug!(
+            "sys_openat <= {}, {:?}, {:#o}, {:#o}",
+            fd, path, flags, mode
+        );
         // Check node attributes and handle not found
-        let node = match lookup_res {
+        let node = match fops::lookup(&path) {
             Ok(node) => {
                 let attr = node.get_attr()?;
                 // Node exists but O_EXCL is set
@@ -140,42 +126,19 @@ pub fn sys_openat(fd: c_int, path: *const c_char, flags: c_int, mode: ctypes::mo
                     return Err(LinuxError::ENOENT);
                 }
                 // Create file
-                if absolute {
-                    let path = path.to_abs();
-                    fops::create_file(&path)?;
-                    fops::lookup(&path)?
-                } else {
-                    let path = path.to_rel();
-                    let dir = Directory::from_fd(fd)?;
-                    dir.inner.lock().create_file(&path)?;
-                    let node = dir.inner.lock().lookup(&path)?;
-                    node
-                }
+                fops::create_file(&path)?;
+                fops::lookup(&path)?
             }
             Err(e) => return Err(e.into()),
         };
         // Open file or directory
         let append = flags & ctypes::O_APPEND != 0;
-        match (absolute, node.get_attr()?.is_dir()) {
-            (true, true) => {
-                let dir = fops::open_dir(node, cap)?;
-                Directory::new(dir).add_to_fd_table()
-            }
-            (true, false) => {
-                let file = fops::open_file(node, cap, append)?;
-                File::new(file).add_to_fd_table()
-            }
-            (false, true) => {
-                let dir = Directory::from_fd(fd)?.inner.lock().open_dir(node, cap)?;
-                Directory::new(dir).add_to_fd_table()
-            }
-            (false, false) => {
-                let file = Directory::from_fd(fd)?
-                    .inner
-                    .lock()
-                    .open_file(node, cap, append)?;
-                File::new(file).add_to_fd_table()
-            }
+        if node.get_attr()?.is_dir() {
+            let dir = fops::open_dir(&path, node, cap)?;
+            Directory::new(dir).add_to_fd_table()
+        } else {
+            let file = fops::open_file(&path, node, cap, append)?;
+            File::new(file).add_to_fd_table()
         }
     })
 }
@@ -189,8 +152,8 @@ pub fn sys_pread64(
     count: usize,
     pos: ctypes::off_t,
 ) -> ctypes::ssize_t {
-    debug!("sys_pread64 <= {} {} {}", fd, count, pos);
     syscall_body!(sys_pread64, {
+        debug!("sys_pread64 <= {} {} {}", fd, count, pos);
         if buf.is_null() {
             return Err(LinuxError::EFAULT);
         }
@@ -209,8 +172,8 @@ pub fn sys_pwrite64(
     count: usize,
     pos: ctypes::off_t,
 ) -> ctypes::ssize_t {
-    debug!("sys_pwrite64 <= {} {} {}", fd, count, pos);
     syscall_body!(sys_pwrite64, {
+        debug!("sys_pwrite64 <= {} {} {}", fd, count, pos);
         if buf.is_null() {
             return Err(LinuxError::EFAULT);
         }
@@ -224,8 +187,8 @@ pub fn sys_pwrite64(
 ///
 /// Return its position after seek.
 pub fn sys_lseek(fd: c_int, offset: ctypes::off_t, whence: c_int) -> ctypes::off_t {
-    debug!("sys_lseek <= {} {} {}", fd, offset, whence);
     syscall_body!(sys_lseek, {
+        debug!("sys_lseek <= {} {} {}", fd, offset, whence);
         let pos = match whence {
             0 => SeekFrom::Start(offset as _),
             1 => SeekFrom::Current(offset as _),
@@ -257,19 +220,19 @@ pub unsafe fn sys_fdatasync(fd: c_int) -> c_int {
 ///
 /// Return 0 if success.
 pub unsafe fn sys_stat(path: *const c_char, buf: *mut core::ffi::c_void) -> c_int {
-    let path = char_ptr_to_path(path);
-    debug!("sys_stat <= {:?} {:#x}", path, buf as usize);
     syscall_body!(sys_stat, {
+        let path = parse_path(path)?;
+        debug!("sys_stat <= {:?} {:#x}", path, buf as usize);
         if buf.is_null() {
             return Err(LinuxError::EFAULT);
         }
-        let node = fops::lookup(&path?.to_abs())?;
+        let node = fops::lookup(&path)?;
         let attr = node.get_attr()?;
         let st = if attr.is_dir() {
-            let dir = fops::open_dir(node, Cap::READ)?;
+            let dir = fops::open_dir(&path, node, Cap::empty())?;
             Directory::new(dir).stat()?.into()
         } else {
-            let file = fops::open_file(node, Cap::READ, false)?;
+            let file = fops::open_file(&path, node, Cap::empty(), false)?;
             File::new(file).stat()?.into()
         };
 
@@ -301,8 +264,8 @@ pub unsafe fn sys_stat(path: *const c_char, buf: *mut core::ffi::c_void) -> c_in
 
 /// retrieve information about the file pointed by `fd`
 pub fn sys_fstat(fd: c_int, kst: *mut core::ffi::c_void) -> c_int {
-    debug!("sys_fstat <= {} {:#x}", fd, kst as usize);
     syscall_body!(sys_fstat, {
+        debug!("sys_fstat <= {} {:#x}", fd, kst as usize);
         if kst.is_null() {
             return Err(LinuxError::EFAULT);
         }
@@ -343,9 +306,9 @@ pub fn sys_fstat(fd: c_int, kst: *mut core::ffi::c_void) -> c_int {
 ///
 /// Return 0 if success.
 pub unsafe fn sys_lstat(path: *const c_char, buf: *mut ctypes::stat) -> ctypes::ssize_t {
-    let path = char_ptr_to_path(path);
-    debug!("sys_lstat <= {:?} {:#x}", path, buf as usize);
     syscall_body!(sys_lstat, {
+        let path = parse_path(path)?;
+        debug!("sys_lstat <= {:?} {:#x}", path, buf as usize);
         if buf.is_null() {
             return Err(LinuxError::EFAULT);
         }
@@ -361,29 +324,20 @@ pub unsafe fn sys_newfstatat(
     kst: *mut ctypes::kstat,
     flag: c_int,
 ) -> c_int {
-    let path = char_ptr_to_path(path);
-    debug!(
-        "sys_newfstatat <= fd: {}, path: {:?}, flag: {:x}",
-        fd, path, flag
-    );
     syscall_body!(sys_newfstatat, {
-        let path = path?;
+        let path = parse_path_at(fd, path)?;
+        debug!(
+            "sys_newfstatat <= fd: {}, path: {:?}, flag: {:x}",
+            fd, path, flag
+        );
         if kst.is_null() {
             return Err(LinuxError::EFAULT);
         }
-        let absolute = matches!(path, Path::Absolute(_)) || fd == ctypes::AT_FDCWD;
-        let node = if absolute {
-            fops::lookup(&path.to_abs())?
-        } else {
-            Directory::from_fd(fd)?
-                .inner
-                .lock()
-                .lookup(&path.to_rel())?
-        };
+        let node = fops::lookup(&path)?;
         let st = if node.get_attr()?.is_dir() {
-            Directory::new(fops::open_dir(node, Cap::READ)?).stat()?
+            Directory::new(fops::open_dir(&path, node, Cap::empty())?).stat()?
         } else {
-            File::new(fops::open_file(node, Cap::READ, false)?).stat()?
+            File::new(fops::open_file(&path, node, Cap::empty(), false)?).stat()?
         };
         unsafe {
             (*kst).st_dev = st.st_dev;
@@ -426,40 +380,36 @@ pub fn sys_getcwd(buf: *mut c_char, size: usize) -> c_int {
 /// Return 0 if the operation succeeds, otherwise return -1.
 pub fn sys_rename(old: *const c_char, new: *const c_char) -> c_int {
     syscall_body!(sys_rename, {
-        let old_path = char_ptr_to_path(old)?;
-        let new_path = char_ptr_to_path(new)?;
-        debug!("sys_rename <= old: {:?}, new: {:?}", old_path, new_path);
-        if old_path == new_path {
+        let old = parse_path(old)?;
+        let new = parse_path(new)?;
+        debug!("sys_rename <= old: {:?}, new: {:?}", old, new);
+        if old == new {
             return Ok(0);
         }
-        match fops::lookup(&old_path.to_abs()) {
+        match fops::lookup(&old) {
             Ok(_) => {}
             Err(e) => return Err(e.into()),
         }
-        match fops::lookup(&new_path.to_abs()) {
+        match fops::lookup(&new) {
             Ok(_) => return Err(LinuxError::EEXIST),
             Err(Error::NotFound) => {}
             Err(e) => return Err(e.into()),
         }
-        fops::rename(&old_path.to_abs(), &new_path.to_abs())?;
+        fops::rename(&old, &new)?;
         Ok(0)
     })
 }
 
 /// Rename at certain directory pointed by `oldfd`
-///
-/// TODO: only support `oldfd`, `newfd` equals to AT_FDCWD
 pub fn sys_renameat(oldfd: c_int, old: *const c_char, newfd: c_int, new: *const c_char) -> c_int {
-    let old_path = char_ptr_to_path(old);
-    let new_path = char_ptr_to_path(new);
-    debug!(
-        "sys_renameat <= oldfd: {}, old: {:?}, newfd: {}, new: {:?}",
-        oldfd, old_path, newfd, new_path
-    );
-    assert_eq!(oldfd, ctypes::AT_FDCWD as c_int);
-    assert_eq!(newfd, ctypes::AT_FDCWD as c_int);
     syscall_body!(sys_renameat, {
-        fops::rename(&old_path?.to_abs(), &new_path?.to_abs())?;
+        let old_path = parse_path_at(oldfd, old)?;
+        let new_path = parse_path_at(newfd, new)?;
+        debug!(
+            "sys_renameat <= oldfd: {}, old: {:?}, newfd: {}, new: {:?}",
+            oldfd, old_path, newfd, new_path
+        );
+        fops::rename(&old_path, &new_path)?;
         Ok(0)
     })
 }
@@ -467,9 +417,9 @@ pub fn sys_renameat(oldfd: c_int, old: *const c_char, newfd: c_int, new: *const 
 /// Remove a directory, which must be empty
 pub fn sys_rmdir(pathname: *const c_char) -> c_int {
     syscall_body!(sys_rmdir, {
-        let path = char_ptr_to_path(pathname)?;
+        let path = parse_path(pathname)?;
         debug!("sys_rmdir <= path: {:?}", path);
-        match fops::lookup(&path.to_abs()) {
+        match fops::lookup(&path) {
             Ok(node) => {
                 let attr = node.get_attr()?;
                 if !attr.is_dir() {
@@ -490,7 +440,7 @@ pub fn sys_rmdir(pathname: *const c_char) -> c_int {
                         return Err(LinuxError::ENOTEMPTY);
                     }
                 }
-                fops::remove_dir(&path.to_abs())?;
+                fops::remove_dir(&path)?;
             }
             Err(e) => return Err(e.into()),
         }
@@ -501,9 +451,9 @@ pub fn sys_rmdir(pathname: *const c_char) -> c_int {
 /// Removes a file from the filesystem.
 pub fn sys_unlink(pathname: *const c_char) -> c_int {
     syscall_body!(sys_unlink, {
-        let path = char_ptr_to_path(pathname)?;
+        let path = parse_path(pathname)?;
         debug!("sys_unlink <= path: {:?}", path);
-        match fops::lookup(&path.to_abs()) {
+        match fops::lookup(&path) {
             Ok(node) => {
                 let attr = node.get_attr()?;
                 if attr.is_dir() {
@@ -512,7 +462,7 @@ pub fn sys_unlink(pathname: *const c_char) -> c_int {
                 if !attr.perm().owner_writable() {
                     return Err(LinuxError::EPERM);
                 }
-                fops::remove_file(&path.to_abs())?;
+                fops::remove_file(&path)?;
             }
             Err(e) => return Err(e.into()),
         }
@@ -522,22 +472,14 @@ pub fn sys_unlink(pathname: *const c_char) -> c_int {
 
 /// deletes a name from the filesystem
 pub fn sys_unlinkat(fd: c_int, pathname: *const c_char, flags: c_int) -> c_int {
-    debug!(
-        "sys_unlinkat <= fd: {}, pathname: {:?}, flags: {}",
-        fd,
-        char_ptr_to_path(pathname),
-        flags
-    );
-    let rmdir = flags as u32 & ctypes::AT_REMOVEDIR != 0;
     syscall_body!(sys_unlinkat, {
-        let path = char_ptr_to_path(pathname)?;
-        let absolute = matches!(path, Path::Absolute(_)) || fd == ctypes::AT_FDCWD;
-        let node = if absolute {
-            fops::lookup(&path.to_abs())
-        } else {
-            Directory::from_fd(fd)?.inner.lock().lookup(&path.to_rel())
-        };
-        match node {
+        let path = parse_path(pathname)?;
+        let rmdir = flags as u32 & ctypes::AT_REMOVEDIR != 0;
+        debug!(
+            "sys_unlinkat <= fd: {}, pathname: {:?}, flags: {}",
+            fd, path, flags
+        );
+        match fops::lookup(&path) {
             Ok(node) => {
                 let attr = node.get_attr()?;
                 if rmdir {
@@ -559,14 +501,7 @@ pub fn sys_unlinkat(fd: c_int, pathname: *const c_char, flags: c_int) -> c_int {
                             return Err(LinuxError::ENOTEMPTY);
                         }
                     }
-                    if absolute {
-                        fops::remove_dir(&path.to_abs())?;
-                    } else {
-                        Directory::from_fd(fd)?
-                            .inner
-                            .lock()
-                            .unlink(&path.to_rel())?;
-                    }
+                    fops::remove_dir(&path)?;
                 } else {
                     if attr.is_dir() {
                         return Err(LinuxError::EISDIR);
@@ -574,14 +509,7 @@ pub fn sys_unlinkat(fd: c_int, pathname: *const c_char, flags: c_int) -> c_int {
                     if !attr.perm().owner_writable() {
                         return Err(LinuxError::EPERM);
                     }
-                    if absolute {
-                        fops::remove_file(&path.to_abs())?;
-                    } else {
-                        Directory::from_fd(fd)?
-                            .inner
-                            .lock()
-                            .unlink(&path.to_rel())?;
-                    }
+                    fops::remove_file(&path)?;
                 }
             }
             Err(e) => return Err(e.into()),
@@ -594,12 +522,12 @@ pub fn sys_unlinkat(fd: c_int, pathname: *const c_char, flags: c_int) -> c_int {
 pub fn sys_mkdir(pathname: *const c_char, mode: ctypes::mode_t) -> c_int {
     // TODO: implement mode
     syscall_body!(sys_mkdir, {
-        let path = char_ptr_to_path(pathname)?;
+        let path = parse_path(pathname)?;
         debug!("sys_mkdir <= path: {:?}, mode: {:?}", path, mode);
-        let node = fops::lookup(&path.to_abs());
+        let node = fops::lookup(&path);
         match node {
             Ok(_) => return Err(LinuxError::EEXIST),
-            Err(Error::NotFound) => fops::create_dir(&path.to_abs())?,
+            Err(Error::NotFound) => fops::create_dir(&path)?,
             Err(e) => return Err(e.into()),
         }
         Ok(0)
@@ -608,32 +536,15 @@ pub fn sys_mkdir(pathname: *const c_char, mode: ctypes::mode_t) -> c_int {
 
 /// attempts to create a directory named pathname under directory pointed by `fd`
 pub fn sys_mkdirat(fd: c_int, pathname: *const c_char, mode: ctypes::mode_t) -> c_int {
-    debug!(
-        "sys_mkdirat <= fd: {}, pathname: {:?}, mode: {:x?}",
-        fd,
-        char_ptr_to_path(pathname),
-        mode
-    );
     syscall_body!(sys_mkdirat, {
-        let path = char_ptr_to_path(pathname)?;
-        let absolute = matches!(path, Path::Absolute(_)) || fd == ctypes::AT_FDCWD;
-        let node = if absolute {
-            fops::lookup(&path.to_abs())
-        } else {
-            Directory::from_fd(fd)?.inner.lock().lookup(&path.to_rel())
-        };
-        match node {
+        let path = parse_path_at(fd, pathname)?;
+        debug!(
+            "sys_mkdirat <= fd: {}, pathname: {:?}, mode: {:x?}",
+            fd, path, mode
+        );
+        match fops::lookup(&path) {
             Ok(_) => return Err(LinuxError::EEXIST),
-            Err(Error::NotFound) => {
-                if absolute {
-                    fops::create_dir(&path.to_abs())?;
-                } else {
-                    Directory::from_fd(fd)?
-                        .inner
-                        .lock()
-                        .create_dir(&path.to_rel())?;
-                }
-            }
+            Err(Error::NotFound) => fops::create_dir(&path)?,
             Err(e) => return Err(e.into()),
         }
         Ok(0)
@@ -648,15 +559,14 @@ pub fn sys_fchownat(
     gid: ctypes::gid_t,
     flag: c_int,
 ) -> c_int {
-    debug!(
-        "sys_fchownat <= fd: {}, path: {:?}, uid: {}, gid: {}, flag: {}",
-        fd,
-        char_ptr_to_path(path),
-        uid,
-        gid,
-        flag
-    );
-    syscall_body!(sys_fchownat, Ok(0))
+    syscall_body!(sys_fchownat, {
+        let path = parse_path_at(fd, path)?;
+        debug!(
+            "sys_fchownat <= fd: {}, path: {:?}, uid: {}, gid: {}, flag: {}",
+            fd, path, uid, gid, flag
+        );
+        Ok(0)
+    })
 }
 
 /// read value of a symbolic link relative to directory file descriptor
@@ -667,12 +577,12 @@ pub fn sys_readlinkat(
     buf: *mut c_char,
     bufsize: usize,
 ) -> usize {
-    let path = char_ptr_to_path(pathname);
-    debug!(
-        "sys_readlinkat <= path = {:?}, fd = {:}, buf = {:p}, bufsize = {:}",
-        path, fd, buf, bufsize
-    );
     syscall_body!(sys_readlinkat, {
+        let path = parse_path_at(fd, pathname)?;
+        debug!(
+            "sys_readlinkat <= path = {:?}, fd = {:}, buf = {:p}, bufsize = {:}",
+            path, fd, buf, bufsize
+        );
         Err::<usize, LinuxError>(LinuxError::EINVAL)
     })
 }
@@ -682,14 +592,11 @@ type LinuxDirent64 = ctypes::dirent;
 const DIRENT64_FIXED_SIZE: usize = 19;
 
 /// Read directory entries from a directory file descriptor.
-///
-/// TODO: check errors, change 280 to a special value
 pub unsafe fn sys_getdents64(fd: c_int, dirp: *mut LinuxDirent64, count: ctypes::size_t) -> c_long {
     debug!(
         "sys_getdents64 <= fd: {}, dirp: {:p}, count: {}",
         fd, dirp, count
     );
-
     syscall_body!(sys_getdents64, {
         if count < DIRENT64_FIXED_SIZE {
             return Err(LinuxError::EINVAL);
@@ -780,12 +687,12 @@ pub unsafe fn sys_preadv(
 /// The mode is either the value F_OK, for the existence of the file,
 /// or a mask consisting of the bitwise OR of one or more of R_OK, W_OK, and X_OK, for the read, write, execute permissions.
 pub fn sys_faccessat(dirfd: c_int, pathname: *const c_char, mode: c_int, flags: c_int) -> c_int {
-    let path = char_ptr_to_path(pathname).unwrap();
-    debug!(
-        "sys_faccessat <= dirfd {} path {} mode {} flags {}",
-        dirfd, path, mode, flags
-    );
     syscall_body!(sys_faccessat, {
+        let path = parse_path_at(dirfd, pathname)?;
+        debug!(
+            "sys_faccessat <= dirfd {} path {} mode {} flags {}",
+            dirfd, path, mode, flags
+        );
         // TODO: dirfd
         // let mut options = OpenOptions::new();
         // options.read(true);
@@ -796,53 +703,12 @@ pub fn sys_faccessat(dirfd: c_int, pathname: *const c_char, mode: c_int, flags: 
 
 /// changes the current working directory to the directory specified in path.
 pub fn sys_chdir(path: *const c_char) -> c_int {
-    let path = char_ptr_to_path(path);
-    debug!("sys_chdir <= path: {:?}", path);
     syscall_body!(sys_chdir, {
-        let path = path?;
-        fops::set_current_dir(AbsPath::new_owned(path.to_abs().to_string()))?;
+        let path = parse_path(path)?;
+        debug!("sys_chdir <= path: {:?}", path);
+        fops::set_current_dir(path)?;
         Ok(0)
     })
-}
-
-/// Generic path type.
-#[derive(Debug, PartialEq)]
-enum Path<'a> {
-    Absolute(AbsPath<'a>),
-    Relative(RelPath<'a>),
-}
-
-impl<'a> Path<'a> {
-    /// Translate the path into a `RelPath`.
-    ///
-    /// * If the path is already a relative path, it is returned as is.
-    /// * If the path is an absolute path, its root is stripped.
-    pub fn to_rel(&'a self) -> RelPath<'a> {
-        match self {
-            Path::Absolute(p) => p.to_rel(),
-            Path::Relative(p) => p.clone(),
-        }
-    }
-
-    /// Translate the path into a `AbsPath`.
-    ///
-    /// * If the path is already an absolute path, it is returned as is.
-    /// * If the path is a relative path, it is resolved against the current working directory.
-    pub fn to_abs(&'a self) -> AbsPath<'a> {
-        match self {
-            Path::Absolute(p) => p.clone(),
-            Path::Relative(p) => fops::current_dir().join(&p),
-        }
-    }
-}
-
-impl core::fmt::Display for Path<'_> {
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self {
-            Path::Absolute(p) => write!(f, "{}", p),
-            Path::Relative(p) => write!(f, "{}", p),
-        }
-    }
 }
 
 /// from char_ptr get path_str
@@ -856,12 +722,34 @@ fn char_ptr_to_path_str<'a>(ptr: *const c_char) -> LinuxResult<&'a str> {
     }
 }
 
-/// from char_ptr get wrapped path type
-fn char_ptr_to_path<'a>(ptr: *const c_char) -> LinuxResult<Path<'a>> {
-    let path = char_ptr_to_path_str(ptr)?;
+/// Parse `path` argument for fs syscalls.
+///
+/// * If the given `path` is absolute, return it as is.
+/// * If the given `path` is relative, join it against the current working directory.
+pub fn parse_path(path: *const c_char) -> LinuxResult<AbsPath<'static>> {
+    let path = char_ptr_to_path_str(path)?;
     if path.starts_with('/') {
-        Ok(Path::Absolute(AbsPath::new_canonicalized(path)))
+        Ok(AbsPath::new_canonicalized(path))
     } else {
-        Ok(Path::Relative(RelPath::new_canonicalized(path)))
+        Ok(fops::current_dir().join(&RelPath::new_canonicalized(path)))
+    }
+}
+
+/// Parse `path` and `dirfd` arguments for fs syscalls.
+///
+/// * If the given `path` is absolute, return it as is.
+/// * If the given `path` is relative and `dirfd` is `AT_FDCWD`, join it against the
+///   current working directory.
+/// * If the given `path` is relative and `dirfd` is not `AT_FDCWD`, join it against the
+///   directory of the file descriptor.
+pub fn parse_path_at(dirfd: c_int, path: *const c_char) -> LinuxResult<AbsPath<'static>> {
+    let path = char_ptr_to_path_str(path)?;
+    if path.starts_with('/') {
+        Ok(AbsPath::new_canonicalized(path))
+    } else if dirfd == ctypes::AT_FDCWD {
+        Ok(fops::current_dir().join(&RelPath::new_canonicalized(path)))
+    } else {
+        let dir = Directory::from_fd(dirfd)?;
+        Ok(dir.path().join(&RelPath::new_canonicalized(path)))
     }
 }
