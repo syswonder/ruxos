@@ -9,7 +9,6 @@
 
 //! Low-level filesystem operations.
 
-use alloc::borrow::ToOwned;
 use axerrno::{ax_err, ax_err_type, AxResult};
 use axfs_vfs::{AbsPath, VfsError, VfsNodeOps, VfsNodeRef, VfsNodeType};
 use axio::SeekFrom;
@@ -51,8 +50,8 @@ impl File {
     }
 
     /// Get the abcolute path of the file.
-    pub fn path(&self) -> &AbsPath {
-        &self.path
+    pub fn path(&self) -> AbsPath {
+        self.path.clone()
     }
 
     /// Gets the file attributes.
@@ -144,8 +143,8 @@ impl Directory {
     }
 
     /// Gets the absolute path of the directory.
-    pub fn path(&self) -> &AbsPath {
-        &self.path
+    pub fn path(&self) -> AbsPath {
+        self.path.clone()
     }
 
     /// Gets the file attributes.

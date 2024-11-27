@@ -1663,6 +1663,7 @@ name = "ruxfdtable"
 version = "0.1.0"
 dependencies = [
  "axerrno",
+ "axfs_vfs",
  "axio",
  "flatten_objects",
  "lazy_static",

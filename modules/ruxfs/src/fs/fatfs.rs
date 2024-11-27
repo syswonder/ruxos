@@ -85,7 +85,7 @@ impl VfsNodeOps for FileWrapper<'static> {
         let blocks = (size + BLOCK_SIZE as u64 - 1) / BLOCK_SIZE as u64;
         // FAT fs doesn't support permissions, we just set everything to 755
         let perm = VfsNodePerm::from_bits_truncate(0o755);
-        Ok(VfsNodeAttr::new(perm, VfsNodeType::File, size, blocks))
+        Ok(VfsNodeAttr::new(0, perm, VfsNodeType::File, size, blocks))
     }
 
     fn read_at(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
@@ -133,6 +133,7 @@ impl VfsNodeOps for DirWrapper<'static> {
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
         // FAT fs doesn't support permissions, we just set everything to 755
         Ok(VfsNodeAttr::new(
+            0,
             VfsNodePerm::from_bits_truncate(0o755),
             VfsNodeType::Dir,
             BLOCK_SIZE as u64,
