@@ -102,19 +102,27 @@ impl VfsNodeOps for DirNode {
 
     fn lookup(self: Arc<Self>, path: &RelPath) -> VfsResult<VfsNodeRef> {
         let (name, rest) = split_path(path);
-        let node = match name {
-            "" => Ok(self.clone() as VfsNodeRef),
-            _ => self
-                .children
+        if let Some(rest) = rest {
+            match name {
+                ".." => self.parent().ok_or(VfsError::NotFound)?.lookup(&rest),
+                _ => self
+                    .children
+                    .read()
+                    .get(name)
+                    .cloned()
+                    .ok_or(VfsError::NotFound)?
+                    .lookup(&rest),
+            }
+        } else if name == "" {
+            Ok(self.clone() as VfsNodeRef)
+        } else if name == ".." {
+            self.parent().ok_or(VfsError::NotFound)
+        } else {
+            self.children
                 .read()
                 .get(name)
                 .cloned()
-                .ok_or(VfsError::NotFound),
-        }?;
-        if let Some(rest) = rest {
-            node.lookup(&rest)
-        } else {
-            Ok(node)
+                .ok_or(VfsError::NotFound)
         }
     }
 
@@ -138,7 +146,6 @@ impl VfsNodeOps for DirNode {
     }
 
     fn create(&self, path: &RelPath, ty: VfsNodeType) -> VfsResult {
-        log::debug!("create {:?} at devfs: {}", ty, path);
         let (name, rest) = split_path(path);
         if let Some(rest) = rest {
             match name {
@@ -150,7 +157,7 @@ impl VfsNodeOps for DirNode {
                     .ok_or(VfsError::NotFound)?
                     .create(&rest, ty),
             }
-        } else if name.is_empty() || name == ".." {
+        } else if name == "" || name == ".." {
             Ok(()) // already exists
         } else {
             self.create_node(name, ty)
@@ -158,7 +165,6 @@ impl VfsNodeOps for DirNode {
     }
 
     fn unlink(&self, path: &RelPath) -> VfsResult {
-        log::debug!("remove at devfs: {}", path);
         let (name, rest) = split_path(path);
         if let Some(rest) = rest {
             match name {
@@ -170,7 +176,7 @@ impl VfsNodeOps for DirNode {
                     .ok_or(VfsError::NotFound)?
                     .unlink(&rest),
             }
-        } else if name.is_empty() || name == ".." {
+        } else if name == "" || name == ".." {
             Err(VfsError::InvalidInput) // remove '.' or '..
         } else {
             self.remove_node(name)
