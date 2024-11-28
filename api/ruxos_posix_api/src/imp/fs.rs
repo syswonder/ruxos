@@ -135,7 +135,7 @@ pub fn sys_openat(fd: c_int, path: *const c_char, flags: c_int, mode: ctypes::mo
         let append = flags & ctypes::O_APPEND != 0;
         if node.get_attr()?.is_dir() {
             let dir = fops::open_dir(&path, node, cap)?;
-            Directory::new(dir).add_to_fd_table()
+            Directory::new(dir, (flags & ctypes::O_SEARCH != 0)).add_to_fd_table()
         } else {
             let file = fops::open_file(&path, node, cap, append)?;
             File::new(file).add_to_fd_table()
@@ -230,7 +230,7 @@ pub unsafe fn sys_stat(path: *const c_char, buf: *mut core::ffi::c_void) -> c_in
         let attr = node.get_attr()?;
         let st = if attr.is_dir() {
             let dir = fops::open_dir(&path, node, Cap::empty())?;
-            Directory::new(dir).stat()?.into()
+            Directory::new(dir, false).stat()?.into()
         } else {
             let file = fops::open_file(&path, node, Cap::empty(), false)?;
             File::new(file).stat()?.into()
@@ -335,7 +335,7 @@ pub unsafe fn sys_newfstatat(
         }
         let node = fops::lookup(&path)?;
         let st = if node.get_attr()?.is_dir() {
-            Directory::new(fops::open_dir(&path, node, Cap::empty())?).stat()?
+            Directory::new(fops::open_dir(&path, node, Cap::empty())?, false).stat()?
         } else {
             File::new(fops::open_file(&path, node, Cap::empty(), false)?).stat()?
         };
@@ -693,10 +693,6 @@ pub fn sys_faccessat(dirfd: c_int, pathname: *const c_char, mode: c_int, flags: 
             "sys_faccessat <= dirfd {} path {} mode {} flags {}",
             dirfd, path, mode, flags
         );
-        // TODO: dirfd
-        // let mut options = OpenOptions::new();
-        // options.read(true);
-        // let _file = options.open(path)?;
         Ok(0)
     })
 }
@@ -750,6 +746,10 @@ pub fn parse_path_at(dirfd: c_int, path: *const c_char) -> LinuxResult<AbsPath<'
         Ok(fops::current_dir().join(&RelPath::new_canonicalized(path)))
     } else {
         let dir = Directory::from_fd(dirfd)?;
-        Ok(dir.path().join(&RelPath::new_canonicalized(path)))
+        if dir.searchable {
+            Ok(dir.path().join(&RelPath::new_canonicalized(path)))
+        } else {
+            Err(LinuxError::EACCES)
+        }
     }
 }
