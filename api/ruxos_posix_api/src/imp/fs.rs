@@ -67,29 +67,7 @@ impl FileLike for File {
     }
 
     fn stat(&self) -> LinuxResult<RuxStat> {
-        let metadata = self.inner.lock().get_attr()?;
-        let ty = metadata.file_type() as u8;
-        let perm = metadata.perm().bits() as u32;
-        let st_mode = ((ty as u32) << 12) | perm;
-
-        // Inode of files, for musl dynamic linker.
-        // WARN: there will be collision for files with the same size.
-        // TODO: implement real inode.
-        let st_ino = metadata.size() + st_mode as u64;
-
-        let res = RuxStat::from(ctypes::stat {
-            st_ino,
-            st_nlink: 1,
-            st_mode,
-            st_uid: 1000,
-            st_gid: 1000,
-            st_size: metadata.size() as _,
-            st_blocks: metadata.blocks() as _,
-            st_blksize: 512,
-            ..Default::default()
-        });
-
-        Ok(res)
+        self.inner.lock().get_attr().map(|attr| RuxStat::from(attr))
     }
 
     fn into_any(self: Arc<Self>) -> Arc<dyn core::any::Any + Send + Sync> {
@@ -110,12 +88,14 @@ impl FileLike for File {
 
 pub struct Directory {
     inner: Mutex<ruxfs::fops::Directory>,
+    searchable: bool,
 }
 
 impl Directory {
-    fn new(inner: ruxfs::fops::Directory) -> Self {
+    fn new(inner: ruxfs::fops::Directory, searchable: bool) -> Self {
         Self {
             inner: Mutex::new(inner),
+            searchable,
         }
     }
 
@@ -149,21 +129,7 @@ impl FileLike for Directory {
     }
 
     fn stat(&self) -> LinuxResult<RuxStat> {
-        let metadata = self.inner.lock().get_attr()?;
-        let ty = metadata.file_type() as u8;
-        let perm = metadata.perm().bits() as u32;
-        let st_mode = ((ty as u32) << 12) | perm;
-        Ok(RuxStat::from(ctypes::stat {
-            st_ino: 1,
-            st_nlink: 1,
-            st_mode,
-            st_uid: 1000,
-            st_gid: 1000,
-            st_size: metadata.size() as _,
-            st_blocks: metadata.blocks() as _,
-            st_blksize: 512,
-            ..Default::default()
-        }))
+        self.inner.lock().get_attr().map(|attr| RuxStat::from(attr))
     }
 
     fn into_any(self: Arc<Self>) -> Arc<dyn core::any::Any + Send + Sync> {
@@ -275,7 +241,7 @@ pub fn sys_openat(fd: c_int, path: *const c_char, flags: c_int, mode: ctypes::mo
         let append = flags & ctypes::O_APPEND != 0;
         if node.get_attr()?.is_dir() {
             let dir = fops::open_dir(&path, node, cap)?;
-            Directory::new(dir).add_to_fd_table()
+            Directory::new(dir, (flags & ctypes::O_SEARCH != 0)).add_to_fd_table()
         } else {
             let file = fops::open_file(&path, node, cap, append)?;
             File::new(file).add_to_fd_table()
@@ -370,7 +336,7 @@ pub unsafe fn sys_stat(path: *const c_char, buf: *mut core::ffi::c_void) -> c_in
         let attr = node.get_attr()?;
         let st = if attr.is_dir() {
             let dir = fops::open_dir(&path, node, Cap::empty())?;
-            Directory::new(dir).stat()?.into()
+            Directory::new(dir, false).stat()?.into()
         } else {
             let file = fops::open_file(&path, node, Cap::empty(), false)?;
             File::new(file).stat()?.into()
@@ -475,7 +441,7 @@ pub unsafe fn sys_newfstatat(
         }
         let node = fops::lookup(&path)?;
         let st = if node.get_attr()?.is_dir() {
-            Directory::new(fops::open_dir(&path, node, Cap::empty())?).stat()?
+            Directory::new(fops::open_dir(&path, node, Cap::empty())?, false).stat()?
         } else {
             File::new(fops::open_file(&path, node, Cap::empty(), false)?).stat()?
         };
@@ -833,10 +799,6 @@ pub fn sys_faccessat(dirfd: c_int, pathname: *const c_char, mode: c_int, flags: 
             "sys_faccessat <= dirfd {} path {} mode {} flags {}",
             dirfd, path, mode, flags
         );
-        // TODO: dirfd
-        // let mut options = OpenOptions::new();
-        // options.read(true);
-        // let _file = options.open(path)?;
         Ok(0)
     })
 }
@@ -890,6 +852,10 @@ pub fn parse_path_at(dirfd: c_int, path: *const c_char) -> LinuxResult<AbsPath<'
         Ok(fops::current_dir().join(&RelPath::new_canonicalized(path)))
     } else {
         let dir = Directory::from_fd(dirfd)?;
-        Ok(dir.path().join(&RelPath::new_canonicalized(path)))
+        if dir.searchable {
+            Ok(dir.path().join(&RelPath::new_canonicalized(path)))
+        } else {
+            Err(LinuxError::EACCES)
+        }
     }
 }
