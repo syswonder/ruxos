@@ -1,3 +1,7 @@
+//! Reference: 
+//! - ext4_rs: https://github.com/yuoo655/ext4_rs
+//! - axfs: https://github.com/Starry-OS/axfs
+
 use crate::dev::Disk;
 use alloc::sync::Arc;
 use alloc::vec;

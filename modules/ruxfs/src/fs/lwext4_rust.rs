@@ -1,3 +1,7 @@
+//! Reference: 
+//! - lwext4_rust: https://github.com/elliott10/lwext4_rust
+//! - axfs: https://github.com/Starry-OS/axfs
+
 use crate::alloc::string::String;
 use alloc::sync::Arc;
 use axerrno::AxError;
@@ -137,7 +141,7 @@ impl VfsNodeOps for FileWrapper {
             blocks
         );
 
-        Ok(VfsNodeAttr::new(perm, vtype, size, blocks))
+        Ok(VfsNodeAttr::new(0, perm, vtype, size, blocks))
     }
 
     fn create(&self, path: &RelPath, ty: VfsNodeType) -> VfsResult {
