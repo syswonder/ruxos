@@ -570,7 +570,7 @@ pub fn sys_unlink(pathname: *const c_char) -> c_int {
 /// deletes a name from the filesystem
 pub fn sys_unlinkat(fd: c_int, pathname: *const c_char, flags: c_int) -> c_int {
     syscall_body!(sys_unlinkat, {
-        let path = parse_path(pathname)?;
+        let path = parse_path_at(fd, pathname)?;
         let rmdir = flags as u32 & ctypes::AT_REMOVEDIR != 0;
         debug!(
             "sys_unlinkat <= fd: {}, pathname: {:?}, flags: {}",
