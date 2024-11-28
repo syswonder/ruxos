@@ -31,6 +31,7 @@
 //! | [`open()`](VfsNodeOps::open) | Do something when the node is opened | both |
 //! | [`release()`](VfsNodeOps::release) | Do something when the node is closed | both |
 //! | [`get_attr()`](VfsNodeOps::get_attr) | Get the attributes of the node | both |
+//! | [`set_attr()`](VfsNodeOps::set_attr) | Set the attributes of the node | both |
 //! | [`read_at()`](VfsNodeOps::read_at) | Read data from the file | file |
 //! | [`write_at()`](VfsNodeOps::write_at) | Write data to the file | file |
 //! | [`fsync()`](VfsNodeOps::fsync) | Synchronize the file data to disk | file |
@@ -38,8 +39,10 @@
 //! | [`parent()`](VfsNodeOps::parent) | Get the parent directory | directory |
 //! | [`lookup()`](VfsNodeOps::lookup) | Lookup the node with the given path | directory |
 //! | [`create()`](VfsNodeOps::create) | Create a new node with the given path | directory |
-//! | [`remove()`](VfsNodeOps::remove) | Remove the node with the given path | directory |
+//! | [`link()`](VfsNodeOps::link) | Create a hard link with the given path | directory |
+//! | [`unlink()`](VfsNodeOps::unlink) | Remove the node with the given path | directory |
 //! | [`read_dir()`](VfsNodeOps::read_dir) | Read directory entries | directory |
+//! | [`is_empty()`](VfsNodeOps::is_empty) | [unstable] Check if the directory is empty | directory |
 //!
 //! [inodes]: https://en.wikipedia.org/wiki/Inode
 

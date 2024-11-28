@@ -7,12 +7,12 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-//! Low-level filesystem operations.
-//! 
+//! Low-level filesystem operations. Provided for [ruxfs::api] and [ruxos_posix_api::fs] modules.
+//!
 //! - File: open, read, write, seek, truncate
 //! - Directory: open, read, create, remove
-//! 
-//! Provided for [ruxfs::api] and [ruxos_posix_api::fs] modules.
+//!
+//! The interface is designed with low coupling to avoid repetitive error handling.
 
 use axerrno::{ax_err, ax_err_type, AxResult};
 use axfs_vfs::{AbsPath, VfsError, VfsNodeOps, VfsNodeRef, VfsNodeType};
@@ -39,18 +39,18 @@ pub type FilePerm = axfs_vfs::VfsNodePerm;
 pub struct File {
     path: AbsPath<'static>,
     node: WithCap<VfsNodeRef>,
-    is_append: bool,
+    append: bool,
     offset: u64,
 }
 
 impl File {
     /// Create an opened file.
-    pub fn new(path: AbsPath<'static>, node: VfsNodeRef, cap: Cap, is_append: bool) -> Self {
+    pub fn new(path: AbsPath<'static>, node: VfsNodeRef, cap: Cap, append: bool) -> Self {
         Self {
             path,
             node: WithCap::new(node, cap),
             offset: 0,
-            is_append,
+            append,
         }
     }
 
@@ -93,7 +93,7 @@ impl File {
     /// written.
     pub fn write(&mut self, buf: &[u8]) -> AxResult<usize> {
         let node = self.node.access(Cap::WRITE)?;
-        if self.is_append {
+        if self.append {
             self.offset = self.get_attr()?.size();
         };
         let write_len = node.write_at(self.offset, buf)?;
@@ -129,8 +129,7 @@ impl File {
     }
 }
 
-/// An opened directory object, with open permissions and a cursor for
-/// [`read_dir`](Directory::read_dir).
+/// An opened directory object, with open permissions and a cursor for entry reading.
 pub struct Directory {
     path: AbsPath<'static>,
     node: WithCap<VfsNodeRef>,
@@ -182,7 +181,7 @@ impl Directory {
     }
 }
 
-/* File operations with absolute path */
+// File operations with absolute path.
 
 /// Look up a file given an absolute path.
 pub fn lookup(path: &AbsPath) -> AxResult<VfsNodeRef> {

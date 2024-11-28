@@ -13,8 +13,8 @@
 //!
 //! # Cargo Features
 //!
-//! - `fatfs`: Use [FAT] as the main filesystem and mount it on `/`. This feature
-//!    is **enabled** by default.
+//! - `fatfs`: Use [FAT] as the main filesystem and mount it on `/`. Requires
+//!    `blkfs` to be enabled.
 //! - `devfs`: Mount [`axfs_devfs::DeviceFileSystem`] on `/dev`. This feature is
 //!    **enabled** by default.
 //! - `ramfs`: Mount [`axfs_ramfs::RamFileSystem`] on `/tmp`. This feature is
