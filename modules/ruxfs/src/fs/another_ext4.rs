@@ -1,3 +1,7 @@
+//! Reference: 
+//! - another_ext4: https://github.com/LJxTHUCS/another_ext4
+//! - axfs: https://github.com/Starry-OS/axfs
+
 use crate::dev::Disk;
 use alloc::sync::Arc;
 use another_ext4::{
