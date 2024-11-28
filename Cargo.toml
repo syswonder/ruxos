@@ -61,7 +61,7 @@ members = [
 
     "apps/display/basic_painting",
     "apps/display/draw_map",
-    "apps/fs/shell", "apps/custom/harness",
+    "apps/fs/shell"
 ]
 
 [profile.release]
