@@ -73,19 +73,27 @@ impl VfsNodeOps for DirNode {
 
     fn lookup(self: Arc<Self>, path: &RelPath) -> VfsResult<VfsNodeRef> {
         let (name, rest) = split_path(path);
-        let node = match name {
-            "" => Ok(self.clone() as VfsNodeRef),
-            _ => self
-                .children
+        if let Some(rest) = rest {
+            match name {
+                ".." => self.parent().ok_or(VfsError::NotFound)?.lookup(&rest),
+                _ => self
+                    .children
+                    .read()
+                    .get(name)
+                    .cloned()
+                    .ok_or(VfsError::NotFound)?
+                    .lookup(&rest),
+            }
+        } else if name == "" {
+            Ok(self.clone() as VfsNodeRef)
+        } else if name == ".." {
+            self.parent().ok_or(VfsError::NotFound)
+        } else {
+            self.children
                 .read()
                 .get(name)
                 .cloned()
-                .ok_or(VfsError::NotFound),
-        }?;
-        if let Some(rest) = rest {
-            node.lookup(&rest)
-        } else {
-            Ok(node)
+                .ok_or(VfsError::NotFound)
         }
     }
 
@@ -109,11 +117,9 @@ impl VfsNodeOps for DirNode {
     }
 
     fn create(&self, path: &RelPath, ty: VfsNodeType) -> VfsResult {
-        log::debug!("create {:?} at devfs: {}", ty, path);
         let (name, rest) = split_path(path);
         if let Some(rest) = rest {
             match name {
-                "" | "." => self.create(&rest, ty),
                 ".." => self.parent().ok_or(VfsError::NotFound)?.create(&rest, ty),
                 _ => self
                     .children
@@ -122,7 +128,7 @@ impl VfsNodeOps for DirNode {
                     .ok_or(VfsError::NotFound)?
                     .create(&rest, ty),
             }
-        } else if name.is_empty() || name == "." || name == ".." {
+        } else if name == "" || name == ".." {
             Ok(()) // already exists
         } else {
             Err(VfsError::PermissionDenied) // do not support to create nodes dynamically
@@ -130,7 +136,6 @@ impl VfsNodeOps for DirNode {
     }
 
     fn unlink(&self, path: &RelPath) -> VfsResult {
-        log::debug!("unlink at devfs: {}", path);
         let (name, rest) = split_path(path);
         if let Some(rest) = rest {
             match name {
