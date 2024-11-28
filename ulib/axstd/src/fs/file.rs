@@ -80,6 +80,11 @@ impl OpenOptions {
 }
 
 impl Metadata {
+    /// Wraps an `AxFileAttr` in a `Metadata` object.
+    pub(super) const fn new(attr: api::AxFileAttr) -> Self {
+        Metadata(attr)
+    }
+
     /// Returns the file type for this metadata.
     pub const fn file_type(&self) -> FileType {
         self.0.file_type()
@@ -185,7 +190,7 @@ impl Write for File {
     }
 
     fn flush(&mut self) -> Result<()> {
-        api::ax_flush_file(&self.inner)
+        api::ax_flush_file(&mut self.inner)
     }
 }
 
