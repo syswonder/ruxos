@@ -7,13 +7,12 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-//! [`std::fs`]-like high-level filesystem manipulation operations.
+//! High-level filesystem manipulation operations.
+//!
+//! Provided for [`arceos_api`] module and [`axstd`] user lib.
 
 mod dir;
 mod file;
-
-pub use self::dir::{DirBuilder, DirEntry, ReadDir};
-pub use self::file::{File, FileType, Metadata, OpenOptions, Permissions};
 
 use alloc::{string::String, vec::Vec};
 use axerrno::ax_err;
@@ -22,10 +21,11 @@ use axio::{self as io, prelude::*};
 
 use crate::fops;
 
-/// Returns an iterator over the entries within a directory.
-pub fn read_dir<'a>(path: &'a AbsPath<'a>) -> io::Result<ReadDir<'a>> {
-    ReadDir::new(path)
-}
+// Export high-level directory-related types.
+pub use dir::{DirBuilder, DirEntry, Directory};
+
+// Export high-level file-related types.
+pub use file::{File, FileAttr, FilePerm, FileType, OpenOptions};
 
 /// Returns the current working directory as a [`AbsPath`].
 pub fn current_dir() -> io::Result<AbsPath<'static>> {
@@ -37,10 +37,15 @@ pub fn set_current_dir(path: AbsPath<'static>) -> io::Result<()> {
     fops::set_current_dir(path)
 }
 
+/// Get the attibutes of a file or directory.
+pub fn get_attr(path: &AbsPath) -> io::Result<FileAttr> {
+    fops::lookup(path)?.get_attr()
+}
+
 /// Read the entire contents of a file into a bytes vector.
 pub fn read(path: &AbsPath) -> io::Result<Vec<u8>> {
     let mut file = File::open(path)?;
-    let size = file.metadata().map(|m| m.len()).unwrap_or(0);
+    let size = file.get_attr().map(|m| m.size()).unwrap_or(0);
     let mut bytes = Vec::with_capacity(size as usize);
     file.read_to_end(&mut bytes)?;
     Ok(bytes)
@@ -49,7 +54,7 @@ pub fn read(path: &AbsPath) -> io::Result<Vec<u8>> {
 /// Read the entire contents of a file into a string.
 pub fn read_to_string(path: &AbsPath) -> io::Result<String> {
     let mut file = File::open(path)?;
-    let size = file.metadata().map(|m| m.len()).unwrap_or(0);
+    let size = file.get_attr().map(|m| m.size()).unwrap_or(0);
     let mut string = String::with_capacity(size as usize);
     file.read_to_string(&mut string)?;
     Ok(string)
@@ -58,12 +63,6 @@ pub fn read_to_string(path: &AbsPath) -> io::Result<String> {
 /// Write a slice as the entire contents of a file.
 pub fn write<C: AsRef<[u8]>>(path: &AbsPath, contents: C) -> io::Result<()> {
     File::create(path)?.write_all(contents.as_ref())
-}
-
-/// Given a path, query the file system to get information about a file,
-/// directory, etc.
-pub fn metadata(path: &AbsPath) -> io::Result<Metadata> {
-    File::open(path)?.metadata()
 }
 
 /// Creates a new, empty directory at the provided path.
@@ -87,7 +86,9 @@ pub fn remove_dir(path: &AbsPath) -> io::Result<()> {
     if !attr.perm().owner_writable() {
         return ax_err!(PermissionDenied);
     }
-    // TODO: check empty
+    if !node.is_empty()? {
+        return ax_err!(DirectoryNotEmpty);
+    }
     fops::remove_dir(path)
 }
 

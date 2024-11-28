@@ -76,7 +76,14 @@ pub enum VfsNodeType {
     Socket = 0o14,
 }
 
+impl Default for VfsNodeType {
+    fn default() -> Self {
+        Self::File
+    }
+}
+
 /// Directory entry.
+#[derive(Clone)]
 pub struct VfsDirEntry {
     d_type: VfsNodeType,
     d_name: [u8; 63],
