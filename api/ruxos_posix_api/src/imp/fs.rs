@@ -67,7 +67,7 @@ impl FileLike for File {
     }
 
     fn stat(&self) -> LinuxResult<RuxStat> {
-        self.inner.lock().get_attr().map(|attr| RuxStat::from(attr))
+        self.inner.lock().get_attr().map(|attr| RuxStat::from(attr)).map_err(|e| e.into())
     }
 
     fn into_any(self: Arc<Self>) -> Arc<dyn core::any::Any + Send + Sync> {
@@ -129,7 +129,7 @@ impl FileLike for Directory {
     }
 
     fn stat(&self) -> LinuxResult<RuxStat> {
-        self.inner.lock().get_attr().map(|attr| RuxStat::from(attr))
+        self.inner.lock().get_attr().map(|attr| RuxStat::from(attr)).map_err(|e| e.into())
     }
 
     fn into_any(self: Arc<Self>) -> Arc<dyn core::any::Any + Send + Sync> {
@@ -241,7 +241,7 @@ pub fn sys_openat(fd: c_int, path: *const c_char, flags: c_int, mode: ctypes::mo
         let append = flags & ctypes::O_APPEND != 0;
         if node.get_attr()?.is_dir() {
             let dir = fops::open_dir(&path, node, cap)?;
-            Directory::new(dir, (flags & ctypes::O_SEARCH != 0)).add_to_fd_table()
+            Directory::new(dir, flags & ctypes::O_SEARCH != 0).add_to_fd_table()
         } else {
             let file = fops::open_file(&path, node, cap, append)?;
             File::new(file).add_to_fd_table()
@@ -534,17 +534,8 @@ pub fn sys_rmdir(pathname: *const c_char) -> c_int {
                 if !attr.perm().owner_writable() {
                     return Err(LinuxError::EPERM);
                 }
-                // Directory has no check_empty() method, so
-                // we uses a brute force way to check it.
-                let mut buf = [
-                    DirEntry::default(),
-                    DirEntry::default(),
-                    DirEntry::default(),
-                ];
-                if let Ok(n) = node.read_dir(0, &mut buf) {
-                    if n > 2 {
-                        return Err(LinuxError::ENOTEMPTY);
-                    }
+                if !node.is_empty()? {
+                    return Err(LinuxError::ENOTEMPTY);
                 }
                 fops::remove_dir(&path)?;
             }
@@ -595,17 +586,8 @@ pub fn sys_unlinkat(fd: c_int, pathname: *const c_char, flags: c_int) -> c_int {
                     if !attr.perm().owner_writable() {
                         return Err(LinuxError::EPERM);
                     }
-                    // Directory has no check_empty() method, so
-                    // we uses a brute force way to check it.
-                    let mut buf = [
-                        DirEntry::default(),
-                        DirEntry::default(),
-                        DirEntry::default(),
-                    ];
-                    if let Ok(n) = node.read_dir(0, &mut buf) {
-                        if n > 2 {
-                            return Err(LinuxError::ENOTEMPTY);
-                        }
+                    if !node.is_empty()? {
+                        return Err(LinuxError::ENOTEMPTY);
                     }
                     fops::remove_dir(&path)?;
                 } else {

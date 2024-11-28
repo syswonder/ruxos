@@ -187,6 +187,18 @@ pub trait VfsNodeOps: Send + Sync {
         ax_err!(Unsupported)
     }
 
+    /// Check if the directory is empty. An empty directory only contains `.` and `..`.
+    ///
+    /// Brute implementation: read entries and check if there are more than 2.
+    fn is_empty(&self) -> VfsResult<bool> {
+        let mut buf = [
+            VfsDirEntry::default(),
+            VfsDirEntry::default(),
+            VfsDirEntry::default(),
+        ];
+        self.read_dir(0, &mut buf).map(|n| n <= 2)
+    }
+
     /// Convert `&self` to [`&dyn Any`][1] that can use
     /// [`Any::downcast_ref`][2].
     ///
