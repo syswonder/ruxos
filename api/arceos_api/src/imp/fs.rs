@@ -9,14 +9,18 @@
 
 use alloc::string::String;
 use axerrno::AxResult;
-use ruxfs::fops::{Directory, File};
+use ruxfs::{
+    api::{Directory, File},
+    AbsPath, RelPath,
+};
+use axio::{Read, Write, Seek};
 
-pub use ruxfs::fops::DirEntry as AxDirEntry;
-pub use ruxfs::fops::FileAttr as AxFileAttr;
-pub use ruxfs::fops::FilePerm as AxFilePerm;
-pub use ruxfs::fops::FileType as AxFileType;
-pub use ruxfs::fops::OpenOptions as AxOpenOptions;
 pub use axio::SeekFrom as AxSeekFrom;
+pub use ruxfs::api::DirEntry as AxDirEntry;
+pub use ruxfs::api::FileAttr as AxFileAttr;
+pub use ruxfs::api::FilePerm as AxFilePerm;
+pub use ruxfs::api::FileType as AxFileType;
+pub use ruxfs::api::OpenOptions as AxOpenOptions;
 
 #[cfg(feature = "myfs")]
 pub use ruxfs::fops::{Disk as AxDisk, MyFileSystemIf};
@@ -28,27 +32,23 @@ pub struct AxFileHandle(File);
 pub struct AxDirHandle(Directory);
 
 pub fn ax_open_file(path: &str, opts: &AxOpenOptions) -> AxResult<AxFileHandle> {
-    Ok(AxFileHandle(File::open(path, opts)?))
+    Ok(AxFileHandle(opts.open(&parse_path(path)?)?))
 }
 
-pub fn ax_open_dir(path: &str, opts: &AxOpenOptions) -> AxResult<AxDirHandle> {
-    Ok(AxDirHandle(Directory::open_dir(path, opts)?))
+pub fn ax_open_dir(path: &str, _opts: &AxOpenOptions) -> AxResult<AxDirHandle> {
+    Ok(AxDirHandle(Directory::open(parse_path(path)?)?))
+}
+
+pub fn ax_get_attr(path: &str) -> AxResult<AxFileAttr> {
+    ruxfs::api::get_attr(&parse_path(path)?)
 }
 
 pub fn ax_read_file(file: &mut AxFileHandle, buf: &mut [u8]) -> AxResult<usize> {
     file.0.read(buf)
 }
 
-pub fn ax_read_file_at(file: &AxFileHandle, offset: u64, buf: &mut [u8]) -> AxResult<usize> {
-    file.0.read_at(offset, buf)
-}
-
 pub fn ax_write_file(file: &mut AxFileHandle, buf: &[u8]) -> AxResult<usize> {
     file.0.write(buf)
-}
-
-pub fn ax_write_file_at(file: &AxFileHandle, offset: u64, buf: &[u8]) -> AxResult<usize> {
-    file.0.write_at(offset, buf)
 }
 
 pub fn ax_truncate_file(file: &AxFileHandle, size: u64) -> AxResult {
@@ -72,29 +72,37 @@ pub fn ax_read_dir(dir: &mut AxDirHandle, dirents: &mut [AxDirEntry]) -> AxResul
 }
 
 pub fn ax_create_dir(path: &str) -> AxResult {
-    ruxfs::api::create_dir(path)
+    ruxfs::api::create_dir(&parse_path(path)?)
 }
 
 pub fn ax_create_dir_all(path: &str) -> AxResult {
-    ruxfs::api::create_dir_all(path)
+    ruxfs::api::create_dir_all(&parse_path(path)?)
 }
 
 pub fn ax_remove_dir(path: &str) -> AxResult {
-    ruxfs::api::remove_dir(path)
+    ruxfs::api::remove_dir(&parse_path(path)?)
 }
 
 pub fn ax_remove_file(path: &str) -> AxResult {
-    ruxfs::api::remove_file(path)
+    ruxfs::api::remove_file(&parse_path(path)?)
 }
 
 pub fn ax_rename(old: &str, new: &str) -> AxResult {
-    ruxfs::api::rename(old, new)
+    ruxfs::api::rename(&parse_path(old)?, &parse_path(new)?)
 }
 
 pub fn ax_current_dir() -> AxResult<String> {
-    ruxfs::api::current_dir()
+    ruxfs::api::current_dir().map(|path| path.to_string())
 }
 
 pub fn ax_set_current_dir(path: &str) -> AxResult {
-    ruxfs::api::set_current_dir(path)
+    ruxfs::api::set_current_dir(parse_path(path)?)
+}
+
+fn parse_path(path: &str) -> AxResult<AbsPath<'static>> {
+    if path.starts_with('/') {
+        Ok(AbsPath::new_canonicalized(path))
+    } else {
+        ruxfs::api::current_dir().map(|cwd| cwd.join(&RelPath::new_canonicalized(path)))
+    }
 }
