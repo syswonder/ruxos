@@ -11,6 +11,7 @@ extern crate alloc;
 
 use alloc::string::String;
 use core::fmt;
+use core::mem::MaybeUninit;
 
 use super::FileType;
 use crate::io::Result;
@@ -46,8 +47,15 @@ impl<'a> ReadDir<'a> {
         opts.read(true);
         let inner = api::ax_open_dir(path, &opts)?;
 
-        const EMPTY: api::AxDirEntry = api::AxDirEntry::default();
-        let dirent_buf = [EMPTY; 31];
+        let dirent_buf: [api::AxDirEntry; 31] = unsafe {
+            let mut buf: MaybeUninit<[api::AxDirEntry; 31]> = MaybeUninit::uninit();
+            let buf_ptr = buf.as_mut_ptr() as *mut api::AxDirEntry;
+            for i in 0..31 {
+                buf_ptr.add(i).write(api::AxDirEntry::default());
+            }
+            buf.assume_init()
+        };
+
         Ok(ReadDir {
             path,
             inner,
@@ -86,12 +94,11 @@ impl<'a> Iterator for ReadDir<'a> {
             }
             let entry = &self.dirent_buf[self.buf_pos];
             self.buf_pos += 1;
-            let name_bytes = entry.name_as_bytes();
-            if name_bytes == b"." || name_bytes == b".." {
+            let entry_name = entry.file_name();
+            if entry_name == "." || entry_name == ".." {
                 continue;
             }
-            let entry_name = unsafe { core::str::from_utf8_unchecked(name_bytes).into() };
-            let entry_type = entry.entry_type();
+            let entry_type = entry.file_type();
 
             return Some(Ok(DirEntry {
                 dir_path: self.path,
