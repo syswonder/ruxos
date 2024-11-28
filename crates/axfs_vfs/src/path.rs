@@ -65,6 +65,16 @@ impl<'a> AbsPath<'a> {
         AbsPath::new_owned(self.0.to_string())
     }
 
+    /// Transform this `AbsPath` into a raw str slice.
+    pub fn as_str(&self) -> &str {
+        self.0.as_ref()
+    }
+
+    /// Transform this `AbsPath` into a raw string.
+    pub fn to_string(&self) -> String {
+        self.0.to_string()
+    }
+
     /// Concatenate a `RelPath` to this `AbsPath`.
     pub fn join(&self, rel: &RelPath) -> AbsPath<'static> {
         AbsPath::new_canonicalized(&format!("{}/{}", self.0, rel.0))

@@ -8,6 +8,11 @@
  */
 
 //! Low-level filesystem operations.
+//! 
+//! - File: open, read, write, seek, truncate
+//! - Directory: open, read, create, remove
+//! 
+//! Provided for [ruxfs::api] and [ruxos_posix_api::fs] modules.
 
 use axerrno::{ax_err, ax_err_type, AxResult};
 use axfs_vfs::{AbsPath, VfsError, VfsNodeOps, VfsNodeRef, VfsNodeType};
@@ -160,7 +165,7 @@ impl Directory {
     pub fn read_dir(&mut self, dirents: &mut [DirEntry]) -> AxResult<usize> {
         let n = self
             .node
-            .access(Cap::READ)?
+            .access(Cap::EXECUTE)?
             .read_dir(self.entry_idx, dirents)?;
         self.entry_idx += n;
         Ok(n)

@@ -7,109 +7,55 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use alloc::string::String;
+use alloc::{borrow::ToOwned, string::String, vec};
 use axerrno::ax_err;
 use axfs_vfs::{AbsPath, VfsError};
 use axio::Result;
-use core::fmt;
+use capability::Cap;
+use core::{fmt, str};
 
-use super::{FileType, OpenOptions};
+use super::FileType;
 use crate::fops;
 
 /// Iterator over the entries in a directory.
-pub struct ReadDir<'a> {
-    path: &'a AbsPath<'a>,
+pub struct Directory {
     inner: fops::Directory,
-    buf_pos: usize,
-    buf_end: usize,
-    end_of_stream: bool,
-    dirent_buf: [fops::DirEntry; 31],
 }
 
-/// Entries returned by the [`ReadDir`] iterator.
-pub struct DirEntry<'a> {
-    dir_path: &'a str,
+impl Directory {
+    /// Opens a directory for reading entries.
+    pub fn open(path: AbsPath<'static>) -> Result<Self> {
+        let node = fops::lookup(&path)?;
+        let inner = fops::open_dir(&path, node, Cap::EXECUTE)?;
+        Ok(Self { inner })
+    }
+
+    /// Reads directory entries starts from the current position into the
+    /// given buffer, returns the number of entries read.
+    ///
+    /// After the read, the cursor of the directory will be advanced by the
+    /// number of entries read.
+    pub fn read_dir(&mut self, buf: &mut [DirEntry]) -> Result<usize> {
+        let mut buffer = vec![fops::DirEntry::default(); buf.len()];
+        let len = self.inner.read_dir(&mut buffer)?;
+        for (i, entry) in buffer.iter().enumerate().take(len) {
+            buf[i] = DirEntry {
+                entry_name: unsafe { str::from_utf8_unchecked(entry.name_as_bytes()).to_owned() },
+                entry_type: entry.entry_type(),
+            };
+        }
+        Ok(len)
+    }
+}
+
+/// Entry type used by `Directory::read_dir`.
+#[derive(Default)]
+pub struct DirEntry {
     entry_name: String,
     entry_type: FileType,
 }
 
-/// A builder used to create directories in various manners.
-#[derive(Default, Debug)]
-pub struct DirBuilder {
-    recursive: bool,
-}
-
-impl<'a> ReadDir<'a> {
-    pub(super) fn new(path: &'a AbsPath<'a>) -> Result<Self> {
-        let mut opts = OpenOptions::new();
-        opts.read(true);
-        let node = fops::lookup(path)?;
-        let inner = fops::open_dir(path, node, (&opts).into())?;
-        const EMPTY: fops::DirEntry = fops::DirEntry::default();
-        let dirent_buf = [EMPTY; 31];
-        Ok(ReadDir {
-            path,
-            inner,
-            end_of_stream: false,
-            buf_pos: 0,
-            buf_end: 0,
-            dirent_buf,
-        })
-    }
-}
-
-impl<'a> Iterator for ReadDir<'a> {
-    type Item = Result<DirEntry<'a>>;
-
-    fn next(&mut self) -> Option<Result<DirEntry<'a>>> {
-        if self.end_of_stream {
-            return None;
-        }
-
-        loop {
-            if self.buf_pos >= self.buf_end {
-                match self.inner.read_dir(&mut self.dirent_buf) {
-                    Ok(n) => {
-                        if n == 0 {
-                            self.end_of_stream = true;
-                            return None;
-                        }
-                        self.buf_pos = 0;
-                        self.buf_end = n;
-                    }
-                    Err(e) => {
-                        self.end_of_stream = true;
-                        return Some(Err(e));
-                    }
-                }
-            }
-            let entry = &self.dirent_buf[self.buf_pos];
-            self.buf_pos += 1;
-            let name_bytes = entry.name_as_bytes();
-            if name_bytes == b"." || name_bytes == b".." {
-                continue;
-            }
-            let entry_name = unsafe { core::str::from_utf8_unchecked(name_bytes).into() };
-            let entry_type = entry.entry_type();
-
-            return Some(Ok(DirEntry {
-                dir_path: self.path,
-                entry_name,
-                entry_type,
-            }));
-        }
-    }
-}
-
-impl<'a> DirEntry<'a> {
-    /// Returns the full path to the file that this entry represents.
-    ///
-    /// The full path is created by joining the original path to `read_dir`
-    /// with the filename of this entry.
-    pub fn path(&self) -> String {
-        String::from(self.dir_path.trim_end_matches('/')) + "/" + &self.entry_name
-    }
-
+impl DirEntry {
     /// Returns the bare file name of this directory entry without any other
     /// leading path component.
     pub fn file_name(&self) -> String {
@@ -122,10 +68,16 @@ impl<'a> DirEntry<'a> {
     }
 }
 
-impl fmt::Debug for DirEntry<'_> {
+impl fmt::Debug for DirEntry {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_tuple("DirEntry").field(&self.path()).finish()
+        f.debug_tuple("DirEntry").field(&self.file_name()).finish()
     }
+}
+
+/// A builder used to create directories in various manners.
+#[derive(Default, Debug)]
+pub struct DirBuilder {
+    recursive: bool,
 }
 
 impl DirBuilder {
