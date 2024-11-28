@@ -79,6 +79,7 @@ pub fn init_tempfs() -> MountPoint {
 }
 
 /// Initializes filesystems by block devices.
+#[cfg(feature = "blkfs")]
 pub fn init_blkfs(mut blk_devs: AxDeviceContainer<AxBlockDevice>) -> MountPoint {
     info!("Initialize filesystems...");
 
@@ -106,6 +107,8 @@ pub fn init_blkfs(mut blk_devs: AxDeviceContainer<AxBlockDevice>) -> MountPoint 
             static EXT4_FS: LazyInit<Arc<fs::another_ext4::Ext4FileSystem>> = LazyInit::new();
             EXT4_FS.init_by(Arc::new(fs::another_ext4::Ext4FileSystem::new(disk)));
             let blk_fs = EXT4_FS.clone();
+        } else {
+            compile_error!("Please enable one of the block filesystems!");
         }
     }
 
