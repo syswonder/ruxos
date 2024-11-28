@@ -16,8 +16,8 @@ use core::marker::Send;
 use core::marker::Sync;
 
 use axerrno::LinuxResult;
-use axio::PollState;
 use axfs_vfs::AbsPath;
+use axio::PollState;
 use flatten_objects::FlattenObjects;
 use spin::RwLock;
 
@@ -65,6 +65,7 @@ pub struct RuxStat {
     /// Unused space, reserved for future use.
     pub __unused: [core::ffi::c_uint; 2usize],
 }
+
 ///Rust version for struct stat in ctypes. Represents file status information.
 #[cfg(any(target_arch = "x86_64", target_arch = "riscv64"))]
 pub struct RuxStat {
@@ -100,6 +101,40 @@ pub struct RuxStat {
     pub __unused: [core::ffi::c_long; 3usize],
 }
 
+#[cfg(target_arch = "aarch64")]
+impl From<VfsNodeAttr> for RuxStat {
+    fn from(attr: VfsNodeAttr) -> Self {
+        Self {
+            st_dev: 0,
+            st_ino: attr.ino(),
+            st_nlink: 1,
+            st_mode: ((attr.file_type() as u32) << 12) | attr.perm().bits() as u32,
+            st_uid: 1000,
+            st_gid: 1000,
+            st_rdev: 0,
+            __pad: 0,
+            st_size: attr.size() as _,
+            st_blksize: 512,
+            __pad2: 0,
+            st_blocks: attr.blocks() as _,
+            st_atime: RuxTimeSpec {
+                tv_sec: 0,
+                tv_nsec: 0,
+            },
+            st_mtime: RuxTimeSpec {
+                tv_sec: 0,
+                tv_nsec: 0,
+            },
+            st_ctime: RuxTimeSpec {
+                tv_sec: 0,
+                tv_nsec: 0,
+            },
+            __unused: [0; 2],
+        }
+    }
+}
+
+#[cfg(any(target_arch = "x86_64", target_arch = "riscv64"))]
 impl From<VfsNodeAttr> for RuxStat {
     fn from(attr: VfsNodeAttr) -> Self {
         Self {

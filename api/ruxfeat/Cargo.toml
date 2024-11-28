@@ -47,7 +47,7 @@ sched_cfs = ["ruxtask/sched_cfs", "irq"]
 
 # File system
 fs = ["alloc", "dep:ruxfs", "ruxruntime/fs"]
-blkfs = ["ruxdriver/virtio-blk", "ruxruntime/blkfs"]
+blkfs = ["ruxdriver/virtio-blk", "ruxruntime/blkfs", "ruxfs/blkfs"]
 myfs = ["ruxfs?/myfs"]
 9pfs = []
 fatfs = ["ruxfs?/fatfs"]
