@@ -15,12 +15,12 @@ use alloc::{
     string::{String, ToString},
 };
 
-/// Canonicalized absolute path type.
+/// Canonicalized absolute path type. Requirements:
 ///
 /// - Starting with `/`
 /// - No `.` or `..` components
 /// - No redundant or tailing `/`
-/// - Valid examples: "/", "/root/foo/bar"
+/// - Valid examples: `/`, `/root/foo/bar`
 ///
 /// Using `Cow` type to avoid unnecessary allocations.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -95,13 +95,13 @@ impl core::fmt::Display for AbsPath<'_> {
     }
 }
 
-/// Canonicalized relative path type.
+/// Canonicalized relative path type. Requirements:
 ///
-/// - No starting '/'
+/// - No starting `/`
 /// - No `.` components
-/// - No redundant or tailing '/'
-/// - Possibly starts with '..'
-/// - Valid examples: "", "..", "../b", "../.."
+/// - No redundant or tailing `/`
+/// - Possibly starts with `..`
+/// - Valid examples: ` `, `..`, `../b`, `../..`
 ///
 /// Using `Cow` type to avoid unnecessary allocations.
 #[derive(Debug, Clone, PartialEq, Eq)]

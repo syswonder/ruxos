@@ -7,9 +7,10 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-//! Root directory of the filesystem
+//! Root directory of the filesystem. Filesystem operations are distributed to the
+//! appropriate filesystem based on the mount points.
 //!
-//! TODO: it doesn't work very well if the mount points have containment relationships.
+//! `RootDirectory::lookup_mounted_fs()` performs the distribution of operations.
 
 use alloc::{format, sync::Arc, vec::Vec};
 use axerrno::{ax_err, AxResult};
@@ -18,10 +19,6 @@ use axfs_vfs::{
 };
 use axsync::Mutex;
 use lazy_init::LazyInit;
-
-use crate::api::FileType;
-
-pub(crate) static CURRENT_DIR: Mutex<AbsPath> = Mutex::new(AbsPath::new("/"));
 
 /// mount point information
 pub struct MountPoint {
@@ -52,6 +49,12 @@ impl Drop for MountPoint {
     }
 }
 
+/// Root directory of the main filesystem
+pub(crate) struct RootDirectory {
+    main_fs: Arc<dyn VfsOps>,
+    mounts: Vec<MountPoint>,
+}
+
 impl RootDirectory {
     /// Creates a new `RootDirectory` with the specified main filesystem.
     pub const fn new(main_fs: Arc<dyn VfsOps>) -> Self {
@@ -70,12 +73,20 @@ impl RootDirectory {
         }
         // create the mount point in the main filesystem if it does not exist
         match self.main_fs.root_dir().lookup(&path.to_rel()) {
-            Ok(_) => {}
+            Ok(node) => {
+                if !node.get_attr()?.is_dir() {
+                    return ax_err!(InvalidInput, "mount point is not a directory");
+                }
+                if !node.is_empty()? {
+                    return ax_err!(InvalidInput, "mount point is not empty");
+                }
+                // TODO: permission check
+            }
             Err(e) => {
                 if e == VfsError::NotFound {
                     self.main_fs
                         .root_dir()
-                        .create(&path.to_rel(), FileType::Dir)?;
+                        .create(&path.to_rel(), VfsNodeType::Dir)?;
                 } else {
                     return Err(e);
                 }
@@ -102,7 +113,6 @@ impl RootDirectory {
         let mut max_len = 0;
 
         // Find the filesystem that has the longest mounted path match
-        // TODO: more efficient, e.g. trie
         for (i, mp) in self.mounts.iter().enumerate() {
             let rel_mp = mp.path.to_rel();
             // path must have format: "<mountpoint>" or "<mountpoint>/..."
@@ -180,6 +190,13 @@ impl VfsNodeOps for RootDirectory {
     }
 }
 
+/// Current working directory.
+pub(crate) static CURRENT_DIR: Mutex<AbsPath> = Mutex::new(AbsPath::new("/"));
+
+/// Root directory of the virtual filesystem.
+pub(crate) static ROOT_DIR: LazyInit<Arc<RootDirectory>> = LazyInit::new();
+
+/// Initialize virtual filesystem.
 pub(crate) fn init_rootfs(mount_points: Vec<MountPoint>) {
     let main_fs = mount_points
         .first()
