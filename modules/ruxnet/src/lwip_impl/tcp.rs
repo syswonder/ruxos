@@ -191,6 +191,12 @@ impl TcpSocket {
         }
     }
 
+    /// Returens if this socket is listening
+    #[inline]
+    pub fn is_listening(&self) -> bool {
+        unsafe { (*self.pcb.get()).state == tcp_state_LISTEN }
+    }
+
     /// Returns whether this socket is in nonblocking mode.
     #[inline]
     pub fn is_nonblocking(&self) -> bool {

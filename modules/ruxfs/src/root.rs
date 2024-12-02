@@ -23,6 +23,7 @@ pub struct MountPoint {
     pub fs: Arc<dyn VfsOps>,
 }
 
+/// fs root directory
 pub struct RootDirectory {
     main_fs: Arc<dyn VfsOps>,
     mounts: Vec<MountPoint>,
@@ -44,6 +45,7 @@ impl Drop for MountPoint {
 }
 
 impl RootDirectory {
+    /// Creates a new `RootDirectory` with the specified main filesystem.
     pub const fn new(main_fs: Arc<dyn VfsOps>) -> Self {
         Self {
             main_fs,
@@ -51,6 +53,7 @@ impl RootDirectory {
         }
     }
 
+    /// Mounts a new filesystem at the specified path within the root directory.
     pub fn mount(&mut self, path: &'static str, fs: Arc<dyn VfsOps>) -> AxResult {
         if path == "/" {
             return ax_err!(InvalidInput, "cannot mount root filesystem");
@@ -75,10 +78,12 @@ impl RootDirectory {
         Ok(())
     }
 
+    /// Unmounts a filesystem at the specified path, if it exists.
     pub fn _umount(&mut self, path: &str) {
         self.mounts.retain(|mp| mp.path != path);
     }
 
+    /// Checks if a given path is a mount point in the root directory.
     pub fn contains(&self, path: &str) -> bool {
         self.mounts.iter().any(|mp| mp.path == path)
     }
@@ -156,6 +161,7 @@ impl VfsNodeOps for RootDirectory {
     }
 }
 
+/// Looks up a node in the virtual file system by its path.
 pub fn lookup(dir: Option<&VfsNodeRef>, path: &str) -> AxResult<VfsNodeRef> {
     if path.is_empty() {
         return ax_err!(NotFound);
@@ -168,7 +174,8 @@ pub fn lookup(dir: Option<&VfsNodeRef>, path: &str) -> AxResult<VfsNodeRef> {
     }
 }
 
-pub(crate) fn create_file(dir: Option<&VfsNodeRef>, path: &str) -> AxResult<VfsNodeRef> {
+/// Creates a file in the virtual file system at the specified path.
+pub fn create_file(dir: Option<&VfsNodeRef>, path: &str) -> AxResult<VfsNodeRef> {
     if path.is_empty() {
         return ax_err!(NotFound);
     } else if path.ends_with('/') {
