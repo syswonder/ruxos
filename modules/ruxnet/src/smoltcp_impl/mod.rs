@@ -36,8 +36,6 @@ pub use self::dns::dns_query;
 pub use self::tcp::TcpSocket;
 pub use self::udp::UdpSocket;
 
-pub use driver_net::loopback::LoopbackDevice;
-
 macro_rules! env_or_default {
     ($key:literal) => {
         match option_env!($key) {
@@ -347,7 +345,7 @@ pub fn bench_receive() {
 }
 
 pub(crate) fn init() {
-    let mut socketset = SocketSetWrapper::new();
+    let socketset = SocketSetWrapper::new();
 
     IFACE_LIST.init_by(Mutex::new(vec::Vec::new()));
     SOCKET_SET.init_by(socketset);

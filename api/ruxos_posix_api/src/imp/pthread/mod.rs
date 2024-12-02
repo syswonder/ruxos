@@ -310,7 +310,6 @@ pub unsafe fn sys_clone(
         } else if (flags as u32 & ctypes::SIGCHLD) != 0 {
             TID_TO_PTHREAD.read();
             let pid = if let Some(task_ref) = ruxtask::fork_task() {
-                warn!("fork_task success, pid: {}", task_ref.id().as_u64());
                 task_ref.id().as_u64()
             } else {
                 let children_ref = ruxtask::current();
