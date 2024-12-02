@@ -38,7 +38,7 @@ extern crate alloc;
 mod dev;
 mod fs;
 mod mounts;
-mod root;
+pub mod root;
 
 #[cfg(feature = "alloc")]
 mod arch;

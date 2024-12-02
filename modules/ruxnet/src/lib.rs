@@ -37,6 +37,9 @@
 extern crate log;
 extern crate alloc;
 
+mod unix;
+pub use unix::{SocketAddrUnix, UnixSocket, UnixSocketType};
+
 cfg_if::cfg_if! {
     if #[cfg(feature = "lwip")] {
         mod lwip_impl;
@@ -74,5 +77,6 @@ pub fn init_network(mut net_devs: AxDeviceContainer<AxNetDevice>) {
             compile_error!("No network stack is selected");
         }
     }
+    unix::init_unix();
     net_impl::init(dev);
 }
