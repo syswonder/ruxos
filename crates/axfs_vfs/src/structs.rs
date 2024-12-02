@@ -207,8 +207,9 @@ impl VfsNodeType {
 
 impl VfsNodeAttr {
     /// Creates a new `VfsNodeAttr` with the given permission mode, type, size
-    /// and number of blocks.
-    pub const fn new(mode: VfsNodePerm, ty: VfsNodeType, size: u64, blocks: u64) -> Self {
+    /// inode number and number of blocks.
+    /// if node number is none, means fs do not have inode then vfs will allocate it
+    pub fn new(mode: VfsNodePerm, ty: VfsNodeType, size: u64, blocks: u64) -> Self {
         Self {
             mode,
             ty,
@@ -218,7 +219,7 @@ impl VfsNodeAttr {
     }
 
     /// Creates a new `VfsNodeAttr` for a file, with the default file permission.
-    pub const fn new_file(size: u64, blocks: u64) -> Self {
+    pub fn new_file(size: u64, blocks: u64) -> Self {
         Self {
             mode: VfsNodePerm::default_file(),
             ty: VfsNodeType::File,
@@ -229,7 +230,7 @@ impl VfsNodeAttr {
 
     /// Creates a new `VfsNodeAttr` for a directory, with the default directory
     /// permission.
-    pub const fn new_dir(size: u64, blocks: u64) -> Self {
+    pub fn new_dir(size: u64, blocks: u64) -> Self {
         Self {
             mode: VfsNodePerm::default_dir(),
             ty: VfsNodeType::Dir,

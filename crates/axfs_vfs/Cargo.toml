@@ -14,5 +14,7 @@ default = []
 
 [dependencies]
 log = "0.4"
+spin = "0.9"
 bitflags = "2.2"
 axerrno = { path = "../axerrno" }
+lazy_static = { version = "1.4", features = ["spin_no_std"] }

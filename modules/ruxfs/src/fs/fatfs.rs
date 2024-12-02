@@ -10,12 +10,12 @@
 use alloc::sync::Arc;
 use core::cell::UnsafeCell;
 
+use crate::dev::Disk;
 use axfs_vfs::{VfsDirEntry, VfsError, VfsNodePerm, VfsResult};
 use axfs_vfs::{VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps};
 use axsync::Mutex;
 use fatfs::{Dir, File, LossyOemCpConverter, NullTimeProvider, Read, Seek, SeekFrom, Write};
-
-use crate::dev::Disk;
+use spin::rwlock::RwLock;
 
 const BLOCK_SIZE: usize = 512;
 
@@ -129,7 +129,6 @@ impl VfsNodeOps for DirWrapper<'static> {
     axfs_vfs::impl_vfs_dir_default! {}
 
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
-        // FAT fs doesn't support permissions, we just set everything to 755
         Ok(VfsNodeAttr::new(
             VfsNodePerm::from_bits_truncate(0o755),
             VfsNodeType::Dir,

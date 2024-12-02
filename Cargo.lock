@@ -48,6 +48,12 @@ dependencies = [
 ]
 
 [[package]]
+name = "allocator-api2"
+version = "0.2.18"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5c6cb57a04249c6480766f7f7cef5467412af1490f8d1e243141daddada3264f"
+
+[[package]]
 name = "android-tzdata"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -174,7 +180,9 @@ version = "0.1.0"
 dependencies = [
  "axerrno",
  "bitflags 2.4.0",
+ "lazy_static",
  "log",
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -896,9 +904,13 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
-version = "0.14.0"
+version = "0.14.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c6201b9ff9fd90a5a3bac2e56a830d0caa509576f0e503818ee82c181b3437a"
+checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
+dependencies = [
+ "ahash",
+ "allocator-api2",
+]
 
 [[package]]
 name = "heapless"
@@ -1662,6 +1674,7 @@ dependencies = [
  "memory_addr",
  "ruxdriver",
  "ruxtask",
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -1750,17 +1763,22 @@ name = "ruxnet"
 version = "0.1.0"
 dependencies = [
  "axerrno",
+ "axfs_vfs",
  "axio",
  "axlog",
  "axsync",
  "cfg-if",
  "cty",
  "driver_net",
+ "flatten_objects",
+ "hashbrown",
  "lazy_init",
+ "lazy_static",
  "log",
  "lwip_rust",
  "printf-compat",
  "ruxdriver",
+ "ruxfs",
  "ruxhal",
  "ruxtask",
  "smoltcp",

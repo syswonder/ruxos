@@ -13,7 +13,7 @@ use alloc::{string::String, vec::Vec};
 
 use axfs_vfs::{VfsDirEntry, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType};
 use axfs_vfs::{VfsError, VfsResult};
-use spin::RwLock;
+use spin::rwlock::RwLock;
 
 use crate::file::FileNode;
 

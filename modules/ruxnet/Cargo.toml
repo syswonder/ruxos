@@ -15,18 +15,23 @@ smoltcp = []
 default = ["smoltcp"]
 
 [dependencies]
+hashbrown = "0.14.5"
 log = "0.4"
 cfg-if = "1.0"
 spin = "0.9"
 driver_net = { path = "../../crates/driver_net" }
+flatten_objects = { path = "../../crates/flatten_objects" }
 lazy_init = { path = "../../crates/lazy_init" }
+lazy_static = { version = "1.4", features = ["spin_no_std"] }
 lwip_rust = { path = "../../crates/lwip_rust", optional = true }
 printf-compat = { version = "0.1", default-features = false, optional = true }
 axerrno = { path = "../../crates/axerrno" }
+axfs_vfs = { path = "../../crates/axfs_vfs" }
 ruxhal = { path = "../ruxhal" }
 axsync = { path = "../axsync" }
 axlog = { path = "../axlog" }
 ruxtask = { path = "../ruxtask" }
+ruxfs = { path = "../ruxfs" }
 ruxdriver = { path = "../ruxdriver", features = ["net"] }
 cty = { version = "0.2.2", optional = true }
 axio = { path = "../../crates/axio" }
