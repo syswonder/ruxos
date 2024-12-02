@@ -81,6 +81,7 @@ pub struct TaskInner {
     exit_code: AtomicI32,
     wait_for_exit: WaitQueue,
 
+    stack_map_addr: SpinNoIrq<VirtAddr>,
     kstack: SpinNoIrq<Arc<Option<TaskStack>>>,
     ctx: UnsafeCell<TaskContext>,
 
@@ -235,6 +236,7 @@ impl TaskInner {
             preempt_disable_count: AtomicUsize::new(0),
             exit_code: AtomicI32::new(0),
             wait_for_exit: WaitQueue::new(),
+            stack_map_addr: SpinNoIrq::new(VirtAddr::from(0)), // should be set later
             kstack: SpinNoIrq::new(Arc::new(None)),
             ctx: UnsafeCell::new(TaskContext::new()),
             #[cfg(feature = "tls")]
@@ -279,6 +281,7 @@ impl TaskInner {
             preempt_disable_count: AtomicUsize::new(0),
             exit_code: AtomicI32::new(0),
             wait_for_exit: WaitQueue::new(),
+            stack_map_addr: SpinNoIrq::new(VirtAddr::from(0)),
             kstack: SpinNoIrq::new(Arc::new(None)),
             ctx: UnsafeCell::new(TaskContext::new()),
             #[cfg(feature = "tls")]
@@ -299,6 +302,7 @@ impl TaskInner {
 
     pub fn set_stack_top(&self, begin: usize, size: usize) {
         debug!("set_stack_top: begin={:#x}, size={:#x}", begin, size);
+        *self.stack_map_addr.lock() = VirtAddr::from(begin);
         *self.kstack.lock() = Arc::new(Some(TaskStack {
             ptr: NonNull::new(begin as *mut u8).unwrap(),
             layout: Layout::from_size_align(size, PAGE_SIZE_4K).unwrap(),
@@ -406,14 +410,14 @@ impl TaskInner {
 
         // Note: the stack region is mapped to the same position as the parent process's stack, be careful when update the stack region for the forked process.
         let (_, prev_flag, _) = cloned_page_table
-            .query(current_stack.end())
+            .query(*current().stack_map_addr.lock())
             .expect("failed to query stack region when forking");
         cloned_page_table
-            .unmap_region(current_stack.end(), align_up_4k(stack_size))
+            .unmap_region(*current().stack_map_addr.lock(), align_up_4k(stack_size))
             .expect("failed to unmap stack region when forking");
         cloned_page_table
             .map_region(
-                current_stack.end(),
+                *current().stack_map_addr.lock(),
                 stack_paddr,
                 stack_size,
                 prev_flag,
@@ -477,10 +481,11 @@ impl TaskInner {
             need_resched: AtomicBool::new(current_task.need_resched.load(Ordering::Relaxed)),
             #[cfg(feature = "preempt")]
             preempt_disable_count: AtomicUsize::new(
-                current_task.preempt_disable_count.load(Ordering::Relaxed),
+                current_task.preempt_disable_count.load(Ordering::Acquire),
             ),
             exit_code: AtomicI32::new(0),
             wait_for_exit: WaitQueue::new(),
+            stack_map_addr: SpinNoIrq::new(*current().stack_map_addr.lock()),
             kstack: SpinNoIrq::new(Arc::new(Some(new_stack))),
             ctx: UnsafeCell::new(TaskContext::new()),
             #[cfg(feature = "tls")]
@@ -515,6 +520,7 @@ impl TaskInner {
             .lock()
             .insert(new_pid.as_u64(), task_ref.clone());
 
+        warn!("forked task: save_current_content {}", task_ref.id_name());
         unsafe {
             // copy the stack content from current stack to new stack
             (*task_ref.ctx_mut_ptr()).save_current_content(
@@ -554,6 +560,7 @@ impl TaskInner {
             preempt_disable_count: AtomicUsize::new(0),
             exit_code: AtomicI32::new(0),
             wait_for_exit: WaitQueue::new(),
+            stack_map_addr: SpinNoIrq::new(VirtAddr::from(0)), // set in set_stack_top
             kstack: SpinNoIrq::new(Arc::new(None)),
             ctx: UnsafeCell::new(TaskContext::new()),
             #[cfg(feature = "tls")]
@@ -590,6 +597,7 @@ impl TaskInner {
         let bindings = PROCESS_MAP.lock();
         let (&_parent_id, &ref task_ref) = bindings.first_key_value().unwrap();
         let idle_kstack = TaskStack::alloc(align_up_4k(IDLE_STACK_SIZE));
+        let idle_kstack_top = idle_kstack.top();
 
         let mut t = Self {
             parent_process: Some(Arc::downgrade(task_ref)),
@@ -609,7 +617,8 @@ impl TaskInner {
             preempt_disable_count: AtomicUsize::new(0),
             exit_code: AtomicI32::new(0),
             wait_for_exit: WaitQueue::new(),
-            kstack: SpinNoIrq::new(Arc::new(None)),
+            stack_map_addr: SpinNoIrq::new(idle_kstack.end()),
+            kstack: SpinNoIrq::new(Arc::new(Some(idle_kstack))),
             ctx: UnsafeCell::new(TaskContext::new()),
             #[cfg(feature = "tls")]
             tls: TlsArea::alloc(),
@@ -633,7 +642,7 @@ impl TaskInner {
         debug!("new idle task: {}", t.id_name());
         t.ctx
             .get_mut()
-            .init(task_entry as usize, idle_kstack.top(), tls);
+            .init(task_entry as usize, idle_kstack_top, tls);
 
         let task_ref = Arc::new(AxTask::new(t));
 
