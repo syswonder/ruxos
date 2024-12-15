@@ -203,6 +203,10 @@ impl<'a> HashMapWarpper<'a> {
     pub fn get_mut(&mut self, id: usize) -> Option<&mut Arc<Mutex<UnixSocketInner<'a>>>> {
         self.inner.get_mut(&id)
     }
+
+    pub fn remove(&mut self, id: usize) -> Option<Arc<Mutex<UnixSocketInner<'a>>>> {
+        self.inner.remove(&id)
+    }
 }
 static UNIX_TABLE: LazyInit<RwLock<HashMapWarpper>> = LazyInit::new();
 
@@ -664,10 +668,12 @@ impl UnixSocket {
         }
     }
 
-    //TODO
     /// Shuts down the socket.
     pub fn shutdown(&self) -> LinuxResult {
-        unimplemented!()
+        let mut binding = UNIX_TABLE.write();
+        let mut socket_inner = binding.get_mut(self.get_sockethandle()).unwrap().lock();
+        socket_inner.set_state(UnixSocketStatus::Closed);
+        Ok(())
     }
 
     /// Returns whether this socket is in nonblocking mode.
@@ -693,6 +699,13 @@ impl UnixSocket {
     /// Returns the socket type of the `UnixSocket`.
     pub fn get_sockettype(&self) -> UnixSocketType {
         self.unixsocket_type
+    }
+}
+
+impl Drop for UnixSocket {
+    fn drop(&mut self) {
+        self.shutdown();
+        UNIX_TABLE.write().remove(self.get_sockethandle());
     }
 }
 
