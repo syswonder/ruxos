@@ -108,6 +108,12 @@ impl TcpSocket {
         }
     }
 
+    /// Returens if this socket is listening
+    #[inline]
+    pub fn is_listening(&self) -> bool {
+        self.get_state() == STATE_LISTENING
+    }
+
     /// Returns whether this socket is in nonblocking mode.
     #[inline]
     pub fn is_nonblocking(&self) -> bool {
@@ -430,11 +436,6 @@ impl TcpSocket {
     #[inline]
     fn is_connected(&self) -> bool {
         self.get_state() == STATE_CONNECTED
-    }
-
-    #[inline]
-    fn is_listening(&self) -> bool {
-        self.get_state() == STATE_LISTENING
     }
 
     fn bound_endpoint(&self) -> AxResult<IpListenEndpoint> {

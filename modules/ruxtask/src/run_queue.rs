@@ -129,6 +129,7 @@ impl AxRunQueue {
         assert!(!curr.is_idle());
 
         // we must not block current task with preemption disabled.
+        // only allow blocking current task with run_queue lock held.
         #[cfg(feature = "preempt")]
         assert!(curr.can_preempt(1));
 
