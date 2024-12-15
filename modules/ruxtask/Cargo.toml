@@ -24,6 +24,7 @@ musl = []
 preempt = ["irq", "percpu?/preempt", "kernel_guard/preempt"]
 paging = []
 fs = []
+signal = []
 
 sched_fifo = ["multitask"]
 sched_rr = ["multitask", "preempt"]
