@@ -39,8 +39,6 @@ extern crate axlog;
 
 #[cfg(all(target_os = "none", not(test)))]
 mod lang_items;
-#[cfg(feature = "signal")]
-mod signal;
 
 #[cfg(not(feature = "musl"))]
 mod trap;
@@ -52,7 +50,7 @@ mod mp;
 pub use self::mp::rust_main_secondary;
 
 #[cfg(feature = "signal")]
-pub use self::signal::{rx_sigaction, Signal};
+use ruxtask::signal::{rx_sigaction, Signal};
 
 #[cfg(feature = "alloc")]
 extern crate alloc;

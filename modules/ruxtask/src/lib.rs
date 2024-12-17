@@ -48,6 +48,8 @@ cfg_if::cfg_if! {
         pub mod task;
         mod api;
         mod wait_queue;
+        #[cfg(feature = "signal")]
+        pub mod signal;
         #[cfg(feature = "paging")]
         pub mod vma;
         // #[cfg(feature = "fs")]
@@ -79,8 +81,14 @@ cfg_if::cfg_if! {
         pub use self::api::*;
         pub use self::api::{sleep, sleep_until, yield_now};
         pub use task::TaskState;
+        #[cfg(feature = "signal")]
+        pub use self::signal::{rx_sigaction, Signal};
     } else {
         mod api_s;
+        #[cfg(feature = "signal")]
+        pub mod signal;
         pub use self::api_s::{sleep, sleep_until, yield_now};
+        #[cfg(feature = "signal")]
+        pub use self::signal::{rx_sigaction, Signal};
     }
 }

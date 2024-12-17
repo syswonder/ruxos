@@ -38,6 +38,8 @@ use crate::current;
 use crate::tsd::{DestrFunction, KEYS, TSD};
 #[cfg(feature = "paging")]
 use crate::vma::MmapStruct;
+#[cfg(feature = "signal")]
+use crate::Signal;
 use crate::{AxRunQueue, AxTask, AxTaskRef, WaitQueue};
 
 /// A unique identifier for a thread.
@@ -90,6 +92,9 @@ pub struct TaskInner {
 
     #[cfg(not(feature = "musl"))]
     tsd: TSD,
+
+    #[cfg(feature = "signal")]
+    pub signal_if: Arc<SpinNoIrq<Signal>>,
 
     // set tid
     #[cfg(feature = "musl")]
@@ -245,6 +250,8 @@ impl TaskInner {
             tsd: spinlock::SpinNoIrq::new([core::ptr::null_mut(); ruxconfig::PTHREAD_KEY_MAX]),
             #[cfg(feature = "musl")]
             set_tid: AtomicU64::new(0),
+            #[cfg(feature = "signal")]
+            signal_if: current().signal_if.clone(),
             #[cfg(feature = "musl")]
             tl: AtomicU64::new(0),
             #[cfg(feature = "paging")]
@@ -287,6 +294,8 @@ impl TaskInner {
             #[cfg(feature = "tls")]
             tls: TlsArea::new_with_addr(tls),
             set_tid,
+            #[cfg(feature = "signal")]
+            signal_if: current().signal_if.clone(),
             // clear child tid
             tl,
             #[cfg(feature = "paging")]
@@ -494,6 +503,8 @@ impl TaskInner {
             tsd: spinlock::SpinNoIrq::new([core::ptr::null_mut(); ruxconfig::PTHREAD_KEY_MAX]),
             #[cfg(feature = "musl")]
             set_tid: AtomicU64::new(0),
+            #[cfg(feature = "signal")]
+            signal_if: Arc::new(spinlock::SpinNoIrq::new(Signal::new())),
             #[cfg(feature = "musl")]
             tl: AtomicU64::new(0),
             #[cfg(feature = "paging")]
@@ -569,6 +580,8 @@ impl TaskInner {
             tsd: spinlock::SpinNoIrq::new([core::ptr::null_mut(); ruxconfig::PTHREAD_KEY_MAX]),
             #[cfg(feature = "musl")]
             set_tid: AtomicU64::new(0),
+            #[cfg(feature = "signal")]
+            signal_if: Arc::new(spinlock::SpinNoIrq::new(Signal::new())),
             #[cfg(feature = "musl")]
             tl: AtomicU64::new(0),
             #[cfg(feature = "paging")]
@@ -626,6 +639,8 @@ impl TaskInner {
             tsd: spinlock::SpinNoIrq::new([core::ptr::null_mut(); ruxconfig::PTHREAD_KEY_MAX]),
             #[cfg(feature = "musl")]
             set_tid: AtomicU64::new(0),
+            #[cfg(feature = "signal")]
+            signal_if: task_ref.signal_if.clone(),
             #[cfg(feature = "musl")]
             tl: AtomicU64::new(0),
             #[cfg(feature = "paging")]

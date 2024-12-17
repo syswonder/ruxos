@@ -7,6 +7,7 @@
  *   See the Mulan PSL v2 for more details.
  */
 
+use crate::current;
 #[cfg(feature = "irq")]
 use core::sync::atomic::AtomicI64;
 use core::{
@@ -85,6 +86,17 @@ impl TrapHandler for SignalHandler {
 }
 
 impl Signal {
+    ///crate new Signal struct
+    pub fn new() -> Self {
+        Self {
+            #[cfg(feature = "irq")]
+            signal: AtomicI64::new(0),
+            sigaction: [rx_sigaction::new(); 32],
+            // Default::default() is not const
+            timer_value: [Duration::from_nanos(0); 3],
+            timer_interval: [Duration::from_nanos(0); 3],
+        }
+    }
     /// Set signal
     /// signum: signal number, if signum < 0, just return current signal
     /// on: true: enable signal, false: disable signal
@@ -94,7 +106,9 @@ impl Signal {
         if signum >= 32 {
             return None;
         }
-        let mut old = unsafe { SIGNAL_IF.signal.load(Ordering::Acquire) };
+        let binding = current();
+        let mut current_signal_if = binding.signal_if.lock();
+        let mut old = unsafe { current_signal_if.signal.load(Ordering::Acquire) };
         if signum >= 0 {
             loop {
                 let new = if on {
@@ -104,7 +118,7 @@ impl Signal {
                 };
 
                 match unsafe {
-                    SIGNAL_IF.signal.compare_exchange_weak(
+                    current_signal_if.signal.compare_exchange_weak(
                         old,
                         new,
                         Ordering::AcqRel,
@@ -126,21 +140,21 @@ impl Signal {
         sigaction: Option<*const rx_sigaction>,
         oldact: Option<*mut rx_sigaction>,
     ) {
-        if signum >= unsafe { SIGNAL_IF.sigaction }.len() as u8 {
+        let binding = current();
+        let mut current_signal_if = binding.signal_if.lock();
+        if signum >= unsafe { current_signal_if.sigaction }.len() as u8 {
             return;
         }
         if let Some(oldact) = oldact {
             unsafe {
-                *oldact = SIGNAL_IF.sigaction[signum as usize];
+                *oldact = current_signal_if.sigaction[signum as usize];
             }
         }
         match sigaction {
             Some(s) => unsafe {
-                SIGNAL_IF.sigaction[signum as usize] = *s;
+                current_signal_if.sigaction[signum as usize] = *s;
             },
-            None => unsafe {
-                SIGNAL_IF.sigaction[signum as usize].sa_handler.unwrap()(signum as c_int)
-            },
+            None => {},
         }
     }
     /// Set timer
@@ -148,13 +162,15 @@ impl Signal {
     /// new_value: new timer value
     /// old_value: old timer value
     pub fn timer_deadline(which: usize, new_deadline: Option<u64>) -> Option<u64> {
-        if which >= unsafe { SIGNAL_IF.timer_value }.len() {
+        let binding = current();
+        let mut current_signal_if = binding.signal_if.lock();
+        if which >= unsafe { current_signal_if.timer_value }.len() {
             return None;
         }
-        let old = unsafe { SIGNAL_IF.timer_value }[which];
+        let old = unsafe { current_signal_if.timer_value }[which];
         if let Some(s) = new_deadline {
             unsafe {
-                SIGNAL_IF.timer_value[which] = Duration::from_nanos(s);
+                current_signal_if.timer_value[which] = Duration::from_nanos(s);
             }
         }
         Some(old.as_nanos() as u64)
@@ -164,13 +180,15 @@ impl Signal {
     /// new_interval: new timer interval
     /// old_interval: old timer interval
     pub fn timer_interval(which: usize, new_interval: Option<u64>) -> Option<u64> {
-        if which >= unsafe { SIGNAL_IF.timer_interval }.len() {
+        let binding = current();
+        let mut current_signal_if = binding.signal_if.lock();
+        if which >= unsafe { current_signal_if.timer_interval }.len() {
             return None;
         }
-        let old = unsafe { SIGNAL_IF.timer_interval }[which];
+        let old = unsafe { current_signal_if.timer_interval }[which];
         if let Some(s) = new_interval {
             unsafe {
-                SIGNAL_IF.timer_interval[which] = Duration::from_nanos(s);
+                current_signal_if.timer_interval[which] = Duration::from_nanos(s);
             }
         }
         Some(old.as_nanos() as u64)
