@@ -266,4 +266,6 @@ pub struct PollState {
     pub readable: bool,
     /// Object can be writen now.
     pub writable: bool,
+    /// Object is closed (by remote) now.
+    pub pollhup: bool,
 }

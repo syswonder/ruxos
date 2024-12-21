@@ -127,6 +127,7 @@ impl FileLike for File {
         Ok(PollState {
             readable: true,
             writable: true,
+            pollhup: false,
         })
     }
 
@@ -197,6 +198,7 @@ impl FileLike for Directory {
         Ok(PollState {
             readable: true,
             writable: true,
+            pollhup: false,
         })
     }
 

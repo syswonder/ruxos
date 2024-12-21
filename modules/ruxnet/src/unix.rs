@@ -471,6 +471,7 @@ impl UnixSocket {
         Ok(PollState {
             readable: false,
             writable,
+            pollhup: false,
         })
     }
 
@@ -480,11 +481,25 @@ impl UnixSocket {
         match now_state {
             UnixSocketStatus::Connecting => self.poll_connect(),
             UnixSocketStatus::Connected => {
+                let remote_is_close = {
+                    let remote_handle = self.get_peerhandle();
+                    match remote_handle {
+                        Some(handle) => {
+                            let mut binding = UNIX_TABLE.write();
+                            let mut remote_status = binding.get_mut(handle).unwrap().lock().get_state();
+                            remote_status == UnixSocketStatus::Closed
+                        }
+                        None => {
+                            return Err(LinuxError::ENOTCONN);
+                        }
+                    }
+                };
                 let mut binding = UNIX_TABLE.write();
                 let mut socket_inner = binding.get_mut(self.get_sockethandle()).unwrap().lock();
                 Ok(PollState {
                     readable: !socket_inner.may_recv() || socket_inner.can_recv(),
                     writable: !socket_inner.may_send() || socket_inner.can_send(),
+                    pollhup: remote_is_close,
                 })
             }
             UnixSocketStatus::Listening => {
@@ -493,11 +508,13 @@ impl UnixSocket {
                 Ok(PollState {
                     readable: socket_inner.can_accept(),
                     writable: false,
+                    pollhup: false,
                 })
             }
             _ => Ok(PollState {
                 readable: false,
                 writable: false,
+                pollhup: false,
             }),
         }
     }

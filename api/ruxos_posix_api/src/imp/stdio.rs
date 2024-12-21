@@ -163,6 +163,7 @@ impl ruxfdtable::FileLike for Stdin {
         Ok(PollState {
             readable: true,
             writable: true,
+            pollhup: false,
         })
     }
 
@@ -204,6 +205,7 @@ impl ruxfdtable::FileLike for Stdout {
         Ok(PollState {
             readable: true,
             writable: true,
+            pollhup: false,
         })
     }
 

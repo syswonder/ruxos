@@ -38,6 +38,11 @@ fn poll_all(fds: &mut [ctypes::pollfd]) -> LinuxResult<usize> {
                     *revents |= ctypes::EPOLLOUT as i16;
                     events_num += 1;
                 }
+                
+                if state.pollhup {
+                    *revents |= ctypes::EPOLLHUP as i16;
+                    events_num += 1;
+                }
             }
         }
     }

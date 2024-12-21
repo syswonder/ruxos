@@ -100,6 +100,10 @@ impl FdSets {
                             unsafe { set_fd_set(res_write_fds, fd) };
                             res_num += 1;
                         }
+                        if state.pollhup {
+                            unsafe { set_fd_set(res_except_fds, fd) };
+                            res_num += 1;
+                        }
                     }
                     Err(e) => {
                         debug!("    except: {} {:?}", fd, e);
