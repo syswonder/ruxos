@@ -25,7 +25,7 @@ enum RingBufferStatus {
     Normal,
 }
 
-const RING_BUFFER_SIZE: usize = 256;
+const RING_BUFFER_SIZE: usize = ruxconfig::PIPE_BUFFER_SIZE;
 
 pub struct PipeRingBuffer {
     arr: [u8; RING_BUFFER_SIZE],
@@ -210,10 +210,12 @@ impl FileLike for Pipe {
     }
 
     fn poll(&self) -> LinuxResult<PollState> {
+        let write_end_count = Arc::weak_count(&self.buffer);
         let buf = self.buffer.lock();
         Ok(PollState {
             readable: self.readable() && buf.available_read() > 0,
             writable: self.writable() && buf.available_write() > 0,
+            pollhup: self.write_end_close(),
         })
     }
 

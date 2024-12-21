@@ -40,3 +40,6 @@ pci-ranges = []
 
 # Timer interrupt frequencyin Hz.
 timer-frequency = "4_000_000_000"   # 4.0GHz
+
+# Pipe channel bufer size.
+pipe-buffer-size = "0x10000"

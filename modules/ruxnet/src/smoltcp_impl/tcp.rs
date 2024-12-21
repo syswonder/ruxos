@@ -382,6 +382,7 @@ impl TcpSocket {
             _ => Ok(PollState {
                 readable: false,
                 writable: false,
+                pollhup: false,
             }),
         }
     }
@@ -482,16 +483,21 @@ impl TcpSocket {
         Ok(PollState {
             readable: false,
             writable,
+            pollhup: false,
         })
     }
 
     fn poll_stream(&self) -> AxResult<PollState> {
         // SAFETY: `self.handle` should be initialized in a connected socket.
         let handle = unsafe { self.handle.get().read().unwrap() };
+        let pollhup = SOCKET_SET.with_socket_mut::<tcp::Socket, _, _>(handle, |socket| {
+            socket.state() == tcp::State::CloseWait
+        });
         SOCKET_SET.with_socket::<tcp::Socket, _, _>(handle, |socket| {
             Ok(PollState {
                 readable: !socket.may_recv() || socket.can_recv(),
                 writable: !socket.may_send() || socket.can_send(),
+                pollhup,
             })
         })
     }
@@ -502,6 +508,7 @@ impl TcpSocket {
         Ok(PollState {
             readable: LISTEN_TABLE.can_accept(local_addr.port)?,
             writable: false,
+            pollhup: false,
         })
     }
 
