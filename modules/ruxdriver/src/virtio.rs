@@ -13,8 +13,6 @@ use core::marker::PhantomData;
 use driver_common::{BaseDriverOps, DevResult, DeviceType};
 #[cfg(bus = "mmio")]
 use ruxhal::mem::phys_to_virt;
-
-#[cfg(feature = "virtio_hal")]
 use ruxhal::virtio::virtio_hal::VirtIoHalImpl;
 
 cfg_if! {

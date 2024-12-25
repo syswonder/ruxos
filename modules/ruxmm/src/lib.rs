@@ -7,8 +7,15 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-//! ruxos and virtio code related mod definition
-#[cfg(feature = "virtio_console")]
-pub mod virtio_console;
-#[cfg(feature = "virtio")]
-pub mod virtio_hal;
+#![no_std]
+#![feature(asm_const)]
+#![feature(naked_functions)]
+#![feature(const_option)]
+#![feature(doc_auto_cfg)]
+
+#[allow(unused_imports)]
+#[macro_use]
+
+pub mod mem;
+#[cfg(feature = "paging")]
+pub mod paging;

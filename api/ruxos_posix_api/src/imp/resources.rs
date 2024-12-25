@@ -56,8 +56,8 @@ pub unsafe fn sys_getrlimit(resource: c_int, rlimits: *mut ctypes::rlimit) -> c_
             },
             #[cfg(feature = "fd")]
             ctypes::RLIMIT_NOFILE => unsafe {
-                (*rlimits).rlim_cur = ruxfdtable::RUX_FILE_LIMIT as _;
-                (*rlimits).rlim_max = ruxfdtable::RUX_FILE_LIMIT as _;
+                (*rlimits).rlim_cur = ruxtask::fs::RUX_FILE_LIMIT as _;
+                (*rlimits).rlim_max = ruxtask::fs::RUX_FILE_LIMIT as _;
             },
             ctypes::RLIMIT_MEMLOCK => {}
             ctypes::RLIMIT_AS => {}

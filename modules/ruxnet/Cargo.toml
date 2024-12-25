@@ -11,8 +11,9 @@ documentation = "https://rcore-os.github.io/arceos/ruxnet/index.html"
 
 [features]
 lwip = ["dep:lwip_rust"]
+loopback = ["ruxdriver/loopback"]
 smoltcp = []
-default = ["smoltcp"]
+default = ["smoltcp", "loopback"]
 
 [dependencies]
 hashbrown = "0.14.5"

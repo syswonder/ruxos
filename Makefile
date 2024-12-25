@@ -47,7 +47,7 @@ V ?=
 # App options
 A ?= apps/c/helloworld
 APP ?= $(A)
-FEATURES ?=
+FEATURES ?= multitask paging fs
 APP_FEATURES ?=
 
 # QEMU options

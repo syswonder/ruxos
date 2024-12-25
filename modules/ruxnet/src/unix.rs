@@ -11,7 +11,7 @@ use alloc::{sync::Arc, vec};
 use axerrno::{ax_err, AxError, AxResult, LinuxError, LinuxResult};
 use axio::PollState;
 use axsync::Mutex;
-use core::ffi::{c_char, c_int};
+use core::ffi::c_char;
 use core::net::SocketAddr;
 use core::sync::atomic::{AtomicBool, Ordering};
 use spin::RwLock;
@@ -26,7 +26,6 @@ use ruxfs::root::{create_file, lookup};
 use ruxtask::yield_now;
 
 const SOCK_ADDR_UN_PATH_LEN: usize = 108;
-const UNIX_SOCKET_BUFFER_SIZE: usize = 4096;
 
 /// rust form for ctype sockaddr_un
 #[derive(Clone, Copy, Debug)]
@@ -202,6 +201,10 @@ impl<'a> HashMapWarpper<'a> {
 
     pub fn get_mut(&mut self, id: usize) -> Option<&mut Arc<Mutex<UnixSocketInner<'a>>>> {
         self.inner.get_mut(&id)
+    }
+
+    pub fn remove(&mut self, id: usize) -> Option<Arc<Mutex<UnixSocketInner<'a>>>> {
+        self.inner.remove(&id)
     }
 }
 static UNIX_TABLE: LazyInit<RwLock<HashMapWarpper>> = LazyInit::new();
@@ -467,6 +470,7 @@ impl UnixSocket {
         Ok(PollState {
             readable: false,
             writable,
+            pollhup: false,
         })
     }
 
@@ -476,11 +480,25 @@ impl UnixSocket {
         match now_state {
             UnixSocketStatus::Connecting => self.poll_connect(),
             UnixSocketStatus::Connected => {
+                let remote_is_close = {
+                    let remote_handle = self.get_peerhandle();
+                    match remote_handle {
+                        Some(handle) => {
+                            let mut binding = UNIX_TABLE.write();
+                            let remote_status = binding.get_mut(handle).unwrap().lock().get_state();
+                            remote_status == UnixSocketStatus::Closed
+                        }
+                        None => {
+                            return Err(LinuxError::ENOTCONN);
+                        }
+                    }
+                };
                 let mut binding = UNIX_TABLE.write();
                 let mut socket_inner = binding.get_mut(self.get_sockethandle()).unwrap().lock();
                 Ok(PollState {
                     readable: !socket_inner.may_recv() || socket_inner.can_recv(),
                     writable: !socket_inner.may_send() || socket_inner.can_send(),
+                    pollhup: remote_is_close,
                 })
             }
             UnixSocketStatus::Listening => {
@@ -489,11 +507,13 @@ impl UnixSocket {
                 Ok(PollState {
                     readable: socket_inner.can_accept(),
                     writable: false,
+                    pollhup: false,
                 })
             }
             _ => Ok(PollState {
                 readable: false,
                 writable: false,
+                pollhup: false,
             }),
         }
     }
@@ -501,18 +521,6 @@ impl UnixSocket {
     /// Returns the local address of the socket.
     pub fn local_addr(&self) -> LinuxResult<SocketAddr> {
         unimplemented!()
-    }
-
-    /// Returns the file descriptor for the socket.
-    fn fd(&self) -> c_int {
-        UNIX_TABLE
-            .write()
-            .get_mut(self.get_sockethandle())
-            .unwrap()
-            .lock()
-            .addr
-            .lock()
-            .sun_path[0] as _
     }
 
     /// Returns the peer address of the socket.
@@ -590,12 +598,12 @@ impl UnixSocket {
     }
 
     /// Sends data to a specified address.
-    pub fn sendto(&self, buf: &[u8], addr: SocketAddrUnix) -> LinuxResult<usize> {
+    pub fn sendto(&self, _buf: &[u8], _addr: SocketAddrUnix) -> LinuxResult<usize> {
         unimplemented!()
     }
 
     /// Receives data from the socket and returns the sender's address.
-    pub fn recvfrom(&self, buf: &mut [u8]) -> LinuxResult<(usize, Option<SocketAddr>)> {
+    pub fn recvfrom(&self, _buf: &mut [u8]) -> LinuxResult<(usize, Option<SocketAddr>)> {
         unimplemented!()
     }
 
@@ -664,10 +672,12 @@ impl UnixSocket {
         }
     }
 
-    //TODO
     /// Shuts down the socket.
     pub fn shutdown(&self) -> LinuxResult {
-        unimplemented!()
+        let mut binding = UNIX_TABLE.write();
+        let mut socket_inner = binding.get_mut(self.get_sockethandle()).unwrap().lock();
+        socket_inner.set_state(UnixSocketStatus::Closed);
+        Ok(())
     }
 
     /// Returns whether this socket is in nonblocking mode.
@@ -693,6 +703,13 @@ impl UnixSocket {
     /// Returns the socket type of the `UnixSocket`.
     pub fn get_sockettype(&self) -> UnixSocketType {
         self.unixsocket_type
+    }
+}
+
+impl Drop for UnixSocket {
+    fn drop(&mut self) {
+        let _ = self.shutdown();
+        UNIX_TABLE.write().remove(self.get_sockethandle());
     }
 }
 

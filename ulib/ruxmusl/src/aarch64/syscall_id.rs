@@ -73,6 +73,7 @@ pub enum SyscallId {
     FDATASYNC = 83,
     CAP_GET = 90,
     EXIT = 93,
+    EXIT_GROUP = 94,
     #[cfg(feature = "multitask")]
     SET_TID_ADDRESS = 96,
     #[cfg(feature = "multitask")]
@@ -152,6 +153,7 @@ pub enum SyscallId {
     MSYNC = 227,
     #[cfg(feature = "alloc")]
     MADVISE = 233,
+    WAIT4 = 260,
     PRLIMIT64 = 261,
     GETRANDOM = 278,
 }

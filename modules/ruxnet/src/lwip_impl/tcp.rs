@@ -13,7 +13,7 @@ use lwip_rust::bindings::{
     err_enum_t_ERR_MEM, err_enum_t_ERR_OK, err_enum_t_ERR_USE, err_enum_t_ERR_VAL, err_t,
     ip_addr_t, pbuf, pbuf_free, tcp_accept, tcp_arg, tcp_bind, tcp_close, tcp_connect,
     tcp_listen_with_backlog, tcp_new, tcp_output, tcp_pcb, tcp_recv, tcp_recved, tcp_state_CLOSED,
-    tcp_state_LISTEN, tcp_write, TCP_DEFAULT_LISTEN_BACKLOG, TCP_MSS,
+    tcp_state_CLOSE_WAIT, tcp_state_LISTEN, tcp_write, TCP_DEFAULT_LISTEN_BACKLOG, TCP_MSS,
 };
 use ruxtask::yield_now;
 
@@ -475,6 +475,7 @@ impl TcpSocket {
             Ok(PollState {
                 readable: self.inner.accept_queue.lock().len() != 0,
                 writable: false,
+                pollhup: false,
             })
         } else {
             let test = self.inner.recv_queue.lock().len();
@@ -482,6 +483,7 @@ impl TcpSocket {
             Ok(PollState {
                 readable: self.inner.recv_queue.lock().len() != 0,
                 writable: true,
+                pollhup: unsafe { (*self.pcb.get()).state } == tcp_state_CLOSE_WAIT,
             })
         }
     }

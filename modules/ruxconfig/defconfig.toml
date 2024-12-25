@@ -43,3 +43,6 @@ smp = "1"
 
 # Maximum number of keys per thread.
 pthread-key-max = "1024"
+
+# Pipe channel bufer size.
+pipe-buffer-size = "0x10000"

@@ -12,7 +12,7 @@ homepage = "https://github.com/syswonder/ruxos"
 repository = "https://github.com/syswonder/ruxos/tree/main/modules/ruxhal"
 
 [features]
-virtio_hal = ["driver_virtio","virtio-drivers","axalloc"]
+virtio = ["driver_virtio","virtio-drivers","axalloc"]
 smp = []
 alloc = []
 fp_simd = []
@@ -23,7 +23,7 @@ tls = ["alloc"]
 default = []
 musl = []
 signal = []
-virtio_console = ["driver_console", "driver_virtio", "driver_virtio/console", "driver_common", "virtio-drivers", "axalloc", "lazy_static", "alloc", "virtio_hal"]
+virtio_console = ["driver_console", "driver_virtio", "driver_virtio/console", "driver_common", "virtio-drivers", "axalloc", "lazy_static", "alloc", "virtio"]
 
 
 [dependencies]

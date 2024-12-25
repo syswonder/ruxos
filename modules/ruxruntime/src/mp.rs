@@ -43,9 +43,6 @@ pub extern "C" fn rust_main_secondary(cpu_id: usize) -> ! {
     ENTERED_CPUS.fetch_add(1, Ordering::Relaxed);
     info!("Secondary CPU {:x} started.", cpu_id);
 
-    #[cfg(feature = "paging")]
-    super::remap_kernel_memory().unwrap();
-
     ruxhal::platform_init_secondary();
 
     #[cfg(feature = "rand")]
@@ -53,6 +50,9 @@ pub extern "C" fn rust_main_secondary(cpu_id: usize) -> ! {
 
     #[cfg(feature = "multitask")]
     ruxtask::init_scheduler_secondary();
+
+    #[cfg(feature = "paging")]
+    super::remap_kernel_memory().unwrap();
 
     info!("Secondary CPU {:x} init OK.", cpu_id);
     super::INITED_CPUS.fetch_add(1, Ordering::Relaxed);

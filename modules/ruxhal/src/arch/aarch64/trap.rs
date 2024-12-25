@@ -106,9 +106,15 @@ fn handle_sync_exception(tf: &mut TrapFrame) {
                         PageFaultCause::INSTRUCTION // = instruction fetch
                     }
                 };
-                if crate::trap::handle_page_fault(vaddr, cause) {
+                let is_mapped = crate::trap::handle_page_fault(vaddr, cause);
+
+                if is_mapped {
                     return;
                 }
+                error!(
+                    "Page fault @ {:#x}, cause={:?}, is_mapped={}",
+                    tf.elr, cause, is_mapped
+                );
             }
             panic!(
                 "EL1 Page Fault @ {:#x}, FAR={:#x}, ISS={:#x}:\n{:#x?}",

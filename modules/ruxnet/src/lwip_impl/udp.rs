@@ -335,6 +335,7 @@ impl UdpSocket {
         Ok(PollState {
             readable: self.inner.recv_queue.lock().len() != 0,
             writable: true,
+            pollhup: false,
         })
     }
 }

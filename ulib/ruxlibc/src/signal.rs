@@ -29,17 +29,23 @@ pub unsafe extern "C" fn sigaction_inner(
     }
     #[cfg(feature = "signal")]
     {
-        let mut sh = (*_act).__sa_handler.sa_handler;
-        if let Some(h) = sh {
-            if h as usize == crate::ctypes::SIGIGN as usize {
-                sh = Some(ignore_handler as unsafe extern "C" fn(c_int));
+        let k_act = {
+            if _act.is_null() {
+                None
+            } else {
+                let mut sh = (*_act).__sa_handler.sa_handler;
+                if let Some(h) = sh {
+                    if h as usize == crate::ctypes::SIGIGN as usize {
+                        sh = Some(ignore_handler as unsafe extern "C" fn(c_int));
+                    }
+                }
+                k_sigaction {
+                    handler: sh,
+                    flags: (*_act).sa_flags as _,
+                    restorer: (*_act).sa_restorer,
+                    mask: Default::default(),
+                }
             }
-        }
-        let k_act = k_sigaction {
-            handler: sh,
-            flags: (*_act).sa_flags as _,
-            restorer: (*_act).sa_restorer,
-            mask: Default::default(),
         };
         let mut k_oldact = k_sigaction::default();
         sys_sigaction(
