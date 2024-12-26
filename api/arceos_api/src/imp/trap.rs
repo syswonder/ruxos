@@ -7,13 +7,14 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use core::ffi::c_int;
+use ruxhal::trap::{PageFaultCause, TrapHandler};
 
-pub fn e(ret: c_int) -> c_int {
-    if ret < 0 {
-        crate::errno::set_errno(ret.abs());
-        -1
-    } else {
-        ret as _
+struct TrapHandlerImpl;
+
+#[crate_interface::impl_interface]
+impl TrapHandler for TrapHandlerImpl {
+    fn handle_page_fault(vaddr: usize, cause: PageFaultCause) -> bool {
+        // TODO: handle page fault
+        panic!("Page fault at {:#x} with cause {:?}.", vaddr, cause);
     }
 }

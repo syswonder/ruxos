@@ -307,7 +307,7 @@ pub fn sys_msync(start: *mut c_void, len: ctypes::size_t, flags: c_int) -> c_int
             for (&vaddr, page_info) in current().mm.mem_map.lock().range(start..end) {
                 if let Some(FileInfo { file, offset, size }) = &page_info.mapping_file {
                     let src = vaddr as *mut u8;
-                    write_into(&file, src, *offset as u64, *size);
+                    write_into(file, src, *offset as u64, *size);
                 }
             }
         }

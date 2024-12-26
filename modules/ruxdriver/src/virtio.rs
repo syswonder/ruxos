@@ -7,12 +7,21 @@
  *   See the Mulan PSL v2 for more details.
  */
 
+//! A driver for VirtIO devices.
+
 use crate::{drivers::DriverProbe, AxDeviceEnum};
 use cfg_if::cfg_if;
 use core::marker::PhantomData;
 use driver_common::{BaseDriverOps, DevResult, DeviceType};
 #[cfg(bus = "mmio")]
 use ruxhal::mem::phys_to_virt;
+#[cfg(any(
+    feature = "virtio-net",
+    feature = "virtio-blk",
+    feature = "virtio-gpu",
+    feature = "virtio-9p",
+    feature = "pci"
+))]
 use ruxhal::virtio::virtio_hal::VirtIoHalImpl;
 
 cfg_if! {
@@ -26,16 +35,21 @@ cfg_if! {
 
 /// A trait for VirtIO device meta information.
 pub trait VirtIoDevMeta {
+    /// The device type of the VirtIO device.
     const DEVICE_TYPE: DeviceType;
 
+    /// The device type of the VirtIO device.
     type Device: BaseDriverOps;
+    /// The driver for the VirtIO device.
     type Driver = VirtIoDriver<Self>;
 
+    /// Try to create a new instance of the VirtIO device.
     fn try_new(transport: VirtIoTransport) -> DevResult<AxDeviceEnum>;
 }
 
 cfg_if! {
     if #[cfg(net_dev = "virtio-net")] {
+        /// A VirtIO network device.
         pub struct VirtIoNet;
 
         impl VirtIoDevMeta for VirtIoNet {
@@ -51,6 +65,7 @@ cfg_if! {
 
 cfg_if! {
     if #[cfg(block_dev = "virtio-blk")] {
+        /// A VirtIO block device.
         pub struct VirtIoBlk;
 
         impl VirtIoDevMeta for VirtIoBlk {
@@ -66,6 +81,7 @@ cfg_if! {
 
 cfg_if! {
     if #[cfg(display_dev = "virtio-gpu")] {
+        /// A VirtIO GPU device.
         pub struct VirtIoGpu;
 
         impl VirtIoDevMeta for VirtIoGpu {
@@ -81,6 +97,7 @@ cfg_if! {
 
 cfg_if! {
     if #[cfg(_9p_dev = "virtio-9p")] {
+        /// A VirtIO 9P device.
         pub struct VirtIo9p;
 
         impl VirtIoDevMeta for VirtIo9p {
@@ -94,7 +111,7 @@ cfg_if! {
     }
 }
 
-/// A common driver for all VirtIO devices that implements [`DriverProbe`].
+/// A common driver for all VirtIO devices that implements DriverProbe.
 pub struct VirtIoDriver<D: VirtIoDevMeta + ?Sized>(PhantomData<D>);
 
 impl<D: VirtIoDevMeta> DriverProbe for VirtIoDriver<D> {

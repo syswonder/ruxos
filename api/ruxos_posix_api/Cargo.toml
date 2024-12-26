@@ -47,7 +47,7 @@ ruxfdtable = { path = "../../modules/ruxfdtable" }
 ruxmm = { path = "../../modules/ruxmm", optional = true }
 ruxfutex = { path = "../../modules/ruxfutex", optional = true }
 axalloc = { path = "../../modules/axalloc", optional = true }
-ruxtask = { path = "../../modules/ruxtask", optional = true }
+ruxtask = { path = "../../modules/ruxtask", features = ["notest"], optional = true }
 ruxfs = { path = "../../modules/ruxfs", optional = true }
 ruxnet = { path = "../../modules/ruxnet", optional = true }
 

@@ -129,7 +129,7 @@ where
 }
 
 // temporarily only support aarch64
-#[cfg(target_arch = "aarch64")]
+#[cfg(all(target_arch = "aarch64", feature = "paging", feature = "fs"))]
 pub fn fork_task() -> Option<AxTaskRef> {
     use core::mem::ManuallyDrop;
 

@@ -98,11 +98,13 @@ dependencies = [
  "axerrno",
  "axio",
  "axlog",
+ "crate_interface",
  "ruxconfig",
  "ruxdisplay",
  "ruxfeat",
  "ruxfs",
  "ruxhal",
+ "ruxmm",
  "ruxnet",
  "ruxruntime",
  "ruxtask",
@@ -1734,17 +1736,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ruxlibc"
-version = "0.1.0"
-dependencies = [
- "axerrno",
- "axio",
- "bindgen 0.66.1",
- "ruxfeat",
- "ruxos_posix_api",
-]
-
-[[package]]
 name = "ruxmm"
 version = "0.1.0"
 dependencies = [
@@ -1873,13 +1864,18 @@ name = "ruxruntime"
 version = "0.1.0"
 dependencies = [
  "axalloc",
+ "axfs_ramfs",
+ "axfs_vfs",
+ "axio",
  "axlog",
  "axsync",
  "cfg-if",
  "crate_interface",
+ "driver_block",
  "dtb",
  "kernel_guard",
  "lazy_init",
+ "log",
  "percpu",
  "rux9p",
  "ruxconfig",

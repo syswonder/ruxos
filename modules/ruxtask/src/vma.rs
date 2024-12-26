@@ -46,9 +46,12 @@ used_fs! {
     // pub(crate) const SWAP_MAX: usize = 1024 * 1024 * 1024;
     pub(crate) const SWAP_MAX: usize = 0;
     pub(crate) const SWAP_PATH: &str = "swap.raw\0";
+    /// record the mapping of swapped out pages.
     pub static SWAPED_MAP: SpinNoIrq<BTreeMap<usize, Arc<SwapInfo>>> = SpinNoIrq::new(BTreeMap::new()); // Vaddr => (page_size, offset_at_swaped)
     lazy_static::lazy_static! {
+        /// swap file for swapping out pages.
         pub static ref SWAP_FILE: Arc<File> = open_swap_file(SWAP_PATH);
+        /// bitmap for free pages in swap file.
         pub static ref BITMAP_FREE: SpinNoIrq<Vec<usize>> = SpinNoIrq::new((0..SWAP_MAX).step_by(PAGE_SIZE_4K).collect());
     }
 }
@@ -69,21 +72,27 @@ fn open_swap_file(filename: &str) -> Arc<File> {
 /// Data structure for file mapping.
 #[derive(Clone)]
 pub struct FileInfo {
+    /// file that the mapping is backed by
     pub file: Arc<File>,
+    /// offset in the file
     pub offset: usize,
+    /// size of the mapping
     pub size: usize,
 }
 
 /// Data structure for information of mapping.
 pub struct PageInfo {
+    /// physical address of the page
     pub paddr: PhysAddr,
     #[cfg(feature = "fs")]
+    /// file that the mapping is backed by
     pub mapping_file: Option<FileInfo>,
 }
 
 /// Data structure for swaping out a page in a file.
 #[derive(Debug, Clone)]
 pub struct SwapInfo {
+    /// offset in the swap file
     pub offset: usize,
 }
 
@@ -162,6 +171,7 @@ impl MmapStruct {
 
 /// Impl for Vma.
 impl Vma {
+    /// Create a new `Vma` instance.
     pub fn new(_fid: i32, offset: usize, prot: u32, flags: u32) -> Self {
         // #[cfg(feature = "fs")]
         let file = if _fid < 0 {
@@ -187,6 +197,7 @@ impl Vma {
         }
     }
 
+    /// Clone a new `Vma` instance.
     pub fn clone_from(vma: &Vma, start_addr: usize, end_addr: usize) -> Self {
         Vma {
             start_addr,

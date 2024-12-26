@@ -7,6 +7,8 @@
  *   See the Mulan PSL v2 for more details.
  */
 
+//! Signal module for RuxOS.
+
 use crate::current;
 #[cfg(feature = "irq")]
 use core::sync::atomic::AtomicI64;
@@ -15,7 +17,6 @@ use core::{
     time::Duration,
 };
 
-use crate_interface::impl_interface;
 use ruxhal::trap::TrapHandler;
 
 /// sigaction in kernel
@@ -60,9 +61,9 @@ unsafe extern "C" fn default_handler(signum: c_int) {
 #[cfg(feature = "signal")]
 struct SignalHandler;
 
-#[impl_interface]
+#[cfg(feature = "signal")]
+#[crate_interface::impl_interface]
 impl TrapHandler for SignalHandler {
-    #[cfg(feature = "signal")]
     fn handle_signal() {
         let signal = Signal::signal(-1, true).unwrap();
         for signum in 0..32 {

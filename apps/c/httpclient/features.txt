@@ -1,3 +1,5 @@
 alloc
 paging
 net
+poll
+rtc

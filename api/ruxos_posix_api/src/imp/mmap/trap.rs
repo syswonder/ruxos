@@ -205,10 +205,10 @@ impl ruxhal::trap::TrapHandler for TrapHandlerImpl {
                     dst.copy_from(vaddr as *mut u8, size);
                 }
                 let paddr = direct_virt_to_phys(fake_vaddr);
-                let mapping_file = memory_map.get(&vaddr.into()).unwrap().mapping_file.clone();
-                memory_map.remove(&vaddr.into());
+                let mapping_file = memory_map.get(&vaddr).unwrap().mapping_file.clone();
+                memory_map.remove(&vaddr);
                 memory_map.insert(
-                    vaddr.into(),
+                    vaddr,
                     Arc::new(PageInfo {
                         paddr,
                         #[cfg(feature = "fs")]

@@ -66,7 +66,7 @@ impl<'a> UnixSocketInner<'a> {
     }
 
     pub fn get_addr(&self) -> SocketAddrUnix {
-        self.addr.lock().clone()
+        *self.addr.lock()
     }
 
     pub fn get_peersocket(&self) -> Option<usize> {
@@ -460,7 +460,7 @@ impl UnixSocket {
         let writable = {
             let mut binding = UNIX_TABLE.write();
             let mut socket_inner = binding.get_mut(self.get_sockethandle()).unwrap().lock();
-            if !socket_inner.get_peersocket().is_none() {
+            if socket_inner.get_peersocket().is_some() {
                 socket_inner.set_state(UnixSocketStatus::Connected);
                 true
             } else {
@@ -694,10 +694,7 @@ impl UnixSocket {
     /// Checks if the socket is in a listening state.
     pub fn is_listening(&self) -> bool {
         let now_state = self.get_state();
-        match now_state {
-            UnixSocketStatus::Listening => true,
-            _ => false,
-        }
+        matches!(now_state, UnixSocketStatus::Listening)
     }
 
     /// Returns the socket type of the `UnixSocket`.

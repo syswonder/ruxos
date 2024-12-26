@@ -36,7 +36,7 @@ alloc = ["arceos_api/alloc", "ruxfeat/alloc", "axio/alloc"]
 alloc-tlsf = ["ruxfeat/alloc-tlsf"]
 alloc-slab = ["ruxfeat/alloc-slab"]
 alloc-buddy = ["ruxfeat/alloc-buddy"]
-paging = ["ruxfeat/paging"]
+paging = ["ruxfeat/paging", "arceos_api/paging"]
 tls = ["ruxfeat/tls"]
 
 # Multi-threading and scheduler

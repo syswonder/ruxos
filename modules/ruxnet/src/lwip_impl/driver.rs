@@ -3,12 +3,12 @@ use crate::{
     net_impl::addr::{mask_to_prefix, MacAddr},
     IpAddr,
 };
-use alloc::{boxed::Box, collections::VecDeque, sync::Arc, vec};
+use alloc::{boxed::Box, collections::VecDeque, sync::Arc};
 #[cfg(feature = "irq")]
 use axdriver::register_interrupt_handler;
 use axsync::Mutex;
 use core::{cell::RefCell, ffi::c_void};
-use driver_net::{DevError, NetBuf, NetBufBox, NetBufPool, NetBufPtr};
+use driver_net::{DevError, NetBuf, NetBufBox};
 use lazy_init::LazyInit;
 use lwip_rust::bindings::{
     err_enum_t_ERR_MEM, err_enum_t_ERR_OK, err_t, etharp_output, ethernet_input, ip4_addr_t,
@@ -20,9 +20,6 @@ use lwip_rust::bindings::{
 use ruxdriver::prelude::*;
 
 const RX_BUF_QUEUE_SIZE: usize = 64;
-
-const NET_BUF_LEN: usize = 1526;
-const NET_BUF_POOL_SIZE: usize = 128;
 
 struct NetifWrapper(netif);
 unsafe impl Send for NetifWrapper {}
@@ -164,7 +161,7 @@ extern "C" fn ethif_output(netif: *mut netif, p: *mut pbuf) -> err_t {
 
     if dev.can_transmit() {
         unsafe {
-            let tot_len = unsafe { (*p).tot_len };
+            let tot_len = (*p).tot_len;
             let mut tx_buf = *NetBuf::from_buf_ptr(dev.alloc_tx_buffer(tot_len.into()).unwrap());
             dev.prepare_tx_buffer(&mut tx_buf, tot_len.into()).unwrap();
 
@@ -172,12 +169,12 @@ extern "C" fn ethif_output(netif: *mut netif, p: *mut pbuf) -> err_t {
             let mut offset = 0;
             let mut q = p;
             while !q.is_null() {
-                let len = unsafe { (*q).len } as usize;
-                let payload = unsafe { (*q).payload };
-                let payload = unsafe { core::slice::from_raw_parts(payload as *const u8, len) };
+                let len = (*q).len as usize;
+                let payload = (*q).payload;
+                let payload = core::slice::from_raw_parts(payload as *const u8, len);
                 tx_buf.packet_mut()[offset..offset + len].copy_from_slice(payload);
                 offset += len;
-                q = unsafe { (*q).next };
+                q = (*q).next;
             }
 
             trace!(
@@ -217,7 +214,7 @@ fn ip4_addr_gen(a: u8, b: u8, c: u8, d: u8) -> ip4_addr_t {
 }
 pub fn init() {}
 
-pub fn init_netdev(mut net_dev: AxNetDevice) {
+pub fn init_netdev(net_dev: AxNetDevice) {
     match net_dev.device_name() {
         "loopback" => {
             info!("use lwip netif loopback");

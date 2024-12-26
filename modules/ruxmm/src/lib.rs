@@ -7,6 +7,8 @@
  *   See the Mulan PSL v2 for more details.
  */
 
+//! memory management module for RuxOS.
+
 #![no_std]
 #![feature(asm_const)]
 #![feature(naked_functions)]
@@ -18,4 +20,5 @@
 
 pub mod mem;
 #[cfg(feature = "paging")]
+/// A module for paging operations.
 pub mod paging;

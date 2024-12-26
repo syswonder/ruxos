@@ -7,8 +7,8 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use crate::fs::get_file_like;
-use crate::fs::RUX_FILE_LIMIT;
+#[cfg(feature = "fs")]
+use crate::fs::{get_file_like, RUX_FILE_LIMIT};
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use axerrno::LinuxResult;
@@ -245,6 +245,7 @@ impl AxRunQueue {
     }
 }
 
+#[cfg(feature = "fs")]
 fn gc_flush_file(fd: usize) -> LinuxResult {
     trace!("gc task flush: {}", fd);
     get_file_like(fd as i32)?.flush()
@@ -253,10 +254,13 @@ fn gc_flush_file(fd: usize) -> LinuxResult {
 fn gc_entry() {
     let mut now_file_fd: usize = 3;
     loop {
-        let _ = gc_flush_file(now_file_fd);
-        now_file_fd += 1;
-        if now_file_fd >= RUX_FILE_LIMIT {
-            now_file_fd = 3;
+        #[cfg(feature = "fs")]
+        {
+            let _ = gc_flush_file(now_file_fd);
+            now_file_fd += 1;
+            if now_file_fd >= RUX_FILE_LIMIT {
+                now_file_fd = 3;
+            }
         }
         // Drop all exited tasks and recycle resources.
         let n = EXITED_TASKS.lock().len();

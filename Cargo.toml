@@ -59,7 +59,6 @@ members = [
     "api/ruxos_posix_api",
 
     "ulib/axstd",
-    "ulib/ruxlibc",
     "ulib/ruxmusl",
 
     "apps/display/basic_painting",

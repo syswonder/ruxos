@@ -7,6 +7,10 @@
  *   See the Mulan PSL v2 for more details.
  */
 
+//! File system related functions.
+
+#![cfg(feature = "fs")]
+
 use crate::current;
 use alloc::{format, string::String, sync::Arc, vec::Vec};
 use axerrno::{ax_err, AxResult};
@@ -24,32 +28,48 @@ use ruxfdtable::RuxStat;
 use spin::RwLock;
 
 #[crate_interface::def_interface]
+/// The interface for initializing the file system.
 pub trait InitFs {
-    fn init(task_inner: &mut FileSystem);
+    /// Initializes the file system.
+    fn add_stdios_to_fd_table(task_inner: &mut FileSystem);
 }
 
+#[cfg(not(feature = "notest"))]
+struct InitFsDefaultImpl;
+
+#[cfg(not(feature = "notest"))]
+#[crate_interface::impl_interface]
+impl InitFs for InitFsDefaultImpl {
+    fn add_stdios_to_fd_table(_task_inner: &mut FileSystem) {
+        // do nothing
+    }
+}
+
+/// Initializes the file system.
 pub fn get_file_like(fd: i32) -> LinuxResult<Arc<dyn FileLike>> {
     // let _exec = *MUST_EXEC;
     let binding_task = current();
     let mut binding_fs = binding_task.fs.lock();
-    let fd_table = &mut binding_fs.as_mut().unwrap().fd_table;
-    fd_table
-        .get(fd as usize)
-        .cloned()
-        .ok_or(LinuxError::EBADF)
-        .clone()
+    if let Some(fs) = binding_fs.as_mut() {
+        fs.fd_table
+            .get(fd as usize)
+            .cloned()
+            .ok_or(LinuxError::EBADF)
+    } else {
+        Err(LinuxError::EBADF)
+    }
 }
 
+/// Adds a file like object to the file descriptor table and returns the file descriptor.
 pub fn add_file_like(f: Arc<dyn FileLike>) -> LinuxResult<i32> {
-    // let _exec = *MUST_EXEC;
     let binding_task = current();
     let mut binding_fs = binding_task.fs.lock();
-    let fd_table = &mut binding_fs.as_mut().unwrap().fd_table;
+    let fd_table = &mut binding_fs.as_mut().expect("No fd table found").fd_table;
     Ok(fd_table.add(f).ok_or(LinuxError::EMFILE)? as i32)
 }
 
+/// Removes a file like object from the file descriptor table.
 pub fn close_file_like(fd: i32) -> LinuxResult {
-    // let _exec = *MUST_EXEC;
     let binding_task = current();
     let mut binding_fs = binding_task.fs.lock();
     let fd_table = &mut binding_fs.as_mut().unwrap().fd_table;
@@ -57,21 +77,26 @@ pub fn close_file_like(fd: i32) -> LinuxResult {
     Ok(())
 }
 
+/// A struct representing a file object.
 pub struct File {
+    /// The inner file object.
     pub inner: RwLock<ruxfs::fops::File>,
 }
 
 impl File {
+    /// Creates a new file object with the given inner file object.
     pub fn new(inner: ruxfs::fops::File) -> Self {
         Self {
             inner: RwLock::new(inner),
         }
     }
 
+    /// Adds the file object to the file descriptor table and returns the file descriptor.
     pub fn add_to_fd_table(self) -> LinuxResult<i32> {
         add_file_like(Arc::new(self))
     }
 
+    /// Creates a new file object from the given file descriptor.
     pub fn from_fd(fd: i32) -> LinuxResult<Arc<Self>> {
         let f = get_file_like(fd)?;
         f.into_any()
@@ -136,21 +161,26 @@ impl FileLike for File {
     }
 }
 
+/// A struct representing a directory object.
 pub struct Directory {
+    /// The inner directory object.
     pub inner: RwLock<ruxfs::fops::Directory>,
 }
 
 impl Directory {
+    /// Creates a new directory object with the given inner directory object.
     pub fn new(inner: ruxfs::fops::Directory) -> Self {
         Self {
             inner: RwLock::new(inner),
         }
     }
 
+    /// Adds the directory object to the file descriptor table and returns the file descriptor.
     pub fn add_to_fd_table(self) -> LinuxResult<i32> {
         add_file_like(Arc::new(self))
     }
 
+    /// Creates a new directory object from the given file descriptor.
     pub fn from_fd(fd: i32) -> LinuxResult<Arc<Self>> {
         let f = get_file_like(fd)?;
         f.into_any()
@@ -212,13 +242,18 @@ pub const RUX_FILE_LIMIT: usize = 1024;
 
 /// A struct representing a file system object.
 pub struct FileSystem {
+    /// The file descriptor table.
     pub fd_table: FlattenObjects<Arc<dyn FileLike>, RUX_FILE_LIMIT>,
+    /// The current working directory.
     pub current_path: String,
+    /// The current directory.
     pub current_dir: VfsNodeRef,
+    /// The root directory.
     pub root_dir: Arc<RootDirectory>,
 }
 
 impl FileSystem {
+    /// Closes all file objects in the file descriptor table.
     pub fn close_all_files(&mut self) {
         for fd in 0..self.fd_table.capacity() {
             if self.fd_table.get(fd).is_some() {
@@ -248,6 +283,7 @@ impl Clone for FileSystem {
     }
 }
 
+/// Initializes the file system.
 pub fn init_rootfs(mount_points: Vec<MountPoint>) {
     let main_fs = mount_points
         .first()
@@ -272,8 +308,11 @@ pub fn init_rootfs(mount_points: Vec<MountPoint>) {
         current_dir: root_dir_arc.clone(),
         root_dir: root_dir_arc.clone(),
     };
+
+    // TODO: make a more clear interface for adding stdios to fd table when not in unit tests
     let fs_mutable = &mut fs;
-    crate_interface::call_interface!(InitFs::init, fs_mutable);
+    crate_interface::call_interface!(InitFs::add_stdios_to_fd_table, fs_mutable);
+
     current().fs.lock().replace(fs);
 }
 
@@ -286,6 +325,7 @@ fn parent_node_of(dir: Option<&VfsNodeRef>, path: &str) -> VfsNodeRef {
     }
 }
 
+/// Returns the absolute path of the given path.
 pub fn absolute_path(path: &str) -> AxResult<String> {
     if path.starts_with('/') {
         Ok(axfs_vfs::path::canonicalize(path))
@@ -295,10 +335,12 @@ pub fn absolute_path(path: &str) -> AxResult<String> {
     }
 }
 
+/// Returns the current directory.
 pub fn current_dir() -> AxResult<String> {
     Ok(current().fs.lock().as_mut().unwrap().current_path.clone())
 }
 
+/// Sets the current directory.
 pub fn set_current_dir(path: &str) -> AxResult {
     let mut abs_path = absolute_path(path)?;
     if !abs_path.ends_with('/') {
@@ -342,5 +384,14 @@ impl CurrentWorkingDirectoryOps for CurrentWorkingDirectoryImpl {
     }
     fn set_current_dir(path: &str) -> AxResult {
         set_current_dir(path)
+    }
+    fn root_dir() -> Arc<RootDirectory> {
+        current()
+            .fs
+            .lock()
+            .as_mut()
+            .expect("No filesystem found")
+            .root_dir
+            .clone()
     }
 }

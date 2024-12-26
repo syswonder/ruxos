@@ -56,6 +56,7 @@ fn test_ramfs() {
 
     ruxtask::init_scheduler(); // call this to use `axsync::Mutex`.
                                // By default, mount_points[0] will be rootfs
+
     let mut mount_points: Vec<ruxfs::MountPoint> = Vec::new();
     // setup and initialize blkfs as one mountpoint for rootfs
     mount_points.push(ruxfs::init_blkfs(AxDeviceContainer::from_one(Box::new(

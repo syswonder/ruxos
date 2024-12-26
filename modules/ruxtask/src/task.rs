@@ -7,6 +7,8 @@
  *   See the Mulan PSL v2 for more details.
  */
 
+//! implementation of task structure and related functions.
+#[cfg(feature = "fs")]
 use crate::fs::FileSystem;
 use alloc::collections::BTreeMap;
 use alloc::{
@@ -92,6 +94,7 @@ pub struct TaskInner {
     tsd: TSD,
 
     #[cfg(feature = "signal")]
+    /// The signal to be sent to the task.
     pub signal_if: Arc<SpinNoIrq<Signal>>,
 
     // set tid
@@ -101,11 +104,13 @@ pub struct TaskInner {
     #[cfg(feature = "musl")]
     tl: AtomicU64,
     #[cfg(feature = "paging")]
-    // The page table of the task.
+    /// The page table of the task.
     pub pagetable: Arc<SpinNoIrq<PageTable>>,
-    // file system
+    /// file system
+    #[cfg(feature = "fs")]
     pub fs: Arc<SpinNoIrq<Option<FileSystem>>>,
-    // memory management
+    #[cfg(feature = "paging")]
+    /// memory management
     pub mm: Arc<MmapStruct>,
 }
 
@@ -210,6 +215,7 @@ impl TaskInner {
     }
 }
 
+/// map task id into task.
 pub static PROCESS_MAP: SpinNoIrq<BTreeMap<u64, Arc<AxTask>>> = SpinNoIrq::new(BTreeMap::new());
 
 // private methods
@@ -254,7 +260,9 @@ impl TaskInner {
             tl: AtomicU64::new(0),
             #[cfg(feature = "paging")]
             pagetable: current().pagetable.clone(),
+            #[cfg(feature = "fs")]
             fs: current().fs.clone(),
+            #[cfg(feature = "paging")]
             mm: current().mm.clone(),
         }
     }
@@ -298,15 +306,19 @@ impl TaskInner {
             tl,
             #[cfg(feature = "paging")]
             pagetable: current().pagetable.clone(),
+            #[cfg(feature = "fs")]
             fs: current().fs.clone(),
+            #[cfg(feature = "paging")]
             mm: current().mm.clone(),
         }
     }
 
+    /// Create a new idle task.
     pub fn stack_top(&self) -> VirtAddr {
         self.kstack.lock().as_ref().as_ref().unwrap().top()
     }
 
+    /// Set the stack top and size for the task.
     pub fn set_stack_top(&self, begin: usize, size: usize) {
         debug!("set_stack_top: begin={:#x}, size={:#x}", begin, size);
         *self.stack_map_addr.lock() = VirtAddr::from(begin);
@@ -375,7 +387,7 @@ impl TaskInner {
         Arc::new(AxTask::new(t))
     }
 
-    #[cfg(target_arch = "aarch64")]
+    #[cfg(all(target_arch = "aarch64", feature = "paging", feature = "fs"))]
     /// only support for aarch64
     pub fn fork() -> AxTaskRef {
         use crate::alloc::string::ToString;
@@ -515,7 +527,9 @@ impl TaskInner {
             tl: AtomicU64::new(0),
             #[cfg(feature = "paging")]
             pagetable: Arc::new(SpinNoIrq::new(cloned_page_table)),
+            #[cfg(feature = "fs")]
             fs: Arc::new(SpinNoIrq::new(current_task.fs.lock().clone())),
+            #[cfg(feature = "paging")]
             mm: Arc::new(cloned_mm),
         };
 
@@ -557,8 +571,9 @@ impl TaskInner {
     ///
     /// And there is no need to set the `entry`, `kstack` or `tls` fields, as
     /// they will be filled automatically when the task is switches out.
+    #[allow(unused_mut)]
     pub(crate) fn new_init(name: String) -> AxTaskRef {
-        let mut t = Self {
+        let mut t: TaskInner = Self {
             parent_process: None,
             process_task: Weak::new(),
             id: TaskId::new(),
@@ -593,22 +608,28 @@ impl TaskInner {
             pagetable: Arc::new(SpinNoIrq::new(
                 PageTable::try_new().expect("failed to create page table"),
             )),
+            #[cfg(feature = "fs")]
             fs: Arc::new(SpinNoIrq::new(None)),
+            #[cfg(feature = "paging")]
             mm: Arc::new(MmapStruct::new()),
         };
         debug!("new init task: {}", t.id_name());
 
-        #[cfg(feature = "tls")]
-        let tls = VirtAddr::from(t.tls.tls_ptr() as usize);
-        #[cfg(not(feature = "tls"))]
-        let tls = VirtAddr::from(0);
+        #[cfg(feature = "notest")]
+        {
+            #[cfg(feature = "tls")]
+            let tls = VirtAddr::from(t.tls.tls_ptr() as usize);
+            #[cfg(not(feature = "tls"))]
+            let tls = VirtAddr::from(0);
 
-        t.set_stack_top(boot_stack as usize, ruxconfig::TASK_STACK_SIZE);
-        t.ctx.get_mut().init(
-            task_entry as usize,
-            VirtAddr::from(boot_stack as usize),
-            tls,
-        );
+            t.set_stack_top(boot_stack as usize, ruxconfig::TASK_STACK_SIZE);
+            t.ctx.get_mut().init(
+                task_entry as usize,
+                VirtAddr::from(boot_stack as usize),
+                tls,
+            );
+        }
+
         let task_ref = Arc::new(AxTask::new(t));
         PROCESS_MAP
             .lock()
@@ -616,6 +637,7 @@ impl TaskInner {
         task_ref
     }
 
+    /// Create a new idle task.
     pub fn new_idle(name: String) -> AxTaskRef {
         const IDLE_STACK_SIZE: usize = 4096;
         let bindings = PROCESS_MAP.lock();
@@ -656,7 +678,9 @@ impl TaskInner {
             tl: AtomicU64::new(0),
             #[cfg(feature = "paging")]
             pagetable: task_ref.pagetable.clone(),
+            #[cfg(feature = "fs")]
             fs: task_ref.fs.clone(),
+            #[cfg(feature = "paging")]
             mm: task_ref.mm.clone(),
         };
 
@@ -825,12 +849,15 @@ impl fmt::Debug for TaskInner {
 }
 
 #[derive(Debug)]
+/// A wrapper of TaskStack to provide a safe interface for allocating and
+/// deallocating task stacks.
 pub struct TaskStack {
     ptr: NonNull<u8>,
     layout: Layout,
 }
 
 impl TaskStack {
+    /// Allocate a new task stack with the given size.
     pub fn alloc(size: usize) -> Self {
         let layout = Layout::from_size_align(size, 8).unwrap();
         Self {
@@ -839,16 +866,25 @@ impl TaskStack {
         }
     }
 
+    /// Deallocate the task stack.
     pub const fn top(&self) -> VirtAddr {
         unsafe { core::mem::transmute(self.ptr.as_ptr().add(self.layout.size())) }
     }
 
+    /// Deallocate the task stack.
     pub const fn end(&self) -> VirtAddr {
         unsafe { core::mem::transmute(self.ptr.as_ptr()) }
     }
 
+    /// Deallocate the task stack.
     pub fn size(&self) -> usize {
         self.layout.size()
+    }
+}
+
+impl Drop for TaskStack {
+    fn drop(&mut self) {
+        unsafe { alloc::alloc::dealloc(self.ptr.as_ptr(), self.layout) }
     }
 }
 
@@ -874,6 +910,7 @@ impl CurrentTask {
         &self.0
     }
 
+    /// clone [`CurrentTask`] as [`AxTaskRef`].
     pub fn clone_as_taskref(&self) -> AxTaskRef {
         self.0.deref().clone()
     }
@@ -923,6 +960,7 @@ extern "C" fn task_entry() -> ! {
     crate::exit(0);
 }
 
+#[cfg(feature = "notest")]
 extern "C" {
     fn boot_stack();
 }

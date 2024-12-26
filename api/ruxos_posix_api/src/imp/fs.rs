@@ -28,7 +28,7 @@ struct InitFsImpl;
 
 #[crate_interface::impl_interface]
 impl ruxtask::fs::InitFs for InitFsImpl {
-    fn init(fs: &mut ruxtask::fs::FileSystem) {
+    fn add_stdios_to_fd_table(fs: &mut ruxtask::fs::FileSystem) {
         debug!("init initial process's fd_table");
         let fd_table = &mut fs.fd_table;
         fd_table.add_at(0, Arc::new(stdin()) as _).unwrap(); // stdin
