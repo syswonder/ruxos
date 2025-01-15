@@ -95,3 +95,6 @@ gicd-paddr = "0x0800_0000"
 
 # PSCI
 psci-method = "hvc"
+
+# Pipe channel bufer size.
+pipe-buffer-size = "0x10000"

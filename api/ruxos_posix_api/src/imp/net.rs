@@ -11,12 +11,11 @@ use alloc::{sync::Arc, vec, vec::Vec};
 use core::ffi::{c_char, c_int, c_void};
 use core::mem::size_of;
 use core::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
-use core::sync::atomic::AtomicIsize;
 
 use axerrno::{LinuxError, LinuxResult};
 use axio::PollState;
 use axsync::Mutex;
-use ruxfdtable::{FileLike, RuxStat, RUX_FILE_LIMIT};
+use ruxfdtable::{FileLike, RuxStat};
 use ruxnet::{SocketAddrUnix, TcpSocket, UdpSocket, UnixSocket, UnixSocketType};
 
 use crate::ctypes;
@@ -44,11 +43,11 @@ pub enum Socket {
 
 impl Socket {
     fn add_to_fd_table(self) -> LinuxResult<c_int> {
-        super::fd_ops::add_file_like(Arc::new(self))
+        ruxtask::fs::add_file_like(Arc::new(self))
     }
 
     fn from_fd(fd: c_int) -> LinuxResult<Arc<Self>> {
-        let f = super::fd_ops::get_file_like(fd)?;
+        let f = ruxtask::fs::get_file_like(fd)?;
         f.into_any()
             .downcast::<Self>()
             .map_err(|_| LinuxError::EINVAL)
@@ -722,7 +721,6 @@ pub fn sys_getsockopt(
         );
     }
     syscall_body!(sys_getsockopt, {
-        return Ok(0);
         if optval.is_null() {
             return Err(LinuxError::EFAULT);
         }

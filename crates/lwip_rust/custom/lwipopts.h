@@ -25,8 +25,8 @@
 #define LWIP_TCP             1
 #define LWIP_CALLBACK_API    1
 #define LWIP_NETIF_API       0
-#define LWIP_NETIF_LOOPBACK  0
-#define LWIP_HAVE_LOOPIF     1
+#define LWIP_NETIF_LOOPBACK  1
+#define LWIP_HAVE_LOOPIF     0
 #define LWIP_HAVE_SLIPIF     0
 #define LWIP_NETCONN         0
 #define LWIP_SOCKET          0

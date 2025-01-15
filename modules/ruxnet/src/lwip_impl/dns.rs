@@ -98,7 +98,7 @@ pub fn resolve_socket_addr(name: &str) -> AxResult<Vec<IpAddr>> {
 }
 
 /// Public function for DNS query.
-pub fn dns_query(name: &str) -> AxResult<alloc::vec::Vec<core::net::IpAddr>> {
+pub fn dns_query(_name: &str) -> AxResult<alloc::vec::Vec<core::net::IpAddr>> {
     let empty_vec = alloc::vec::Vec::new();
     Ok(empty_vec)
 }

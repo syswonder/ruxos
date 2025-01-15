@@ -153,7 +153,6 @@ pub fn enable_interrupt() {
         crate::irq::set_enable(VIRTIO_CONSOLE_IRQ_NUM, true);
         ack_interrupt();
         info!("Interrupt enabled!");
-        return;
     }
     #[cfg(not(target_arch = "aarch64"))]
     warn!("Interrupt is not supported on this platform!");

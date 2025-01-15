@@ -174,7 +174,6 @@ pub fn flush_tlb(vaddr: Option<VirtAddr>) {
 #[inline]
 #[cfg(all(feature = "irq", feature = "paging", feature = "smp"))]
 pub(crate) fn flush_tlb_ipi_handler() {
-    // error!("flush TLB entry in IPI handler");
     let guard = kernel_guard::NoPreempt::new();
     unsafe {
         let mut flushing_addresses = FLUSHING_ADDRESSES[this_cpu_id()].lock();

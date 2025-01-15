@@ -8,8 +8,7 @@
  */
 
 //! virtio-hal implementation for RuxOS.
-
-use crate::mem::{direct_virt_to_phys, phys_to_virt, virt_to_phys};
+use crate::mem::{address_translate, direct_virt_to_phys, phys_to_virt};
 use axalloc::global_allocator;
 use core::ptr::NonNull;
 use driver_virtio::VirtIoHal;
@@ -48,7 +47,7 @@ unsafe impl VirtIoHal for VirtIoHalImpl {
     #[inline]
     unsafe fn share(buffer: NonNull<[u8]>, _direction: BufferDirection) -> PhysAddr {
         let vaddr = buffer.as_ptr() as *mut u8 as usize;
-        virt_to_phys(vaddr.into()).into()
+        address_translate(vaddr.into()).expect("virt_to_phys failed")
     }
 
     /// Unshare DMA buffer

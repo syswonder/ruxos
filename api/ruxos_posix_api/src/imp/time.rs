@@ -82,8 +82,8 @@ pub unsafe fn sys_clock_settime(_clk: ctypes::clockid_t, ts: *const ctypes::time
 /// TODO: should be woken by signals, and set errno
 /// TODO: deal with flags
 pub unsafe fn sys_clock_nanosleep(
-    which_clock: ctypes::clockid_t,
-    flags: c_int,
+    _which_clock: ctypes::clockid_t,
+    _flags: c_int,
     req: *const ctypes::timespec,
     rem: *mut ctypes::timespec,
 ) -> c_int {
