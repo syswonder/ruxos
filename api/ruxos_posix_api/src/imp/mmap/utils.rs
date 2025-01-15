@@ -229,10 +229,12 @@ pub(crate) fn release_pages_mapped(start: usize, end: usize) {
 #[cfg(feature = "fs")]
 pub(crate) fn release_pages_swaped(start: usize, end: usize) {
     let mut swap_map = SWAPED_MAP.lock();
+    let mut off_pool = BITMAP_FREE.lock();
 
     let mut removing_vaddr = Vec::new();
-    for (&vaddr, _) in swap_map.range(start..end) {
+    for (&vaddr, &ref swap_info) in swap_map.range(start..end) {
         removing_vaddr.push(vaddr);
+        off_pool.push(swap_info.offset);
     }
     for vaddr in removing_vaddr {
         swap_map.remove(&vaddr);
