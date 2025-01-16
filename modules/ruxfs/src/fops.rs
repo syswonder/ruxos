@@ -53,6 +53,7 @@ pub struct OpenOptions {
     truncate: bool,
     create: bool,
     create_new: bool,
+    cloexec: bool,
     // system-specific
     _custom_flags: i32,
     _mode: u32,
@@ -69,6 +70,7 @@ impl OpenOptions {
             truncate: false,
             create: false,
             create_new: false,
+            cloexec: false,
             // system-specific
             _custom_flags: 0,
             _mode: 0o666,
@@ -97,6 +99,14 @@ impl OpenOptions {
     /// Sets the option to create a new file, failing if it already exists.
     pub fn create_new(&mut self, create_new: bool) {
         self.create_new = create_new;
+    }
+    /// Sets the option for automatically close file discripter when doing execve
+    pub fn cloexec(&mut self, cloexec: bool) {
+        self.cloexec = cloexec;
+    }
+    /// Check if there are cloexec flag in OpenOptions
+    pub const fn is_cloexec(&self) -> bool {
+        self.cloexec
     }
 
     const fn is_valid(&self) -> bool {

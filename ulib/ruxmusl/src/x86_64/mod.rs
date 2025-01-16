@@ -432,7 +432,7 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
             ) as _,
 
             #[cfg(feature = "epoll")]
-            SyscallId::EPOLL_CREATE => ruxos_posix_api::sys_epoll_create(args[0] as c_int) as _,
+            SyscallId::EPOLL_CREATE => ruxos_posix_api::sys_epoll_create1(args[0] as c_int) as _,
 
             #[cfg(feature = "fs")]
             SyscallId::GETDENTS64 => ruxos_posix_api::sys_getdents64(
@@ -561,7 +561,7 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
             ) as _,
 
             #[cfg(feature = "epoll")]
-            SyscallId::EPOLL_CREATE1 => ruxos_posix_api::sys_epoll_create(args[0] as c_int) as _,
+            SyscallId::EPOLL_CREATE1 => ruxos_posix_api::sys_epoll_create1(args[0] as c_int) as _,
 
             #[cfg(feature = "fd")]
             SyscallId::DUP3 => {
