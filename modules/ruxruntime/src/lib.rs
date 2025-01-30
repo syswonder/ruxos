@@ -50,7 +50,7 @@ mod mp;
 pub use self::mp::rust_main_secondary;
 
 #[cfg(feature = "signal")]
-use ruxtask::signal::{rx_sigaction, Signal};
+use ruxtask::signal::Signal;
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -63,14 +63,14 @@ use self::env::{boot_add_environ, init_argv};
 use core::ffi::{c_char, c_int};
 
 const LOGO: &str = r#"
-8888888b.                     .d88888b.   .d8888b.  
-888   Y88b                   d88P" "Y88b d88P  Y88b 
-888    888                   888     888 Y88b.      
-888   d88P 888  888 888  888 888     888  "Y888b.   
-8888888P"  888  888 `Y8bd8P' 888     888     "Y88b. 
-888 T88b   888  888   X88K   888     888       "888 
-888  T88b  Y88b 888 .d8""8b. Y88b. .d88P Y88b  d88P 
-888   T88b  "Y88888 888  888  "Y88888P"   "Y8888P" 
+8888888b.                     .d88888b.   .d8888b.
+888   Y88b                   d88P" "Y88b d88P  Y88b
+888    888                   888     888 Y88b.
+888   d88P 888  888 888  888 888     888  "Y888b.
+8888888P"  888  888 `Y8bd8P' 888     888     "Y88b.
+888 T88b   888  888   X88K   888     888       "888
+888  T88b  Y88b 888 .d8""8b. Y88b. .d88P Y88b  d88P
+888   T88b  "Y88888 888  888  "Y88888P"   "Y8888P"
 "#;
 
 #[no_mangle]
@@ -171,6 +171,13 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     axlog::init();
     axlog::set_max_level(option_env!("RUX_LOG").unwrap_or("")); // no effect if set `log-level-*` features
     info!("Logging is enabled.");
+
+    #[cfg(feature = "alloc")]
+    init_allocator();
+
+    #[cfg(feature = "virtio_console")]
+    ruxhal::virtio::virtio_console::directional_probing();
+
     info!("Primary CPU {} started, dtb = {:#x}.", cpu_id, dtb);
 
     info!("Found physcial memory regions:");

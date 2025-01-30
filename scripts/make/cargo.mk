@@ -40,7 +40,7 @@ endef
 all_packages := \
   $(shell ls $(CURDIR)/crates) \
   $(shell ls $(CURDIR)/modules) \
-  ruxfeat arceos_api axstd ruxlibc ruxmusl
+  ruxfeat arceos_api axstd ruxmusl
 
 define cargo_doc
   $(call run_cmd,cargo doc,--no-deps --all-features --workspace --exclude "arceos-*" --exclude "ruxos-*" --exclude "ruxos-*" $(verbose))

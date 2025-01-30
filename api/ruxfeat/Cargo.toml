@@ -73,6 +73,9 @@ virtio-9p = [
 ]
 net-9p = ["9pfs", "net", "rux9p/net-9p", "ruxruntime/net-9p"]
 
+# virtio console
+virtio_console = ["ruxhal/virtio_console", "ruxruntime/virtio_console", "alloc", "ruxdriver/virtio_console", "ruxdriver/virtio"]
+
 # Device drivers
 bus-mmio = ["ruxdriver?/bus-mmio"]
 bus-pci = ["ruxdriver?/bus-pci"]

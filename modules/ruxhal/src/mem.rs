@@ -53,6 +53,20 @@ pub struct MemRegion {
     pub name: &'static str,
 }
 
+/// A trait for address translation.
+#[crate_interface::def_interface]
+pub trait AddressTranslate {
+    /// Translates a virtual address to a physical address.
+    fn virt_to_phys(vaddr: VirtAddr) -> Option<usize> {
+        Some(direct_virt_to_phys(vaddr).into())
+    }
+}
+
+/// translates a virtual address to a physical address.
+pub fn address_translate(vaddr: VirtAddr) -> Option<usize> {
+    crate_interface::call_interface!(AddressTranslate::virt_to_phys, vaddr)
+}
+
 /// Converts a virtual address to a physical address.
 ///
 /// It assumes that there is a linear mapping with the offset

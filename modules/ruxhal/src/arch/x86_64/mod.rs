@@ -174,7 +174,6 @@ pub fn flush_tlb(vaddr: Option<VirtAddr>) {
 #[inline]
 #[cfg(all(feature = "irq", feature = "paging", feature = "smp"))]
 pub(crate) fn flush_tlb_ipi_handler() {
-    // error!("flush TLB entry in IPI handler");
     let guard = kernel_guard::NoPreempt::new();
     unsafe {
         let mut flushing_addresses = FLUSHING_ADDRESSES[this_cpu_id()].lock();
@@ -235,7 +234,7 @@ pub unsafe fn init_syscall_entry() {
             .has_syscall_sysret());
 
         x86_64::registers::model_specific::LStar::write(x86_64::VirtAddr::new(
-            x86_syscall_entry as u64,
+            x86_syscall_entry as usize as u64,
         ));
         x86_64::registers::model_specific::Efer::update(|efer| {
             efer.insert(

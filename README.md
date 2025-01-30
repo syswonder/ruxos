@@ -76,7 +76,7 @@ The currently supported applications and programming languages, as well as their
 
 | Language | Description |
 |- | - |
-| C | Run C apps by RuxOS ruxlibc or standard musl libc supported by ruxmusl. Evaluated by libc-bench. |
+| C | Run C apps by standard musl libc supported by ruxmusl. Evaluated by libc-bench. |
 | C++ | Run C++ apps by c++ static library provided by musl libc. Passed c++ benchmark. Evaluated by c++ benchmark. |
 | [Perl](https://github.com/syswonder/rux-perl) | Run Perl standard library by musl libc. Evaluated by Perl benchmark. |
 | [Python](https://github.com/syswonder/rux-python3) | Run Python apps by dynamically loading Python modules. Evaluated by Python benchmark. |

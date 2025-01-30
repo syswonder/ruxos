@@ -28,6 +28,7 @@ default = ["devfs", "ramfs", "fatfs", "procfs", "sysfs", "etcfs"]
 
 [dependencies]
 log = "0.4"
+spin = "0.9"
 cfg-if = "1.0"
 lazy_init = { path = "../../crates/lazy_init" }
 capability = { path = "../../crates/capability" }
@@ -38,7 +39,6 @@ axfs_vfs = { path = "../../crates/axfs_vfs" }
 axfs_devfs = { path = "../../crates/axfs_devfs", optional = true }
 axfs_ramfs = { path = "../../crates/axfs_ramfs", optional = true }
 crate_interface = { version = "0.1.1" }
-spin = "0.9"
 memory_addr = "0.1.0"
 
 ruxdriver = { path = "../ruxdriver", features = ["block"] }

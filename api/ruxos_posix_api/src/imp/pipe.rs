@@ -117,7 +117,6 @@ impl Pipe {
 
     pub fn write_end_close(&self) -> bool {
         let write_end_count = Arc::weak_count(&self.buffer);
-        // error!("Pipe::write_end_close <= buffer: {:#?} {:#?}", write_end_count, Arc::as_ptr(&self.buffer));
         write_end_count == 0
     }
 }
@@ -210,7 +209,6 @@ impl FileLike for Pipe {
     }
 
     fn poll(&self) -> LinuxResult<PollState> {
-        let write_end_count = Arc::weak_count(&self.buffer);
         let buf = self.buffer.lock();
         Ok(PollState {
             readable: self.readable() && buf.available_read() > 0,

@@ -7,15 +7,16 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-#[cfg(feature = "fs")]
-use crate::{
-    ctypes,
-    imp::mmap::utils::{preload_page_with_swap, read_from},
-};
 #[cfg(not(feature = "fs"))]
 use ruxmm::paging::alloc_page_preload;
 #[cfg(feature = "fs")]
-use ruxtask::vma::{BITMAP_FREE, SWAPED_MAP, SWAP_FILE};
+use {
+    crate::{
+        ctypes,
+        imp::mmap::utils::{preload_page_with_swap, read_from},
+    },
+    ruxtask::vma::{FileInfo, BITMAP_FREE, SWAPED_MAP, SWAP_FILE},
+};
 
 use crate::imp::mmap::utils::get_mflags_from_usize;
 use alloc::sync::Arc;
@@ -30,10 +31,7 @@ use ruxhal::{
     mem::{direct_virt_to_phys, VirtAddr},
     trap::PageFaultCause,
 };
-use ruxtask::{
-    current,
-    vma::{FileInfo, PageInfo},
-};
+use ruxtask::{current, vma::PageInfo};
 
 use ruxmm::paging::{do_pte_map, pte_query, pte_update_page};
 
@@ -190,7 +188,7 @@ impl ruxhal::trap::TrapHandler for TrapHandlerImpl {
                 memory_map.insert(
                     vaddr,
                     Arc::new(PageInfo {
-                        paddr: direct_virt_to_phys(VirtAddr::from(fake_vaddr)),
+                        paddr: direct_virt_to_phys(fake_vaddr),
                     }),
                 );
 
@@ -207,12 +205,13 @@ impl ruxhal::trap::TrapHandler for TrapHandlerImpl {
                     dst.copy_from(vaddr as *mut u8, size);
                 }
                 let paddr = direct_virt_to_phys(fake_vaddr);
-                let mapping_file = memory_map.get(&vaddr.into()).unwrap().mapping_file.clone();
-                memory_map.remove(&vaddr.into());
+                let mapping_file = memory_map.get(&vaddr).unwrap().mapping_file.clone();
+                memory_map.remove(&vaddr);
                 memory_map.insert(
-                    vaddr.into(),
+                    vaddr,
                     Arc::new(PageInfo {
                         paddr,
+                        #[cfg(feature = "fs")]
                         mapping_file,
                     }),
                 );

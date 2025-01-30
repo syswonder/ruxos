@@ -7,10 +7,11 @@
  *   See the Mulan PSL v2 for more details.
  */
 
+//! This module provides functions to translate virtual addresses to physical addresses.
+
 #[cfg(feature = "paging")]
 use crate::paging::pte_query;
-use ruxdriver::virtio::AddressTranslate;
-use ruxhal::mem::{direct_virt_to_phys, PhysAddr, VirtAddr};
+use ruxhal::mem::{direct_virt_to_phys, AddressTranslate, PhysAddr, VirtAddr};
 
 struct AddressTranslateImpl;
 

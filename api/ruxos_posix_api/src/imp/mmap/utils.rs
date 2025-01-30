@@ -21,6 +21,7 @@ use memory_addr::PAGE_SIZE_4K;
 use page_table::MappingFlags;
 use ruxhal::mem::VirtAddr;
 use ruxmm::paging::{alloc_page_preload, do_pte_map, pte_query, pte_swap_preload, pte_unmap_page};
+#[cfg(feature = "fs")]
 use ruxtask::vma::{FileInfo, PageInfo, SwapInfo, BITMAP_FREE, SWAPED_MAP, SWAP_FILE};
 use ruxtask::{current, vma::Vma};
 
@@ -211,7 +212,7 @@ pub(crate) fn release_pages_mapped(start: usize, end: usize) {
         #[cfg(feature = "fs")]
         if let Some(FileInfo { file, offset, size }) = &page_info.mapping_file {
             let src = vaddr as *mut u8;
-            write_into(&file, src, *offset as u64, *size);
+            write_into(file, src, *offset as u64, *size);
         }
         if pte_unmap_page(VirtAddr::from(vaddr)).is_err() {
             panic!("Release page failed when munmapping!");
@@ -228,10 +229,12 @@ pub(crate) fn release_pages_mapped(start: usize, end: usize) {
 #[cfg(feature = "fs")]
 pub(crate) fn release_pages_swaped(start: usize, end: usize) {
     let mut swap_map = SWAPED_MAP.lock();
+    let mut off_pool = BITMAP_FREE.lock();
 
     let mut removing_vaddr = Vec::new();
-    for (&vaddr, _) in swap_map.range(start..end) {
+    for (&vaddr, &ref swap_info) in swap_map.range(start..end) {
         removing_vaddr.push(vaddr);
+        off_pool.push(swap_info.offset);
     }
     for vaddr in removing_vaddr {
         swap_map.remove(&vaddr);
@@ -293,7 +296,7 @@ pub(crate) fn shift_mapped_page(start: usize, end: usize, vma_offset: usize, cop
 
     used_fs! {
         let mut opt_buffer = Vec::new();
-        for (&start, &ref off_in_swap) in swaped_map.range(start..end) {
+        for (&start, off_in_swap) in swaped_map.range(start..end) {
             opt_buffer.push((start, off_in_swap.clone()));
         }
         for (start, swap_info) in opt_buffer {
@@ -333,7 +336,7 @@ pub(crate) fn preload_page_with_swap(
                     // For file mapping, the mapped content will be written directly to the original file.
                     Some(FileInfo { file, offset, size }) => {
                         let offset = *offset as u64;
-                        write_into(&file, vaddr_swapped as *mut u8, offset, *size);
+                        write_into(file, vaddr_swapped as *mut u8, offset, *size);
                         pte_swap_preload(VirtAddr::from(vaddr_swapped)).unwrap()
                     }
                     // For anonymous mapping, you need to save the mapped memory to the prepared swap file,
@@ -353,21 +356,6 @@ pub(crate) fn preload_page_with_swap(
                     }
                 }
             }
-            // For anonymous mapping, you need to save the mapped memory to the prepared swap file,
-            //  and record the memory address and its offset in the swap file.
-            // Some((vaddr_swapped, PageInfo{paddr:_, mapping_file:Some(FileInfo{file, offset, size})})) => {
-            //     let offset_get = off_pool.pop();
-            //     let offset = offset_get.unwrap();
-            //     swaped_map.insert(vaddr_swapped, Arc::new(offset));
-
-            //     write_into(
-            //         &SWAP_FILE,
-            //         vaddr_swapped as *mut u8,
-            //         offset as u64,
-            //         PAGE_SIZE_4K,
-            //     );
-            //     pte_swap_preload(VirtAddr::from(vaddr_swapped)).unwrap()
-            // }
             _ => panic!("No memory for mmap, check if huge memory leaky exists"),
         },
 

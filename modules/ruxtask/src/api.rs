@@ -8,9 +8,6 @@
  */
 
 //! Task APIs for multi-task configuration.
-
-use core::mem::ManuallyDrop;
-
 use alloc::{string::String, sync::Arc};
 
 pub(crate) use crate::run_queue::{AxRunQueue, RUN_QUEUE};
@@ -131,7 +128,11 @@ where
     TaskInner::new_musl(f, name, stack_size, tls, set_tid, tl)
 }
 
+// temporarily only support aarch64
+#[cfg(all(target_arch = "aarch64", feature = "paging", feature = "fs"))]
 pub fn fork_task() -> Option<AxTaskRef> {
+    use core::mem::ManuallyDrop;
+
     let current_id = current().id().as_u64();
     let children_process = TaskInner::fork();
 
@@ -153,7 +154,7 @@ pub fn fork_task() -> Option<AxTaskRef> {
     #[cfg(feature = "irq")]
     ruxhal::arch::enable_irqs();
 
-    return None;
+    None
 }
 
 /// Spawns a new task with the default parameters.

@@ -1,3 +1,5 @@
+#![allow(unused_imports)]
+
 pub mod syscall_id;
 
 use core::ffi::{c_char, c_int};
@@ -201,6 +203,7 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
             SyscallId::EXIT => {
                 ruxos_posix_api::sys_pthread_exit(args[0] as *mut core::ffi::c_void) as _
             }
+            #[cfg(feature = "multitask")]
             SyscallId::EXIT_GROUP => ruxos_posix_api::sys_exit_group(args[0] as c_int),
             #[cfg(feature = "multitask")]
             SyscallId::SET_TID_ADDRESS => ruxos_posix_api::sys_set_tid_address(args[0]) as _,
@@ -226,7 +229,7 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[1] as *mut ctypes::timespec,
             ) as _,
             SyscallId::CLOCK_NANOSLEEP => ruxos_posix_api::sys_clock_nanosleep(
-                args[0] as *const ctypes::clockid_t,
+                args[0] as ctypes::clockid_t,
                 args[1] as c_int,
                 args[2] as *const ctypes::timespec,
                 args[3] as *mut ctypes::timespec,
@@ -345,6 +348,14 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[4] as ctypes::socklen_t,
             ) as _,
             #[cfg(feature = "net")]
+            SyscallId::GETSOCKOPT => ruxos_posix_api::sys_getsockopt(
+                args[0] as c_int,
+                args[1] as c_int,
+                args[2] as c_int,
+                args[3] as *mut core::ffi::c_void,
+                args[4] as *mut ctypes::socklen_t,
+            ) as _,
+            #[cfg(feature = "net")]
             SyscallId::SHUTDOWN => {
                 ruxos_posix_api::sys_shutdown(args[0] as c_int, args[1] as c_int) as _
             }
@@ -407,6 +418,7 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[1] as ctypes::size_t,
                 args[2] as c_int,
             ) as _,
+            #[cfg(feature = "multitask")]
             SyscallId::WAIT4 => ruxos_posix_api::sys_wait4(
                 args[0] as ctypes::pid_t,
                 args[1] as *mut c_int,

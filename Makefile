@@ -51,6 +51,7 @@ FEATURES ?=
 APP_FEATURES ?=
 
 # QEMU options
+CONSOLE ?= n
 BLK ?= n
 NET ?= n
 GRAPHIC ?= n
@@ -78,7 +79,7 @@ ARGS ?=
 ENVS ?= 
 
 # Libc options
-MUSL ?= n
+MUSL ?= y
 
 # App type
 ifeq ($(wildcard $(APP)),)
@@ -222,7 +223,13 @@ justrun:
 	$(call run_qemu)
 
 debug: build
-	$(call run_qemu_debug) 
+	$(call run_qemu_debug) &
+	sleep 1
+	$(GDB) $(OUT_ELF) \
+	  -ex 'target remote localhost:1234' \
+	  -ex 'b rust_entry' \
+	  -ex 'continue' \
+	  -ex 'disp /16i $$pc'
 
 debug_no_attach: build
 	$(call run_qemu_debug)
@@ -242,9 +249,6 @@ doc_check_missing:
 
 fmt:
 	cargo fmt --all
-
-fmt_c:
-	@clang-format --style=file -i $(shell find ulib/ruxlibc -iname '*.c' -o -iname '*.h')
 
 test:
 	$(call app_test)
@@ -267,12 +271,11 @@ clean: clean_c clean_musl
 	cargo clean
 
 clean_c::
-	rm -rf ulib/ruxlibc/build_*
 	rm -rf $(app-objs)
 
 clean_musl:
 	rm -rf ulib/ruxmusl/build_*
 	rm -rf ulib/ruxmusl/install
 
-.PHONY: all build disasm run justrun debug clippy fmt fmt_c test test_no_fail_fast clean clean_c\
+.PHONY: all build disasm run justrun debug clippy fmt fmt_c test test_no_fail_fast clean \
         clean_musl doc disk_image debug_no_attach prebuild _force

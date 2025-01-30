@@ -28,9 +28,11 @@ myfs = ["ruxfeat/myfs"]
 dummy-if-not-enabled = []
 
 [dependencies]
+crate_interface = "0.1.1"
 ruxfeat = { path = "../ruxfeat" }
 ruxruntime = { path = "../../modules/ruxruntime" }
 ruxconfig = { path = "../../modules/ruxconfig" }
+ruxmm = {path = "../../modules/ruxmm"}
 axlog = { path = "../../modules/axlog" }
 axio = { path = "../../crates/axio" }
 axerrno = { path = "../../crates/axerrno" }

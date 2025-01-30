@@ -31,6 +31,7 @@
 #![feature(ip_in_core)]
 #![feature(ip_bits)]
 #![feature(new_uninit)]
+#![allow(incomplete_features)]
 #![feature(inherent_associated_types)]
 
 #[macro_use]

@@ -98,11 +98,13 @@ dependencies = [
  "axerrno",
  "axio",
  "axlog",
+ "crate_interface",
  "ruxconfig",
  "ruxdisplay",
  "ruxfeat",
  "ruxfs",
  "ruxhal",
+ "ruxmm",
  "ruxnet",
  "ruxruntime",
  "ruxtask",
@@ -180,7 +182,9 @@ version = "0.1.0"
 dependencies = [
  "axerrno",
  "bitflags 2.4.0",
+ "lazy_static",
  "log",
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -676,6 +680,13 @@ name = "driver_common"
 version = "0.1.0"
 
 [[package]]
+name = "driver_console"
+version = "0.1.0"
+dependencies = [
+ "driver_common",
+]
+
+[[package]]
 name = "driver_display"
 version = "0.1.0"
 dependencies = [
@@ -706,6 +717,7 @@ dependencies = [
  "driver_9p",
  "driver_block",
  "driver_common",
+ "driver_console",
  "driver_display",
  "driver_net",
  "log",
@@ -1693,12 +1705,16 @@ dependencies = [
  "bitflags 2.4.0",
  "cfg-if",
  "crate_interface",
+ "driver_common",
+ "driver_console",
+ "driver_virtio",
  "dtb",
  "dw_apb_uart",
  "embedded-hal",
  "handler_table",
  "kernel_guard",
  "lazy_init",
+ "lazy_static",
  "log",
  "memory_addr",
  "page_table",
@@ -1713,20 +1729,10 @@ dependencies = [
  "static_assertions",
  "tock-registers",
  "tty",
+ "virtio-drivers",
  "x2apic",
  "x86",
  "x86_64",
-]
-
-[[package]]
-name = "ruxlibc"
-version = "0.1.0"
-dependencies = [
- "axerrno",
- "axio",
- "bindgen 0.66.1",
- "ruxfeat",
- "ruxos_posix_api",
 ]
 
 [[package]]
@@ -1858,13 +1864,18 @@ name = "ruxruntime"
 version = "0.1.0"
 dependencies = [
  "axalloc",
+ "axfs_ramfs",
+ "axfs_vfs",
+ "axio",
  "axlog",
  "axsync",
  "cfg-if",
  "crate_interface",
+ "driver_block",
  "dtb",
  "kernel_guard",
  "lazy_init",
+ "log",
  "percpu",
  "rux9p",
  "ruxconfig",

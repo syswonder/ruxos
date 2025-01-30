@@ -110,15 +110,21 @@ impl TaskContext {
     }
 
     /// Saves the current task's context from CPU to memory.
-    pub fn save_current_content(&mut self, src: *const u8, dst: *mut u8, size: usize) {
+    ///
+    /// # Safety
+    ///
+    /// - `src` must be a valid pointer to a memory region of at least `size` bytes.
+    /// - `dst` must be a valid pointer to a memory region of at least `size` bytes.
+    /// - The caller must ensure that no other thread or operation modifies the memory
+    ///   at `src` or `dst` while this function is executing.
+    /// - The size should not exceed the allocated memory size for `src` and `dst`.
+    pub unsafe fn save_current_content(&mut self, src: *const u8, dst: *mut u8, size: usize) {
         unsafe {
-            warn!(
-                "save_current_content: src={:#x}, dst={:#x}, size={:#x}",
-                src as usize, dst as usize, size
-            );
             save_stack(src, dst, size);
+
             #[cfg(feature = "fp_simd")]
             save_fpstate_context(&mut self.fp_state);
+
             // will ret from here
             save_current_context(self);
         }

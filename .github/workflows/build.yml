@@ -7,7 +7,7 @@ env:
 
 jobs:
   clippy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
     steps:
@@ -37,7 +37,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-22.04]
         arch: [x86_64, riscv64, aarch64]
     steps:
     - uses: actions/checkout@v3
@@ -51,7 +51,7 @@ jobs:
     - uses: actions-rs/install@v0.1
       with:
         crate: cargo-binutils
-        version: latest
+        version: 0.3.5
         use-tool-cache: true
     - name: Install gcc multilib
       run: sudo apt update && sudo apt install -y gcc-multilib
@@ -94,7 +94,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-22.04]
         arch: [x86_64]
     steps:
     - uses: actions/checkout@v3

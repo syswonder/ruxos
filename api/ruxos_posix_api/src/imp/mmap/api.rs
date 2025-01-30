@@ -22,13 +22,14 @@ use super::utils::{
     find_free_region, get_mflags_from_usize, get_overlap, release_pages_mapped, shift_mapped_page,
     snatch_fixed_region, VMA_END,
 };
+use ruxtask::current;
 use ruxtask::vma::Vma;
-use ruxtask::{current, vma::FileInfo};
 
 #[cfg(feature = "fs")]
 use {
     super::utils::{release_pages_swaped, write_into},
     alloc::sync::Arc,
+    ruxtask::vma::FileInfo,
 };
 
 /// Creates a new mapping in the virtual address space of the calling process.
@@ -306,7 +307,7 @@ pub fn sys_msync(start: *mut c_void, len: ctypes::size_t, flags: c_int) -> c_int
             for (&vaddr, page_info) in current().mm.mem_map.lock().range(start..end) {
                 if let Some(FileInfo { file, offset, size }) = &page_info.mapping_file {
                     let src = vaddr as *mut u8;
-                    write_into(&file, src, *offset as u64, *size);
+                    write_into(file, src, *offset as u64, *size);
                 }
             }
         }

@@ -18,7 +18,10 @@ pub mod irq {
 }
 
 pub mod console {
+    #[cfg(not(feature = "virtio_console"))]
     pub use crate::platform::aarch64_common::pl011::*;
+    #[cfg(feature = "virtio_console")]
+    pub use crate::virtio::virtio_console::*;
 }
 
 pub mod time {
@@ -46,6 +49,7 @@ pub(crate) unsafe extern "C" fn rust_entry(cpu_id: usize, dtb: usize) {
         dtb::init(crate::mem::phys_to_virt(dtb.into()).as_ptr());
     }
     crate::cpu::init_primary(cpu_id);
+    #[cfg(not(feature = "virtio_console"))]
     super::aarch64_common::pl011::init_early();
     super::aarch64_common::generic_timer::init_early();
     rust_main(cpu_id, dtb);
@@ -68,7 +72,10 @@ pub fn platform_init() {
     super::aarch64_common::generic_timer::init_percpu();
     #[cfg(feature = "rtc")]
     super::aarch64_common::pl031::init();
+    #[cfg(not(feature = "virtio_console"))]
     super::aarch64_common::pl011::init();
+    #[cfg(feature = "virtio_console")]
+    crate::virtio::virtio_console::enable_interrupt();
 }
 
 /// Initializes the platform devices for secondary CPUs.

@@ -7,10 +7,8 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use log::error;
-
-use crate::fs::get_file_like;
-use crate::fs::RUX_FILE_LIMIT;
+#[cfg(feature = "fs")]
+use crate::fs::{get_file_like, RUX_FILE_LIMIT};
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use axerrno::LinuxResult;
@@ -76,9 +74,6 @@ impl AxRunQueue {
     #[cfg(feature = "preempt")]
     pub fn preempt_resched(&mut self) {
         let curr = crate::current();
-        if !curr.is_running() {
-            error!("id_name={:#?}", curr.id_name());
-        }
         assert!(curr.is_running());
 
         // When we get the mutable reference of the run queue, we must
@@ -112,7 +107,7 @@ impl AxRunQueue {
         } else {
             curr.set_state(TaskState::Exited);
             curr.notify_exit(exit_code, self);
-            EXITED_TASKS.lock().push_back(curr.clone());
+            EXITED_TASKS.lock().push_back(curr.clone_as_taskref());
             WAIT_FOR_EXIT.notify_one_locked(false, self);
             self.resched(false);
         }
@@ -134,7 +129,7 @@ impl AxRunQueue {
         assert!(curr.can_preempt(1));
 
         curr.set_state(TaskState::Blocked);
-        wait_queue_push(curr.clone());
+        wait_queue_push(curr.clone_as_taskref());
         self.resched(false);
     }
 
@@ -159,7 +154,7 @@ impl AxRunQueue {
 
         let now = ruxhal::time::current_time();
         if now < deadline {
-            crate::timers::set_alarm_wakeup(deadline, curr.clone());
+            crate::timers::set_alarm_wakeup(deadline, curr.clone_as_taskref());
             curr.set_state(TaskState::Blocked);
             self.resched(false);
         }
@@ -174,7 +169,8 @@ impl AxRunQueue {
         if prev.is_running() {
             prev.set_state(TaskState::Ready);
             if !prev.is_idle() {
-                self.scheduler.put_prev_task(prev.clone(), preempt);
+                self.scheduler
+                    .put_prev_task(prev.clone_as_taskref(), preempt);
             }
         }
         let next = self.scheduler.pick_next_task().unwrap_or_else(|| unsafe {
@@ -185,6 +181,7 @@ impl AxRunQueue {
         self.switch_to(prev, next);
     }
 
+    #[cfg(target_arch = "aarch64")]
     fn switch_to(&mut self, prev_task: CurrentTask, next_task: AxTaskRef) {
         trace!(
             "context switch: {} -> {}",
@@ -197,7 +194,7 @@ impl AxRunQueue {
         if prev_task.ptr_eq(&next_task) {
             return;
         }
-        // error!("next task: {}", next_task.id_name());
+
         unsafe {
             let prev_ctx_ptr = prev_task.ctx_mut_ptr();
             let next_ctx_ptr = next_task.ctx_mut_ptr();
@@ -214,11 +211,41 @@ impl AxRunQueue {
             drop(next_page_table);
 
             CurrentTask::set_current(prev_task, next_task);
+
             (*prev_ctx_ptr).switch_to(&*next_ctx_ptr, root_paddr);
+        }
+    }
+
+    #[cfg(not(target_arch = "aarch64"))]
+    fn switch_to(&mut self, prev_task: CurrentTask, next_task: AxTaskRef) {
+        trace!(
+            "context switch: {} -> {}",
+            prev_task.id_name(),
+            next_task.id_name()
+        );
+        #[cfg(feature = "preempt")]
+        next_task.set_preempt_pending(false);
+        next_task.set_state(TaskState::Running);
+        if prev_task.ptr_eq(&next_task) {
+            return;
+        }
+
+        unsafe {
+            let prev_ctx_ptr = prev_task.ctx_mut_ptr();
+            let next_ctx_ptr = next_task.ctx_mut_ptr();
+
+            // The strong reference count of `prev_task` will be decremented by 1,
+            // but won't be dropped until `gc_entry()` is called.
+            assert!(Arc::strong_count(prev_task.as_task_ref()) > 1);
+            assert!(Arc::strong_count(&next_task) >= 1);
+
+            CurrentTask::set_current(prev_task, next_task);
+            (*prev_ctx_ptr).switch_to(&*next_ctx_ptr);
         }
     }
 }
 
+#[cfg(feature = "fs")]
 fn gc_flush_file(fd: usize) -> LinuxResult {
     trace!("gc task flush: {}", fd);
     get_file_like(fd as i32)?.flush()
@@ -227,10 +254,13 @@ fn gc_flush_file(fd: usize) -> LinuxResult {
 fn gc_entry() {
     let mut now_file_fd: usize = 3;
     loop {
-        let _ = gc_flush_file(now_file_fd);
-        now_file_fd += 1;
-        if now_file_fd >= RUX_FILE_LIMIT {
-            now_file_fd = 3;
+        #[cfg(feature = "fs")]
+        {
+            let _ = gc_flush_file(now_file_fd);
+            now_file_fd += 1;
+            if now_file_fd >= RUX_FILE_LIMIT {
+                now_file_fd = 3;
+            }
         }
         // Drop all exited tasks and recycle resources.
         let n = EXITED_TASKS.lock().len();

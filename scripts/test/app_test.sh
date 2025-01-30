@@ -108,8 +108,8 @@ if [ -z "$1" ]; then
     test_list=(
         "apps/c/helloworld"
         "apps/c/memtest"
-        "apps/c/sqlite3"
         "apps/c/httpclient"
+        "apps/c/sqlite3"
         "apps/c/pthread/basic"
         "apps/c/pthread/sleep"
         "apps/c/pthread/pipe"

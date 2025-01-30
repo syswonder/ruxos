@@ -42,7 +42,7 @@ impl LoopbackDevice {
                 None => EthernetAddress([0; 6]),
             },
             queue: VecDeque::new(),
-            buf_pool: buf_pool,
+            buf_pool,
         }
     }
 }

@@ -16,6 +16,7 @@ members = [
     "crates/driver_block",
     "crates/driver_common",
     "crates/driver_display",
+    "crates/driver_console",
     "crates/driver_net",
     "crates/driver_pci",
     "crates/driver_virtio",
@@ -58,7 +59,6 @@ members = [
     "api/ruxos_posix_api",
 
     "ulib/axstd",
-    "ulib/ruxlibc",
     "ulib/ruxmusl",
 
     "apps/display/basic_painting",

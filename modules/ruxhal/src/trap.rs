@@ -25,9 +25,9 @@ pub enum PageFaultCause {
 
 /// `PageFaultCause` corresponding to `MappingFlags`.
 #[cfg(feature = "paging")]
-impl Into<MappingFlags> for PageFaultCause {
-    fn into(self) -> MappingFlags {
-        match self {
+impl From<PageFaultCause> for MappingFlags {
+    fn from(page_fault_cause: PageFaultCause) -> Self {
+        match page_fault_cause {
             PageFaultCause::WRITE => MappingFlags::WRITE,
             PageFaultCause::READ => MappingFlags::READ,
             PageFaultCause::INSTRUCTION => MappingFlags::EXECUTE,

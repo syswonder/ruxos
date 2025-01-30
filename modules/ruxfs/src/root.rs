@@ -19,7 +19,9 @@ use crate::api::FileType;
 
 /// mount point information
 pub struct MountPoint {
+    /// mount point path
     pub path: &'static str,
+    /// mounted filesystem
     pub fs: Arc<dyn VfsOps>,
 }
 
@@ -230,9 +232,16 @@ pub(crate) fn remove_dir(dir: Option<&VfsNodeRef>, path: &str) -> AxResult {
     {
         return ax_err!(InvalidInput);
     }
-    // if ROOT_DIR.contains(&absolute_path(path)?) {
-    //     return ax_err!(PermissionDenied);
-    // }
+
+    // TODO: judge if the path is a mount point,
+    // and return PermissionDenied if it is.(not allow to remove mount points)
+    // but it's not necessary to do this in this function.
+    // to meet multi-process requirement, some checks were commented out.
+    if crate_interface::call_interface!(CurrentWorkingDirectoryOps::root_dir,)
+        .contains(&absolute_path(path)?)
+    {
+        return ax_err!(PermissionDenied);
+    }
 
     let node = lookup(dir, path)?;
     let attr = node.get_attr()?;
@@ -254,12 +263,20 @@ pub(crate) fn rename(old: &str, new: &str) -> AxResult {
 }
 
 #[crate_interface::def_interface]
+/// Current working directory operations.
 pub trait CurrentWorkingDirectoryOps {
+    /// Initializes the root filesystem with the specified mount points.
     fn init_rootfs(mount_points: Vec<MountPoint>);
+    /// Returns the parent node of the specified path.
     fn parent_node_of(dir: Option<&VfsNodeRef>, path: &str) -> VfsNodeRef;
+    /// Returns the absolute path of the specified path.
     fn absolute_path(path: &str) -> AxResult<String>;
+    /// Returns the current working directory.
     fn current_dir() -> AxResult<String>;
+    /// Sets the current working directory.
     fn set_current_dir(path: &str) -> AxResult;
+    /// get the root directory of the filesystem
+    fn root_dir() -> Arc<RootDirectory>;
 }
 
 pub(crate) fn parent_node_of(dir: Option<&VfsNodeRef>, path: &str) -> VfsNodeRef {

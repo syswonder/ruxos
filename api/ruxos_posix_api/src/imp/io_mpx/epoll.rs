@@ -108,7 +108,7 @@ impl EpollInstance {
                         events[events_num].data = ev.data;
                         events_num += 1;
                     }
-                    
+
                     if state.pollhup {
                         events[events_num].events = ctypes::EPOLLHUP;
                         events[events_num].data = ev.data;

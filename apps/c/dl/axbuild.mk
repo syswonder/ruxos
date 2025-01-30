@@ -1,6 +1,6 @@
 app-objs=main.o
 
-ARGS = /bin/busybox,sh
+ARGS = /bin/hello
 ENVS = 
 V9P_PATH=${APP}/rootfs
 

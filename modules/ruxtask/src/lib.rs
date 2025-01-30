@@ -37,6 +37,8 @@
 #![cfg_attr(not(test), no_std)]
 #![feature(doc_cfg)]
 #![feature(doc_auto_cfg)]
+// TODO: remove this once we have a better way to handle
+#![allow(clippy::arc_with_non_send_sync)]
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "multitask")] {
@@ -52,7 +54,7 @@ cfg_if::cfg_if! {
         pub mod signal;
         #[cfg(feature = "paging")]
         pub mod vma;
-        // #[cfg(feature = "fs")]
+        #[cfg(feature = "fs")]
         pub mod fs;
         #[cfg(feature = "irq")]
         /// load average

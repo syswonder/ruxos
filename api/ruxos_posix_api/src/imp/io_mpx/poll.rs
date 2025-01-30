@@ -38,7 +38,7 @@ fn poll_all(fds: &mut [ctypes::pollfd]) -> LinuxResult<usize> {
                     *revents |= ctypes::EPOLLOUT as i16;
                     events_num += 1;
                 }
-                
+
                 if state.pollhup {
                     *revents |= ctypes::EPOLLHUP as i16;
                     events_num += 1;
@@ -77,6 +77,10 @@ pub unsafe fn sys_poll(fds: *mut ctypes::pollfd, nfds: ctypes::nfds_t, timeout: 
         let fds = core::slice::from_raw_parts_mut(fds, nfds as usize);
         let deadline = (!timeout.is_negative())
             .then(|| current_time() + Duration::from_millis(timeout as u64));
+        for pollfd_item in fds.iter_mut() {
+            let revents = &mut pollfd_item.revents;
+            *revents &= 0;
+        }
         loop {
             #[cfg(feature = "net")]
             ruxnet::poll_interfaces();
