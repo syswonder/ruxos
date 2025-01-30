@@ -97,11 +97,13 @@ pub unsafe fn sys_wait4(
             let mut process_map = PROCESS_MAP.lock();
             if let Some(task) = process_map.get(&(pid as u64)) {
                 if task.state() == ruxtask::task::TaskState::Exited {
-                    unsafe {
-                        // lower 8 bits of exit_code is the signal number, while upper 8 bits of exit_code is the exit status
-                        // according to "bits/waitstatus.h" in glibc source code.
-                        // TODO: add signal number to wstatus
-                        wstatus.write(task.exit_code() << 8);
+                    if !wstatus.is_null() {
+                        unsafe {
+                            // lower 8 bits of exit_code is the signal number, while upper 8 bits of exit_code is the exit status
+                            // according to "bits/waitstatus.h" in glibc source code.
+                            // TODO: add signal number to wstatus
+                            wstatus.write(task.exit_code() << 8);
+                        }
                     }
                     process_map.remove(&(pid as u64));
                     return pid;
@@ -129,11 +131,13 @@ pub unsafe fn sys_wait4(
                     && task.state() == ruxtask::task::TaskState::Exited
                 {
                     // add to to_remove list
-                    unsafe {
-                        // lower 8 bits of exit_code is the signal number, while upper 8 bits of exit_code is the exit status
-                        // according to "bits/waitstatus.h" in glibc source code.
-                        // TODO: add signal number to wstatus
-                        wstatus.write(task.exit_code() << 8);
+                    if !wstatus.is_null() {
+                        unsafe {
+                            // lower 8 bits of exit_code is the signal number, while upper 8 bits of exit_code is the exit status
+                            // according to "bits/waitstatus.h" in glibc source code.
+                            // TODO: add signal number to wstatus
+                            wstatus.write(task.exit_code() << 8);
+                        }
                     }
                     let _ = to_remove.insert(*child_pid);
                     break;
