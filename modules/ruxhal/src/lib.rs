@@ -43,13 +43,13 @@
 #[macro_use]
 extern crate log;
 
-mod platform;
-
 pub mod arch;
 pub mod cpu;
 pub mod mem;
+mod platform;
 pub mod time;
 pub mod trap;
+pub mod virtio;
 
 #[cfg(feature = "tls")]
 pub mod tls;

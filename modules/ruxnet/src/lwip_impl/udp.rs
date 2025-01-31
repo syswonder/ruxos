@@ -6,7 +6,7 @@ use alloc::{boxed::Box, collections::VecDeque};
 use axerrno::{ax_err, AxError, AxResult};
 use axio::PollState;
 use axsync::Mutex;
-use core::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use core::sync::atomic::{AtomicBool, Ordering};
 use core::{ffi::c_void, pin::Pin, ptr::null_mut};
 use lwip_rust::bindings::{
     err_enum_t_ERR_MEM, err_enum_t_ERR_OK, err_enum_t_ERR_RTE, err_enum_t_ERR_USE,
@@ -253,7 +253,7 @@ impl UdpSocket {
                     drop(guard);
                 }
 
-                Ok((copy_len, addr.into()))
+                Ok((copy_len, addr))
             };
             drop(recv_queue);
             match res {
@@ -335,6 +335,7 @@ impl UdpSocket {
         Ok(PollState {
             readable: self.inner.recv_queue.lock().len() != 0,
             writable: true,
+            pollhup: false,
         })
     }
 }

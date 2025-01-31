@@ -9,12 +9,19 @@
 
 #[allow(unused_imports)]
 use crate::{prelude::*, AllDevices};
+#[cfg(all(feature = "virtio_console", feature = "virtio"))]
+use ruxhal::virtio::virtio_console;
 
 impl AllDevices {
     pub(crate) fn probe_bus_devices(&mut self) {
         // TODO: parse device tree
         #[cfg(feature = "virtio")]
         for reg in ruxconfig::VIRTIO_MMIO_REGIONS {
+            #[cfg(feature = "virtio_console")]
+            if virtio_console::is_probe(reg.0) {
+                warn!("Avoiding virtio-console probe again");
+                continue;
+            }
             for_each_drivers!(type Driver, {
                 if let Some(dev) = Driver::probe_mmio(reg.0, reg.1) {
                     info!(

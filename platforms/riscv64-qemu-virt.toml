@@ -57,5 +57,13 @@ pci-ranges = [
     ["0x4_0000_0000", "0x4_0000_0000"],   # 64-but MMIO space
 ]
 
+# Virtio console
+virtio-console-paddr = "0xFFFFFFFF"
+# Virtio console irq
+virtio-console-irq = "0"
+
 # Timer interrupt frequency in Hz.
 timer-frequency = "10_000_000"      # 10MHz
+
+# Pipe channel bufer size.
+pipe-buffer-size = "0x10000"

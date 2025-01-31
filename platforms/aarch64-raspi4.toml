@@ -31,6 +31,14 @@ virtio-mmio-regions = []
 uart-paddr = "0xFE20_1000"
 uart-irq = "0x79"
 
+# Virtio console
+virtio-console-paddr = "0xFFFFFFFF"
+# Virtio console irq
+virtio-console-irq = "0"
+
 # GIC Address
 gicc-paddr = "0xFF84_2000"
 gicd-paddr = "0xFF84_1000"
+
+# Pipe channel bufer size.
+pipe-buffer-size = "0x10000"

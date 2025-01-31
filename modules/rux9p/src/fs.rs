@@ -109,7 +109,6 @@ pub struct CommonNode {
     inner: Arc<RwLock<Drv9pOps>>,
     fid: Arc<u32>,
     protocol: Arc<String>,
-    attr: RwLock<Option<VfsNodeAttr>>,
 }
 
 impl CommonNode {
@@ -170,7 +169,6 @@ impl CommonNode {
             fid: Arc::new(fid),
             protocol,
             parent: RwLock::new(parent.unwrap_or_else(|| Weak::<Self>::new())),
-            attr: RwLock::new(None),
         })
     }
 

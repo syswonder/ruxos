@@ -20,27 +20,30 @@ smp = ["ruxhal/smp"]
 irq = ["ruxhal/irq", "ruxtask?/irq", "percpu", "kernel_guard"]
 tls = ["ruxhal/tls", "ruxtask?/tls"]
 alloc = ["axalloc", "dtb"]
-paging = ["ruxhal/paging", "lazy_init"]
+paging = ["ruxhal/paging", "ruxmm/paging", "lazy_init", "ruxtask/paging"]
 rtc = ["ruxhal/rtc"]
+virtio_console = []
 
 multitask = ["ruxtask/multitask", "dep:ruxfutex", "rand"]
 rand = ["dep:ruxrand"]
-fs = ["ruxdriver", "ruxfs"]
+fs = ["ruxdriver", "ruxfs", "ruxtask/fs"]
 blkfs = ["fs"]
 virtio-9p = ["fs", "rux9p"]
 net-9p = ["fs", "rux9p"]
 net = ["ruxdriver", "ruxnet"]
 display = ["ruxdriver", "ruxdisplay"]
-signal = ["ruxhal/signal"]
+signal = ["ruxhal/signal", "ruxtask/signal"]
 
 musl = ["dep:ruxfutex"]
 
+# for testing
+myfs = ["fs", "multitask", "alloc", "ruxfs/myfs", "ruxtask/test"]
 
 [dependencies]
 cfg-if = "1.0"
 ruxhal = { path = "../ruxhal" }
 axlog = { path = "../axlog" }
-ruxconfig = { path = "../ruxconfig" }
+ruxconfig = { path = "../ruxconfig"}
 axalloc = { path = "../axalloc", optional = true }
 ruxdriver = { path = "../ruxdriver", optional = true }
 ruxfs = { path = "../ruxfs", optional = true }
@@ -48,6 +51,7 @@ rux9p = { path = "../rux9p", optional = true }
 ruxnet = { path = "../ruxnet", optional = true }
 ruxdisplay = { path = "../ruxdisplay", optional = true }
 ruxtask = { path = "../ruxtask", optional = true }
+ruxmm = { path = "../ruxmm" }
 axsync = { path = "../axsync", optional = true }
 ruxfutex = { path = "../ruxfutex", optional = true }
 ruxrand = { path = "../ruxrand", optional = true }
@@ -59,3 +63,13 @@ lazy_init = { path = "../../crates/lazy_init", optional = true }
 dtb = { path = "../../crates/dtb", optional = true }
 
 tty = { path = "../../crates/tty", optional = true }
+
+[dev-dependencies]
+log = "0.4"
+ruxdriver = { path = "../ruxdriver", features = ["block", "ramdisk", "dyn"] }
+driver_block = { path = "../../crates/driver_block", features = ["ramdisk"] }
+axio = { path = "../../crates/axio", features = ["alloc"] }
+ruxfs = { path = "../ruxfs" }
+ruxtask = { path = "../ruxtask" }
+axfs_vfs = { path = "../../crates/axfs_vfs" }
+axfs_ramfs = { path = "../../crates/axfs_ramfs" }

@@ -49,9 +49,9 @@ dependencies = [
 
 [[package]]
 name = "allocator-api2"
-version = "0.2.18"
+version = "0.2.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5c6cb57a04249c6480766f7f7cef5467412af1490f8d1e243141daddada3264f"
+checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "android-tzdata"
@@ -98,11 +98,13 @@ dependencies = [
  "axerrno",
  "axio",
  "axlog",
+ "crate_interface",
  "ruxconfig",
  "ruxdisplay",
  "ruxfeat",
  "ruxfs",
  "ruxhal",
+ "ruxmm",
  "ruxnet",
  "ruxruntime",
  "ruxtask",
@@ -678,6 +680,13 @@ name = "driver_common"
 version = "0.1.0"
 
 [[package]]
+name = "driver_console"
+version = "0.1.0"
+dependencies = [
+ "driver_common",
+]
+
+[[package]]
 name = "driver_display"
 version = "0.1.0"
 dependencies = [
@@ -708,6 +717,7 @@ dependencies = [
  "driver_9p",
  "driver_block",
  "driver_common",
+ "driver_console",
  "driver_display",
  "driver_net",
  "log",
@@ -1603,6 +1613,7 @@ version = "0.1.0"
 dependencies = [
  "axalloc",
  "cfg-if",
+ "crate_interface",
  "driver_9p",
  "driver_block",
  "driver_common",
@@ -1639,6 +1650,7 @@ dependencies = [
  "ruxdriver",
  "ruxfs",
  "ruxhal",
+ "ruxmm",
  "ruxnet",
  "ruxruntime",
  "ruxtask",
@@ -1655,7 +1667,6 @@ dependencies = [
  "axfs_ramfs",
  "axfs_vfs",
  "axio",
- "axsync",
  "capability",
  "cfg-if",
  "crate_interface",
@@ -1665,7 +1676,6 @@ dependencies = [
  "log",
  "memory_addr",
  "ruxdriver",
- "ruxtask",
  "spin 0.9.8",
 ]
 
@@ -1695,12 +1705,16 @@ dependencies = [
  "bitflags 2.4.0",
  "cfg-if",
  "crate_interface",
+ "driver_common",
+ "driver_console",
+ "driver_virtio",
  "dtb",
  "dw_apb_uart",
  "embedded-hal",
  "handler_table",
  "kernel_guard",
  "lazy_init",
+ "lazy_static",
  "log",
  "memory_addr",
  "page_table",
@@ -1715,20 +1729,30 @@ dependencies = [
  "static_assertions",
  "tock-registers",
  "tty",
+ "virtio-drivers",
  "x2apic",
  "x86",
  "x86_64",
 ]
 
 [[package]]
-name = "ruxlibc"
+name = "ruxmm"
 version = "0.1.0"
 dependencies = [
- "axerrno",
- "axio",
- "bindgen 0.66.1",
- "ruxfeat",
- "ruxos_posix_api",
+ "axalloc",
+ "bitflags 2.4.0",
+ "cfg-if",
+ "crate_interface",
+ "kernel_guard",
+ "log",
+ "memory_addr",
+ "page_table",
+ "page_table_entry",
+ "ruxdriver",
+ "ruxhal",
+ "ruxtask",
+ "spinlock",
+ "static_assertions",
 ]
 
 [[package]]
@@ -1814,6 +1838,7 @@ dependencies = [
  "ruxfs",
  "ruxfutex",
  "ruxhal",
+ "ruxmm",
  "ruxnet",
  "ruxruntime",
  "ruxtask",
@@ -1839,13 +1864,18 @@ name = "ruxruntime"
 version = "0.1.0"
 dependencies = [
  "axalloc",
+ "axfs_ramfs",
+ "axfs_vfs",
+ "axio",
  "axlog",
  "axsync",
  "cfg-if",
  "crate_interface",
+ "driver_block",
  "dtb",
  "kernel_guard",
  "lazy_init",
+ "log",
  "percpu",
  "rux9p",
  "ruxconfig",
@@ -1854,6 +1884,7 @@ dependencies = [
  "ruxfs",
  "ruxfutex",
  "ruxhal",
+ "ruxmm",
  "ruxnet",
  "ruxrand",
  "ruxtask",
@@ -1864,21 +1895,29 @@ dependencies = [
 name = "ruxtask"
 version = "0.1.0"
 dependencies = [
+ "axalloc",
  "axerrno",
+ "axfs_vfs",
+ "axio",
  "cfg-if",
  "crate_interface",
+ "flatten_objects",
  "kernel_guard",
  "lazy_init",
+ "lazy_static",
  "log",
  "memory_addr",
+ "page_table",
+ "page_table_entry",
  "percpu",
  "rand",
  "ruxconfig",
  "ruxfdtable",
+ "ruxfs",
  "ruxhal",
- "ruxrand",
  "ruxtask",
  "scheduler",
+ "spin 0.9.8",
  "spinlock",
  "timer_list",
 ]

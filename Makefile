@@ -51,6 +51,7 @@ FEATURES ?=
 APP_FEATURES ?=
 
 # QEMU options
+CONSOLE ?= n
 BLK ?= n
 NET ?= n
 GRAPHIC ?= n
@@ -78,7 +79,7 @@ ARGS ?=
 ENVS ?= 
 
 # Libc options
-MUSL ?= n
+MUSL ?= y
 
 # App type
 ifeq ($(wildcard $(APP)),)
@@ -249,9 +250,6 @@ doc_check_missing:
 fmt:
 	cargo fmt --all
 
-fmt_c:
-	@clang-format --style=file -i $(shell find ulib/ruxlibc -iname '*.c' -o -iname '*.h')
-
 test:
 	$(call app_test)
 
@@ -273,12 +271,11 @@ clean: clean_c clean_musl
 	cargo clean
 
 clean_c::
-	rm -rf ulib/ruxlibc/build_*
 	rm -rf $(app-objs)
 
 clean_musl:
 	rm -rf ulib/ruxmusl/build_*
 	rm -rf ulib/ruxmusl/install
 
-.PHONY: all build disasm run justrun debug clippy fmt fmt_c test test_no_fail_fast clean clean_c\
+.PHONY: all build disasm run justrun debug clippy fmt fmt_c test test_no_fail_fast clean \
         clean_musl doc disk_image debug_no_attach prebuild _force

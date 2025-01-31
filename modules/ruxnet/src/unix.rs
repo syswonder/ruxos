@@ -7,29 +7,30 @@
 *   See the Mulan PSL v2 for more details.
 */
 
-use alloc::{sync::Arc, vec};
+use alloc::{format, sync::Arc, vec};
 use axerrno::{ax_err, AxError, AxResult, LinuxError, LinuxResult};
 use axio::PollState;
 use axsync::Mutex;
 use core::ffi::{c_char, c_int};
-use core::net::SocketAddr;
-use core::sync::atomic::{AtomicBool, Ordering};
+use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use spin::RwLock;
 
-use lazy_init::LazyInit;
-
-use smoltcp::socket::tcp::SocketBuffer;
+use alloc::collections::VecDeque;
+use alloc::vec::Vec;
 
 use hashbrown::HashMap;
+use lazy_init::LazyInit;
+use smoltcp::socket::tcp::SocketBuffer;
 
 use ruxfs::root::{create_file, lookup};
 use ruxtask::yield_now;
 
 const SOCK_ADDR_UN_PATH_LEN: usize = 108;
-const UNIX_SOCKET_BUFFER_SIZE: usize = 4096;
+static ANONYMOUS_ADDR_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 /// rust form for ctype sockaddr_un
-#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SocketAddrUnix {
     /// AF_UNIX
     pub sun_family: u16,
@@ -43,19 +44,37 @@ impl SocketAddrUnix {
         self.sun_family = new_addr.sun_family;
         self.sun_path = new_addr.sun_path;
     }
+
+    /// Returns the length of the socket address.
+    pub fn get_addr_len(&self) -> usize {
+        let path_len = self
+            .sun_path
+            .iter()
+            .position(|&c| c == 0)
+            .unwrap_or(SOCK_ADDR_UN_PATH_LEN);
+        let sun_family_size = core::mem::size_of::<u16>();
+        sun_family_size + path_len + 1
+    }
 }
 
 //To avoid owner question of FDTABLE outside and UnixTable in this crate we split the unixsocket
 struct UnixSocketInner<'a> {
+    pub socket_type: UnixSocketType,
     pub addr: Mutex<SocketAddrUnix>,
     pub buf: SocketBuffer<'a>,
     pub peer_socket: Option<usize>,
     pub status: UnixSocketStatus,
+
+    /// DGRAM socket, use a queue to store (source address, datagram).
+    pub datagram_queue: VecDeque<(SocketAddrUnix, Vec<u8>)>,
+    /// If a DGRAM socket calls connect(), record the default remote address; otherwise, set it to None.
+    pub dgram_connected_addr: Option<SocketAddrUnix>,
 }
 
 impl<'a> UnixSocketInner<'a> {
-    pub fn new() -> Self {
+    pub fn new(socket_type: UnixSocketType) -> Self {
         Self {
+            socket_type,
             addr: Mutex::new(SocketAddrUnix {
                 sun_family: 1, //AF_UNIX
                 sun_path: [0; SOCK_ADDR_UN_PATH_LEN],
@@ -63,6 +82,8 @@ impl<'a> UnixSocketInner<'a> {
             buf: SocketBuffer::new(vec![0; 64 * 1024]),
             peer_socket: None,
             status: UnixSocketStatus::Closed,
+            datagram_queue: VecDeque::new(),
+            dgram_connected_addr: None,
         }
     }
 
@@ -84,6 +105,10 @@ impl<'a> UnixSocketInner<'a> {
 
     pub fn set_state(&mut self, state: UnixSocketStatus) {
         self.status = state
+    }
+
+    pub fn get_dgram_connected_addr(&self) -> Option<SocketAddrUnix> {
+        self.dgram_connected_addr.clone()
     }
 
     pub fn can_accept(&mut self) -> bool {
@@ -162,6 +187,23 @@ fn create_socket_file(addr: SocketAddrUnix) -> AxResult<usize> {
     Err(AxError::Unsupported)
 }
 
+fn generate_anonymous_address() -> SocketAddrUnix {
+    let unique_id = ANONYMOUS_ADDR_COUNTER.fetch_add(1, Ordering::SeqCst);
+    let addr_str = format!("anonymous_{}", unique_id);
+
+    let mut sun_path = [0 as c_char; SOCK_ADDR_UN_PATH_LEN];
+    for (i, byte) in addr_str.as_bytes().iter().enumerate() {
+        if i >= SOCK_ADDR_UN_PATH_LEN {
+            break;
+        }
+        sun_path[i] = *byte as c_char;
+    }
+    SocketAddrUnix {
+        sun_family: 1, //AF_UNIX
+        sun_path,
+    }
+}
+
 struct HashMapWarpper<'a> {
     inner: HashMap<usize, Arc<Mutex<UnixSocketInner<'a>>>>,
     index_allcator: Mutex<usize>,
@@ -203,11 +245,15 @@ impl<'a> HashMapWarpper<'a> {
     pub fn get_mut(&mut self, id: usize) -> Option<&mut Arc<Mutex<UnixSocketInner<'a>>>> {
         self.inner.get_mut(&id)
     }
+
+    pub fn remove(&mut self, id: usize) -> Option<Arc<Mutex<UnixSocketInner<'a>>>> {
+        self.inner.remove(&id)
+    }
 }
 static UNIX_TABLE: LazyInit<RwLock<HashMapWarpper>> = LazyInit::new();
 
 /// unix socket type
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum UnixSocketType {
     /// A stream-oriented Unix domain socket.
     SockStream,
@@ -217,7 +263,7 @@ pub enum UnixSocketType {
     SockSeqpacket,
 }
 
-// State transitions:
+// STREAM State transitions:
 // CLOSED -(connect)-> BUSY -> CONNECTING -> CONNECTED -(shutdown)-> BUSY -> CLOSED
 //       |
 //       |-(listen)-> BUSY -> LISTENING -(shutdown)-> BUSY -> CLOSED
@@ -237,8 +283,8 @@ impl UnixSocket {
     /// only support sock_stream
     pub fn new(_type: UnixSocketType) -> Self {
         match _type {
-            UnixSocketType::SockDgram | UnixSocketType::SockSeqpacket => unimplemented!(),
-            UnixSocketType::SockStream => {
+            UnixSocketType::SockSeqpacket => unimplemented!(),
+            UnixSocketType::SockDgram | UnixSocketType::SockStream => {
                 let mut unixsocket = UnixSocket {
                     sockethandle: None,
                     unixsocket_type: _type,
@@ -246,7 +292,7 @@ impl UnixSocket {
                 };
                 let handle = UNIX_TABLE
                     .write()
-                    .add(Arc::new(Mutex::new(UnixSocketInner::new())))
+                    .add(Arc::new(Mutex::new(UnixSocketInner::new(_type))))
                     .unwrap();
                 unixsocket.set_sockethandle(handle);
                 unixsocket
@@ -326,43 +372,59 @@ impl UnixSocket {
         }
     }
 
-    /// Binds the socket to a specified address, get inode number of the address as handle
-    // TODO: bind to file system
+    /// Binds the socket to a specified address.
     pub fn bind(&mut self, addr: SocketAddrUnix) -> LinuxResult {
-        let now_state = self.get_state();
-        match now_state {
-            UnixSocketStatus::Closed => {
-                {
-                    match get_inode(addr) {
-                        Ok(inode_addr) => {
-                            UNIX_TABLE
-                                .write()
-                                .replace_handle(self.get_sockethandle(), inode_addr);
-                            self.set_sockethandle(inode_addr);
-                        }
-                        Err(AxError::NotFound) => match create_socket_file(addr) {
-                            Ok(inode_addr) => {
-                                UNIX_TABLE
-                                    .write()
-                                    .replace_handle(self.get_sockethandle(), inode_addr);
-                                self.set_sockethandle(inode_addr);
-                            }
-                            _ => {
-                                warn!("unix socket can not get real inode");
-                            }
-                        },
-                        _ => {
-                            warn!("unix socket can not get real inode");
-                        }
-                    }
+        match self.unixsocket_type {
+            UnixSocketType::SockStream => {
+                let now_state = self.get_state();
+                if now_state != UnixSocketStatus::Closed {
+                    return Err(LinuxError::EINVAL);
                 }
+                let _ = self.update_inode_and_handle(&addr);
                 let mut binding = UNIX_TABLE.write();
                 let mut socket_inner = binding.get_mut(self.get_sockethandle()).unwrap().lock();
                 socket_inner.addr.lock().set_addr(&addr);
                 socket_inner.set_state(UnixSocketStatus::Busy);
                 Ok(())
             }
-            _ => Err(LinuxError::EINVAL),
+            UnixSocketType::SockDgram => {
+                let _ = self.update_inode_and_handle(&addr);
+                let mut binding = UNIX_TABLE.write();
+                let socket_inner = binding.get_mut(self.get_sockethandle()).unwrap().lock();
+                socket_inner.addr.lock().set_addr(&addr);
+                Ok(())
+            }
+            _ => Err(LinuxError::EINVAL), // SockSeqpacket is not supported
+        }
+    }
+
+    /// Finds or creates the inode associated with the SocketAddrUnix address and updates the handle related to the socket
+    fn update_inode_and_handle(&mut self, addr: &SocketAddrUnix) -> Result<usize, LinuxError> {
+        match get_inode(*addr) {
+            Ok(inode_addr) => {
+                UNIX_TABLE
+                    .write()
+                    .replace_handle(self.get_sockethandle(), inode_addr);
+                self.set_sockethandle(inode_addr);
+                Ok(inode_addr)
+            }
+            Err(AxError::NotFound) => match create_socket_file(*addr) {
+                Ok(inode_addr) => {
+                    UNIX_TABLE
+                        .write()
+                        .replace_handle(self.get_sockethandle(), inode_addr);
+                    self.set_sockethandle(inode_addr);
+                    Ok(inode_addr)
+                }
+                _ => {
+                    warn!("unix socket cannot get real inode1");
+                    Err(LinuxError::EFAULT)
+                }
+            },
+            _ => {
+                warn!("unix socket cannot get real inode2");
+                Err(LinuxError::EFAULT)
+            }
         }
     }
 
@@ -370,7 +432,14 @@ impl UnixSocket {
     /// this will block if not connected by default
     pub fn send(&self, buf: &[u8]) -> LinuxResult<usize> {
         match self.unixsocket_type {
-            UnixSocketType::SockDgram | UnixSocketType::SockSeqpacket => Err(LinuxError::ENOTCONN),
+            UnixSocketType::SockDgram => {
+                self.check_and_set_addr();
+                if self.peer_addr().is_err() {
+                    return Err(LinuxError::ENOTCONN);
+                }
+                self.sendto(buf, self.peer_addr().unwrap())
+            }
+            UnixSocketType::SockSeqpacket => Err(LinuxError::ENOTCONN),
             UnixSocketType::SockStream => loop {
                 let now_state = self.get_state();
                 match now_state {
@@ -409,7 +478,11 @@ impl UnixSocket {
     /// this will block if not connected or buffer is empty by default
     pub fn recv(&self, buf: &mut [u8], _flags: i32) -> LinuxResult<usize> {
         match self.unixsocket_type {
-            UnixSocketType::SockDgram | UnixSocketType::SockSeqpacket => Err(LinuxError::ENOTCONN),
+            UnixSocketType::SockSeqpacket => unimplemented!(),
+            UnixSocketType::SockDgram => {
+                let (len, _) = self.recvfrom(buf)?;
+                Ok(len)
+            }
             UnixSocketType::SockStream => loop {
                 let now_state = self.get_state();
                 match now_state {
@@ -467,6 +540,7 @@ impl UnixSocket {
         Ok(PollState {
             readable: false,
             writable,
+            pollhup: false,
         })
     }
 
@@ -476,11 +550,25 @@ impl UnixSocket {
         match now_state {
             UnixSocketStatus::Connecting => self.poll_connect(),
             UnixSocketStatus::Connected => {
+                let remote_is_close = {
+                    let remote_handle = self.get_peerhandle();
+                    match remote_handle {
+                        Some(handle) => {
+                            let mut binding = UNIX_TABLE.write();
+                            let remote_status = binding.get_mut(handle).unwrap().lock().get_state();
+                            remote_status == UnixSocketStatus::Closed
+                        }
+                        None => {
+                            return Err(LinuxError::ENOTCONN);
+                        }
+                    }
+                };
                 let mut binding = UNIX_TABLE.write();
                 let mut socket_inner = binding.get_mut(self.get_sockethandle()).unwrap().lock();
                 Ok(PollState {
                     readable: !socket_inner.may_recv() || socket_inner.can_recv(),
                     writable: !socket_inner.may_send() || socket_inner.can_send(),
+                    pollhup: remote_is_close,
                 })
             }
             UnixSocketStatus::Listening => {
@@ -489,51 +577,63 @@ impl UnixSocket {
                 Ok(PollState {
                     readable: socket_inner.can_accept(),
                     writable: false,
+                    pollhup: false,
                 })
             }
             _ => Ok(PollState {
                 readable: false,
                 writable: false,
+                pollhup: false,
             }),
         }
     }
 
     /// Returns the local address of the socket.
-    pub fn local_addr(&self) -> LinuxResult<SocketAddr> {
+    pub fn local_addr(&self) -> LinuxResult<SocketAddrUnix> {
         unimplemented!()
-    }
-
-    /// Returns the file descriptor for the socket.
-    fn fd(&self) -> c_int {
-        UNIX_TABLE
-            .write()
-            .get_mut(self.get_sockethandle())
-            .unwrap()
-            .lock()
-            .addr
-            .lock()
-            .sun_path[0] as _
     }
 
     /// Returns the peer address of the socket.
     pub fn peer_addr(&self) -> AxResult<SocketAddrUnix> {
         let now_state = self.get_state();
-        match now_state {
-            UnixSocketStatus::Connected | UnixSocketStatus::Listening => {
-                let peer_sockethandle = self.get_peerhandle().unwrap();
-                Ok(UNIX_TABLE
-                    .read()
-                    .get(peer_sockethandle)
-                    .unwrap()
-                    .lock()
-                    .get_addr())
+        match self.get_sockettype() {
+            UnixSocketType::SockStream => match now_state {
+                UnixSocketStatus::Connected | UnixSocketStatus::Listening => {
+                    let peer_sockethandle = self.get_peerhandle().unwrap();
+                    Ok(UNIX_TABLE
+                        .read()
+                        .get(peer_sockethandle)
+                        .unwrap()
+                        .lock()
+                        .get_addr())
+                }
+                _ => Err(AxError::NotConnected),
+            },
+            UnixSocketType::SockDgram => {
+                // return dgram_connected_addr（if exist）
+                let inner = UNIX_TABLE.read();
+                let socket_inner = inner.get(self.get_sockethandle()).unwrap().lock();
+                if let Some(addr) = socket_inner.get_dgram_connected_addr() {
+                    Ok(addr.clone())
+                } else {
+                    Err(AxError::NotConnected)
+                }
             }
-            _ => Err(AxError::NotConnected),
+            UnixSocketType::SockSeqpacket => unimplemented!(),
         }
     }
 
     /// Connects the socket to a specified address, push info into remote socket
     pub fn connect(&mut self, addr: SocketAddrUnix) -> LinuxResult {
+        match self.unixsocket_type {
+            UnixSocketType::SockStream => self.connect_stream(addr),
+            UnixSocketType::SockDgram => self.connect_dgram(addr),
+            UnixSocketType::SockSeqpacket => unimplemented!(),
+        }
+    }
+
+    /// For stream socket, connects the socket to a specified address, push info into remote socket
+    fn connect_stream(&mut self, addr: SocketAddrUnix) -> LinuxResult {
         let now_state = self.get_state();
         if now_state != UnixSocketStatus::Connecting && now_state != UnixSocketStatus::Connected {
             //a new block is needed to free rwlock
@@ -589,14 +689,114 @@ impl UnixSocket {
         }
     }
 
+    // Dgram socket will not check if remote exists
+    fn connect_dgram(&mut self, addr: SocketAddrUnix) -> LinuxResult {
+        let mut table = UNIX_TABLE.write();
+        let mut socket_inner = table.get_mut(self.get_sockethandle()).unwrap().lock();
+        socket_inner.dgram_connected_addr = Some(addr);
+        Ok(())
+    }
+
+    // check if the source address is null, if so, set to an anonymous address
+    fn check_and_set_addr(&self) -> SocketAddrUnix {
+        let mut source_addr = {
+            let table = UNIX_TABLE.read();
+            let addr = table
+                .get(self.get_sockethandle())
+                .unwrap()
+                .lock()
+                .get_addr();
+            addr
+        };
+        if source_addr.sun_path.iter().all(|&c| c == 0) {
+            debug!("source addr is null, set to an anonymous address");
+            source_addr = generate_anonymous_address();
+            let mut binding = UNIX_TABLE.write();
+            let socket_inner = binding.get_mut(self.get_sockethandle()).unwrap().lock();
+            socket_inner.addr.lock().set_addr(&source_addr);
+        }
+        source_addr
+    }
+
     /// Sends data to a specified address.
     pub fn sendto(&self, buf: &[u8], addr: SocketAddrUnix) -> LinuxResult<usize> {
-        unimplemented!()
+        match self.unixsocket_type {
+            UnixSocketType::SockStream => unimplemented!(),
+            UnixSocketType::SockDgram => {
+                let source_addr = self.check_and_set_addr();
+                let target_handle = {
+                    let table = UNIX_TABLE.read();
+                    match table.find(|socket_inner| socket_inner.lock().get_addr() == addr) {
+                        Some((handle, _)) => *handle,
+                        None => return Err(LinuxError::ENOENT),
+                    }
+                };
+
+                let target_socket = UNIX_TABLE
+                    .read()
+                    .get(target_handle)
+                    .ok_or(LinuxError::ENOENT)?
+                    .clone();
+                let mut target_inner = target_socket.lock();
+
+                // check if the target socket is a datagram socket
+                if target_inner.socket_type != UnixSocketType::SockDgram {
+                    return Err(LinuxError::EINVAL);
+                }
+
+                // check if the target socket is bound to an address
+                let target_addr = target_inner.get_addr();
+                if target_addr.sun_path.iter().all(|&c| c == 0) {
+                    return Err(LinuxError::EINVAL);
+                }
+
+                // check if the target socket is connected
+                if target_inner.datagram_queue.len() >= target_inner.buf.capacity() {
+                    return Err(LinuxError::EAGAIN);
+                }
+                target_inner
+                    .datagram_queue
+                    .push_back((source_addr, buf.to_vec()));
+                Ok(buf.len())
+            }
+            UnixSocketType::SockSeqpacket => unimplemented!(),
+        }
     }
 
     /// Receives data from the socket and returns the sender's address.
-    pub fn recvfrom(&self, buf: &mut [u8]) -> LinuxResult<(usize, Option<SocketAddr>)> {
-        unimplemented!()
+    pub fn recvfrom(&self, buf: &mut [u8]) -> LinuxResult<(usize, Option<SocketAddrUnix>)> {
+        match self.unixsocket_type {
+            UnixSocketType::SockStream | UnixSocketType::SockSeqpacket => unimplemented!(),
+            UnixSocketType::SockDgram => {
+                loop {
+                    let socket_inner = {
+                        let table = UNIX_TABLE.read();
+                        table
+                            .get(self.get_sockethandle())
+                            .ok_or(LinuxError::EBADF)?
+                            .clone()
+                    };
+                    let mut inner = socket_inner.lock();
+
+                    // check if the buffer is empty, if not, copy data to buf
+                    // if data is larger than buf, the remaining data will be truncated
+                    if let Some((source_addr, data)) = inner.datagram_queue.pop_front() {
+                        let len = buf.len().min(data.len());
+                        buf[..len].copy_from_slice(&data[..len]);
+                        return Ok((len, Some(source_addr)));
+                    } else {
+                        // the buffer is empty
+                        if self.is_nonblocking() {
+                            return Err(LinuxError::EAGAIN);
+                        } else {
+                            // block until data is available
+                            drop(inner);
+                            yield_now();
+                        }
+                    }
+                }
+            }
+        }
     }
 
     /// Listens for incoming connections on the socket.
@@ -664,10 +864,12 @@ impl UnixSocket {
         }
     }
 
-    //TODO
     /// Shuts down the socket.
     pub fn shutdown(&self) -> LinuxResult {
-        unimplemented!()
+        let mut binding = UNIX_TABLE.write();
+        let mut socket_inner = binding.get_mut(self.get_sockethandle()).unwrap().lock();
+        socket_inner.set_state(UnixSocketStatus::Closed);
+        Ok(())
     }
 
     /// Returns whether this socket is in nonblocking mode.
@@ -693,6 +895,13 @@ impl UnixSocket {
     /// Returns the socket type of the `UnixSocket`.
     pub fn get_sockettype(&self) -> UnixSocketType {
         self.unixsocket_type
+    }
+}
+
+impl Drop for UnixSocket {
+    fn drop(&mut self) {
+        let _ = self.shutdown();
+        UNIX_TABLE.write().remove(self.get_sockethandle());
     }
 }
 

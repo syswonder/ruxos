@@ -12,6 +12,7 @@ homepage = "https://github.com/syswonder/ruxos"
 repository = "https://github.com/syswonder/ruxos/tree/main/modules/ruxhal"
 
 [features]
+virtio = ["driver_virtio","virtio-drivers","axalloc"]
 smp = []
 alloc = []
 fp_simd = []
@@ -22,6 +23,8 @@ tls = ["alloc"]
 default = []
 musl = []
 signal = []
+virtio_console = ["driver_console", "driver_virtio", "driver_virtio/console", "driver_common", "virtio-drivers", "axalloc", "alloc", "virtio"]
+
 
 [dependencies]
 log = "0.4"
@@ -39,6 +42,11 @@ lazy_init = { path = "../../crates/lazy_init" }
 page_table = { path = "../../crates/page_table", optional = true }
 page_table_entry = { path = "../../crates/page_table_entry" }
 percpu = { path = "../../crates/percpu" }
+driver_console = { path = "../../crates/driver_console", optional = true }
+driver_virtio = { path = "../../crates/driver_virtio", optional = true }
+driver_common = { path = "../../crates/driver_common", optional = true }
+virtio-drivers = { git = "https://github.com/syswonder/virtio-drivers.git", rev = "62dbe5a", optional = true }
+lazy_static = { version = "1.4", features = ["spin_no_std"] }
 memory_addr = "0.1.0"
 handler_table = "0.1.0"
 crate_interface = "0.1.1"

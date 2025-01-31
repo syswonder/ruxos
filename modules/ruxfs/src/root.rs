@@ -11,21 +11,18 @@
 //!
 //! TODO: it doesn't work very well if the mount points have containment relationships.
 
-use alloc::{format, string::String, sync::Arc, vec::Vec};
+use alloc::{string::String, sync::Arc, vec::Vec};
 use axerrno::{ax_err, AxError, AxResult};
 use axfs_vfs::{VfsError, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps, VfsResult};
-use axsync::Mutex;
-use lazy_init::LazyInit;
 
 use crate::api::FileType;
 
-static CURRENT_DIR_PATH: Mutex<String> = Mutex::new(String::new());
-static CURRENT_DIR: LazyInit<Mutex<VfsNodeRef>> = LazyInit::new();
-
 /// mount point information
 pub struct MountPoint {
-    path: &'static str,
-    fs: Arc<dyn VfsOps>,
+    /// mount point path
+    pub path: &'static str,
+    /// mounted filesystem
+    pub fs: Arc<dyn VfsOps>,
 }
 
 /// fs root directory
@@ -34,7 +31,7 @@ pub struct RootDirectory {
     mounts: Vec<MountPoint>,
 }
 
-static ROOT_DIR: LazyInit<Arc<RootDirectory>> = LazyInit::new();
+// static ROOT_DIR: LazyInit<Arc<RootDirectory>> = LazyInit::new();
 
 impl MountPoint {
     /// create new MountPoint from data
@@ -166,44 +163,6 @@ impl VfsNodeOps for RootDirectory {
     }
 }
 
-pub(crate) fn init_rootfs(mount_points: Vec<MountPoint>) {
-    let main_fs = mount_points
-        .first()
-        .expect("No filesystem found")
-        .fs
-        .clone();
-    let mut root_dir = RootDirectory::new(main_fs);
-
-    for mp in mount_points.iter().skip(1) {
-        let path = mp.path;
-        let vfsops = mp.fs.clone();
-        let message = format!("failed to mount filesystem at {}", path);
-        info!("mounting {}", path);
-        root_dir.mount(path, vfsops).expect(&message);
-    }
-
-    ROOT_DIR.init_by(Arc::new(root_dir));
-    CURRENT_DIR.init_by(Mutex::new(ROOT_DIR.clone()));
-    *CURRENT_DIR_PATH.lock() = "/".into();
-}
-
-fn parent_node_of(dir: Option<&VfsNodeRef>, path: &str) -> VfsNodeRef {
-    if path.starts_with('/') {
-        ROOT_DIR.clone()
-    } else {
-        dir.cloned().unwrap_or_else(|| CURRENT_DIR.lock().clone())
-    }
-}
-
-pub(crate) fn absolute_path(path: &str) -> AxResult<String> {
-    if path.starts_with('/') {
-        Ok(axfs_vfs::path::canonicalize(path))
-    } else {
-        let path = CURRENT_DIR_PATH.lock().clone() + path;
-        Ok(axfs_vfs::path::canonicalize(&path))
-    }
-}
-
 /// Looks up a node in the virtual file system by its path.
 pub fn lookup(dir: Option<&VfsNodeRef>, path: &str) -> AxResult<VfsNodeRef> {
     if path.is_empty() {
@@ -273,7 +232,14 @@ pub(crate) fn remove_dir(dir: Option<&VfsNodeRef>, path: &str) -> AxResult {
     {
         return ax_err!(InvalidInput);
     }
-    if ROOT_DIR.contains(&absolute_path(path)?) {
+
+    // TODO: judge if the path is a mount point,
+    // and return PermissionDenied if it is.(not allow to remove mount points)
+    // but it's not necessary to do this in this function.
+    // to meet multi-process requirement, some checks were commented out.
+    if crate_interface::call_interface!(CurrentWorkingDirectoryOps::root_dir,)
+        .contains(&absolute_path(path)?)
+    {
         return ax_err!(PermissionDenied);
     }
 
@@ -288,38 +254,47 @@ pub(crate) fn remove_dir(dir: Option<&VfsNodeRef>, path: &str) -> AxResult {
     }
 }
 
-pub(crate) fn current_dir() -> AxResult<String> {
-    Ok(CURRENT_DIR_PATH.lock().clone())
-}
-
-pub(crate) fn set_current_dir(path: &str) -> AxResult {
-    let mut abs_path = absolute_path(path)?;
-    if !abs_path.ends_with('/') {
-        abs_path += "/";
-    }
-    if abs_path == "/" {
-        *CURRENT_DIR.lock() = ROOT_DIR.clone();
-        *CURRENT_DIR_PATH.lock() = "/".into();
-        return Ok(());
-    }
-
-    let node = lookup(None, &abs_path)?;
-    let attr = node.get_attr()?;
-    if !attr.is_dir() {
-        ax_err!(NotADirectory)
-    } else if !attr.perm().owner_executable() {
-        ax_err!(PermissionDenied)
-    } else {
-        *CURRENT_DIR.lock() = node;
-        *CURRENT_DIR_PATH.lock() = abs_path;
-        Ok(())
-    }
-}
-
 pub(crate) fn rename(old: &str, new: &str) -> AxResult {
     if parent_node_of(None, new).lookup(new).is_ok() {
         warn!("dst file already exist, now remove it");
         remove_file(None, new)?;
     }
     parent_node_of(None, old).rename(old, new)
+}
+
+#[crate_interface::def_interface]
+/// Current working directory operations.
+pub trait CurrentWorkingDirectoryOps {
+    /// Initializes the root filesystem with the specified mount points.
+    fn init_rootfs(mount_points: Vec<MountPoint>);
+    /// Returns the parent node of the specified path.
+    fn parent_node_of(dir: Option<&VfsNodeRef>, path: &str) -> VfsNodeRef;
+    /// Returns the absolute path of the specified path.
+    fn absolute_path(path: &str) -> AxResult<String>;
+    /// Returns the current working directory.
+    fn current_dir() -> AxResult<String>;
+    /// Sets the current working directory.
+    fn set_current_dir(path: &str) -> AxResult;
+    /// get the root directory of the filesystem
+    fn root_dir() -> Arc<RootDirectory>;
+}
+
+pub(crate) fn parent_node_of(dir: Option<&VfsNodeRef>, path: &str) -> VfsNodeRef {
+    crate_interface::call_interface!(CurrentWorkingDirectoryOps::parent_node_of, dir, path)
+}
+
+pub(crate) fn absolute_path(path: &str) -> AxResult<String> {
+    crate_interface::call_interface!(CurrentWorkingDirectoryOps::absolute_path, path)
+}
+
+pub(crate) fn current_dir() -> AxResult<String> {
+    crate_interface::call_interface!(CurrentWorkingDirectoryOps::current_dir)
+}
+
+pub(crate) fn set_current_dir(path: &str) -> AxResult {
+    crate_interface::call_interface!(CurrentWorkingDirectoryOps::set_current_dir, path)
+}
+
+pub(crate) fn init_rootfs(mount_points: Vec<MountPoint>) {
+    crate_interface::call_interface!(CurrentWorkingDirectoryOps::init_rootfs, mount_points)
 }

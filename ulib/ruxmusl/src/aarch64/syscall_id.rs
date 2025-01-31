@@ -74,6 +74,8 @@ pub enum SyscallId {
     CAP_GET = 90,
     EXIT = 93,
     #[cfg(feature = "multitask")]
+    EXIT_GROUP = 94,
+    #[cfg(feature = "multitask")]
     SET_TID_ADDRESS = 96,
     #[cfg(feature = "multitask")]
     FUTEX = 98,
@@ -152,6 +154,8 @@ pub enum SyscallId {
     MSYNC = 227,
     #[cfg(feature = "alloc")]
     MADVISE = 233,
+    #[cfg(feature = "multitask")]
+    WAIT4 = 260,
     PRLIMIT64 = 261,
     GETRANDOM = 278,
 }

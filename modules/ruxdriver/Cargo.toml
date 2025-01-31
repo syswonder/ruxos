@@ -15,23 +15,26 @@ repository = "https://github.com/syswonder/ruxos/tree/main/modules/ruxdriver"
 [features]
 dyn = []
 bus-mmio = []
-bus-pci = ["dep:driver_pci", "dep:ruxhal", "dep:ruxconfig"]
+bus-pci = ["dep:driver_pci", "dep:ruxhal", "dep:ruxconfig", "virtio"]
 net = ["driver_net"]
 block = ["driver_block"]
 display = ["driver_display"]
 _9p = ["driver_9p"]
 
-# Enabled by features `virtio-*`
-virtio = ["driver_virtio", "dep:axalloc", "dep:ruxhal", "dep:ruxconfig"]
 
+
+# Enabled by features `virtio-*`
+virtio = ["driver_virtio", "dep:axalloc", "dep:ruxhal", "dep:ruxconfig", "ruxhal/virtio"]
 # various types of drivers
-virtio-blk = ["block", "virtio", "driver_virtio/block"]
-virtio-net = ["net", "virtio", "driver_virtio/net"]
-virtio-gpu = ["display", "virtio", "driver_virtio/gpu"]
-virtio-9p = ["_9p","virtio", "driver_virtio/v9p"]
+virtio-blk = ["block", "virtio", "driver_virtio/block","virtio"]
+virtio-net = ["net", "virtio", "driver_virtio/net", "virtio"]
+virtio-gpu = ["display", "virtio", "driver_virtio/gpu", "virtio"]
+virtio-9p = ["_9p","virtio", "driver_virtio/v9p", "virtio"]
+virtio_console = ["virtio"]
 ramdisk = ["block", "driver_block/ramdisk"]
 bcm2835-sdhci = ["block", "driver_block/bcm2835-sdhci"]
 ixgbe = ["net", "driver_net/ixgbe", "dep:axalloc", "dep:ruxhal"]
+loopback = ["driver_net/loopback", "dyn"]
 # more devices example: e1000 = ["net", "driver_net/e1000"]
 
 default = ["bus-mmio"]
@@ -39,6 +42,7 @@ default = ["bus-mmio"]
 [dependencies]
 log = "0.4"
 cfg-if = "1.0"
+crate_interface = "0.1.1"
 driver_common = { path = "../../crates/driver_common" }
 driver_block = { path = "../../crates/driver_block", optional = true }
 driver_net = { path = "../../crates/driver_net", optional = true }
@@ -46,6 +50,10 @@ driver_display = { path = "../../crates/driver_display", optional = true }
 driver_9p = { path = "../../crates/driver_9p", optional = true }
 driver_pci = { path = "../../crates/driver_pci", optional = true }
 driver_virtio = { path = "../../crates/driver_virtio", optional = true }
+
 axalloc = { path = "../axalloc", optional = true }
 ruxhal = { path = "../ruxhal", optional = true }
 ruxconfig = { path = "../ruxconfig", optional = true }
+
+
+

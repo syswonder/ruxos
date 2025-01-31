@@ -56,6 +56,8 @@ pub use imp::stat::{
 };
 pub use imp::sys::{sys_sysinfo, sys_uname};
 pub use imp::sys_invalid;
+#[cfg(feature = "multitask")]
+pub use imp::task::sys_wait4;
 pub use imp::task::{sys_exit, sys_getpid, sys_getppid, sys_gettid, sys_sched_yield};
 pub use imp::time::{
     sys_clock_gettime, sys_clock_nanosleep, sys_clock_settime, sys_gettimeofday, sys_nanosleep,
@@ -120,7 +122,9 @@ pub use imp::pthread::sys_clone;
 #[cfg(all(feature = "multitask", feature = "musl"))]
 pub use imp::pthread::sys_set_tid_address;
 #[cfg(feature = "multitask")]
-pub use imp::pthread::{sys_pthread_create, sys_pthread_exit, sys_pthread_join, sys_pthread_self};
+pub use imp::pthread::{
+    sys_exit_group, sys_pthread_create, sys_pthread_exit, sys_pthread_join, sys_pthread_self,
+};
 
 #[cfg(feature = "fs")]
 pub use imp::execve::sys_execve;

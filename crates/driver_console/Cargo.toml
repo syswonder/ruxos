@@ -1,0 +1,18 @@
+[package]
+name = "driver_console"
+version = "0.1.0"
+edition = "2021"
+authors = [
+    "Hangqi Ren <2572131118@qq.com>"
+]
+description = "Common traits and types for console drivers"
+license = "GPL-3.0-or-later OR Apache-2.0"
+homepage = "https://github.com/syswonder/ruxos"
+repository = "https://github.com/syswonder/ruxos/tree/main/crates/driver_console"
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+default = []
+
+[dependencies]
+driver_common = { path = "../driver_common" }

@@ -11,8 +11,6 @@
 
 use core::fmt;
 
-#[cfg(feature = "paging")]
-use crate::paging::pte_query;
 #[doc(no_inline)]
 pub use memory_addr::{PhysAddr, VirtAddr, PAGE_SIZE_4K};
 
@@ -55,6 +53,20 @@ pub struct MemRegion {
     pub name: &'static str,
 }
 
+/// A trait for address translation.
+#[crate_interface::def_interface]
+pub trait AddressTranslate {
+    /// Translates a virtual address to a physical address.
+    fn virt_to_phys(vaddr: VirtAddr) -> Option<usize> {
+        Some(direct_virt_to_phys(vaddr).into())
+    }
+}
+
+/// translates a virtual address to a physical address.
+pub fn address_translate(vaddr: VirtAddr) -> Option<usize> {
+    crate_interface::call_interface!(AddressTranslate::virt_to_phys, vaddr)
+}
+
 /// Converts a virtual address to a physical address.
 ///
 /// It assumes that there is a linear mapping with the offset
@@ -67,20 +79,6 @@ pub struct MemRegion {
 #[inline]
 pub const fn direct_virt_to_phys(vaddr: VirtAddr) -> PhysAddr {
     PhysAddr::from(vaddr.as_usize() - ruxconfig::PHYS_VIRT_OFFSET)
-}
-
-/// Converts a virtual address to a physical address.
-///
-/// When paging is enabled, query physical address from the page table
-#[inline]
-pub fn virt_to_phys(vaddr: VirtAddr) -> PhysAddr {
-    #[cfg(feature = "paging")]
-    match pte_query(vaddr) {
-        Ok((paddr, _, _)) => paddr,
-        Err(_) => PhysAddr::from(0_usize), // for address unmapped
-    }
-    #[cfg(not(feature = "paging"))]
-    direct_virt_to_phys(vaddr)
 }
 
 /// Converts a physical address to a virtual address.

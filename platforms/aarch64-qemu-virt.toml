@@ -81,8 +81,13 @@ pci-ranges = [
     ["0x80_0000_0000", "0x80_0000_0000"],   # 64-but MMIO space
 ]
 # UART Address
-uart-paddr = "0x0900_0000"
+uart-paddr = "0x9000000"
 uart-irq = "1"
+
+# Virtio console
+virtio-console-paddr = "0xa003e00"
+# Virtio console IRQ
+virtio-console-irq = "47"
 
 # GICC Address
 gicc-paddr = "0x0801_0000"
@@ -90,3 +95,6 @@ gicd-paddr = "0x0800_0000"
 
 # PSCI
 psci-method = "hvc"
+
+# Pipe channel bufer size.
+pipe-buffer-size = "0x10000"

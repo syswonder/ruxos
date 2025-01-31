@@ -12,7 +12,7 @@ use core::cell::UnsafeCell;
 use core::ffi::{c_int, c_void};
 
 use axerrno::{LinuxError, LinuxResult};
-use ruxtask::AxTaskRef;
+use ruxtask::{current, AxTaskRef};
 use spin::RwLock;
 
 use crate::ctypes;
@@ -92,7 +92,7 @@ impl Pthread {
             inner: task_inner,
             retval: my_packet,
         };
-        let ptr = Box::into_raw(Box::new(thread)) as *mut c_void;
+        let ptr: *mut c_void = Box::into_raw(Box::new(thread)) as *mut c_void;
         TID_TO_PTHREAD.write().insert(tid, ForceSendSync(ptr));
         Ok(ptr)
     }
@@ -119,7 +119,6 @@ impl Pthread {
         };
 
         let task_inner = ruxtask::pspawn(main, tls as usize, set_tid, tl);
-
         let tid = task_inner.id().as_u64();
         let thread = Pthread {
             inner: task_inner.clone(),
@@ -227,6 +226,21 @@ pub fn sys_pthread_exit(retval: *mut c_void) -> ! {
     Pthread::exit_current(retval);
 }
 
+/// Exits the current thread. The value `retval` will be returned to the joiner.
+pub fn sys_exit_group(status: c_int) -> ! {
+    debug!("sys_exit_group <= status: {:#?}", status);
+
+    // TODO: exit all threads, send signal to all threads
+
+    //  drop all file opened by current task
+    current().fs.lock().as_mut().unwrap().close_all_files();
+
+    #[cfg(feature = "multitask")]
+    ruxtask::exit(status);
+    #[cfg(not(feature = "multitask"))]
+    ruxhal::misc::terminate();
+}
+
 /// Waits for the given thread to exit, and stores the return value in `retval`.
 pub unsafe fn sys_pthread_join(thread: ctypes::pthread_t, retval: *mut *mut c_void) -> c_int {
     debug!("sys_pthread_join <= {:#x}", retval as usize);
@@ -246,10 +260,7 @@ unsafe impl<T> Send for ForceSendSync<T> {}
 unsafe impl<T> Sync for ForceSendSync<T> {}
 
 /// Create new thread by `sys_clone`, return new thread ID
-#[cfg(all(
-    feature = "musl",
-    any(target_arch = "aarch64", target_arch = "riscv64")
-))]
+#[cfg(all(feature = "musl", target_arch = "aarch64"))]
 pub unsafe fn sys_clone(
     flags: c_int,
     stack: *mut c_void,
@@ -263,41 +274,110 @@ pub unsafe fn sys_clone(
     );
 
     syscall_body!(sys_clone, {
-        if (flags as u32 & ctypes::CLONE_THREAD) == 0 {
-            debug!("ONLY support thread");
+        if (flags as u32 & ctypes::CLONE_THREAD) != 0 {
+            let func = unsafe {
+                core::mem::transmute::<*const (), extern "C" fn(arg: *mut c_void) -> *mut c_void>(
+                    (*(stack as *mut usize)) as *const (),
+                )
+            };
+            let args = unsafe { *((stack as usize + 8) as *mut usize) } as *mut c_void;
+
+            let set_tid = if (flags as u32 & ctypes::CLONE_CHILD_SETTID) != 0 {
+                core::sync::atomic::AtomicU64::new(ctid as _)
+            } else {
+                core::sync::atomic::AtomicU64::new(0)
+            };
+
+            let (tid, task_inner) = Pthread::pcreate(
+                core::ptr::null(),
+                func,
+                args,
+                tls,
+                set_tid,
+                core::sync::atomic::AtomicU64::from(ctid as u64),
+            )?;
+
+            // write tid to ptid
+            if (flags as u32 & ctypes::CLONE_PARENT_SETTID) != 0 {
+                unsafe { *ptid = tid as c_int };
+            }
+            ruxtask::put_task(task_inner);
+
+            return Ok(tid);
+        } else if (flags as u32 & ctypes::SIGCHLD) != 0 {
+            let pid = if let Some(task_ref) = ruxtask::fork_task() {
+                task_ref.id().as_u64()
+            } else {
+                let children_ref = ruxtask::current();
+                let tid = children_ref.id().as_u64();
+                let thread = Pthread {
+                    inner: children_ref.clone_as_taskref(),
+                    retval: Arc::new(Packet {
+                        result: UnsafeCell::new(core::ptr::null_mut()),
+                    }),
+                };
+                let ptr = Box::into_raw(Box::new(thread)) as *mut c_void;
+                TID_TO_PTHREAD.write().insert(tid, ForceSendSync(ptr));
+                0
+            };
+            debug!("will sys_clone <= pid: {}", pid);
+            return Ok(pid);
+        } else {
+            debug!("ONLY support CLONE_THREAD and SIGCHLD");
             return Err(LinuxError::EINVAL);
         }
+    })
+}
 
-        let func = unsafe {
-            core::mem::transmute::<*const (), extern "C" fn(arg: *mut c_void) -> *mut c_void>(
-                (*(stack as *mut usize)) as *const (),
-            )
-        };
-        let args = unsafe { *((stack as usize + 8) as *mut usize) } as *mut c_void;
+/// Create new thread by `sys_clone`, return new thread ID
+#[cfg(all(feature = "musl", target_arch = "riscv64"))]
+pub unsafe fn sys_clone(
+    flags: c_int,
+    stack: *mut c_void,
+    ptid: *mut ctypes::pid_t,
+    tls: *mut c_void,
+    ctid: *mut ctypes::pid_t,
+) -> c_int {
+    debug!(
+        "sys_clone <= flags: {:x}, stack: {:p}, ctid: {:x}",
+        flags, stack, ctid as usize
+    );
 
-        let set_tid = if (flags as u32 & ctypes::CLONE_CHILD_SETTID) != 0 {
-            core::sync::atomic::AtomicU64::new(ctid as _)
+    syscall_body!(sys_clone, {
+        if (flags as u32 & ctypes::CLONE_THREAD) != 0 {
+            let func = unsafe {
+                core::mem::transmute::<*const (), extern "C" fn(arg: *mut c_void) -> *mut c_void>(
+                    (*(stack as *mut usize)) as *const (),
+                )
+            };
+            let args = unsafe { *((stack as usize + 8) as *mut usize) } as *mut c_void;
+
+            let set_tid = if (flags as u32 & ctypes::CLONE_CHILD_SETTID) != 0 {
+                core::sync::atomic::AtomicU64::new(ctid as _)
+            } else {
+                core::sync::atomic::AtomicU64::new(0)
+            };
+
+            let (tid, task_inner) = Pthread::pcreate(
+                core::ptr::null(),
+                func,
+                args,
+                tls,
+                set_tid,
+                core::sync::atomic::AtomicU64::from(ctid as u64),
+            )?;
+
+            // write tid to ptid
+            if (flags as u32 & ctypes::CLONE_PARENT_SETTID) != 0 {
+                unsafe { *ptid = tid as c_int };
+            }
+            ruxtask::put_task(task_inner);
+
+            return Ok(tid);
         } else {
-            core::sync::atomic::AtomicU64::new(0)
-        };
-
-        let (tid, task_inner) = Pthread::pcreate(
-            core::ptr::null(),
-            func,
-            args,
-            tls,
-            set_tid,
-            core::sync::atomic::AtomicU64::from(ctid as u64),
-        )?;
-
-        // write tid to ptid
-        if (flags as u32 & ctypes::CLONE_PARENT_SETTID) != 0 {
-            unsafe { *ptid = tid as c_int };
+            debug!("ONLY support CLONE_THREAD and SIGCHLD");
+            return Err(LinuxError::EINVAL);
         }
-
-        ruxtask::put_task(task_inner);
-
-        Ok(tid)
     })
 }
 

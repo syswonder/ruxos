@@ -8,7 +8,7 @@ env:
 
 jobs:
   unit-test:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     steps:
     - uses: actions/checkout@v3
       with:
@@ -26,7 +26,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-22.04]
         arch: [x86_64, riscv64, aarch64]
     steps:
     - uses: actions/checkout@v3
