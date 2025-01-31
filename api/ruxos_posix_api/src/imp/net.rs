@@ -390,29 +390,33 @@ pub fn sys_socket(domain: c_int, socktype: c_int, protocol: c_int) -> c_int {
     let (domain, socktype, protocol) = (domain as u32, socktype as u32, protocol as u32);
     pub const _SOCK_STREAM_NONBLOCK: u32 = ctypes::SOCK_STREAM | ctypes::SOCK_NONBLOCK;
     syscall_body!(sys_socket, {
-        match (domain, socktype, protocol) {
-            (ctypes::AF_INET, ctypes::SOCK_STREAM, ctypes::IPPROTO_TCP)
-            | (ctypes::AF_INET, ctypes::SOCK_STREAM, 0) => {
-                Socket::Tcp(Mutex::new(TcpSocket::new())).add_to_fd_table()
-            }
-            (ctypes::AF_INET, ctypes::SOCK_DGRAM, ctypes::IPPROTO_UDP)
-            | (ctypes::AF_INET, ctypes::SOCK_DGRAM, 0) => {
-                Socket::Udp(Mutex::new(UdpSocket::new())).add_to_fd_table()
-            }
-            (ctypes::AF_INET, _SOCK_STREAM_NONBLOCK, ctypes::IPPROTO_TCP) => {
-                let tcp_socket = TcpSocket::new();
-                tcp_socket.set_nonblocking(true);
-                Socket::Tcp(Mutex::new(tcp_socket)).add_to_fd_table()
-            }
-            (ctypes::AF_UNIX, ctypes::SOCK_STREAM, 0) => {
-                Socket::Unix(Mutex::new(UnixSocket::new(UnixSocketType::SockStream)))
-                    .add_to_fd_table()
-            }
-            (ctypes::AF_UNIX, ctypes::SOCK_DGRAM, 0) => {
-                Socket::Unix(Mutex::new(UnixSocket::new(UnixSocketType::SockDgram)))
-                    .add_to_fd_table()
-            }
-            _ => Err(LinuxError::EINVAL),
+        match domain {
+            ctypes::AF_INET => match (socktype, protocol) {
+                (ctypes::SOCK_STREAM, ctypes::IPPROTO_TCP) | (ctypes::SOCK_STREAM, 0) => {
+                    Socket::Tcp(Mutex::new(TcpSocket::new())).add_to_fd_table()
+                }
+                (ctypes::SOCK_DGRAM, ctypes::IPPROTO_UDP) | (ctypes::SOCK_DGRAM, 0) => {
+                    Socket::Udp(Mutex::new(UdpSocket::new())).add_to_fd_table()
+                }
+                (_SOCK_STREAM_NONBLOCK, ctypes::IPPROTO_TCP) => {
+                    let tcp_socket = TcpSocket::new();
+                    tcp_socket.set_nonblocking(true);
+                    Socket::Tcp(Mutex::new(tcp_socket)).add_to_fd_table()
+                }
+                _ => Err(LinuxError::EINVAL),
+            },
+            ctypes::AF_UNIX => match (socktype, protocol) {
+                (ctypes::SOCK_STREAM, 0) => {
+                    Socket::Unix(Mutex::new(UnixSocket::new(UnixSocketType::SockStream)))
+                        .add_to_fd_table()
+                }
+                (ctypes::SOCK_DGRAM, 0) => {
+                    Socket::Unix(Mutex::new(UnixSocket::new(UnixSocketType::SockDgram)))
+                        .add_to_fd_table()
+                }
+                _ => Err(LinuxError::EINVAL),
+            },
+            _ => Err(LinuxError::EAFNOSUPPORT),
         }
     })
 }
