@@ -76,7 +76,7 @@ pub use imp::fs::{
     sys_rmdir, sys_stat, sys_unlink, sys_unlinkat,
 };
 #[cfg(feature = "epoll")]
-pub use imp::io_mpx::{sys_epoll_create, sys_epoll_ctl, sys_epoll_pwait, sys_epoll_wait};
+pub use imp::io_mpx::{sys_epoll_create1, sys_epoll_ctl, sys_epoll_pwait, sys_epoll_wait};
 #[cfg(feature = "poll")]
 pub use imp::io_mpx::{sys_poll, sys_ppoll};
 #[cfg(feature = "select")]

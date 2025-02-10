@@ -1899,6 +1899,7 @@ dependencies = [
  "axerrno",
  "axfs_vfs",
  "axio",
+ "bitmaps",
  "cfg-if",
  "crate_interface",
  "flatten_objects",

@@ -21,7 +21,7 @@ use axsync::Mutex;
 use ruxfdtable::{FileLike, RuxStat};
 use ruxhal::time::current_time;
 
-use crate::ctypes;
+use crate::{ctypes, imp::fs::flags_to_options};
 use ruxtask::fs::{add_file_like, get_file_like};
 
 pub struct EpollInstance {
@@ -160,14 +160,14 @@ impl FileLike for EpollInstance {
 /// Creates a new epoll instance.
 ///
 /// It returns a file descriptor referring to the new epoll instance.
-pub fn sys_epoll_create(size: c_int) -> c_int {
-    debug!("sys_epoll_create <= {}", size);
+pub fn sys_epoll_create1(flags: c_int) -> c_int {
+    debug!("sys_epoll_create <= {}", flags);
     syscall_body!(sys_epoll_create, {
-        if size < 0 {
+        if flags < 0 {
             return Err(LinuxError::EINVAL);
         }
         let epoll_instance = EpollInstance::new(0);
-        add_file_like(Arc::new(epoll_instance))
+        add_file_like(Arc::new(epoll_instance), flags_to_options(flags, 0))
     })
 }
 

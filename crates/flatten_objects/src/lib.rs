@@ -144,6 +144,25 @@ impl<T, const CAP: usize> FlattenObjects<T, CAP> {
         Some(id)
     }
 
+    /// Add an object and assign it a unique ID, but only search for IDs starting from `low_bound`.
+    ///
+    /// Returns the assigned ID if an available slot is found; otherwise, returns `None`.
+    pub fn add_with_low_bound(&mut self, value: T, low_bound: usize) -> Option<usize> {
+        let id = if low_bound == 0 {
+            self.id_bitmap.first_false_index()
+        } else {
+            self.id_bitmap.next_false_index(low_bound - 1)
+        }?;
+        if id < CAP {
+            self.count += 1;
+            self.id_bitmap.set(id, true);
+            self.objects[id].write(value);
+            Some(id)
+        } else {
+            None
+        }
+    }
+
     /// Removes the object with the given ID.
     ///
     /// Returns the object if there is one assigned to the ID. Otherwise,
