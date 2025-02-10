@@ -228,6 +228,10 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[0] as ctypes::clockid_t,
                 args[1] as *mut ctypes::timespec,
             ) as _,
+            SyscallId::CLOCK_GETRES => ruxos_posix_api::sys_clock_getres(
+                args[0] as ctypes::clockid_t,
+                args[1] as *mut ctypes::timespec,
+            ) as _,
             SyscallId::CLOCK_NANOSLEEP => ruxos_posix_api::sys_clock_nanosleep(
                 args[0] as ctypes::clockid_t,
                 args[1] as c_int,

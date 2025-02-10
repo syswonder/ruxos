@@ -61,7 +61,7 @@ pub use imp::task::sys_wait4;
 pub use imp::task::{sys_exit, sys_getpid, sys_getppid, sys_gettid, sys_sched_yield};
 pub use imp::time::{
     sys_clock_gettime, sys_clock_nanosleep, sys_clock_settime, sys_gettimeofday, sys_nanosleep,
-    sys_times,
+    sys_times, sys_clock_getres,
 };
 
 #[cfg(all(feature = "fd", feature = "musl"))]
