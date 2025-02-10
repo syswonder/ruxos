@@ -805,7 +805,6 @@ pub fn sys_getsockopt(
         );
     }
     syscall_body!(sys_getsockopt, {
-        return Ok(0);
         if optval.is_null() {
             return Err(LinuxError::EFAULT);
         }
