@@ -124,6 +124,9 @@ pub enum SyscallId {
     GETPEERNAME = 52,
 
     #[cfg(feature = "net")]
+    SOCKETPAIR = 53,
+
+    #[cfg(feature = "net")]
     SETSOCKOPT = 54,
 
     #[cfg(feature = "net")]

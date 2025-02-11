@@ -238,6 +238,13 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                     as _
             }
             #[cfg(feature = "net")]
+            SyscallId::SOCKETPAIR => ruxos_posix_api::sys_socketpair(
+                args[0] as _,
+                args[1] as _,
+                args[2] as _,
+                core::slice::from_raw_parts_mut(args[3] as *mut c_int, 2),
+            ) as _,
+            #[cfg(feature = "net")]
             SyscallId::BIND => ruxos_posix_api::sys_bind(
                 args[0] as c_int,
                 args[1] as *const ctypes::sockaddr,
