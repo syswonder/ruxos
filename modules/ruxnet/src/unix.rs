@@ -597,8 +597,11 @@ impl UnixSocket {
                     match remote_handle {
                         Some(handle) => {
                             let mut binding = UNIX_TABLE.write();
-                            let remote_status = binding.get_mut(handle).unwrap().lock().get_state();
-                            remote_status == UnixSocketStatus::Closed
+                            if let Some(inner) = binding.get_mut(handle) {
+                                inner.lock().get_state() == UnixSocketStatus::Closed
+                            } else {
+                                true
+                            }
                         }
                         None => {
                             return Err(LinuxError::ENOTCONN);
