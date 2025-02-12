@@ -77,7 +77,14 @@ pub fn close_file_like(fd: i32) -> LinuxResult {
     let binding_task = current();
     let mut binding_fs = binding_task.fs.lock();
     let fd_table = &mut binding_fs.as_mut().unwrap().fd_table;
-    fd_table.remove(fd as usize)?;
+
+    let file = fd_table.remove(fd as usize).ok_or(LinuxError::EBADF)?;
+
+    // drop the binding_fs to release the lock, as some operations
+    // when closing a file may need to reschedule the task.(e.g. SOCKET_CLOSE)
+    drop(binding_fs);
+    drop(file);
+
     Ok(())
 }
 
@@ -337,12 +344,11 @@ impl FdTable {
     /// Removes a file descriptor from the table.
     ///
     /// This will clear the `FD_CLOEXEC` flag for the file descriptor and remove the file object.
-    pub fn remove(&mut self, fd: usize) -> LinuxResult {
+    pub fn remove(&mut self, fd: usize) -> Option<Arc<dyn FileLike>> {
         self.cloexec_bitmap.set(fd, false);
         // use map_or because RAII. the Arc should be released here. You should not use the return Arc
-        self.files
-            .remove(fd)
-            .map_or(Err(LinuxError::EBADF), |_| Ok(()))
+        let closing_file = self.files.remove(fd);
+        closing_file
     }
 
     /// Closes all file descriptors with the `FD_CLOEXEC` flag set.

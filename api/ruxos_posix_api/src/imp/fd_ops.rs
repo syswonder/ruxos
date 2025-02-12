@@ -12,7 +12,7 @@ use core::ffi::c_int;
 use axerrno::LinuxError;
 use ruxfdtable::{RuxStat, RuxTimeSpec};
 use ruxtask::current;
-pub use ruxtask::fs::{add_file_like, close_file_like, get_file_like, RUX_FILE_LIMIT};
+pub use ruxtask::fs::{close_file_like, get_file_like, RUX_FILE_LIMIT};
 
 use crate::ctypes;
 
