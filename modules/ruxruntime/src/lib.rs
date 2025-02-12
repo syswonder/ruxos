@@ -448,6 +448,7 @@ fn init_interrupt() {
             {
                 Signal::signal(signum as i8, false);
                 Signal::sigaction(signum as u8, None, None);
+                Signal::signal_handle(signum as u8);
             }
         }
     }

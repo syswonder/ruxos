@@ -72,6 +72,7 @@ impl TrapHandler for SignalHandler {
             {
                 Signal::signal(signum as i8, false);
                 Signal::sigaction(signum as u8, None, None);
+                Signal::signal_handle(signum as u8);
             }
         }
     }
@@ -153,6 +154,20 @@ impl Signal {
             unsafe {
                 current_signal_if.sigaction[signum as usize] = *s;
             }
+        }
+    }
+    /// Handle signal for the current process
+    /// signum: Signal number to handle
+    /// When the registered sa_handler for the specified signal is None, logs an error message
+    pub fn signal_handle(signum: u8) {
+        let binding = current();
+        let mut current_signal_if = binding.signal_if.lock();
+        if let Some(handler) = current_signal_if.sigaction[signum as usize].sa_handler {
+            unsafe {
+                handler(signum as c_int);
+            }
+        } else {
+            error!("no sigaction !");
         }
     }
     /// Set timer
