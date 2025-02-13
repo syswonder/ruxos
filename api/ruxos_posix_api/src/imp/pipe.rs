@@ -243,6 +243,7 @@ pub fn sys_pipe(fds: &mut [c_int]) -> c_int {
         fds[0] = read_fd as c_int;
         fds[1] = write_fd as c_int;
 
+        debug!("[sys_pipe] create pipe with read fd {read_fd} and write fd {write_fd}");
         Ok(0)
     })
 }

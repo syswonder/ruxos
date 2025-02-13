@@ -940,3 +940,36 @@ pub unsafe fn sys_sendmsg(
         Ok(ret)
     })
 }
+
+/// Creates a pair of Unix domain sockets and stores the file descriptors in `sv`
+///
+/// This system call only works for UNIX domain sockets (AF_UNIX), which are used for communication
+/// between processes on the same machine. It cannot be used for communication over the network (e.g.,
+/// using AF_INET or AF_INET6). The created socket pair is anonymous, meaning it does not require
+/// a pathname, and is typically used for communication between related processes (e.g., parent-child processes)
+pub fn sys_socketpair(domain: c_int, socktype: c_int, protocol: c_int, sv: &mut [c_int]) -> c_int {
+    info!("sys_socketpair <= domain: {domain}, socktype: {socktype}, protocol: {protocol}, sv pointer: {:#x}", sv.as_ptr() as usize);
+    syscall_body!(sys_socketpair, {
+        let (domain, socktype, _protocol) = (domain as u32, socktype as u32, protocol as u32);
+        let fdflags = flags_to_options((socktype & ctypes::SOCK_CLOEXEC) as c_int, 0);
+        let socktype = socktype & !ctypes::SOCK_CLOEXEC & !ctypes::SOCK_NONBLOCK;
+        match domain {
+            ctypes::AF_UNIX => {
+                let (sk1, sk2) = match socktype {
+                    ctypes::SOCK_STREAM => {
+                        UnixSocket::create_socket_pair(UnixSocketType::SockStream)?
+                    }
+                    ctypes::SOCK_DGRAM => {
+                        UnixSocket::create_socket_pair(UnixSocketType::SockDgram)?
+                    }
+                    _ => return Err(LinuxError::EAFNOSUPPORT),
+                };
+                sv[0] = Socket::Unix(Mutex::new(sk1)).add_to_fd_table(fdflags.clone())?;
+                sv[1] = Socket::Unix(Mutex::new(sk2)).add_to_fd_table(fdflags)?;
+                info!("create sv[0] {}, sv[1] {}", sv[0], sv[1]);
+                Ok(0)
+            }
+            _ => return Err(LinuxError::EAFNOSUPPORT),
+        }
+    })
+}
