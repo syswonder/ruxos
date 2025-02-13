@@ -184,6 +184,7 @@ all: build
 
 # prebuild option to be overriden in `$(PREBUILD)`
 define run_prebuild
+	git submodule update --init
 endef
 
 # prebuild makefile might override some variables by their own
@@ -235,6 +236,7 @@ debug_no_attach: build
 	$(call run_qemu_debug)
 
 clippy:
+	$(call run_prebuild)
 ifeq ($(origin ARCH), command line)
 	$(call cargo_clippy,--target $(TARGET))
 else
