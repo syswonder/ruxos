@@ -89,6 +89,8 @@ pub enum SyscallId {
     #[cfg(feature = "net")]
     SOCKET = 198,
     #[cfg(feature = "net")]
+    SOCKETPAIR = 199,
+    #[cfg(feature = "net")]
     BIND = 200,
     #[cfg(feature = "net")]
     LISTEN = 201,

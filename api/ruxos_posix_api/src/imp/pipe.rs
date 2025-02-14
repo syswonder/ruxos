@@ -9,6 +9,7 @@
 
 use alloc::sync::{Arc, Weak};
 use core::ffi::c_int;
+use ruxfs::fops;
 
 use axerrno::{LinuxError, LinuxResult};
 use axio::PollState;
@@ -233,14 +234,16 @@ pub fn sys_pipe(fds: &mut [c_int]) -> c_int {
         }
 
         let (read_end, write_end) = Pipe::new();
-        let read_fd = add_file_like(Arc::new(read_end))?;
-        let write_fd = add_file_like(Arc::new(write_end)).inspect_err(|_| {
-            close_file_like(read_fd).ok();
-        })?;
+        let read_fd = add_file_like(Arc::new(read_end), fops::OpenOptions::new())?;
+        let write_fd =
+            add_file_like(Arc::new(write_end), fops::OpenOptions::new()).inspect_err(|_| {
+                close_file_like(read_fd).ok();
+            })?;
 
         fds[0] = read_fd as c_int;
         fds[1] = write_fd as c_int;
 
+        debug!("[sys_pipe] create pipe with read fd {read_fd} and write fd {write_fd}");
         Ok(0)
     })
 }

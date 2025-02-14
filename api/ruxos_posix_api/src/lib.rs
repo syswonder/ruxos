@@ -76,7 +76,7 @@ pub use imp::fs::{
     sys_rmdir, sys_stat, sys_unlink, sys_unlinkat,
 };
 #[cfg(feature = "epoll")]
-pub use imp::io_mpx::{sys_epoll_create, sys_epoll_ctl, sys_epoll_pwait, sys_epoll_wait};
+pub use imp::io_mpx::{sys_epoll_create1, sys_epoll_ctl, sys_epoll_pwait, sys_epoll_wait};
 #[cfg(feature = "poll")]
 pub use imp::io_mpx::{sys_poll, sys_ppoll};
 #[cfg(feature = "select")]
@@ -89,7 +89,7 @@ pub use imp::mmap::{sys_madvise, sys_mmap, sys_mprotect, sys_mremap, sys_msync, 
 pub use imp::net::{
     sys_accept, sys_bind, sys_connect, sys_freeaddrinfo, sys_getaddrinfo, sys_getpeername,
     sys_getsockname, sys_getsockopt, sys_listen, sys_recv, sys_recvfrom, sys_send, sys_sendmsg,
-    sys_sendto, sys_setsockopt, sys_shutdown, sys_socket,
+    sys_sendto, sys_setsockopt, sys_shutdown, sys_socket, sys_socketpair,
 };
 #[cfg(feature = "pipe")]
 pub use imp::pipe::{sys_pipe, sys_pipe2};
