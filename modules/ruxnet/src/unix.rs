@@ -26,6 +26,7 @@ use ruxfs::root::{create_file, lookup};
 use ruxtask::yield_now;
 
 const SOCK_ADDR_UN_PATH_LEN: usize = 108;
+const MAX_DGRAM_QUEUE_SIZE: usize = 1024; 
 static ANONYMOUS_ADDR_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 /// rust form for ctype sockaddr_un
@@ -589,47 +590,59 @@ impl UnixSocket {
     /// Polls the socket's readiness for reading or writing.
     pub fn poll(&self) -> LinuxResult<PollState> {
         let now_state = self.get_state();
-        match now_state {
-            UnixSocketStatus::Connecting => self.poll_connect(),
-            UnixSocketStatus::Connected => {
-                let remote_is_close = {
-                    let remote_handle = self.get_peerhandle();
-                    match remote_handle {
-                        Some(handle) => {
-                            let mut binding = UNIX_TABLE.write();
-                            if let Some(inner) = binding.get_mut(handle) {
-                                inner.lock().get_state() == UnixSocketStatus::Closed
-                            } else {
-                                true
+        match self.get_sockettype() {
+            UnixSocketType::SockStream =>  match now_state {
+                UnixSocketStatus::Connecting => self.poll_connect(),
+                UnixSocketStatus::Connected => {
+                    let remote_is_close = {
+                        let remote_handle = self.get_peerhandle();
+                        match remote_handle {
+                            Some(handle) => {
+                                let mut binding = UNIX_TABLE.write();
+                                if let Some(inner) = binding.get_mut(handle) {
+                                    inner.lock().get_state() == UnixSocketStatus::Closed
+                                } else {
+                                    true
+                                }
+                            }
+                            None => {
+                                return Err(LinuxError::ENOTCONN);
                             }
                         }
-                        None => {
-                            return Err(LinuxError::ENOTCONN);
-                        }
-                    }
-                };
-                let mut binding = UNIX_TABLE.write();
-                let mut socket_inner = binding.get_mut(self.get_sockethandle()).unwrap().lock();
-                Ok(PollState {
-                    readable: !socket_inner.may_recv() || socket_inner.can_recv(),
-                    writable: !socket_inner.may_send() || socket_inner.can_send(),
-                    pollhup: remote_is_close,
-                })
-            }
-            UnixSocketStatus::Listening => {
-                let mut binding = UNIX_TABLE.write();
-                let mut socket_inner = binding.get_mut(self.get_sockethandle()).unwrap().lock();
-                Ok(PollState {
-                    readable: socket_inner.can_accept(),
+                    };
+                    let mut binding = UNIX_TABLE.write();
+                    let mut socket_inner = binding.get_mut(self.get_sockethandle()).unwrap().lock();
+                    Ok(PollState {
+                        readable: !socket_inner.may_recv() || socket_inner.can_recv(),
+                        writable: !socket_inner.may_send() || socket_inner.can_send(),
+                        pollhup: remote_is_close,
+                    })
+                }
+                UnixSocketStatus::Listening => {
+                    let mut binding = UNIX_TABLE.write();
+                    let mut socket_inner = binding.get_mut(self.get_sockethandle()).unwrap().lock();
+                    Ok(PollState {
+                        readable: socket_inner.can_accept(),
+                        writable: false,
+                        pollhup: false,
+                    })
+                }
+                _ => Ok(PollState {
+                    readable: false,
                     writable: false,
                     pollhup: false,
-                })
+                }),
             }
-            _ => Ok(PollState {
-                readable: false,
-                writable: false,
-                pollhup: false,
-            }),
+            UnixSocketType::SockDgram => {
+                let mut binding = UNIX_TABLE.read();
+                let mut socket_inner = binding.get(self.get_sockethandle()).unwrap().lock();
+            
+                let readable = socket_inner.datagram_queue.len() > 0;
+                let writable = true;
+                let pollhup = false;
+                Ok(PollState { readable, writable, pollhup })
+            }
+            UnixSocketType::SockSeqpacket => unimplemented!(),
         }
     }
 
@@ -796,7 +809,7 @@ impl UnixSocket {
                 }
 
                 // check if the target socket is connected
-                if target_inner.datagram_queue.len() >= target_inner.buf.capacity() {
+                if target_inner.datagram_queue.len() >= MAX_DGRAM_QUEUE_SIZE {
                     return Err(LinuxError::EAGAIN);
                 }
                 target_inner
