@@ -50,9 +50,42 @@ register_structs! {
         /// Interrupt Configuration Registers.
         (0x0c00 => ICFGR: [ReadWrite<u32>; 0x40]),
         (0x0d00 => _reserved_1),
-        /// Software Generated Interrupt Register.
-        (0x0f00 => SGIR: WriteOnly<u32>),
-        (0x0f04 => @END),
+        /// Non-secure Access Control Registers (GICD_NSACR)
+        (0x0E00 => NSACR: [ReadWrite<u32>; 64]),
+        (0x0F00 => _reserved_2),
+        /// Interrupt Routing Registers (GICD_IROUTER)
+        (0x6100 => IROUTER: [ReadWrite<u64>; 987]),
+        (0x7FD8 => _reserved_3),
+        /// Chip Status Register (GICD_CHIPSR)
+        (0xC000 => CHIPSR: ReadWrite<u32>),
+        /// Default Chip Register (GICD_DCHIPR)
+        (0xC004 => DCHIPR: ReadWrite<u32>),
+        /// Chip Registers (GICD_CHIPRn)
+        (0xC008 => CHIPR: [ReadWrite<u64>; 0x10]),
+        (0xC088 => _reserved_4),
+        /// Interrupt Class Registers (GICD_ICLARn)
+        (0xE008 => ICLAR: [ReadWrite<u32>; 0x40]),
+        /// Interrupt Error Registers (GICD_IERRRn)
+        (0xE108 => IERRR: [ReadWrite<u32>; 0x1e]),
+        (0xE180 => _reserved_5),
+        /// Configuration ID Register (GICD_CFGID)
+        (0xF000 => CFGID: ReadOnly<u64>),
+        (0xF008 => _reserved_6),
+        /// Peripheral ID Registers
+        (0xFFD0 => PIDR4: ReadOnly<u32>),
+        (0xFFD4 => PIDR5: ReadOnly<u32>),
+        (0xFFD8 => PIDR6: ReadOnly<u32>),
+        (0xFFDC => PIDR7: ReadOnly<u32>),
+        (0xFFE0 => PIDR0: ReadOnly<u32>),
+        (0xFFE4 => PIDR1: ReadOnly<u32>),
+        (0xFFE8 => PIDR2: ReadOnly<u32>),
+        (0xFFEC => PIDR3: ReadOnly<u32>),
+        /// Component ID Registers
+        (0xFFF0 => CIDR0: ReadOnly<u32>),
+        (0xFFF4 => CIDR1: ReadOnly<u32>),
+        (0xFFF8 => CIDR2: ReadOnly<u32>),
+        (0xFFFC => CIDR3: ReadOnly<u32>),
+        (0x10000 => @END),
     }
 }
 
@@ -83,6 +116,66 @@ register_structs! {
         (0x1004 => @END),
     }
 }
+
+register_structs! {
+    /// GIC Redistributor Registers
+    #[allow(non_snake_case)]
+    GicRedistributorRegs {
+        /// Redistributor Control Register (GICR_CTLR)
+        (0x0000 => CTLR: ReadWrite<u32>),
+        /// Redistributor Implementation Identification Register (GICR_IIDR)
+        (0x0004 => IIDR: ReadOnly<u32>),
+        /// Interrupt Controller Type Register (GICR_TYPER)
+        (0x0008 => TYPER: ReadOnly<u64>),
+        (0x0010 => _reserved_0),
+        /// Power Management Control Register (GICR_WAKER)
+        (0x0014 => WAKER: ReadWrite<u32>),
+        (0x0018 => _reserved_1),
+        /// Function Control Register (GICR_FCTLR)
+        (0x0020 => FCTLR: ReadWrite<u32>),
+        /// Power Register (GICR_PWRR)
+        (0x0024 => PWRR: ReadWrite<u32>),
+        /// Secure-only Class Register (GICR_CLASS)
+        (0x0028 => CLASS: ReadWrite<u32>),
+        (0x002C => _reserved_2),
+        /// Set LPI Register (GICR_SETLPIR)
+        (0x0040 => SETLPIR: WriteOnly<u64>),
+        /// Clear LPI Register (GICR_CLRLPIR)
+        (0x0048 => CLRLPIR: WriteOnly<u64>),
+        (0x0050 => _reserved_3),
+        /// Redistributor Properties Base Address Register (GICR_PROPBASER)
+        (0x0070 => PROPBASER: ReadWrite<u64>),
+        /// Redistributor LPI Pending Table Base Address Register (GICR_PENDBASER)
+        (0x0078 => PENDBASER: ReadWrite<u64>),
+        (0x0080 => _reserved_4),
+        /// Invalidate LPI Register (GICR_INVLPIR)
+        (0x00A0 => INVLPIR: WriteOnly<u64>),
+        (0x00A8 => _reserved_5),
+        /// Invalidate All LPI Register (GICR_INVALLR)
+        (0x00B0 => INVALLR: WriteOnly<u64>),
+        (0x00B8 => _reserved_6),
+        /// Redistributor Synchronization Register (GICR_SYNCR)
+        (0x00C0 => SYNCR: ReadOnly<u32>),
+        (0x00C4 => _reserved_7),
+        /// *eripheral ID Registers (GICR_PIDRn)
+        (0xFFD0 => PIDR4: ReadOnly<u32>),
+        (0xFFD4 => PIDR5: ReadOnly<u32>),
+        (0xFFD8 => PIDR6: ReadOnly<u32>),
+        (0xFFDC => PIDR7: ReadOnly<u32>),
+        (0xFFE0 => PIDR0: ReadOnly<u32>),
+        (0xFFE4 => PIDR1: ReadOnly<u32>),
+        (0xFFE8 => PIDR2: ReadOnly<u32>),
+        (0xFFEC => PIDR3: ReadOnly<u32>),
+        /// Component ID Registers (GICR_CIDRn)
+        (0xFFF0 => CIDR0: ReadOnly<u32>),
+        (0xFFF4 => CIDR1: ReadOnly<u32>),
+        (0xFFF8 => CIDR2: ReadOnly<u32>),
+        (0xFFFC => CIDR3: ReadOnly<u32>),
+        (0x10000 => @END),
+    }
+}
+
+
 
 /// The GIC distributor.
 ///
@@ -228,10 +321,6 @@ impl GicCpuInterface {
         }
     }
 
-    const fn regs(&self) -> &GicCpuInterfaceRegs {
-        unsafe { self.base.as_ref() }
-    }
-
     /// Returns the interrupt ID of the highest priority pending interrupt for
     /// the CPU interface. (read GICC_IAR)
     ///
@@ -239,7 +328,7 @@ impl GicCpuInterface {
     /// or the CPU interface are disabled, or there is no pending interrupt on
     /// the CPU interface.
     pub fn iar(&self) -> u32 {
-        self.regs().IAR.get()
+        read_sysreg!(icc_iar1_el1) as u32
     }
 
     /// Informs the CPU interface that it has completed the processing of the
@@ -247,7 +336,7 @@ impl GicCpuInterface {
     ///
     /// The value written must be the value returns from [`Self::iar`].
     pub fn eoi(&self, iar: u32) {
-        self.regs().EOIR.set(iar);
+        write_sysreg!(icc_eoir1_el1, iar as u64);
     }
 
     /// handles the signaled interrupt.
@@ -279,8 +368,13 @@ impl GicCpuInterface {
     /// This function should be called only once.
     pub fn init(&self) {
         // enable GIC0
-        self.regs().CTLR.set(0x1);
+        let _ctlr = read_sysreg!(icc_ctlr_el1);
+        write_sysreg!(icc_ctlr_el1, 0x1);
         // unmask interrupts at all priority levels
-        self.regs().PMR.set(0xff);
+        let _pmr = read_sysreg!(icc_pmr_el1);
+        write_sysreg!(icc_pmr_el1, 0xff);
+        // Enable group 1 irq
+        let _igrpen = read_sysreg!(icc_igrpen1_el1);
+        write_sysreg!(icc_igrpen1_el1, 0x1);
     }
 }

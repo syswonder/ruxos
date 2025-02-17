@@ -22,6 +22,7 @@ fp_simd = ["ruxhal/fp_simd", "ruxfs/fp_simd"]
 
 # Interrupts
 irq = ["ruxhal/irq", "ruxruntime/irq", "ruxtask?/irq"]
+gic-v3 = ["ruxhal/gic-v3"]
 
 # Real time clock
 rtc = ["ruxhal/rtc", "ruxruntime/rtc"]

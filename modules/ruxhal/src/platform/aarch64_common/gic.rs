@@ -8,6 +8,9 @@
  */
 
 use crate::{irq::IrqHandler, mem::phys_to_virt};
+#[cfg(feature = "gic-v3")]
+use arm_gic::gic_v3::{GicCpuInterface, GicDistributor};
+#[cfg(not(feature = "gic-v3"))]
 use arm_gic::gic_v2::{GicCpuInterface, GicDistributor};
 use arm_gic::{translate_irq, InterruptType};
 use memory_addr::PhysAddr;
@@ -63,9 +66,14 @@ pub fn dispatch_irq(_unused: usize) {
 
 /// Initializes GICD, GICC on the primary CPU.
 pub(crate) fn init_primary() {
+    #[cfg(feature = "gic-v3")]
+    info!("Initialize GICv3...");
+    #[cfg(not(feature = "gic-v3"))]
     info!("Initialize GICv2...");
     GICD.lock().init();
+    info!("lhw debug after GICD init");
     GICC.init();
+    info!("lhw debug after GICC init");
 }
 
 /// Initializes GICC on secondary CPUs.
