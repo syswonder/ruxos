@@ -77,6 +77,22 @@ pub unsafe fn sys_clock_settime(_clk: ctypes::clockid_t, ts: *const ctypes::time
     })
 }
 
+/// Return the resolution (precision) of a specified clock `clk_id`.
+pub unsafe fn sys_clock_getres(clk_id: ctypes::clockid_t, ts: *mut ctypes::timespec) -> c_int {
+    syscall_body!(sys_clock_getres, {
+        if ts.is_null() {
+            return Err(LinuxError::EFAULT);
+        }
+        debug!(
+            "sys_clock_getres: clk_id={}, resolution={} s + {} ns",
+            clk_id,
+            (*ts).tv_sec,
+            (*ts).tv_nsec
+        );
+        Ok(0)
+    })
+}
+
 /// Sleep until some nanoseconds
 ///
 /// TODO: should be woken by signals, and set errno
