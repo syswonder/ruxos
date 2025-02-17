@@ -61,3 +61,11 @@ pub fn sys_setpgid(pid: pid_t, pgid: pid_t) -> c_int {
     debug!("sys_setpgid: pid {}, pgid {} ", pid, pgid);
     syscall_body!(sys_setpgid, Ok(0))
 }
+
+/// set process sid (empty implementation)
+///
+/// TODO:
+pub fn sys_setsid() -> c_int {
+    warn!("sys_setsid: do nothing",);
+    syscall_body!(sys_setsid, Ok(0))
+}
