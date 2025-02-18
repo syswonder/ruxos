@@ -634,8 +634,8 @@ impl UnixSocket {
                 }),
             },
             UnixSocketType::SockDgram => {
-                let mut binding = UNIX_TABLE.read();
-                let mut socket_inner = binding.get(self.get_sockethandle()).unwrap().lock();
+                let binding = UNIX_TABLE.read();
+                let socket_inner = binding.get(self.get_sockethandle()).unwrap().lock();
 
                 let readable = socket_inner.datagram_queue.len() > 0;
                 let writable = true;
