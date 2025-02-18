@@ -206,7 +206,22 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     //let debug_res = lhw_debug();
     //info!("lhw debug res {}",debug_res);
 
-    //info!("Initialize platform devices...");
+    #[cfg(feature = "alloc")]
+    {
+        let pl011_base = ruxdtb::get_pl011_base();
+        info!("pl011_base: 0x{:x}", pl011_base);
+        let pl031_base = ruxdtb::get_pl031_base();
+        info!("pl031_base: 0x{:x}", pl031_base);
+        #[cfg(feature = "irq")]
+        {
+            let gicd_base = ruxdtb::get_gicv2_base();
+            info!("gicd_base: 0x{:x}", gicd_base);
+        }
+        ruxdtb::get_psci();
+    }
+
+    info!("Initialize platform devices...");
+  
     ruxhal::platform_init();
 
     #[cfg(feature = "rand")]
@@ -298,6 +313,14 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     unsafe {
         let mut argc: c_int = 0;
         init_cmdline(&mut argc);
+        #[cfg(feature = "alloc")]
+        {
+            let (mem_base, mem_size) = ruxdtb::get_memory_info();
+            info!(
+                "memory base: 0x{:x}, memory size: 0x{:x}",
+                mem_base, mem_size
+            );
+        }
         #[cfg(not(feature = "musl"))]
         main(argc, argv);
         #[cfg(feature = "musl")]
