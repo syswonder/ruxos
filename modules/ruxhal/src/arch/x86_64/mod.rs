@@ -11,7 +11,6 @@ mod context;
 mod gdt;
 mod idt;
 
-#[cfg(target_os = "none")]
 mod trap;
 
 use core::arch::asm;
@@ -22,6 +21,20 @@ use x86_64::instructions::interrupts;
 
 #[cfg(feature = "musl")]
 use x86_64::registers::model_specific::EferFlags;
+
+#[cfg(feature = "irq")]
+extern crate alloc;
+
+#[cfg(all(feature = "irq", feature = "paging", feature = "smp"))]
+use {
+    crate::{
+        cpu::this_cpu_id,
+        platform::irq::{end_of_interrupt, send_ipi_excluding_self},
+    },
+    alloc::vec::Vec,
+    ruxconfig::SMP,
+    spinlock::SpinRaw,
+};
 
 pub use self::context::{ExtendedState, FxsaveArea, TaskContext, TrapFrame};
 pub use self::gdt::GdtStruct;
@@ -88,6 +101,27 @@ pub unsafe fn write_page_table_root(root_paddr: PhysAddr) {
     }
 }
 
+/// data structure for communicating between IPI for the TLB flushing.
+///
+/// `Vaddr` means flushing the TLB entry that maps the given virtual address.
+/// `All` means flushing the entire TLB.
+#[cfg(all(feature = "irq", feature = "paging", feature = "smp"))]
+enum FlushTlbIpiData {
+    Vaddr(usize),
+    All,
+}
+
+// const variable for every CPU's flushing addresses.
+#[cfg(all(feature = "irq", feature = "paging", feature = "smp"))]
+#[allow(clippy::declare_interior_mutable_const)]
+const FLUSH_QUEUES: SpinRaw<Vec<FlushTlbIpiData>> = SpinRaw::new(Vec::new());
+/// static variable for communicating between IPI for the TLB flushing.
+#[cfg(all(feature = "irq", feature = "paging", feature = "smp"))]
+static FLUSHING_ADDRESSES: [SpinRaw<Vec<FlushTlbIpiData>>; SMP] = [FLUSH_QUEUES; SMP];
+/// const irq vector for TLB flushing IPI.
+#[cfg(all(feature = "irq", feature = "paging", feature = "smp"))]
+pub const INVALID_TLB_VECTOR: u8 = 0xff; // SPURIOUS APIC INTERRUPT
+
 /// Flushes the TLB.
 ///
 /// If `vaddr` is [`None`], flushes the entire TLB. Otherwise, flushes the TLB
@@ -95,10 +129,65 @@ pub unsafe fn write_page_table_root(root_paddr: PhysAddr) {
 #[inline]
 pub fn flush_tlb(vaddr: Option<VirtAddr>) {
     if let Some(vaddr) = vaddr {
-        unsafe { tlb::flush(vaddr.into()) }
+        trace!("flush TLB entry: {:#x}", vaddr);
+        unsafe {
+            tlb::flush(vaddr.into());
+        }
+        #[cfg(all(feature = "irq", feature = "paging", feature = "smp"))]
+        {
+            for (i, flushing_vec) in FLUSHING_ADDRESSES.iter().enumerate().take(SMP) {
+                if i != this_cpu_id() {
+                    flushing_vec
+                        .lock()
+                        .push(FlushTlbIpiData::Vaddr(vaddr.into()));
+                }
+            }
+            unsafe {
+                send_ipi_excluding_self(INVALID_TLB_VECTOR);
+            }
+        }
     } else {
-        unsafe { tlb::flush_all() }
+        trace!("flush all TLB entry");
+        unsafe {
+            tlb::flush_all();
+        }
+        #[cfg(all(feature = "irq", feature = "paging", feature = "smp"))]
+        {
+            for (i, flushing_vec) in FLUSHING_ADDRESSES.iter().enumerate().take(SMP) {
+                if i != this_cpu_id() {
+                    let mut flushing_addresses = flushing_vec.lock();
+                    // clear all flushing addresses to avoid flushing again in IPI handler.
+                    flushing_addresses.clear();
+                    flushing_addresses.push(FlushTlbIpiData::All);
+                }
+            }
+            unsafe {
+                send_ipi_excluding_self(INVALID_TLB_VECTOR);
+            }
+        }
     }
+}
+
+/// Flushes the TLB in IPI handler.
+///
+/// This function is called in IPI handler, and it flushes the TLB entry that maps the given virtual address.
+#[inline]
+#[cfg(all(feature = "irq", feature = "paging", feature = "smp"))]
+pub(crate) fn flush_tlb_ipi_handler() {
+    let guard = kernel_guard::NoPreempt::new();
+    unsafe {
+        let mut flushing_addresses = FLUSHING_ADDRESSES[this_cpu_id()].lock();
+        while let Some(flush_data) = flushing_addresses.pop() {
+            if let FlushTlbIpiData::Vaddr(vaddr) = flush_data {
+                tlb::flush(vaddr);
+            } else {
+                tlb::flush_all();
+                flushing_addresses.clear();
+            }
+        }
+        end_of_interrupt();
+    }
+    drop(guard);
 }
 
 /// Reads the thread pointer of the current CPU.

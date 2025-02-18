@@ -11,10 +11,10 @@ use crate::ctypes;
 use axerrno::LinuxError;
 use core::ffi::{c_int, c_void};
 
-#[cfg(feature = "fd")]
-use crate::imp::fd_ops::get_file_like;
 #[cfg(not(feature = "fd"))]
 use axio::prelude::*;
+#[cfg(feature = "fd")]
+use ruxtask::fs::get_file_like;
 
 /// Read data from the file indicated by `fd`.
 ///
@@ -28,7 +28,7 @@ pub fn sys_read(fd: c_int, buf: *mut c_void, count: usize) -> ctypes::ssize_t {
         let dst = unsafe { core::slice::from_raw_parts_mut(buf as *mut u8, count) };
         #[cfg(feature = "fd")]
         {
-            Ok(get_file_like(fd)?.read(dst)? as ctypes::ssize_t)
+            Ok(get_file_like(fd as _)?.read(dst)? as ctypes::ssize_t)
         }
         #[cfg(not(feature = "fd"))]
         match fd {

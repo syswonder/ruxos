@@ -7,18 +7,22 @@ env:
 
 jobs:
   clippy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
     steps:
     - uses: actions/checkout@v3
+      with:
+        submodules: recursive
     - uses: actions-rs/toolchain@v1
       with:
         profile: minimal
         toolchain: ${{ env.rust-toolchain }}
         components: rust-src, clippy, rustfmt
+    - name: Install gcc multilib
+      run: sudo apt update && sudo apt install -y gcc-multilib
     - name: Clippy for the default target
-      run: make clippy
+      run: make clippy        
     - name: Clippy for x86_64
       run: make clippy ARCH=x86_64
     - name: Clippy for riscv64
@@ -33,10 +37,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-22.04]
         arch: [x86_64, riscv64, aarch64]
     steps:
     - uses: actions/checkout@v3
+      with:
+        submodules: recursive
     - uses: actions-rs/toolchain@v1
       with:
         profile: minimal
@@ -45,8 +51,16 @@ jobs:
     - uses: actions-rs/install@v0.1
       with:
         crate: cargo-binutils
-        version: latest
+        version: 0.3.5
         use-tool-cache: true
+    - name: Install gcc multilib
+      run: sudo apt update && sudo apt install -y gcc-multilib
+    # musl toolchain is also needed in non-musl apps
+    # because we need to build opensbi under riscv64
+    - uses: ./.github/workflows/actions/setup-musl
+      with:
+        arch: ${{ matrix.arch }}
+
     - name: Build display/basic_painting
       run: make ARCH=${{ matrix.arch }} A=apps/display/basic_painting
     - name: Build display/draw_map
@@ -54,9 +68,6 @@ jobs:
     - name: Build fs/shell
       run: make ARCH=${{ matrix.arch }} A=apps/fs/shell
 
-    - uses: ./.github/workflows/actions/setup-musl
-      with:
-        arch: ${{ matrix.arch }}
     - name: Build c/helloworld
       run: make ARCH=${{ matrix.arch }} A=apps/c/helloworld
     - name: Build c/memtest
@@ -83,7 +94,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-22.04]
         arch: [x86_64]
     steps:
     - uses: actions/checkout@v3

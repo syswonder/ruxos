@@ -20,7 +20,7 @@ What happens when "make A=apps/net/httpserver ARCH=aarch64 LOG=info NET=y SMP=1 
     - After checking axstd and arceos-api, the following three features were found:
         - `paging = ["ruxruntime/paging"]`
         - `multitask = ["ruxruntime/multitask", "ruxtask/multitask", "axsync/multitask"]`
-        - `net = ["ruxruntime/net", "dep:axnet"]`
+        - `net = ["ruxruntime/net", "dep:ruxnet"]`
 
         This involves modules such as ruxruntime, ruxtask, axsync, etc., and conditional compilation is performed on these modules.
     - The above are some modules required for compilation, next we will look at how to perform conditional compilation. The `cargo.mk` file describes how to use the cargo method for conditional compilation, with the following build parameters:

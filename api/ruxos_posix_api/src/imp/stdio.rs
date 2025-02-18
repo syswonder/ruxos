@@ -19,41 +19,37 @@ use {
     core::sync::atomic::{AtomicBool, Ordering},
 };
 
-fn console_read_bytes() -> Option<u8> {
-    let ret = ruxhal::console::getchar().map(|c| if c == b'\r' { b'\n' } else { c });
-    if let Some(c) = ret {
-        let _ = console_write_bytes(&[c]);
-    }
-    ret
-}
-
-fn console_write_bytes(buf: &[u8]) -> AxResult<usize> {
-    ruxhal::console::write_bytes(buf);
-    Ok(buf.len())
-}
-
 struct StdinRaw;
 struct StdoutRaw;
+
+#[cfg(feature = "alloc")]
+extern crate alloc;
+#[cfg(feature = "alloc")]
+static STDIO_TTY_NAME: lazy_init::LazyInit<alloc::string::String> = lazy_init::LazyInit::new();
+#[cfg(not(feature = "alloc"))]
+static STDIO_TTY_NAME: &str = "dummy";
+
+fn get_stdio_tty_name() -> &'static str {
+    #[cfg(feature = "alloc")]
+    {
+        if !STDIO_TTY_NAME.is_init() {
+            let name = ruxhal::get_all_device_names().first().unwrap().clone();
+            STDIO_TTY_NAME.init_by(name);
+        }
+    }
+    &STDIO_TTY_NAME
+}
 
 impl Read for StdinRaw {
     // Non-blocking read, returns number of bytes read.
     fn read(&mut self, buf: &mut [u8]) -> AxResult<usize> {
-        let mut read_len = 0;
-        while read_len < buf.len() {
-            if let Some(c) = console_read_bytes() {
-                buf[read_len] = c;
-                read_len += 1;
-            } else {
-                break;
-            }
-        }
-        Ok(read_len)
+        Ok(ruxhal::tty_read(buf, get_stdio_tty_name()))
     }
 }
 
 impl Write for StdoutRaw {
     fn write(&mut self, buf: &[u8]) -> AxResult<usize> {
-        console_write_bytes(buf)
+        Ok(ruxhal::tty_write(buf, get_stdio_tty_name()))
     }
 
     fn flush(&mut self) -> AxResult {
@@ -133,7 +129,7 @@ pub fn stdout() -> Stdout {
 }
 
 #[cfg(feature = "fd")]
-impl super::fd_ops::FileLike for Stdin {
+impl ruxfdtable::FileLike for Stdin {
     fn read(&self, buf: &mut [u8]) -> LinuxResult<usize> {
         match self.nonblocking.load(Ordering::Relaxed) {
             true => Ok(self.read_nonblocked(buf)?),
@@ -145,14 +141,18 @@ impl super::fd_ops::FileLike for Stdin {
         Err(LinuxError::EPERM)
     }
 
-    fn stat(&self) -> LinuxResult<crate::ctypes::stat> {
+    fn flush(&self) -> LinuxResult {
+        Ok(())
+    }
+
+    fn stat(&self) -> LinuxResult<ruxfdtable::RuxStat> {
         let st_mode = 0o20000 | 0o440u32; // S_IFCHR | r--r-----
-        Ok(crate::ctypes::stat {
+        Ok(ruxfdtable::RuxStat::from(crate::ctypes::stat {
             st_ino: 1,
             st_nlink: 1,
             st_mode,
             ..Default::default()
-        })
+        }))
     }
 
     fn into_any(self: Arc<Self>) -> Arc<dyn core::any::Any + Send + Sync> {
@@ -163,6 +163,7 @@ impl super::fd_ops::FileLike for Stdin {
         Ok(PollState {
             readable: true,
             writable: true,
+            pollhup: false,
         })
     }
 
@@ -173,7 +174,7 @@ impl super::fd_ops::FileLike for Stdin {
 }
 
 #[cfg(feature = "fd")]
-impl super::fd_ops::FileLike for Stdout {
+impl ruxfdtable::FileLike for Stdout {
     fn read(&self, _buf: &mut [u8]) -> LinuxResult<usize> {
         Err(LinuxError::EPERM)
     }
@@ -182,14 +183,18 @@ impl super::fd_ops::FileLike for Stdout {
         Ok(self.inner.lock().write(buf)?)
     }
 
-    fn stat(&self) -> LinuxResult<crate::ctypes::stat> {
+    fn flush(&self) -> LinuxResult {
+        Ok(())
+    }
+
+    fn stat(&self) -> LinuxResult<ruxfdtable::RuxStat> {
         let st_mode = 0o20000 | 0o220u32; // S_IFCHR | -w--w----
-        Ok(crate::ctypes::stat {
+        Ok(ruxfdtable::RuxStat::from(crate::ctypes::stat {
             st_ino: 1,
             st_nlink: 1,
             st_mode,
             ..Default::default()
-        })
+        }))
     }
 
     fn into_any(self: Arc<Self>) -> Arc<dyn core::any::Any + Send + Sync> {
@@ -200,6 +205,7 @@ impl super::fd_ops::FileLike for Stdout {
         Ok(PollState {
             readable: true,
             writable: true,
+            pollhup: false,
         })
     }
 

@@ -8,6 +8,9 @@
  */
 
 use crate::{irq::IrqHandler, mem::phys_to_virt};
+#[cfg(feature = "gic-v3")]
+use arm_gic::gic_v3::{GicCpuInterface, GicDistributor};
+#[cfg(not(feature = "gic-v3"))]
 use arm_gic::gic_v2::{GicCpuInterface, GicDistributor};
 use arm_gic::{translate_irq, InterruptType};
 use memory_addr::PhysAddr;
@@ -19,8 +22,14 @@ pub const MAX_IRQ_COUNT: usize = 1024;
 /// The timer IRQ number.
 pub const TIMER_IRQ_NUM: usize = translate_irq(14, InterruptType::PPI).unwrap();
 
+#[cfg(not(feature = "virtio_console"))]
 /// The UART IRQ number.
 pub const UART_IRQ_NUM: usize = translate_irq(ruxconfig::UART_IRQ, InterruptType::SPI).unwrap();
+
+#[cfg(all(feature = "irq", feature = "virtio_console"))]
+/// The Virtio-console IRQ number
+pub const VIRTIO_CONSOLE_IRQ_NUM: usize =
+    translate_irq(ruxconfig::VIRTIO_CONSOLE_IRQ, InterruptType::SPI).unwrap();
 
 const GICD_BASE: PhysAddr = PhysAddr::from(ruxconfig::GICD_PADDR);
 const GICC_BASE: PhysAddr = PhysAddr::from(ruxconfig::GICC_PADDR);
@@ -57,9 +66,14 @@ pub fn dispatch_irq(_unused: usize) {
 
 /// Initializes GICD, GICC on the primary CPU.
 pub(crate) fn init_primary() {
+    #[cfg(feature = "gic-v3")]
+    info!("Initialize GICv3...");
+    #[cfg(not(feature = "gic-v3"))]
     info!("Initialize GICv2...");
     GICD.lock().init();
+    info!("lhw debug after GICD init");
     GICC.init();
+    info!("lhw debug after GICC init");
 }
 
 /// Initializes GICC on secondary CPUs.

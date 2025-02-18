@@ -96,21 +96,25 @@ fn handle_sync_exception(tf: &mut TrapFrame) {
 
                 // this cause is coded like linux.
                 let cause: PageFaultCause = match esr.read_as_enum(ESR_EL1::EC) {
-                    Some(ESR_EL1::EC::Value::DataAbortCurrentEL) => {
-                        if iss & 0x40 != 0 {
-                            PageFaultCause::WRITE // = store
-                        } else {
-                            PageFaultCause::READ //  = load
-                        }
+                    Some(ESR_EL1::EC::Value::DataAbortCurrentEL) if iss & 0x40 != 0 => {
+                        PageFaultCause::WRITE // = store
+                    }
+                    Some(ESR_EL1::EC::Value::DataAbortCurrentEL) if iss & 0x40 == 0 => {
+                        PageFaultCause::READ //  = load
                     }
                     _ => {
                         PageFaultCause::INSTRUCTION // = instruction fetch
                     }
                 };
-                debug!("mapped vaddr in Page Fault: {:X} {:?}", vaddr, cause);
-                if crate::trap::handle_page_fault(vaddr, cause) {
+                let is_mapped = crate::trap::handle_page_fault(vaddr, cause);
+
+                if is_mapped {
                     return;
                 }
+                error!(
+                    "Page fault @ {:#x}, cause={:?}, is_mapped={}",
+                    tf.elr, cause, is_mapped
+                );
             }
             panic!(
                 "EL1 Page Fault @ {:#x}, FAR={:#x}, ISS={:#x}:\n{:#x?}",
@@ -129,6 +133,10 @@ fn handle_sync_exception(tf: &mut TrapFrame) {
                 esr.read(ESR_EL1::ISS),
             );
         }
+    }
+    #[cfg(feature = "signal")]
+    {
+        crate::trap::handle_signal();
     }
 }
 

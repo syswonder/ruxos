@@ -10,153 +10,30 @@
 use alloc::sync::Arc;
 use core::ffi::{c_char, c_int, c_long, c_void};
 
-use axerrno::{LinuxError, LinuxResult};
-use axio::{PollState, SeekFrom};
-use axsync::Mutex;
+use axerrno::LinuxError;
+use axio::SeekFrom;
+use ruxfdtable::FileLike;
 use ruxfs::{
     api::set_current_dir,
     fops::{DirEntry, OpenOptions},
 };
 
-use super::fd_ops::{get_file_like, FileLike};
 use crate::{ctypes, utils::char_ptr_to_str};
 use alloc::vec::Vec;
+use ruxtask::fs::{get_file_like, Directory, File};
 
-pub struct File {
-    pub(crate) inner: Mutex<ruxfs::fops::File>,
-}
+use super::stdio::{stdin, stdout};
 
-impl File {
-    pub(crate) fn new(inner: ruxfs::fops::File) -> Self {
-        Self {
-            inner: Mutex::new(inner),
-        }
-    }
+struct InitFsImpl;
 
-    pub(crate) fn add_to_fd_table(self) -> LinuxResult<c_int> {
-        super::fd_ops::add_file_like(Arc::new(self))
-    }
-
-    pub(crate) fn from_fd(fd: c_int) -> LinuxResult<Arc<Self>> {
-        let f = super::fd_ops::get_file_like(fd)?;
-        f.into_any()
-            .downcast::<Self>()
-            .map_err(|_| LinuxError::EINVAL)
-    }
-}
-
-impl FileLike for File {
-    fn read(&self, buf: &mut [u8]) -> LinuxResult<usize> {
-        Ok(self.inner.lock().read(buf)?)
-    }
-
-    fn write(&self, buf: &[u8]) -> LinuxResult<usize> {
-        Ok(self.inner.lock().write(buf)?)
-    }
-
-    fn stat(&self) -> LinuxResult<ctypes::stat> {
-        let metadata = self.inner.lock().get_attr()?;
-        let ty = metadata.file_type() as u8;
-        let perm = metadata.perm().bits() as u32;
-        let st_mode = ((ty as u32) << 12) | perm;
-
-        // Inode of files, for musl dynamic linker.
-        // WARN: there will be collision for files with the same size.
-        // TODO: implement real inode.
-        let st_ino = metadata.size() + st_mode as u64;
-
-        Ok(ctypes::stat {
-            st_ino,
-            st_nlink: 1,
-            st_mode,
-            st_uid: 1000,
-            st_gid: 1000,
-            st_size: metadata.size() as _,
-            st_blocks: metadata.blocks() as _,
-            st_blksize: 512,
-            ..Default::default()
-        })
-    }
-
-    fn into_any(self: Arc<Self>) -> Arc<dyn core::any::Any + Send + Sync> {
-        self
-    }
-
-    fn poll(&self) -> LinuxResult<PollState> {
-        Ok(PollState {
-            readable: true,
-            writable: true,
-        })
-    }
-
-    fn set_nonblocking(&self, _nonblocking: bool) -> LinuxResult {
-        Ok(())
-    }
-}
-
-pub struct Directory {
-    inner: Mutex<ruxfs::fops::Directory>,
-}
-
-impl Directory {
-    fn new(inner: ruxfs::fops::Directory) -> Self {
-        Self {
-            inner: Mutex::new(inner),
-        }
-    }
-
-    fn add_to_fd_table(self) -> LinuxResult<c_int> {
-        super::fd_ops::add_file_like(Arc::new(self))
-    }
-
-    fn from_fd(fd: c_int) -> LinuxResult<Arc<Self>> {
-        let f = super::fd_ops::get_file_like(fd)?;
-        f.into_any()
-            .downcast::<Self>()
-            .map_err(|_| LinuxError::EINVAL)
-    }
-}
-
-impl FileLike for Directory {
-    fn read(&self, _buf: &mut [u8]) -> LinuxResult<usize> {
-        Err(LinuxError::EACCES)
-    }
-
-    fn write(&self, _buf: &[u8]) -> LinuxResult<usize> {
-        Err(LinuxError::EACCES)
-    }
-
-    fn stat(&self) -> LinuxResult<ctypes::stat> {
-        let metadata = self.inner.lock().get_attr()?;
-        let ty = metadata.file_type() as u8;
-        let perm = metadata.perm().bits() as u32;
-        let st_mode = ((ty as u32) << 12) | perm;
-        Ok(ctypes::stat {
-            st_ino: 1,
-            st_nlink: 1,
-            st_mode,
-            st_uid: 1000,
-            st_gid: 1000,
-            st_size: metadata.size() as _,
-            st_blocks: metadata.blocks() as _,
-            st_blksize: 512,
-            ..Default::default()
-        })
-    }
-
-    fn into_any(self: Arc<Self>) -> Arc<dyn core::any::Any + Send + Sync> {
-        self
-    }
-
-    fn poll(&self) -> LinuxResult<PollState> {
-        Ok(PollState {
-            readable: true,
-            writable: true,
-        })
-    }
-
-    fn set_nonblocking(&self, _nonblocking: bool) -> LinuxResult {
-        Ok(())
+#[crate_interface::impl_interface]
+impl ruxtask::fs::InitFs for InitFsImpl {
+    fn add_stdios_to_fd_table(fs: &mut ruxtask::fs::FileSystem) {
+        debug!("init initial process's fd_table");
+        let fd_table = &mut fs.fd_table;
+        fd_table.add_at(0, Arc::new(stdin()) as _).unwrap(); // stdin
+        fd_table.add_at(1, Arc::new(stdout()) as _).unwrap(); // stdout
+        fd_table.add_at(2, Arc::new(stdout()) as _).unwrap(); // stderr
     }
 }
 
@@ -214,7 +91,7 @@ pub fn sys_openat(fd: usize, path: *const c_char, flags: c_int, mode: ctypes::mo
             } else {
                 Directory::from_fd(fd)?
                     .inner
-                    .lock()
+                    .write()
                     .open_dir_at(path?, &options)?
             };
             Directory::new(dir).add_to_fd_table()
@@ -224,7 +101,7 @@ pub fn sys_openat(fd: usize, path: *const c_char, flags: c_int, mode: ctypes::mo
             } else {
                 Directory::from_fd(fd)?
                     .inner
-                    .lock()
+                    .write()
                     .open_file_at(path?, &options)?
             };
             File::new(file).add_to_fd_table()
@@ -247,7 +124,7 @@ pub fn sys_pread64(
             return Err(LinuxError::EFAULT);
         }
         let dst = unsafe { core::slice::from_raw_parts_mut(buf as *mut u8, count) };
-        let size = File::from_fd(fd)?.inner.lock().read_at(pos as u64, dst)?;
+        let size = File::from_fd(fd)?.inner.write().read_at(pos as u64, dst)?;
         Ok(size as ctypes::ssize_t)
     })
 }
@@ -267,7 +144,7 @@ pub fn sys_pwrite64(
             return Err(LinuxError::EFAULT);
         }
         let src = unsafe { core::slice::from_raw_parts_mut(buf as *mut u8, count) };
-        let size = File::from_fd(fd)?.inner.lock().write_at(pos as u64, src)?;
+        let size = File::from_fd(fd)?.inner.write().write_at(pos as u64, src)?;
         Ok(size as ctypes::ssize_t)
     })
 }
@@ -284,7 +161,7 @@ pub fn sys_lseek(fd: c_int, offset: ctypes::off_t, whence: c_int) -> ctypes::off
             2 => SeekFrom::End(offset as _),
             _ => return Err(LinuxError::EINVAL),
         };
-        let off = File::from_fd(fd)?.inner.lock().seek(pos)?;
+        let off = File::from_fd(fd)?.inner.write().seek(pos)?;
         Ok(off)
     })
 }
@@ -318,7 +195,7 @@ pub unsafe fn sys_stat(path: *const c_char, buf: *mut core::ffi::c_void) -> c_in
         let mut options = OpenOptions::new();
         options.read(true);
         let file = ruxfs::fops::File::open(path?, &options)?;
-        let st = File::new(file).stat()?;
+        let st: ctypes::stat = File::new(file).stat()?.into();
 
         #[cfg(not(feature = "musl"))]
         {
@@ -356,7 +233,7 @@ pub fn sys_fstat(fd: c_int, kst: *mut core::ffi::c_void) -> c_int {
         #[cfg(not(feature = "musl"))]
         {
             let buf = kst as *mut ctypes::stat;
-            unsafe { *buf = get_file_like(fd)?.stat()? };
+            unsafe { *buf = get_file_like(fd)?.stat()?.into() };
             Ok(0)
         }
         #[cfg(feature = "musl")]
@@ -617,7 +494,7 @@ pub unsafe fn sys_getdents64(
         let mut my_dirent: Vec<DirEntry> =
             (0..expect_entries).map(|_| DirEntry::default()).collect();
 
-        let n = dir.inner.lock().read_dir(&mut my_dirent)?;
+        let n = dir.inner.write().read_dir(&mut my_dirent)?;
 
         for (i, entry) in my_dirent.iter().enumerate() {
             let linux_dirent = LinuxDirent64 {

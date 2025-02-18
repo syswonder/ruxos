@@ -157,8 +157,10 @@ pub unsafe extern "C" fn sys_getrandom(buf: *mut c_void, buflen: size_t, flags: 
         if buf.is_null() {
             return Err(LinuxError::EFAULT);
         }
+
+        // BUG: flags are implemented wrongly, flags should be checks bit by bit
         if flags != 0 {
-            return Err(LinuxError::EINVAL);
+            warn!("flags are not implemented yet, flags: {}, ignored", flags);
         }
         // fill the buffer 8 bytes at a time first, then fill the remaining bytes
         let buflen_mod = buflen % (core::mem::size_of::<i64>() / core::mem::size_of::<u8>());

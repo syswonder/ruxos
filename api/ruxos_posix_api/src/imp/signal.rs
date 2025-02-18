@@ -14,7 +14,7 @@ use crate::ctypes::k_sigaction;
 use crate::ctypes::{self, pid_t};
 
 use axerrno::LinuxError;
-use ruxruntime::{rx_sigaction, Signal};
+use ruxtask::{rx_sigaction, Signal};
 
 /// Set signal handler
 pub fn sys_sigaction(
@@ -86,8 +86,20 @@ pub unsafe fn sys_sigaltstack(
     syscall_body!(sys_sigaltstack, Ok(0))
 }
 
-/// TODO: send a signal to a process
-pub unsafe fn sys_kill(pid: pid_t, sig: c_int) -> c_int {
+/// send a signal to a process
+pub fn sys_kill(pid: pid_t, sig: c_int) -> c_int {
     debug!("sys_kill <= pid {} sig {}", pid, sig);
-    syscall_body!(sys_kill, Ok(0))
+    syscall_body!(sys_kill, {
+        match Signal::signal(sig as _, true) {
+            None => Err(LinuxError::EINVAL),
+            Some(_) => Ok(0),
+        }
+    })
+}
+
+/// send a signal to a thread
+/// TODO: send to the specified thread.
+pub fn sys_tkill(tid: pid_t, sig: c_int) -> c_int {
+    debug!("sys_tkill <= tid {} sig {}", tid, sig);
+    sys_kill(tid, sig)
 }

@@ -8,8 +8,14 @@ family = "riscv64-qemu-virt"
 # Base address of the whole physical memory.
 phys-memory-base = "0x8000_0000"
 # Size of the whole physical memory.
+# Size of the whole physical memory.
 # phys-memory-size = "0x800_0000"     # 128M
+# phys-memory-size = "0x4000_0000"     # 1G
 phys-memory-size = "0x8000_0000"     # 2G
+# phys-memory-size = "0xc000_0000"     # 3G
+# phys-memory-size = "0x1_0000_0000"     # 4G
+# phys-memory-size = "0x1_8000_0000"     # 6G
+# phys-memory-size = "0x2_0000_0000"     # 8G
 # Base physical address of the kernel image.
 kernel-base-paddr = "0x8020_0000"
 # Base virtual address of the kernel image.
@@ -51,5 +57,13 @@ pci-ranges = [
     ["0x4_0000_0000", "0x4_0000_0000"],   # 64-but MMIO space
 ]
 
+# Virtio console
+virtio-console-paddr = "0xFFFFFFFF"
+# Virtio console irq
+virtio-console-irq = "0"
+
 # Timer interrupt frequency in Hz.
 timer-frequency = "10_000_000"      # 10MHz
+
+# Pipe channel bufer size.
+pipe-buffer-size = "0x10000"

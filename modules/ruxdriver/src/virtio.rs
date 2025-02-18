@@ -7,16 +7,22 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use core::marker::PhantomData;
-use core::ptr::NonNull;
-
-use axalloc::global_allocator;
-use cfg_if::cfg_if;
-use driver_common::{BaseDriverOps, DevResult, DeviceType};
-use driver_virtio::{BufferDirection, PhysAddr, VirtIoHal};
-use ruxhal::mem::{direct_virt_to_phys, phys_to_virt, virt_to_phys};
+//! A driver for VirtIO devices.
 
 use crate::{drivers::DriverProbe, AxDeviceEnum};
+use cfg_if::cfg_if;
+use core::marker::PhantomData;
+use driver_common::{BaseDriverOps, DevResult, DeviceType};
+#[cfg(bus = "mmio")]
+use ruxhal::mem::phys_to_virt;
+#[cfg(any(
+    feature = "virtio-net",
+    feature = "virtio-blk",
+    feature = "virtio-gpu",
+    feature = "virtio-9p",
+    feature = "pci"
+))]
+use ruxhal::virtio::virtio_hal::VirtIoHalImpl;
 
 cfg_if! {
     if #[cfg(bus = "pci")] {
@@ -29,16 +35,21 @@ cfg_if! {
 
 /// A trait for VirtIO device meta information.
 pub trait VirtIoDevMeta {
+    /// The device type of the VirtIO device.
     const DEVICE_TYPE: DeviceType;
 
+    /// The device type of the VirtIO device.
     type Device: BaseDriverOps;
+    /// The driver for the VirtIO device.
     type Driver = VirtIoDriver<Self>;
 
+    /// Try to create a new instance of the VirtIO device.
     fn try_new(transport: VirtIoTransport) -> DevResult<AxDeviceEnum>;
 }
 
 cfg_if! {
     if #[cfg(net_dev = "virtio-net")] {
+        /// A VirtIO network device.
         pub struct VirtIoNet;
 
         impl VirtIoDevMeta for VirtIoNet {
@@ -54,6 +65,7 @@ cfg_if! {
 
 cfg_if! {
     if #[cfg(block_dev = "virtio-blk")] {
+        /// A VirtIO block device.
         pub struct VirtIoBlk;
 
         impl VirtIoDevMeta for VirtIoBlk {
@@ -69,6 +81,7 @@ cfg_if! {
 
 cfg_if! {
     if #[cfg(display_dev = "virtio-gpu")] {
+        /// A VirtIO GPU device.
         pub struct VirtIoGpu;
 
         impl VirtIoDevMeta for VirtIoGpu {
@@ -84,6 +97,7 @@ cfg_if! {
 
 cfg_if! {
     if #[cfg(_9p_dev = "virtio-9p")] {
+        /// A VirtIO 9P device.
         pub struct VirtIo9p;
 
         impl VirtIoDevMeta for VirtIo9p {
@@ -97,7 +111,7 @@ cfg_if! {
     }
 }
 
-/// A common driver for all VirtIO devices that implements [`DriverProbe`].
+/// A common driver for all VirtIO devices that implements DriverProbe.
 pub struct VirtIoDriver<D: VirtIoDevMeta + ?Sized>(PhantomData<D>);
 
 impl<D: VirtIoDevMeta> DriverProbe for VirtIoDriver<D> {
@@ -160,38 +174,4 @@ impl<D: VirtIoDevMeta> DriverProbe for VirtIoDriver<D> {
         }
         None
     }
-}
-
-pub struct VirtIoHalImpl;
-
-unsafe impl VirtIoHal for VirtIoHalImpl {
-    fn dma_alloc(pages: usize, _direction: BufferDirection) -> (PhysAddr, NonNull<u8>) {
-        let vaddr = if let Ok(vaddr) = global_allocator().alloc_pages(pages, 0x1000) {
-            vaddr
-        } else {
-            return (0, NonNull::dangling());
-        };
-        let paddr = direct_virt_to_phys(vaddr.into());
-        let ptr = NonNull::new(vaddr as _).unwrap();
-        (paddr.as_usize(), ptr)
-    }
-
-    unsafe fn dma_dealloc(_paddr: PhysAddr, vaddr: NonNull<u8>, pages: usize) -> i32 {
-        global_allocator().dealloc_pages(vaddr.as_ptr() as usize, pages);
-        0
-    }
-
-    #[inline]
-    unsafe fn mmio_phys_to_virt(paddr: PhysAddr, _size: usize) -> NonNull<u8> {
-        NonNull::new(phys_to_virt(paddr.into()).as_mut_ptr()).unwrap()
-    }
-
-    #[inline]
-    unsafe fn share(buffer: NonNull<[u8]>, _direction: BufferDirection) -> PhysAddr {
-        let vaddr = buffer.as_ptr() as *mut u8 as usize;
-        virt_to_phys(vaddr.into()).into()
-    }
-
-    #[inline]
-    unsafe fn unshare(_paddr: PhysAddr, _buffer: NonNull<[u8]>, _direction: BufferDirection) {}
 }

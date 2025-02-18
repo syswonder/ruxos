@@ -1,9 +1,12 @@
 # RuxOS
 
-[![CI](https://github.com/syswonder/ruxos/actions/workflows/build.yml/badge.svg?branch=main)](https://github.com/syswonder/ruxos/actions/workflows/build.yml)
-[![CI](https://github.com/syswonder/ruxos/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/syswonder/ruxos/actions/workflows/test.yml)
-
-An experimental modular operating system (or unikernel) written in Rust.
+<p align="center">
+    <img src="doc/figures/ruxos-logo0.svg" alt="RuxOS-logo" width="500"><br>
+    A unikernel operating system written in Rust.<br/>
+    <a href="https://github.com/syswonder/ruxos/actions/workflows/build.yml"><img src="https://github.com/syswonder/ruxos/actions/workflows/build.yml/badge.svg?branch=main" alt="Build CI" style="max-width: 100%;"></a>
+    <a href="https://github.com/syswonder/ruxos/actions/workflows/test.yml"><img src="https://github.com/syswonder/ruxos/actions/workflows/test.yml/badge.svg?branch=main" alt="Test CI" style="max-width: 100%;"></a>
+    <br/>
+</p>
 
 RuxOS was inspired by [Unikraft](https://github.com/unikraft/unikraft) and [ArceOS](https://github.com/rcore-os/arceos)
 
@@ -34,16 +37,16 @@ Example applications can be found in the [apps/](apps/) directory. All applicati
 * [ruxconfig](modules/ruxconfig/): Platform constants and kernel parameters, such as physical memory base, kernel load addresses, stack size, etc.
 * [axlog](modules/axlog/): Multi-level formatted logging.
 
-The currently supported applications (Rust), as well as their dependent modules and features, are shown in the following table:
+The currently supported applications and programming languages, as well as their dependent modules and features, are shown in the following table:
 
-### Rust
+### Rust applications
 
 | App | Extra modules | Enabled features | Description |
 |-|-|-|-|
 | [display](apps/display/) | axalloc, ruxdisplay | alloc, paging, display | Graphic/GUI test |
 | [shell](apps/fs/shell/) | axalloc, ruxdriver, ruxfs | alloc, paging, fs | A simple shell that responds to filesystem operations |
 
-### C
+### C applications
 
 | App | Enabled features | Description |
 |-|-|-|
@@ -60,13 +63,24 @@ The currently supported applications (Rust), as well as their dependent modules 
 | [pipe](apps/c/pthread/pipe/) | alloc, paging, multitask, pipe | A test for pipe API |
 | [sleep](apps/c/pthread/sleep/) | alloc, paging, multitask, irq | Thread sleeping test |
 | [tsd](apps/c/pthread/tsd/) | alloc, paging, multitask, irq | A test for pthread-key related API |
-| [libc-bench](apps/c/libc-bench/) | alloc, multitask, fs, musl | A standard libc test for musl libc integration |
-| [iperf](apps/c/iperf/) | alloc, paging, net, fs, blkfs, select, fp_simd | A network performance test tool |
-| [redis](apps/c/redis/) | alloc, paging, fp_simd, irq, multitask, fs, blkfs, net, pipe, epoll, poll, virtio-9p, rtc | A Redis server on Ruxos |
-| [sqlite3](apps/c/sqlite3/) | alloc, paging, fs, fp_simd, blkfs | A simple test for Sqlite3 API |
-| [cpp](apps/c/cpp/) | alloc, paging, irq, multitask, fs, random-hw | C++ benchmark |
 | [dl](apps/c/dl/) | paging, alloc, irq, musl, multitask, fs, pipe, poll, rtc, signal, virtio-9p | An example for dynamically loading apps |
+| [libc-bench](apps/c/libc-bench/) | alloc, multitask, fs, musl | A standard libc test for musl libc integration |
+| [sqlite3](apps/c/sqlite3/) | alloc, paging, fs, fp_simd, blkfs | A simple test for Sqlite3 API |
+| [iperf](https://github.com/syswonder/rux-iperf) | alloc, paging, net, fs, blkfs, select, fp_simd | A network performance test tool |
+| [redis](https://github.com/syswonder/rux-redis) | alloc, paging, fp_simd, irq, multitask, fs, blkfs, net, pipe, epoll, poll, virtio-9p, rtc | Redis server on Ruxos |
+| [cpp](apps/c/cpp/) | alloc, paging, irq, multitask, fs, random-hw | C++ benchmark |
+| [nginx](https://github.com/syswonder/rux-nginx) | alloc, paging, fp_simd, irq, multitask, fs, blkfs, net, pipe, epoll, poll, select, rtc, signal | Run Nginx as web server |
+| [wamr](https://github.com/syswonder/rux-wamr) | alloc, paging, fp_simd, irq, multitask, fs, virtio-9p, signal, smp | Wasm runtime |
 
+### Programming languages
+
+| Language | Description |
+|- | - |
+| C | Run C apps by standard musl libc supported by ruxmusl. Evaluated by libc-bench. |
+| C++ | Run C++ apps by c++ static library provided by musl libc. Passed c++ benchmark. Evaluated by c++ benchmark. |
+| [Perl](https://github.com/syswonder/rux-perl) | Run Perl standard library by musl libc. Evaluated by Perl benchmark. |
+| [Python](https://github.com/syswonder/rux-python3) | Run Python apps by dynamically loading Python modules. Evaluated by Python benchmark. |
+| Rust | Run Rust standard library by modifying Rust std source. Evaluated by Rust tests. |
 
 ## Build & Run
 
@@ -196,6 +210,10 @@ make PLATFORM=aarch64-raspi4 A=apps/fs/shell FEATURES=driver-bcm2835-sdhci
 # Build Redis for the bare-metal x86_64 platform, and use the ixgbe and ramdisk driver
 make PLATFORM=x86_64-pc-oslab A=apps/c/redis FEATURES=driver-ixgbe,driver-ramdisk SMP=4
 ```
+
+## RuxGo
+
+A convient tool to run RuxOS applications by concise command. See [RuxGo-Book](https://ruxgo.syswonder.org/) for more information.
 
 ## Design
 

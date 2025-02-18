@@ -7,15 +7,16 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use alloc::sync::Arc;
+use alloc::sync::{Arc, Weak};
 use core::ffi::c_int;
 
 use axerrno::{LinuxError, LinuxResult};
 use axio::PollState;
 use axsync::Mutex;
+use ruxfdtable::{FileLike, RuxStat};
 
-use super::fd_ops::{add_file_like, close_file_like, FileLike};
 use crate::{ctypes, sys_fcntl};
+use ruxtask::fs::{add_file_like, close_file_like};
 
 #[derive(Copy, Clone, PartialEq)]
 enum RingBufferStatus {
@@ -24,7 +25,7 @@ enum RingBufferStatus {
     Normal,
 }
 
-const RING_BUFFER_SIZE: usize = 256;
+const RING_BUFFER_SIZE: usize = ruxconfig::PIPE_BUFFER_SIZE;
 
 pub struct PipeRingBuffer {
     arr: [u8; RING_BUFFER_SIZE],
@@ -86,6 +87,8 @@ impl PipeRingBuffer {
 pub struct Pipe {
     readable: bool,
     buffer: Arc<Mutex<PipeRingBuffer>>,
+    // to find the write end when the read end is closed
+    _write_end_closed: Option<Weak<Mutex<PipeRingBuffer>>>,
 }
 
 impl Pipe {
@@ -94,10 +97,12 @@ impl Pipe {
         let read_end = Pipe {
             readable: true,
             buffer: buffer.clone(),
+            _write_end_closed: None,
         };
         let write_end = Pipe {
             readable: false,
-            buffer,
+            buffer: buffer.clone(),
+            _write_end_closed: Some(Arc::downgrade(&buffer)),
         };
         (read_end, write_end)
     }
@@ -111,7 +116,8 @@ impl Pipe {
     }
 
     pub fn write_end_close(&self) -> bool {
-        Arc::strong_count(&self.buffer) == 1
+        let write_end_count = Arc::weak_count(&self.buffer);
+        write_end_count == 0
     }
 }
 
@@ -181,9 +187,13 @@ impl FileLike for Pipe {
         }
     }
 
-    fn stat(&self) -> LinuxResult<ctypes::stat> {
+    fn flush(&self) -> LinuxResult {
+        Ok(())
+    }
+
+    fn stat(&self) -> LinuxResult<RuxStat> {
         let st_mode = 0o10000 | 0o600u32; // S_IFIFO | rw-------
-        Ok(ctypes::stat {
+        Ok(RuxStat::from(ctypes::stat {
             st_ino: 1,
             st_nlink: 1,
             st_mode,
@@ -191,7 +201,7 @@ impl FileLike for Pipe {
             st_gid: 1000,
             st_blksize: 4096,
             ..Default::default()
-        })
+        }))
     }
 
     fn into_any(self: Arc<Self>) -> Arc<dyn core::any::Any + Send + Sync> {
@@ -203,6 +213,7 @@ impl FileLike for Pipe {
         Ok(PollState {
             readable: self.readable() && buf.available_read() > 0,
             writable: self.writable() && buf.available_write() > 0,
+            pollhup: self.write_end_close(),
         })
     }
 

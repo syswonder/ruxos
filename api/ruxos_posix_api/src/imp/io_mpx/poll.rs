@@ -7,10 +7,11 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use crate::{ctypes, imp::fd_ops::get_file_like};
 use axerrno::{LinuxError, LinuxResult};
 use ruxhal::time::current_time;
+use ruxtask::fs::get_file_like;
 
+use crate::ctypes;
 use core::{ffi::c_int, time::Duration};
 
 fn poll_all(fds: &mut [ctypes::pollfd]) -> LinuxResult<usize> {
@@ -24,19 +25,26 @@ fn poll_all(fds: &mut [ctypes::pollfd]) -> LinuxResult<usize> {
             Err(_) => {
                 if (events & ctypes::EPOLLERR as i16) != 0 {
                     *revents |= ctypes::EPOLLERR as i16;
+                    events_num += 1;
                 }
             }
             Ok(state) => {
                 if state.readable && (events & ctypes::EPOLLIN as i16 != 0) {
                     *revents |= ctypes::EPOLLIN as i16;
+                    events_num += 1;
                 }
 
                 if state.writable && (events & ctypes::EPOLLOUT as i16 != 0) {
                     *revents |= ctypes::EPOLLOUT as i16;
+                    events_num += 1;
+                }
+
+                if state.pollhup {
+                    *revents |= ctypes::EPOLLHUP as i16;
+                    events_num += 1;
                 }
             }
         }
-        events_num += 1;
     }
     Ok(events_num)
 }
@@ -69,9 +77,13 @@ pub unsafe fn sys_poll(fds: *mut ctypes::pollfd, nfds: ctypes::nfds_t, timeout: 
         let fds = core::slice::from_raw_parts_mut(fds, nfds as usize);
         let deadline = (!timeout.is_negative())
             .then(|| current_time() + Duration::from_millis(timeout as u64));
+        for pollfd_item in fds.iter_mut() {
+            let revents = &mut pollfd_item.revents;
+            *revents &= 0;
+        }
         loop {
             #[cfg(feature = "net")]
-            axnet::poll_interfaces();
+            ruxnet::poll_interfaces();
             let fds_num = poll_all(fds)?;
             if fds_num > 0 {
                 return Ok(fds_num as c_int);

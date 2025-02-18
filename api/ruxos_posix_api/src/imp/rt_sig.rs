@@ -11,7 +11,10 @@
 
 use axerrno::LinuxError;
 
-use crate::ctypes;
+use crate::{
+    ctypes::{self, k_sigaction},
+    sys_sigaction,
+};
 use core::{
     ffi::c_int,
     sync::atomic::{AtomicUsize, Ordering},
@@ -84,12 +87,55 @@ pub fn sys_rt_sigprocmask(
 }
 
 /// sigaction syscall for A64 musl
-pub fn sys_rt_sigaction(
+///
+/// TODO: if sa is 0, return now action
+pub unsafe fn sys_rt_sigaction(
     sig: c_int,
-    _sa: *const ctypes::sigaction,
-    _old: *mut ctypes::sigaction,
+    sa: *const ctypes::sigaction,
+    old: *mut ctypes::sigaction,
     _sigsetsize: ctypes::size_t,
 ) -> c_int {
-    debug!("sys_rt_sigaction <= sig: {}", sig);
-    syscall_body!(sys_rt_sigaction, Ok(0))
+    debug!(
+        "sys_rt_sigaction <= sig: {} sa {:x} old {:x}",
+        sig, sa as u64, old as u64
+    );
+    syscall_body!(sys_rt_sigaction, {
+        if sa as u64 == 0 && old as u64 == 0 {
+            sys_sigaction(sig as _, None, None);
+            Ok(0)
+        } else if sa as u64 != 0 && old as u64 == 0 {
+            let sa = unsafe { *sa };
+            let sa = k_sigaction::from(sa);
+            sys_sigaction(sig as _, Some(&sa), None);
+            Ok(0)
+        } else if sa as u64 == 0 && old as u64 != 0 {
+            let old = unsafe { *old };
+            let mut old_sa = k_sigaction::from(old);
+            sys_sigaction(sig as _, None, Some(&mut old_sa));
+            Ok(0)
+        } else {
+            let sa = unsafe { *sa };
+            let old = unsafe { *old };
+            let sa = k_sigaction::from(sa);
+            let mut old_sa = k_sigaction::from(old);
+            sys_sigaction(sig as _, Some(&sa), Some(&mut old_sa));
+            Ok(0)
+        }
+    })
+}
+
+impl From<ctypes::sigaction> for k_sigaction {
+    fn from(sa: ctypes::sigaction) -> Self {
+        let mut ret = Self {
+            ..Default::default()
+        };
+        ret.flags = sa.sa_flags as _;
+        let mask = sa.sa_mask.__bits[0]; // only get the first 64 signals
+        ret.mask[0] = mask as _;
+        ret.mask[1] = (mask >> 32) as _;
+
+        ret.handler = unsafe { sa.__sa_handler.sa_handler };
+        ret.restorer = sa.sa_restorer;
+        ret
+    }
 }

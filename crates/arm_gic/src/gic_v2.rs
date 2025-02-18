@@ -13,7 +13,7 @@
 
 use core::ptr::NonNull;
 
-use crate::{TriggerMode, GIC_MAX_IRQ, SPI_RANGE};
+use crate::{TriggerMode, GIC_MAX_IRQ, SPI_RANGE, read_sysreg, write_sysreg};
 use tock_registers::interfaces::{Readable, Writeable};
 use tock_registers::register_structs;
 use tock_registers::registers::{ReadOnly, ReadWrite, WriteOnly};
@@ -218,6 +218,8 @@ impl GicDistributor {
     }
 }
 
+use log::info;
+
 impl GicCpuInterface {
     /// Construct a new GIC CPU interface instance from the base address.
     pub const fn new(base: *mut u8) -> Self {
@@ -277,7 +279,7 @@ impl GicCpuInterface {
     /// This function should be called only once.
     pub fn init(&self) {
         // enable GIC0
-        self.regs().CTLR.set(1);
+        self.regs().CTLR.set(0x1);
         // unmask interrupts at all priority levels
         self.regs().PMR.set(0xff);
     }

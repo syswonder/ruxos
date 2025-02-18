@@ -126,6 +126,9 @@ pub enum SyscallId {
     #[cfg(feature = "net")]
     SETSOCKOPT = 54,
 
+    #[cfg(feature = "net")]
+    GETSOCKOPT = 55,
+
     // TODO: check clone
     #[cfg(feature = "multitask")]
     CLONE = 56,
@@ -222,6 +225,8 @@ pub enum SyscallId {
     CLOCK_SETTIME = 227,
 
     CLOCK_GETTIME = 228,
+
+    CLOCK_NANOSLEEP = 230,
 
     #[cfg(feature = "epoll")]
     EPOLL_WAIT = 232,

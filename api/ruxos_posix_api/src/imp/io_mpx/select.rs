@@ -12,7 +12,8 @@ use core::ffi::{c_int, c_void};
 use axerrno::{LinuxError, LinuxResult};
 use ruxhal::time::current_time;
 
-use crate::{ctypes, imp::fd_ops::get_file_like};
+use crate::ctypes;
+use ruxtask::fs::get_file_like;
 
 const FD_SETSIZE: usize = 1024;
 const BITS_PER_USIZE: usize = usize::BITS as usize;
@@ -99,6 +100,10 @@ impl FdSets {
                             unsafe { set_fd_set(res_write_fds, fd) };
                             res_num += 1;
                         }
+                        if state.pollhup {
+                            unsafe { set_fd_set(res_except_fds, fd) };
+                            res_num += 1;
+                        }
                     }
                     Err(e) => {
                         debug!("    except: {} {:?}", fd, e);
@@ -144,7 +149,7 @@ pub unsafe fn sys_select(
 
         loop {
             #[cfg(feature = "net")]
-            axnet::poll_interfaces();
+            ruxnet::poll_interfaces();
             let res = fd_sets.poll_all(readfds, writefds, exceptfds)?;
             if res > 0 {
                 return Ok(res);

@@ -9,7 +9,7 @@
 
 use riscv::register::satp;
 
-use ruxconfig::{PHYS_VIRT_OFFSET, TASK_STACK_SIZE};
+use ruxconfig::{PHYS_MEMORY_SIZE, PHYS_VIRT_OFFSET, TASK_STACK_SIZE};
 
 #[link_section = ".bss.stack"]
 static mut BOOT_STACK: [u8; TASK_STACK_SIZE] = [0; TASK_STACK_SIZE];
@@ -18,10 +18,18 @@ static mut BOOT_STACK: [u8; TASK_STACK_SIZE] = [0; TASK_STACK_SIZE];
 static mut BOOT_PT_SV39: [u64; 512] = [0; 512];
 
 unsafe fn init_boot_page_table() {
-    // 0x8000_0000..0xc000_0000, VRWX_GAD, 1G block
-    BOOT_PT_SV39[2] = (0x80000 << 10) | 0xef;
-    // 0xffff_ffc0_8000_0000..0xffff_ffc0_c000_0000, VRWX_GAD, 1G block
-    BOOT_PT_SV39[0x102] = (0x80000 << 10) | 0xef;
+    const MEMORY_GBS: usize = PHYS_MEMORY_SIZE.div_ceil(1024 * 1024 * 1024);
+    const PPN_2_OFFSET: u64 = 10 + 9 + 9;
+    // start from 0x8000_0000, first block 0x8000_0000..0xc000_0000
+    // VRWX_GAD, 1G Gigapages
+    for i in 0..MEMORY_GBS {
+        BOOT_PT_SV39[2 + i] = ((2 + i as u64) << PPN_2_OFFSET) | 0xef;
+    }
+    // start from 0xffff_ffc0_8000_0000, first block 0xffff_ffc0_8000_0000..0xffff_ffc0_c000_0000
+    // VRWX_GAD, 1G Gigapages
+    for i in 0..MEMORY_GBS {
+        BOOT_PT_SV39[0x102 + i] = ((2 + i as u64) << PPN_2_OFFSET) | 0xef;
+    }
 }
 
 unsafe fn init_mmu() {

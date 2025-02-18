@@ -135,6 +135,7 @@ impl Drv9pOps {
         let mut request = _9PReq::new(_9PType::Tfsync);
         let mut response_buffer: [u8; _9P_MAX_PSIZE as usize] = [0; _9P_MAX_PSIZE as usize];
         request.write_u32(fid);
+        request.write_u32(0_u32); //0: full data sync; 1: file data only.
         request.finish();
         self.request(&request.buffer, &mut response_buffer)
     }
@@ -779,7 +780,7 @@ impl _9PReq {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct _9PQid {
     ftype: u8,
     version: u32,
@@ -793,6 +794,9 @@ impl _9PQid {
             version: lbytes2u64(&bytes[1..5]) as u32,
             path: lbytes2u64(&bytes[5..13]),
         }
+    }
+    pub fn path(&self) -> u64 {
+        self.path
     }
 }
 
@@ -901,6 +905,10 @@ impl FileAttr {
                 0o10
             }
         }
+    }
+
+    pub fn get_qid(&self) -> _9PQid {
+        self.qid
     }
 
     pub fn get_perm(&self) -> u32 {

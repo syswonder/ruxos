@@ -15,17 +15,21 @@ use core::{
     ops::Bound,
 };
 use memory_addr::PAGE_SIZE_4K;
-use ruxhal::{mem::VirtAddr, paging::pte_update_page};
+use ruxhal::mem::VirtAddr;
+use ruxmm::paging::pte_update_page;
 
 use super::utils::{
     find_free_region, get_mflags_from_usize, get_overlap, release_pages_mapped, shift_mapped_page,
-    snatch_fixed_region, Vma, MEM_MAP, VMA_END, VMA_MAP,
+    snatch_fixed_region, VMA_END,
 };
+use ruxtask::current;
+use ruxtask::vma::Vma;
 
 #[cfg(feature = "fs")]
 use {
     super::utils::{release_pages_swaped, write_into},
     alloc::sync::Arc,
+    ruxtask::vma::FileInfo,
 };
 
 /// Creates a new mapping in the virtual address space of the calling process.
@@ -76,7 +80,8 @@ pub fn sys_mmap(
         };
 
         let mut new = Vma::new(fid, offset, prot, flags);
-        let mut vma_map = VMA_MAP.lock();
+        let binding_task = current();
+        let mut vma_map = binding_task.mm.vma_map.lock();
         let addr_condition = if start == 0 { None } else { Some(start) };
 
         let try_addr = if flags & ctypes::MAP_FIXED != 0 {
@@ -113,7 +118,8 @@ pub fn sys_munmap(start: *mut c_void, len: ctypes::size_t) -> c_int {
             return Err(LinuxError::EINVAL);
         }
 
-        let mut vma_map = VMA_MAP.lock();
+        let binding = current();
+        let mut vma_map = binding.mm.vma_map.lock();
 
         // In order to ensure that munmap can exit directly if it fails, it must
         // ensure that munmap semantics are correct before taking action.
@@ -203,7 +209,8 @@ pub fn sys_mprotect(start: *mut c_void, len: ctypes::size_t, prot: c_int) -> c_i
         let mut post_shrink: Vec<(usize, usize)> = Vec::new();
         let mut post_align_changed: Vec<(usize, usize)> = Vec::new();
 
-        let mut vma_map = VMA_MAP.lock();
+        let binding_task = current();
+        let mut vma_map = binding_task.mm.vma_map.lock();
         let mut node = vma_map.upper_bound_mut(Bound::Included(&start));
         let mut counter = 0; // counter to check if all address in [start, start+len) is mapped.
         while let Some(vma) = node.value_mut() {
@@ -248,7 +255,7 @@ pub fn sys_mprotect(start: *mut c_void, len: ctypes::size_t, prot: c_int) -> c_i
         }
 
         // upate PTEs if mprotect is successful.
-        for (&vaddr, _) in MEM_MAP.lock().range(start..end) {
+        for (&vaddr, _) in current().mm.mem_map.lock().range(start..end) {
             if pte_update_page(
                 VirtAddr::from(vaddr),
                 None,
@@ -297,8 +304,8 @@ pub fn sys_msync(start: *mut c_void, len: ctypes::size_t, flags: c_int) -> c_int
             if !VirtAddr::from(start).is_aligned(PAGE_SIZE_4K) || len == 0 {
                 return Err(LinuxError::EINVAL);
             }
-            for (&vaddr, page_info) in MEM_MAP.lock().range(start..end) {
-                if let Some((file, offset, size)) = page_info {
+            for (&vaddr, page_info) in current().mm.mem_map.lock().range(start..end) {
+                if let Some(FileInfo { file, offset, size }) = &page_info.mapping_file {
                     let src = vaddr as *mut u8;
                     write_into(file, src, *offset as u64, *size);
                 }
@@ -343,7 +350,8 @@ pub fn sys_mremap(
         let mut consistent_vma: Option<Vma> = None; // structure to verify the consistent in the range of [old_start, old_end)
         let mut post_remove: Vec<usize> = Vec::new(); // vma should be removed if success.
 
-        let mut vma_map = VMA_MAP.lock();
+        let binding_task = current();
+        let mut vma_map = binding_task.mm.vma_map.lock();
         // collect and check vma alongside the range of [old_start, old_end).
         let mut node = vma_map.upper_bound_mut(Bound::Included(&old_start));
         while let Some(vma) = node.value_mut() {

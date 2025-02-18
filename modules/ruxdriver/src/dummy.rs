@@ -13,6 +13,7 @@
 #![allow(dead_code)]
 
 use super::prelude::*;
+use alloc::sync::Arc;
 use cfg_if::cfg_if;
 
 cfg_if! {
@@ -34,6 +35,8 @@ cfg_if! {
             fn can_receive(&self) -> bool { false }
             fn rx_queue_size(&self) -> usize { 0 }
             fn tx_queue_size(&self) -> usize { 0 }
+            fn fill_rx_buffers(&mut self, _: &Arc<NetBufPool>) -> DevResult { Err(DevError::Unsupported) }
+            fn prepare_tx_buffer(&self, _: &mut NetBuf, _: usize) -> DevResult { Err(DevError::Unsupported) }
             fn recycle_rx_buffer(&mut self, _: NetBufPtr) -> DevResult { Err(DevError::Unsupported) }
             fn recycle_tx_buffers(&mut self) -> DevResult { Err(DevError::Unsupported) }
             fn transmit(&mut self, _: NetBufPtr) -> DevResult { Err(DevError::Unsupported) }

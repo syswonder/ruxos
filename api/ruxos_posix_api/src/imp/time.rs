@@ -14,6 +14,9 @@ use crate::ctypes;
 
 use axerrno::LinuxError;
 
+// nanoseconds per a second
+const NANO_PER_SECOND: i64 = 1000000000;
+
 impl From<ctypes::timespec> for Duration {
     fn from(ts: ctypes::timespec) -> Self {
         Duration::new(ts.tv_sec as u64, ts.tv_nsec as u32)
@@ -74,13 +77,57 @@ pub unsafe fn sys_clock_settime(_clk: ctypes::clockid_t, ts: *const ctypes::time
     })
 }
 
+/// Sleep until some nanoseconds
+///
+/// TODO: should be woken by signals, and set errno
+/// TODO: deal with flags
+pub unsafe fn sys_clock_nanosleep(
+    _which_clock: ctypes::clockid_t,
+    _flags: c_int,
+    req: *const ctypes::timespec,
+    rem: *mut ctypes::timespec,
+) -> c_int {
+    syscall_body!(sys_clock_nanosleep, {
+        unsafe {
+            if req.is_null() || (*req).tv_nsec < 0 || (*req).tv_nsec >= NANO_PER_SECOND {
+                return Err(LinuxError::EINVAL);
+            }
+        }
+
+        let deadline = unsafe { Duration::from(*req) };
+
+        let now = ruxhal::time::current_time();
+
+        if now >= deadline {
+            return Ok(0);
+        }
+
+        #[cfg(feature = "multitask")]
+        ruxtask::sleep_until(deadline);
+        #[cfg(not(feature = "multitask"))]
+        ruxhal::time::busy_wait_until(deadline);
+
+        let after = ruxhal::time::current_time();
+        let actual = after - now;
+        let due = deadline - now;
+
+        if let Some(diff) = due.checked_sub(actual) {
+            if !rem.is_null() {
+                unsafe { (*rem) = diff.into() };
+            }
+            return Err(LinuxError::EINTR);
+        }
+        Ok(0)
+    })
+}
+
 /// Sleep some nanoseconds
 ///
 /// TODO: should be woken by signals, and set errno
 pub unsafe fn sys_nanosleep(req: *const ctypes::timespec, rem: *mut ctypes::timespec) -> c_int {
     syscall_body!(sys_nanosleep, {
         unsafe {
-            if req.is_null() || (*req).tv_nsec < 0 || (*req).tv_nsec > 999999999 {
+            if req.is_null() || (*req).tv_nsec < 0 || (*req).tv_nsec >= NANO_PER_SECOND {
                 return Err(LinuxError::EINVAL);
             }
         }

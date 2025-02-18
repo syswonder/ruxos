@@ -10,12 +10,11 @@
 use alloc::sync::Arc;
 use core::cell::UnsafeCell;
 
+use crate::dev::Disk;
 use axfs_vfs::{VfsDirEntry, VfsError, VfsNodePerm, VfsResult};
 use axfs_vfs::{VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps};
-use axsync::Mutex;
 use fatfs::{Dir, File, LossyOemCpConverter, NullTimeProvider, Read, Seek, SeekFrom, Write};
-
-use crate::dev::Disk;
+use spin::RwLock;
 
 const BLOCK_SIZE: usize = 512;
 
@@ -24,7 +23,7 @@ pub struct FatFileSystem {
     root_dir: UnsafeCell<Option<VfsNodeRef>>,
 }
 
-pub struct FileWrapper<'a>(Mutex<File<'a, Disk, NullTimeProvider, LossyOemCpConverter>>);
+pub struct FileWrapper<'a>(RwLock<File<'a, Disk, NullTimeProvider, LossyOemCpConverter>>);
 pub struct DirWrapper<'a>(Dir<'a, Disk, NullTimeProvider, LossyOemCpConverter>);
 
 unsafe impl Sync for FatFileSystem {}
@@ -63,7 +62,7 @@ impl FatFileSystem {
     }
 
     fn new_file(file: File<'_, Disk, NullTimeProvider, LossyOemCpConverter>) -> Arc<FileWrapper> {
-        Arc::new(FileWrapper(Mutex::new(file)))
+        Arc::new(FileWrapper(RwLock::new(file)))
     }
 
     fn new_dir(dir: Dir<'_, Disk, NullTimeProvider, LossyOemCpConverter>) -> Arc<DirWrapper> {
@@ -74,8 +73,12 @@ impl FatFileSystem {
 impl VfsNodeOps for FileWrapper<'static> {
     axfs_vfs::impl_vfs_non_dir_default! {}
 
+    fn fsync(&self) -> VfsResult {
+        self.0.write().flush().map_err(as_vfs_err)
+    }
+
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
-        let size = self.0.lock().seek(SeekFrom::End(0)).map_err(as_vfs_err)?;
+        let size = self.0.write().seek(SeekFrom::End(0)).map_err(as_vfs_err)?;
         let blocks = (size + BLOCK_SIZE as u64 - 1) / BLOCK_SIZE as u64;
         // FAT fs doesn't support permissions, we just set everything to 755
         let perm = VfsNodePerm::from_bits_truncate(0o755);
@@ -83,7 +86,7 @@ impl VfsNodeOps for FileWrapper<'static> {
     }
 
     fn read_at(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
-        let mut file = self.0.lock();
+        let mut file = self.0.write();
         file.seek(SeekFrom::Start(offset)).map_err(as_vfs_err)?;
 
         let mut total_read = 0;
@@ -99,7 +102,7 @@ impl VfsNodeOps for FileWrapper<'static> {
     }
 
     fn write_at(&self, offset: u64, buf: &[u8]) -> VfsResult<usize> {
-        let mut file = self.0.lock();
+        let mut file = self.0.write();
         file.seek(SeekFrom::Start(offset)).map_err(as_vfs_err)?; // TODO: more efficient
 
         let mut total_write = 0;
@@ -115,7 +118,7 @@ impl VfsNodeOps for FileWrapper<'static> {
     }
 
     fn truncate(&self, size: u64) -> VfsResult {
-        let mut file = self.0.lock();
+        let mut file = self.0.write();
         file.seek(SeekFrom::Start(size)).map_err(as_vfs_err)?; // TODO: more efficient
         file.truncate().map_err(as_vfs_err)
     }
@@ -125,7 +128,6 @@ impl VfsNodeOps for DirWrapper<'static> {
     axfs_vfs::impl_vfs_dir_default! {}
 
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
-        // FAT fs doesn't support permissions, we just set everything to 755
         Ok(VfsNodeAttr::new(
             VfsNodePerm::from_bits_truncate(0o755),
             VfsNodeType::Dir,
@@ -150,11 +152,20 @@ impl VfsNodeOps for DirWrapper<'static> {
             return self.lookup(rest);
         }
 
-        // TODO: use `fatfs::Dir::find_entry`, but it's not public.
-        if let Ok(file) = self.0.open_file(path) {
-            Ok(FatFileSystem::new_file(file))
-        } else if let Ok(dir) = self.0.open_dir(path) {
-            Ok(FatFileSystem::new_dir(dir))
+        if let Ok(Some(is_dir)) = self.0.check_path_type(path) {
+            if is_dir {
+                if let Ok(dir) = self.0.open_dir(path) {
+                    Ok(FatFileSystem::new_dir(dir))
+                } else {
+                    Err(VfsError::NotADirectory)
+                }
+            } else {
+                if let Ok(file) = self.0.open_file(path) {
+                    Ok(FatFileSystem::new_file(file))
+                } else {
+                    Err(VfsError::IsADirectory)
+                }
+            }
         } else {
             Err(VfsError::NotFound)
         }
@@ -272,7 +283,7 @@ impl Write for Disk {
         Ok(write_len)
     }
     fn flush(&mut self) -> Result<(), Self::Error> {
-        Ok(())
+        self.do_flush().map_err(|_| ())
     }
 }
 

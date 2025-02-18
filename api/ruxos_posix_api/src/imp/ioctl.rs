@@ -7,9 +7,10 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use crate::imp::fd_ops::get_file_like;
+use crate::sys_getpgid;
 use axerrno::LinuxError;
 use core::ffi::c_int;
+use ruxtask::fs::get_file_like;
 
 /// IOCTL oprations
 pub const TCGETS: usize = 0x5401;
@@ -39,21 +40,30 @@ pub fn sys_ioctl(fd: c_int, request: usize, data: usize) -> c_int {
                 }
                 Ok(0)
             }
+            // TODO: a temporary solution for TIOCGWINSZ.
             TIOCGWINSZ => {
                 let winsize = data as *mut ConsoleWinSize;
                 unsafe {
                     *winsize = ConsoleWinSize::default();
                 }
+                if fd == 0 || fd == 1 || fd == 2 {
+                    Ok(0)
+                } else {
+                    Ok(-1)
+                }
+            }
+            TCGETS => {
+                debug!("sys_ioctl: tty TCGETS");
                 Ok(0)
             }
-            TCGETS | TIOCSPGRP => {
+            TIOCSPGRP => {
                 warn!("stdout pretend to be tty");
                 Ok(0)
             }
             TIOCGPGRP => {
                 warn!("stdout TIOCGPGRP, pretend to be have a tty process group.");
                 unsafe {
-                    *(data as *mut u32) = 0;
+                    *(data as *mut u32) = sys_getpgid(0) as _;
                 }
                 Ok(0)
             }

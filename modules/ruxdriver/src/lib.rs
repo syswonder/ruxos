@@ -71,8 +71,6 @@
 
 #[macro_use]
 extern crate log;
-
-#[cfg(feature = "dyn")]
 extern crate alloc;
 
 #[macro_use]
@@ -84,7 +82,7 @@ mod dummy;
 mod structs;
 
 #[cfg(feature = "virtio")]
-mod virtio;
+pub mod virtio;
 
 #[cfg(feature = "ixgbe")]
 mod ixgbe;

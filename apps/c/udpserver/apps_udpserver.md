@@ -1,7 +1,7 @@
 # INTRODUCTION
 | App | Extra modules | Enabled features | Description |
 |-|-|-|-|
-| [udpserver](../apps/c/udpserver) | axalloc, axnet, axdriver, axtask | alloc, paging, net, multitask | UDP server test|
+| [udpserver](../apps/c/udpserver) | axalloc, ruxnet, axdriver, axtask | alloc, paging, net, multitask | UDP server test|
 
 # RUN
 ``` bash

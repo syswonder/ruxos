@@ -39,8 +39,6 @@ extern crate axlog;
 
 #[cfg(all(target_os = "none", not(test)))]
 mod lang_items;
-#[cfg(feature = "signal")]
-mod signal;
 
 #[cfg(not(feature = "musl"))]
 mod trap;
@@ -52,7 +50,7 @@ mod mp;
 pub use self::mp::rust_main_secondary;
 
 #[cfg(feature = "signal")]
-pub use self::signal::{rx_sigaction, Signal};
+use ruxtask::signal::Signal;
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -65,14 +63,14 @@ use self::env::{boot_add_environ, init_argv};
 use core::ffi::{c_char, c_int};
 
 const LOGO: &str = r#"
-8888888b.                     .d88888b.   .d8888b.  
-888   Y88b                   d88P" "Y88b d88P  Y88b 
-888    888                   888     888 Y88b.      
-888   d88P 888  888 888  888 888     888  "Y888b.   
-8888888P"  888  888 `Y8bd8P' 888     888     "Y88b. 
-888 T88b   888  888   X88K   888     888       "888 
-888  T88b  Y88b 888 .d8""8b. Y88b. .d88P Y88b  d88P 
-888   T88b  "Y88888 888  888  "Y88888P"   "Y8888P" 
+8888888b.                     .d88888b.   .d8888b.
+888   Y88b                   d88P" "Y88b d88P  Y88b
+888    888                   888     888 Y88b.
+888   d88P 888  888 888  888 888     888  "Y888b.
+8888888P"  888  888 `Y8bd8P' 888     888     "Y88b.
+888 T88b   888  888   X88K   888     888       "888
+888  T88b  Y88b 888 .d8""8b. Y88b. .d88P Y88b  d88P
+888   T88b  "Y88888 888  888  "Y88888P"   "Y8888P"
 "#;
 
 #[no_mangle]
@@ -141,6 +139,12 @@ fn is_init_ok() -> bool {
     INITED_CPUS.load(Ordering::Acquire) == ruxconfig::SMP
 }
 
+#[inline(never)]
+fn lhw_debug() -> i32 {
+    warn!("lhw debug");
+    1 + 1
+}
+
 /// The main entry point of the Ruxos runtime.
 ///
 /// It is called from the bootstrapping code in [ruxhal]. `cpu_id` is the ID of
@@ -173,6 +177,13 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     axlog::init();
     axlog::set_max_level(option_env!("RUX_LOG").unwrap_or("")); // no effect if set `log-level-*` features
     info!("Logging is enabled.");
+
+    #[cfg(feature = "alloc")]
+    init_allocator();
+
+    #[cfg(feature = "virtio_console")]
+    ruxhal::virtio::virtio_console::directional_probing();
+
     info!("Primary CPU {} started, dtb = {:#x}.", cpu_id, dtb);
 
     info!("Found physcial memory regions:");
@@ -189,11 +200,11 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     #[cfg(feature = "alloc")]
     init_allocator();
 
-    #[cfg(feature = "paging")]
-    {
-        info!("Initialize kernel page table...");
-        remap_kernel_memory().expect("remap kernel memoy failed");
-    }
+    #[cfg(feature = "tty")]
+    tty::init();
+
+    //let debug_res = lhw_debug();
+    //info!("lhw debug res {}",debug_res);
 
     #[cfg(feature = "alloc")]
     {
@@ -210,7 +221,11 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     }
 
     info!("Initialize platform devices...");
+  
     ruxhal::platform_init();
+
+    #[cfg(feature = "rand")]
+    ruxrand::init(cpu_id);
 
     #[cfg(feature = "multitask")]
     {
@@ -219,13 +234,19 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
         ruxfutex::init_futex();
     }
 
+    #[cfg(feature = "paging")]
+    {
+        info!("Initialize kernel page table...");
+        remap_kernel_memory().expect("remap kernel memoy failed");
+    }
+
     #[cfg(any(feature = "fs", feature = "net", feature = "display"))]
     {
         #[allow(unused_variables)]
         let all_devices = ruxdriver::init_drivers();
 
         #[cfg(feature = "net")]
-        axnet::init_network(all_devices.net);
+        ruxnet::init_network(all_devices.net);
 
         #[cfg(feature = "fs")]
         {
@@ -410,7 +431,7 @@ fn init_allocator() {
 }
 
 #[cfg(feature = "paging")]
-use ruxhal::paging::remap_kernel_memory;
+use ruxmm::paging::remap_kernel_memory;
 
 #[cfg(feature = "irq")]
 fn init_interrupt() {
@@ -438,7 +459,7 @@ fn init_interrupt() {
     fn do_signal() {
         let now_ns = ruxhal::time::current_time_nanos();
         // timer signal num
-        let timers = [14, 26, 27];
+        let timers = [14, 26, 27]; // what is the number?
         for (which, timer) in timers.iter().enumerate() {
             let mut ddl = Signal::timer_deadline(which, None).unwrap();
             let interval = Signal::timer_interval(which, None).unwrap();
@@ -457,8 +478,8 @@ fn init_interrupt() {
             if signal & (1 << signum) != 0
             /* TODO: && support mask */
             {
-                Signal::sigaction(signum as u8, None, None);
                 Signal::signal(signum as i8, false);
+                Signal::sigaction(signum as u8, None, None);
             }
         }
     }

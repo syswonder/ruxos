@@ -3,22 +3,18 @@
 # Inputs:
 #   - `FEATURES`: a list of features to be enabled split by spaces or commas.
 #     The features can be selected from the crate `ruxfeat` or the user library
-#     (crate `axstd` or `ruxlibc`).
+#     (crate `axstd` or `ruxmusl`).
 #   - `APP_FEATURES`: a list of features to be enabled for the Rust app.
 #
 # Outputs:
 #   - `RUX_FEAT`: features to be enabled for Ruxos modules (crate `ruxfeat`).
-#   - `LIB_FEAT`: features to be enabled for the user library (crate `axstd`, `ruxlibc`, `ruxmusl`).
+#   - `LIB_FEAT`: features to be enabled for the user library (crate `axstd`, `ruxmusl`, `ruxmusl`).
 #   - `APP_FEAT`: features to be enabled for the Rust app.
 
 ifeq ($(APP_TYPE),c)
   ax_feat_prefix := ruxfeat/
-  ifeq ($(MUSL), y)
-    lib_feat_prefix := ruxmusl/
-  else
-    lib_feat_prefix := ruxlibc/
-  endif
-  lib_features := fp_simd alloc paging multitask fs net fd pipe select poll epoll random-hw signal
+  lib_feat_prefix := ruxmusl/
+  lib_features := fp_simd alloc irq sched_rr paging multitask fs net fd pipe select poll epoll random-hw signal
 else
   # TODO: it's better to use `ruxfeat/` as `ax_feat_prefix`, but all apps need to have `ruxfeat` as a dependency
   ax_feat_prefix := axstd/
@@ -27,11 +23,16 @@ else
 endif
 ifeq ($(APP_TYPE),c)
   ifeq ($(MUSL), y)
-    lib_features += irq musl sched_rr
+    lib_features += musl
   endif
 endif
 
 override FEATURES := $(shell echo $(FEATURES) | tr ',' ' ')
+# TODO: remove below features when it is possible
+override FEATURES += multitask
+override FEATURES += fs
+override FEATURES += paging
+override FEATURES += alloc
 
 ifeq ($(APP_TYPE), c)
   ifneq ($(wildcard $(APP)/features.txt),)    # check features.txt exists
@@ -45,7 +46,12 @@ ifeq ($(APP_TYPE), c)
     override FEATURES += fp_simd
     override FEATURES += fd
     override FEATURES += tls
+    override FEATURES += sched_rr
   endif
+endif
+
+ifeq ($(GICV3),y)
+  override FEATURES += gic-v3
 endif
 
 override FEATURES := $(strip $(FEATURES))

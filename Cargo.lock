@@ -41,10 +41,17 @@ dependencies = [
  "bitmap-allocator",
  "buddy_system_allocator",
  "criterion",
+ "log",
  "rand",
  "rlsf",
  "slab_allocator",
 ]
+
+[[package]]
+name = "allocator-api2"
+version = "0.2.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "android-tzdata"
@@ -91,12 +98,14 @@ dependencies = [
  "axerrno",
  "axio",
  "axlog",
- "axnet",
+ "crate_interface",
  "ruxconfig",
  "ruxdisplay",
  "ruxfeat",
  "ruxfs",
  "ruxhal",
+ "ruxmm",
+ "ruxnet",
  "ruxruntime",
  "ruxtask",
 ]
@@ -105,6 +114,7 @@ dependencies = [
 name = "arm_gic"
 version = "0.1.0"
 dependencies = [
+ "log",
  "tock-registers",
 ]
 
@@ -173,7 +183,9 @@ version = "0.1.0"
 dependencies = [
  "axerrno",
  "bitflags 2.4.0",
+ "lazy_static",
  "log",
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -193,24 +205,6 @@ dependencies = [
  "crate_interface",
  "log",
  "spinlock",
-]
-
-[[package]]
-name = "axnet"
-version = "0.1.0"
-dependencies = [
- "axerrno",
- "axio",
- "axsync",
- "cfg-if",
- "driver_net",
- "lazy_init",
- "log",
- "ruxdriver",
- "ruxhal",
- "ruxtask",
- "smoltcp",
- "spin 0.9.8",
 ]
 
 [[package]]
@@ -249,12 +243,35 @@ checksum = "9e1b586273c5702936fe7b7d6896644d8be71e6314cfe09d3167c95f712589e8"
 [[package]]
 name = "bcm2835-sdhci"
 version = "0.1.0"
-source = "git+https://github.com/lhw2002426/bcm2835-sdhci.git?rev=bf07a72#bf07a727e07ba3f3f276d9bead2401cdb343d019"
+source = "git+https://github.com/syswonder/bcm2835-sdhci.git?rev=e974f16#e974f168efa72b470a01f61bdef32240c66f54fc"
 dependencies = [
  "aarch64-cpu",
  "log",
  "tock-registers",
  "volatile 0.2.7",
+]
+
+[[package]]
+name = "bindgen"
+version = "0.65.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cfdf7b466f9a4903edc73f95d6d2bcd5baf8ae620638762244d3f60143643cc5"
+dependencies = [
+ "bitflags 1.3.2",
+ "cexpr",
+ "clang-sys",
+ "lazy_static",
+ "lazycell",
+ "log",
+ "peeking_take_while",
+ "prettyplease",
+ "proc-macro2",
+ "quote",
+ "regex",
+ "rustc-hash",
+ "shlex",
+ "syn 2.0.32",
+ "which",
 ]
 
 [[package]]
@@ -356,6 +373,7 @@ version = "1.0.83"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1174fb0b6ec23863f8b971027804a42614e347eafb0a95bf0b12cdae21fc4d0"
 dependencies = [
+ "jobserver",
  "libc",
 ]
 
@@ -513,7 +531,7 @@ dependencies = [
  "clap",
  "criterion-plot",
  "is-terminal",
- "itertools",
+ "itertools 0.10.5",
  "num-traits",
  "once_cell",
  "oorandom",
@@ -534,7 +552,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6b50826342786a51a89e2da3a28f1c32b06e387201bc2d19791f622c673706b1"
 dependencies = [
  "cast",
- "itertools",
+ "itertools 0.10.5",
 ]
 
 [[package]]
@@ -593,6 +611,22 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
 
 [[package]]
+name = "cstr_core"
+version = "0.2.6"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "dd98742e4fdca832d40cab219dc2e3048de17d873248f83f17df47c1bea70956"
+dependencies = [
+ "cty",
+ "memchr",
+]
+
+[[package]]
+name = "cty"
+version = "0.2.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b365fabc795046672053e29c954733ec3b05e4be654ab130fe8f1f94d7051f35"
+
+[[package]]
 name = "defmt"
 version = "0.3.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -647,6 +681,13 @@ name = "driver_common"
 version = "0.1.0"
 
 [[package]]
+name = "driver_console"
+version = "0.1.0"
+dependencies = [
+ "driver_common",
+]
+
+[[package]]
 name = "driver_display"
 version = "0.1.0"
 dependencies = [
@@ -677,6 +718,7 @@ dependencies = [
  "driver_9p",
  "driver_block",
  "driver_common",
+ "driver_console",
  "driver_display",
  "driver_net",
  "log",
@@ -786,10 +828,11 @@ checksum = "4443176a9f2c162692bd3d352d745ef9413eec5782a80d8fd6f8a1ac692a07f7"
 [[package]]
 name = "fatfs"
 version = "0.4.0"
-source = "git+https://github.com/rafalh/rust-fatfs?rev=a3a834e#a3a834ef92d94dd227c316c0887654dab00ae085"
+source = "git+https://github.com/syswonder/rust-fatfs.git?rev=bf8ad02#bf8ad02bc6060728f6d3b81ee8428d731da4ca94"
 dependencies = [
  "bitflags 1.3.2",
  "log",
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -864,9 +907,13 @@ dependencies = [
 
 [[package]]
 name = "hashbrown"
-version = "0.14.0"
+version = "0.14.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2c6201b9ff9fd90a5a3bac2e56a830d0caa509576f0e503818ee82c181b3437a"
+checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
+dependencies = [
+ "ahash",
+ "allocator-api2",
+]
 
 [[package]]
 name = "heapless"
@@ -933,6 +980,15 @@ dependencies = [
 
 [[package]]
 name = "itertools"
+version = "0.9.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "284f18f85651fe11e8a991b2adb42cb078325c996ed026d994719efcfca1d54b"
+dependencies = [
+ "either",
+]
+
+[[package]]
+name = "itertools"
 version = "0.10.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b0fd2260e829bddf4cb6ea802289de2f86d6a7a690192fbe91b3f46e0f2c8473"
@@ -956,6 +1012,15 @@ dependencies = [
  "log",
  "smoltcp",
  "volatile 0.3.0",
+]
+
+[[package]]
+name = "jobserver"
+version = "0.1.31"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d2b099aaa34a9751c5bf0878add70444e1ed2dd73f347be99003d4577277de6e"
+dependencies = [
+ "libc",
 ]
 
 [[package]]
@@ -1037,6 +1102,14 @@ name = "log"
 version = "0.4.19"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b06a4cde4c0f271a446782e3eff8de789548ce57dbc8eca9292c27f4a42004b4"
+
+[[package]]
+name = "lwip_rust"
+version = "0.1.0"
+dependencies = [
+ "bindgen 0.65.1",
+ "cc",
+]
 
 [[package]]
 name = "managed"
@@ -1270,6 +1343,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "printf-compat"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "3b002af28ffe3d3d67202ae717810a28125a494d5396debc43de01ee136ac404"
+dependencies = [
+ "bitflags 1.3.2",
+ "cstr_core",
+ "cty",
+ "itertools 0.9.0",
+]
+
+[[package]]
 name = "proc-macro-error"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1339,6 +1424,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ec0be4795e2f6a28069bec0b5ff3e2ac9bafc99e6a9a7dc3547996c5c816922c"
 dependencies = [
  "getrandom",
+]
+
+[[package]]
+name = "rand_xoshiro"
+version = "0.6.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6f97cdb2a36ed4183de61b2f824cc45c9f1037f28afe0a322e9fff4c108b5aaa"
+dependencies = [
+ "rand_core",
 ]
 
 [[package]]
@@ -1485,12 +1579,13 @@ name = "rux9p"
 version = "0.1.0"
 dependencies = [
  "axfs_vfs",
- "axnet",
+ "axsync",
  "driver_9p",
  "driver_common",
  "log",
  "ruxdriver",
  "ruxfs",
+ "ruxnet",
  "spin 0.9.8",
 ]
 
@@ -1519,6 +1614,7 @@ version = "0.1.0"
 dependencies = [
  "axalloc",
  "cfg-if",
+ "crate_interface",
  "driver_9p",
  "driver_block",
  "driver_common",
@@ -1537,6 +1633,18 @@ version = "0.1.0"
 dependencies = [
  "dtb",
  "log",
+ ]
+ 
+[[package]]
+name = "ruxfdtable"
+version = "0.1.0"
+dependencies = [
+ "axerrno",
+ "axio",
+ "flatten_objects",
+ "lazy_static",
+ "log",
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -1545,13 +1653,14 @@ version = "0.1.0"
 dependencies = [
  "axalloc",
  "axlog",
- "axnet",
  "axsync",
  "rux9p",
  "ruxdisplay",
  "ruxdriver",
  "ruxfs",
  "ruxhal",
+ "ruxmm",
+ "ruxnet",
  "ruxruntime",
  "ruxtask",
  "spinlock",
@@ -1567,7 +1676,6 @@ dependencies = [
  "axfs_ramfs",
  "axfs_vfs",
  "axio",
- "axsync",
  "capability",
  "cfg-if",
  "crate_interface",
@@ -1577,7 +1685,7 @@ dependencies = [
  "log",
  "memory_addr",
  "ruxdriver",
- "ruxtask",
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -1606,12 +1714,16 @@ dependencies = [
  "bitflags 2.4.0",
  "cfg-if",
  "crate_interface",
+ "driver_common",
+ "driver_console",
+ "driver_virtio",
  "dtb",
  "dw_apb_uart",
  "embedded-hal",
  "handler_table",
  "kernel_guard",
  "lazy_init",
+ "lazy_static",
  "log",
  "memory_addr",
  "page_table",
@@ -1625,20 +1737,31 @@ dependencies = [
  "spinlock",
  "static_assertions",
  "tock-registers",
+ "tty",
+ "virtio-drivers",
  "x2apic",
  "x86",
  "x86_64",
 ]
 
 [[package]]
-name = "ruxlibc"
+name = "ruxmm"
 version = "0.1.0"
 dependencies = [
- "axerrno",
- "axio",
- "bindgen",
- "ruxfeat",
- "ruxos_posix_api",
+ "axalloc",
+ "bitflags 2.4.0",
+ "cfg-if",
+ "crate_interface",
+ "kernel_guard",
+ "log",
+ "memory_addr",
+ "page_table",
+ "page_table_entry",
+ "ruxdriver",
+ "ruxhal",
+ "ruxtask",
+ "spinlock",
+ "static_assertions",
 ]
 
 [[package]]
@@ -1653,6 +1776,33 @@ dependencies = [
  "ruxfeat",
  "ruxhal",
  "ruxos_posix_api",
+]
+
+[[package]]
+name = "ruxnet"
+version = "0.1.0"
+dependencies = [
+ "axerrno",
+ "axfs_vfs",
+ "axio",
+ "axlog",
+ "axsync",
+ "cfg-if",
+ "cty",
+ "driver_net",
+ "flatten_objects",
+ "hashbrown",
+ "lazy_init",
+ "lazy_static",
+ "log",
+ "lwip_rust",
+ "printf-compat",
+ "ruxdriver",
+ "ruxfs",
+ "ruxhal",
+ "ruxtask",
+ "smoltcp",
+ "spin 0.9.8",
 ]
 
 [[package]]
@@ -1680,22 +1830,25 @@ dependencies = [
  "axerrno",
  "axio",
  "axlog",
- "axnet",
  "axsync",
- "bindgen",
+ "bindgen 0.66.1",
  "bitflags 2.4.0",
  "cfg-if",
  "crate_interface",
  "elf",
  "flatten_objects",
+ "lazy_init",
  "lazy_static",
  "memory_addr",
  "page_table",
  "ruxconfig",
+ "ruxfdtable",
  "ruxfeat",
  "ruxfs",
  "ruxfutex",
  "ruxhal",
+ "ruxmm",
+ "ruxnet",
  "ruxruntime",
  "ruxtask",
  "spin 0.9.8",
@@ -1704,18 +1857,34 @@ dependencies = [
 ]
 
 [[package]]
+name = "ruxrand"
+version = "0.1.0"
+dependencies = [
+ "crate_interface",
+ "lazy_init",
+ "percpu",
+ "rand",
+ "rand_xoshiro",
+ "spinlock",
+]
+
+[[package]]
 name = "ruxruntime"
 version = "0.1.0"
 dependencies = [
  "axalloc",
+ "axfs_ramfs",
+ "axfs_vfs",
+ "axio",
  "axlog",
- "axnet",
  "axsync",
  "cfg-if",
  "crate_interface",
+ "driver_block",
  "dtb",
  "kernel_guard",
  "lazy_init",
+ "log",
  "percpu",
  "rux9p",
  "ruxconfig",
@@ -1725,25 +1894,40 @@ dependencies = [
  "ruxfs",
  "ruxfutex",
  "ruxhal",
+ "ruxmm",
+ "ruxnet",
+ "ruxrand",
  "ruxtask",
+ "tty",
 ]
 
 [[package]]
 name = "ruxtask"
 version = "0.1.0"
 dependencies = [
+ "axalloc",
+ "axerrno",
+ "axfs_vfs",
+ "axio",
  "cfg-if",
  "crate_interface",
+ "flatten_objects",
  "kernel_guard",
  "lazy_init",
+ "lazy_static",
  "log",
  "memory_addr",
+ "page_table",
+ "page_table_entry",
  "percpu",
  "rand",
  "ruxconfig",
+ "ruxfdtable",
+ "ruxfs",
  "ruxhal",
  "ruxtask",
  "scheduler",
+ "spin 0.9.8",
  "spinlock",
  "timer_list",
 ]
@@ -1765,27 +1949,24 @@ dependencies = [
 
 [[package]]
 name = "sbi-rt"
-version = "0.0.2"
+version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c113c53291db8ac141e01f43224ed488b8d6001ab66737b82e04695a43a42b7"
+checksum = "7fbaa69be1eedc61c426e6d489b2260482e928b465360576900d52d496a58bd0"
 dependencies = [
  "sbi-spec",
 ]
 
 [[package]]
 name = "sbi-spec"
-version = "0.0.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d4027cf9bb591a9fd0fc0e283be6165c5abe96cb73e9f0e24738c227f425377"
-dependencies = [
- "static_assertions",
-]
+version = "0.0.7"
+source = "git+https://github.com/Sssssaltyfish/rustsbi.git?rev=a25d448d3d770c6db493a472e3e78d949b63f523#a25d448d3d770c6db493a472e3e78d949b63f523"
 
 [[package]]
 name = "scheduler"
 version = "0.1.0"
 dependencies = [
  "linked_list",
+ "log",
 ]
 
 [[package]]
@@ -2027,6 +2208,15 @@ dependencies = [
  "indexmap",
  "toml_datetime",
  "winnow",
+]
+
+[[package]]
+name = "tty"
+version = "0.0.1"
+dependencies = [
+ "lazy_init",
+ "log",
+ "spinlock",
 ]
 
 [[package]]

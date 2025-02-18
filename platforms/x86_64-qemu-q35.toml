@@ -38,5 +38,13 @@ pci-bus-end = "0xff"
 # PCI device memory ranges (not used on x86).
 pci-ranges = []
 
+# Virtio console
+virtio-console-paddr = "0xFFFFFFFF"
+# Virtio console irq
+virtio-console-irq = "0"
+
 # Timer interrupt frequencyin Hz.
 timer-frequency = "4_000_000_000"   # 4.0GHz
+
+# Pipe channel bufer size.
+pipe-buffer-size = "0x10000"

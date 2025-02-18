@@ -130,7 +130,7 @@ pub(crate) fn etcfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
     let file_resolv = etc_root.clone().lookup("resolv.conf")?;
     file_resolv.write_at(
         0,
-        b"nameserver 127.0.0.53\n\
+        b"nameserver 8.8.8.8\n\
         options edns0 trust-ad\n\
         search lan\n
         ",

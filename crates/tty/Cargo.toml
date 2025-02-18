@@ -1,0 +1,9 @@
+[package]
+name = "tty"
+version = "0.0.1"
+edition = "2021"
+
+[dependencies]
+spinlock = { path = "../spinlock" }
+lazy_init = { path = "../lazy_init" }
+log = "0.4"

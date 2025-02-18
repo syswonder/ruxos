@@ -262,7 +262,7 @@ pub mod net {
         /// Binds the TCP socket to the given address and port.
         pub fn ax_tcp_bind(socket: &AxTcpSocketHandle, addr: SocketAddr) -> AxResult;
         /// Starts listening on the bound address and port.
-        pub fn ax_tcp_listen(socket: &AxTcpSocketHandle, _backlog: usize) -> AxResult;
+        pub fn ax_tcp_listen(socket: &mut AxTcpSocketHandle, _backlog: usize) -> AxResult;
         /// Accepts a new connection on the TCP socket.
         ///
         /// This function will block the calling thread until a new TCP connection

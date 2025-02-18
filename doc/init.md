@@ -15,7 +15,7 @@ graph TD;
     B --> ruxtask::init_scheduler;
     B --> ruxdriver::init_drivers;
     B --> Q[ruxfs::init_filesystems];
-    B --> axnet::init_network;
+    B --> ruxnet::init_network;
     B --> ruxdisplay::init_display;
     B --> init_interrupt;
     B --> mp::start_secondary_cpus;

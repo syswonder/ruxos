@@ -1,0 +1,13 @@
+[package]
+name = "lwip_rust"
+version = "0.1.0"
+edition = "2021"
+authors = ["HaoWen Liu <lhw2002426@stu.pku.edu.cn>"]
+description = "Rust wrapper of lwip net stack"
+license = "Mulan PSL v2"
+homepage = "https://github.com/syswonder/ruxos"
+repository = "https://github.com/syswonder/ruxos/tree/main/crates/lwip_rust"
+
+[build-dependencies]
+bindgen = "0.65.1"
+cc = { version = "1.0.79", features = ["parallel"] }

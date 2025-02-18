@@ -9,9 +9,11 @@
 
 //! Trap handling.
 use crate_interface::{call_interface, def_interface};
+#[cfg(feature = "paging")]
+use page_table::MappingFlags;
 
 /// Several reasons for page missing exceptions.
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum PageFaultCause {
     /// pageFault caused by memory WRITE.
     WRITE,
@@ -19,6 +21,18 @@ pub enum PageFaultCause {
     READ,
     /// pageFault caused by INSTRUCTION fetch.
     INSTRUCTION,
+}
+
+/// `PageFaultCause` corresponding to `MappingFlags`.
+#[cfg(feature = "paging")]
+impl From<PageFaultCause> for MappingFlags {
+    fn from(page_fault_cause: PageFaultCause) -> Self {
+        match page_fault_cause {
+            PageFaultCause::WRITE => MappingFlags::WRITE,
+            PageFaultCause::READ => MappingFlags::READ,
+            PageFaultCause::INSTRUCTION => MappingFlags::EXECUTE,
+        }
+    }
 }
 
 /// Trap handler interface.
@@ -44,6 +58,11 @@ pub trait TrapHandler {
     fn handle_page_fault(_vaddr: usize, _caus: PageFaultCause) -> bool {
         panic!("No handle_page_fault implement");
     }
+    /// Handles signal for every trap.
+    #[cfg(feature = "signal")]
+    fn handle_signal() {
+        panic!("No handle_page_fault implement");
+    }
 }
 
 /// Call the external IRQ handler.
@@ -64,4 +83,10 @@ pub(crate) fn handle_syscall(syscall_id: usize, args: [usize; 6]) -> isize {
 #[cfg(feature = "paging")]
 pub(crate) fn handle_page_fault(vaddr: usize, cause: PageFaultCause) -> bool {
     call_interface!(TrapHandler::handle_page_fault, vaddr, cause)
+}
+
+#[allow(dead_code)]
+#[cfg(feature = "signal")]
+pub(crate) fn handle_signal() {
+    call_interface!(TrapHandler::handle_signal)
 }
