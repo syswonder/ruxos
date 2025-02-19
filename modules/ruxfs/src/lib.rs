@@ -51,6 +51,7 @@ pub type RelPath<'a> = axfs_vfs::RelPath<'a>;
 
 use alloc::vec::Vec;
 
+#[cfg(feature = "blkfs")]
 use ruxdriver::{prelude::*, AxDeviceContainer};
 
 cfg_if::cfg_if! {
@@ -70,7 +71,7 @@ cfg_if::cfg_if! {
     }
 }
 
-pub use root::MountPoint;
+use root::MountPoint;
 
 /// Initialize an empty filesystems by ramfs.
 #[cfg(not(any(feature = "blkfs", feature = "virtio-9p", feature = "net-9p")))]
@@ -143,5 +144,5 @@ pub fn prepare_commonfs(mount_points: &mut Vec<self::root::MountPoint>) {
 
 /// Initializes root filesystems.
 pub fn init_filesystems(mount_points: Vec<self::root::MountPoint>) {
-    self::root::init_rootfs(mount_points);
+    self::fops::init_rootfs(mount_points);
 }

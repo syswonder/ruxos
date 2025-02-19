@@ -18,8 +18,6 @@ use core::marker::Sync;
 use axerrno::LinuxResult;
 use axfs_vfs::AbsPath;
 use axio::PollState;
-use flatten_objects::FlattenObjects;
-use spin::RwLock;
 
 #[derive(Default)]
 ///Rust version for struct timespec in ctypes. Represents a high-resolution time specification.

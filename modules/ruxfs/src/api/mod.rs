@@ -29,7 +29,7 @@ pub use file::{File, FileAttr, FilePerm, FileType, OpenOptions};
 
 /// Returns the current working directory as a [`AbsPath`].
 pub fn current_dir() -> io::Result<AbsPath<'static>> {
-    Ok(fops::current_dir())
+    Ok(fops::current_dir().unwrap())
 }
 
 /// Changes the current working directory to the specified path.

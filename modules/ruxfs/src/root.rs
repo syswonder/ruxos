@@ -17,8 +17,6 @@ use axerrno::{ax_err, AxResult};
 use axfs_vfs::{
     AbsPath, RelPath, VfsError, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps, VfsResult,
 };
-use axsync::Mutex;
-use lazy_init::LazyInit;
 
 /// mount point information
 pub struct MountPoint {
@@ -26,12 +24,6 @@ pub struct MountPoint {
     pub path: AbsPath<'static>,
     /// mounted filesystem
     pub fs: Arc<dyn VfsOps>,
-}
-
-/// Root directory of the main filesystem
-pub(crate) struct RootDirectory {
-    main_fs: Arc<dyn VfsOps>,
-    mounts: Vec<MountPoint>,
 }
 
 // pub(crate) static ROOT_DIR: LazyInit<Arc<RootDirectory>> = LazyInit::new();
@@ -50,7 +42,7 @@ impl Drop for MountPoint {
 }
 
 /// Root directory of the main filesystem
-pub(crate) struct RootDirectory {
+pub struct RootDirectory {
     main_fs: Arc<dyn VfsOps>,
     mounts: Vec<MountPoint>,
 }
@@ -188,227 +180,4 @@ impl VfsNodeOps for RootDirectory {
             &RelPath::new_trimmed(&dst_path[dst_len..]),
         )
     }
-}
-
-/// Current working directory.
-pub(crate) static CURRENT_DIR: Mutex<AbsPath> = Mutex::new(AbsPath::new("/"));
-
-/// Root directory of the virtual filesystem.
-pub(crate) static ROOT_DIR: LazyInit<Arc<RootDirectory>> = LazyInit::new();
-
-/// Initialize virtual filesystem.
-pub(crate) fn init_rootfs(mount_points: Vec<MountPoint>) {
-    let main_fs = mount_points
-        .first()
-        .expect("No filesystem found")
-        .fs
-        .clone();
-    let mut root_dir = RootDirectory::new(main_fs);
-
-    for mp in mount_points.iter().skip(1) {
-        let vfsops = mp.fs.clone();
-        let message = format!("failed to mount filesystem at {}", mp.path);
-        info!("mounting {}", mp.path);
-        root_dir.mount(mp.path.clone(), vfsops).expect(&message);
-    }
-
-    ROOT_DIR.init_by(Arc::new(root_dir));
-    *CURRENT_DIR.lock() = AbsPath::new("/");
-}
-
-/// Look up a file given an absolute path.
-pub(crate) fn lookup(path: &AbsPath) -> AxResult<VfsNodeRef> {
-    ROOT_DIR.clone().lookup(&path.to_rel())
-}
-
-/// Open a file given an absolute path.
-pub fn open_file(path: &AbsPath, opts: &OpenOptions) -> AxResult<File> {
-    debug!("open file: {} {:?}", path, opts);
-    if !opts.is_valid() {
-        return ax_err!(InvalidInput);
-    }
-    let node = match lookup(path) {
-        Ok(node) => {
-            if opts.create_new {
-                return ax_err!(AlreadyExists);
-            }
-            node
-        }
-        Err(VfsError::NotFound) => {
-            if !opts.create || !opts.create_new {
-                return ax_err!(NotFound);
-            }
-            create_file(path)?;
-            lookup(path)?
-        }
-        Err(e) => return Err(e),
-    };
-
-    let attr = node.get_attr()?;
-    if attr.is_dir() {
-        return ax_err!(IsADirectory);
-    }
-    let access_cap = opts.into();
-    if !perm_to_cap(attr.perm()).contains(access_cap) {
-        return ax_err!(PermissionDenied);
-    }
-
-    node.open()?;
-    if opts.truncate {
-        node.truncate(0)?;
-    }
-    Ok(File::new(node, access_cap, opts.append))
-}
-
-/// Open a directory given an absolute path.
-pub fn open_dir(path: &AbsPath, opts: &OpenOptions) -> AxResult<Directory> {
-    debug!("open dir: {}", path);
-    if !opts.read {
-        return ax_err!(InvalidInput);
-    }
-    if opts.create || opts.create_new || opts.write || opts.append || opts.truncate {
-        return ax_err!(InvalidInput);
-    }
-    let node = lookup(path)?;
-    let attr = node.get_attr()?;
-    if !attr.is_dir() {
-        return ax_err!(NotADirectory);
-    }
-    let access_cap = opts.into();
-    if !perm_to_cap(attr.perm()).contains(access_cap) {
-        return ax_err!(PermissionDenied);
-    }
-    node.open()?;
-    Ok(Directory::new(node, access_cap | Cap::EXECUTE))
-}
-
-/// Get the file attributes given an absolute path.
-pub fn get_attr(path: &AbsPath) -> AxResult<VfsNodeAttr> {
-    let node = lookup(path)?;
-    node.get_attr()
-}
-
-/// Create a file given an absolute path.
-pub(crate) fn create_file(path: &AbsPath) -> AxResult<VfsNodeRef> {
-    match lookup(path) {
-        Ok(_) => ax_err!(AlreadyExists),
-        Err(AxError::NotFound) => {
-            ROOT_DIR.create(&path.to_rel(), VfsNodeType::File)?;
-            lookup(path)
-        }
-        Err(e) => Err(e),
-    }
-}
-
-/// Create a directory given an absolute path.
-pub(crate) fn create_dir(path: &AbsPath) -> AxResult {
-    match lookup(path) {
-        Ok(_) => ax_err!(AlreadyExists),
-        Err(AxError::NotFound) => ROOT_DIR.create(&path.to_rel(), VfsNodeType::Dir),
-        Err(e) => Err(e),
-    }
-}
-
-/// Create a directory recursively given an absolute path.
-pub(crate) fn create_dir_all(path: &AbsPath) -> AxResult {
-    match lookup(path) {
-        Ok(_) => ax_err!(AlreadyExists),
-        Err(AxError::NotFound) => ROOT_DIR.create_recursive(&path.to_rel(), VfsNodeType::Dir),
-        Err(e) => Err(e),
-    }
-}
-
-/// Rename a file given an absolute path.
-pub(crate) fn remove_file(path: &AbsPath) -> AxResult {
-    let node = lookup(path)?;
-    let attr = node.get_attr()?;
-    if attr.is_dir() {
-        ax_err!(IsADirectory)
-    } else if !attr.perm().owner_writable() {
-        ax_err!(PermissionDenied)
-    } else {
-        ROOT_DIR.remove(&path.to_rel())
-    }
-}
-
-/// Remove a directory given an absolute path.
-pub(crate) fn remove_dir(path: &AbsPath) -> AxResult {
-    if ROOT_DIR.contains(path) {
-        return ax_err!(PermissionDenied);
-    }
-    let node = lookup(path)?;
-    let attr = node.get_attr()?;
-    if !attr.is_dir() {
-        ax_err!(NotADirectory)
-    } else if !attr.perm().owner_writable() {
-        ax_err!(PermissionDenied)
-    } else {
-        ROOT_DIR.remove(&path.to_rel())
-    }
-}
-
-/// Get current working directory.
-pub(crate) fn current_dir<'a>() -> AxResult<AbsPath<'a>> {
-    Ok(CURRENT_DIR_PATH.lock().clone())
-}
-
-/// Set current working directory.
-pub(crate) fn set_current_dir(path: AbsPath<'static>) -> AxResult {
-    let node = lookup(&path)?;
-    let attr = node.get_attr()?;
-    if !attr.is_dir() {
-        ax_err!(NotADirectory)
-    } else if !attr.perm().owner_executable() {
-        ax_err!(PermissionDenied)
-    } else {
-        *CURRENT_DIR.lock() = node;
-        *CURRENT_DIR_PATH.lock() = path;
-        Ok(())
-    }
-}
-
-/// Rename a file given an old and a new absolute path.
-pub(crate) fn rename(old: &AbsPath, new: &AbsPath) -> AxResult {
-    if lookup(new).is_ok() {
-        ax_err!(AlreadyExists)
-    } else {
-        ROOT_DIR.rename(&old.to_rel(), &new.to_rel())
-    }
-}
-
-#[crate_interface::def_interface]
-/// Current working directory operations.
-pub trait CurrentWorkingDirectoryOps {
-    /// Initializes the root filesystem with the specified mount points.
-    fn init_rootfs(mount_points: Vec<MountPoint>);
-    /// Returns the parent node of the specified path.
-    fn parent_node_of(dir: Option<&VfsNodeRef>, path: &str) -> VfsNodeRef;
-    /// Returns the absolute path of the specified path.
-    fn absolute_path(path: &str) -> AxResult<String>;
-    /// Returns the current working directory.
-    fn current_dir() -> AxResult<String>;
-    /// Sets the current working directory.
-    fn set_current_dir(path: &str) -> AxResult;
-    /// get the root directory of the filesystem
-    fn root_dir() -> Arc<RootDirectory>;
-}
-
-pub(crate) fn parent_node_of(dir: Option<&VfsNodeRef>, path: &str) -> VfsNodeRef {
-    crate_interface::call_interface!(CurrentWorkingDirectoryOps::parent_node_of, dir, path)
-}
-
-pub(crate) fn absolute_path(path: &str) -> AxResult<String> {
-    crate_interface::call_interface!(CurrentWorkingDirectoryOps::absolute_path, path)
-}
-
-pub(crate) fn current_dir() -> AxResult<String> {
-    crate_interface::call_interface!(CurrentWorkingDirectoryOps::current_dir)
-}
-
-pub(crate) fn set_current_dir(path: &str) -> AxResult {
-    crate_interface::call_interface!(CurrentWorkingDirectoryOps::set_current_dir, path)
-}
-
-pub(crate) fn init_rootfs(mount_points: Vec<MountPoint>) {
-    crate_interface::call_interface!(CurrentWorkingDirectoryOps::init_rootfs, mount_points)
 }

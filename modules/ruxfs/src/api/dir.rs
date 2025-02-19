@@ -11,7 +11,6 @@ use alloc::{borrow::ToOwned, string::String, vec};
 use axerrno::ax_err;
 use axfs_vfs::{AbsPath, VfsError};
 use axio::Result;
-use capability::Cap;
 use core::{fmt, str};
 
 use super::FileType;
@@ -26,7 +25,7 @@ impl Directory {
     /// Opens a directory for reading entries.
     pub fn open(path: AbsPath<'static>) -> Result<Self> {
         let node = fops::lookup(&path)?;
-        let inner = fops::open_dir(&path, node, Cap::EXECUTE)?;
+        let inner = fops::open_dir(&path, node, &fops::OpenOptions::new())?;
         Ok(Self { inner })
     }
 

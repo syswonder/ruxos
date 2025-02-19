@@ -14,17 +14,14 @@ use core::{
 };
 
 use axerrno::{LinuxError, LinuxResult};
-use axio::{Error, PollState, SeekFrom};
-use axsync::Mutex;
-use capability::Cap;
+use axio::{Error, SeekFrom};
 use ruxfdtable::{FileLike, RuxStat};
 use ruxfs::{
-    fops::{self, DirEntry},
+    fops::{self, DirEntry, OpenOptions},
     AbsPath, RelPath,
 };
 
-use crate::{ctypes, utils::char_ptr_to_str};
-use alloc::vec::Vec;
+use crate::ctypes;
 use ruxtask::fs::{get_file_like, Directory, File};
 
 use super::stdio::{stdin, stdout};
@@ -42,13 +39,34 @@ impl ruxtask::fs::InitFs for InitFsImpl {
     }
 }
 
-/// Convert open flags to [`Cap`].
-fn flags_to_cap(flags: u32) -> Cap {
+/// Convert open flags to [`OpenOptions`].
+pub fn flags_to_options(flags: c_int, _mode: ctypes::mode_t) -> OpenOptions {
+    let flags = flags as u32;
+    let mut options = OpenOptions::new();
     match flags & 0b11 {
-        ctypes::O_RDONLY => Cap::READ,
-        ctypes::O_WRONLY => Cap::WRITE,
-        _ => Cap::READ | Cap::WRITE,
+        ctypes::O_RDONLY => options.read(true),
+        ctypes::O_WRONLY => options.write(true),
+        _ => {
+            options.read(true);
+            options.write(true);
+        }
+    };
+    if flags & ctypes::O_APPEND != 0 {
+        options.append(true);
     }
+    if flags & ctypes::O_TRUNC != 0 {
+        options.truncate(true);
+    }
+    if flags & ctypes::O_CREAT != 0 {
+        options.create(true);
+    }
+    if flags & ctypes::O_EXEC != 0 {
+        options.create_new(true);
+    }
+    if flags & ctypes::O_CLOEXEC != 0 {
+        options.cloexec(true);
+    }
+    options
 }
 
 /// Open a file by `filename` and insert it into the file descriptor table.
@@ -58,6 +76,7 @@ fn flags_to_cap(flags: u32) -> Cap {
 pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> c_int {
     syscall_body!(sys_open, {
         let path = parse_path(filename)?;
+        let opts = flags_to_options(flags, mode);
         let flags = flags as u32;
         debug!("sys_open <= {:?} {:#o} {:#o}", path, flags, mode);
         // Check flag and attr
@@ -85,9 +104,8 @@ pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> 
             node.truncate(0)?;
         }
         // Open
-        let append = flags & ctypes::O_APPEND != 0;
-        let file = fops::open_file(&path, node, flags_to_cap(flags), append)?;
-        File::new(file).add_to_fd_table()
+        let file = fops::open_file(&path, node, &opts)?;
+        File::new(file).add_to_fd_table(opts)
     })
 }
 
@@ -95,8 +113,8 @@ pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> 
 pub fn sys_openat(fd: c_int, path: *const c_char, flags: c_int, mode: ctypes::mode_t) -> c_int {
     syscall_body!(sys_openat, {
         let path = parse_path_at(fd, path)?;
+        let opts = flags_to_options(flags, mode);
         let flags = flags as u32;
-        let cap = flags_to_cap(flags);
         debug!(
             "sys_openat <= {}, {:?}, {:#o}, {:#o}",
             fd, path, flags, mode
@@ -132,13 +150,12 @@ pub fn sys_openat(fd: c_int, path: *const c_char, flags: c_int, mode: ctypes::mo
             Err(e) => return Err(e.into()),
         };
         // Open file or directory
-        let append = flags & ctypes::O_APPEND != 0;
         if node.get_attr()?.is_dir() {
-            let dir = fops::open_dir(&path, node, cap)?;
-            Directory::new(dir, flags & ctypes::O_SEARCH != 0).add_to_fd_table()
+            let dir = fops::open_dir(&path, node, &opts)?;
+            Directory::new(dir, flags & ctypes::O_SEARCH != 0).add_to_fd_table(opts)
         } else {
-            let file = fops::open_file(&path, node, cap, append)?;
-            File::new(file).add_to_fd_table()
+            let file = fops::open_file(&path, node, &opts)?;
+            File::new(file).add_to_fd_table(opts)
         }
     })
 }
@@ -228,11 +245,11 @@ pub unsafe fn sys_stat(path: *const c_char, buf: *mut core::ffi::c_void) -> c_in
         }
         let node = fops::lookup(&path)?;
         let attr = node.get_attr()?;
-        let st = if attr.is_dir() {
-            let dir = fops::open_dir(&path, node, Cap::empty())?;
+        let st: RuxStat = if attr.is_dir() {
+            let dir = fops::open_dir(&path, node, &OpenOptions::new())?;
             Directory::new(dir, false).stat()?.into()
         } else {
-            let file = fops::open_file(&path, node, Cap::empty(), false)?;
+            let file = fops::open_file(&path, node, &OpenOptions::new())?;
             File::new(file).stat()?.into()
         };
 
@@ -335,9 +352,9 @@ pub unsafe fn sys_newfstatat(
         }
         let node = fops::lookup(&path)?;
         let st = if node.get_attr()?.is_dir() {
-            Directory::new(fops::open_dir(&path, node, Cap::empty())?, false).stat()?
+            Directory::new(fops::open_dir(&path, node, &OpenOptions::new())?, false).stat()?
         } else {
-            File::new(fops::open_file(&path, node, Cap::empty(), false)?).stat()?
+            File::new(fops::open_file(&path, node, &OpenOptions::new())?).stat()?
         };
         unsafe {
             (*kst).st_dev = st.st_dev;
@@ -362,7 +379,7 @@ pub fn sys_getcwd(buf: *mut c_char, size: usize) -> c_int {
             return Err(LinuxError::EINVAL);
         }
         let dst = unsafe { core::slice::from_raw_parts_mut(buf as *mut u8, size as _) };
-        let cwd = fops::current_dir();
+        let cwd = fops::current_dir()?;
         let cwd = cwd.as_bytes();
         if cwd.len() < size {
             dst[..cwd.len()].copy_from_slice(cwd);
@@ -591,8 +608,8 @@ pub unsafe fn sys_getdents64(fd: c_int, dirp: *mut LinuxDirent64, count: ctypes:
 
         loop {
             let mut entry = [DirEntry::default()];
-            let offset = dir.inner.lock().entry_idx();
-            let n = dir.inner.lock().read_dir(&mut entry)?;
+            let offset = dir.inner.read().entry_idx();
+            let n = dir.inner.write().read_dir(&mut entry)?;
             debug!(
                 "entry {:?}",
                 str::from_utf8(entry[0].name_as_bytes()).unwrap()
@@ -610,7 +627,7 @@ pub unsafe fn sys_getdents64(fd: c_int, dirp: *mut LinuxDirent64, count: ctypes:
             if written + entry_size > count {
                 debug!("buf not big enough");
                 // revert the offset
-                dir.inner.lock().set_entry_idx(offset);
+                dir.inner.write().set_entry_idx(offset);
                 break;
             }
 
@@ -709,7 +726,7 @@ pub fn parse_path(path: *const c_char) -> LinuxResult<AbsPath<'static>> {
     if path.starts_with('/') {
         Ok(AbsPath::new_canonicalized(path))
     } else {
-        Ok(fops::current_dir().join(&RelPath::new_canonicalized(path)))
+        Ok(fops::current_dir()?.join(&RelPath::new_canonicalized(path)))
     }
 }
 
@@ -725,7 +742,7 @@ pub fn parse_path_at(dirfd: c_int, path: *const c_char) -> LinuxResult<AbsPath<'
     if path.starts_with('/') {
         Ok(AbsPath::new_canonicalized(path))
     } else if dirfd == ctypes::AT_FDCWD {
-        Ok(fops::current_dir().join(&RelPath::new_canonicalized(path)))
+        Ok(fops::current_dir()?.join(&RelPath::new_canonicalized(path)))
     } else {
         let dir = Directory::from_fd(dirfd)?;
         if dir.searchable {

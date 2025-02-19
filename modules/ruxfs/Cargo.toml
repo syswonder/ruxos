@@ -43,7 +43,6 @@ axfs_vfs = { path = "../../crates/axfs_vfs" }
 axfs_devfs = { path = "../../crates/axfs_devfs", optional = true }
 axfs_ramfs = { path = "../../crates/axfs_ramfs", optional = true }
 crate_interface = { version = "0.1.1" }
-memory_addr = "0.1.0"
 
 ruxdriver = { path = "../ruxdriver", features = ["block"] }
 axalloc = { path = "../axalloc", optional = true }

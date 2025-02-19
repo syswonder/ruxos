@@ -65,7 +65,7 @@ fn open_swap_file(filename: &str) -> Arc<File> {
     opt.append(true);
     opt.create(true);
 
-    let file = ruxfs::fops::File::open(filename, &opt).expect("create swap file failed");
+    let file = ruxfs::fops::open(filename, &opt).expect("create swap file failed");
     Arc::new(File::new(file))
 }
 

@@ -14,12 +14,13 @@
 //!
 //! The interface is designed with low coupling to avoid repetitive error handling.
 
+use alloc::{sync::Arc, vec::Vec};
 use axerrno::{ax_err, ax_err_type, AxResult};
-use axfs_vfs::{AbsPath, VfsError, VfsNodeOps, VfsNodeRef, VfsNodeType};
+use axfs_vfs::{AbsPath, RelPath, VfsNodeOps, VfsNodeRef, VfsNodeType};
 use axio::SeekFrom;
 use capability::{Cap, WithCap};
 
-use crate::root::{CURRENT_DIR, ROOT_DIR};
+use crate::root::{MountPoint, RootDirectory};
 
 #[cfg(feature = "myfs")]
 pub use crate::dev::Disk;
@@ -41,90 +42,6 @@ pub struct File {
     node: WithCap<VfsNodeRef>,
     append: bool,
     offset: u64,
-}
-
-/// An opened directory object, with open permissions and a cursor for
-/// [`read_dir`](Directory::read_dir).
-pub struct Directory {
-    node: WithCap<VfsNodeRef>,
-    entry_idx: usize,
-}
-
-/// Options and flags which can be used to configure how a file is opened.
-#[derive(Clone)]
-pub struct OpenOptions {
-    // generic
-    pub read: bool,
-    pub write: bool,
-    pub append: bool,
-    pub truncate: bool,
-    pub create: bool,
-    pub create_new: bool,
-    // system-specific
-    _custom_flags: i32,
-    _mode: u32,
-}
-
-impl OpenOptions {
-    /// Creates a blank new set of options ready for configuration.
-    pub const fn new() -> Self {
-        Self {
-            // generic
-            read: false,
-            write: false,
-            append: false,
-            truncate: false,
-            create: false,
-            create_new: false,
-            // system-specific
-            _custom_flags: 0,
-            _mode: 0o666,
-        }
-    }
-    /// Sets the option for read access.
-    pub fn read(&mut self, read: bool) {
-        self.read = read;
-    }
-    /// Sets the option for write access.
-    pub fn write(&mut self, write: bool) {
-        self.write = write;
-    }
-    /// Sets the option for the append mode.
-    pub fn append(&mut self, append: bool) {
-        self.append = append;
-    }
-    /// Sets the option for truncating a previous file.
-    pub fn truncate(&mut self, truncate: bool) {
-        self.truncate = truncate;
-    }
-    /// Sets the option to create a new file, or open it if it already exists.
-    pub fn create(&mut self, create: bool) {
-        self.create = create;
-    }
-    /// Sets the option to create a new file, failing if it already exists.
-    pub fn create_new(&mut self, create_new: bool) {
-        self.create_new = create_new;
-    }
-
-    pub const fn is_valid(&self) -> bool {
-        if !self.read && !self.write && !self.append {
-            return false;
-        }
-        match (self.write, self.append) {
-            (true, false) => {}
-            (false, false) => {
-                if self.truncate || self.create || self.create_new {
-                    return false;
-                }
-            }
-            (_, true) => {
-                if self.truncate && !self.create_new {
-                    return false;
-                }
-            }
-        }
-        true
-    }
 }
 
 impl File {
@@ -213,6 +130,12 @@ impl File {
     }
 }
 
+impl Drop for File {
+    fn drop(&mut self) {
+        unsafe { self.node.access_unchecked().release().ok() };
+    }
+}
+
 /// An opened directory object, with open permissions and a cursor for entry reading.
 pub struct Directory {
     path: AbsPath<'static>,
@@ -265,11 +188,148 @@ impl Directory {
     }
 }
 
+impl Drop for Directory {
+    fn drop(&mut self) {
+        unsafe { self.node.access_unchecked().release().ok() };
+    }
+}
+
+/// Options and flags which can be used to configure how a file is opened.
+#[derive(Clone)]
+pub struct OpenOptions {
+    // generic
+    pub read: bool,
+    pub write: bool,
+    pub append: bool,
+    pub truncate: bool,
+    pub create: bool,
+    pub create_new: bool,
+    pub cloexec: bool,
+    // system-specific
+    _custom_flags: i32,
+    _mode: u32,
+}
+
+impl OpenOptions {
+    /// Creates a blank new set of options ready for configuration.
+    pub const fn new() -> Self {
+        Self {
+            // generic
+            read: false,
+            write: false,
+            append: false,
+            truncate: false,
+            create: false,
+            create_new: false,
+            cloexec: false,
+            // system-specific
+            _custom_flags: 0,
+            _mode: 0o666,
+        }
+    }
+    /// Sets the option for read access.
+    pub fn read(&mut self, read: bool) {
+        self.read = read;
+    }
+    /// Sets the option for write access.
+    pub fn write(&mut self, write: bool) {
+        self.write = write;
+    }
+    /// Sets the option for the append mode.
+    pub fn append(&mut self, append: bool) {
+        self.append = append;
+    }
+    /// Sets the option for truncating a previous file.
+    pub fn truncate(&mut self, truncate: bool) {
+        self.truncate = truncate;
+    }
+    /// Sets the option to create a new file, or open it if it already exists.
+    pub fn create(&mut self, create: bool) {
+        self.create = create;
+    }
+    /// Sets the option to create a new file, failing if it already exists.
+    pub fn create_new(&mut self, create_new: bool) {
+        self.create_new = create_new;
+    }
+    /// Sets the option to close the file after exec.
+    pub fn cloexec(&mut self, cloexec: bool) {
+        self.cloexec = cloexec;
+    }
+    /// Convert to capability.
+    pub fn to_cap(&self) -> Cap {
+        let mut cap = Cap::empty();
+        if self.read {
+            cap |= Cap::READ;
+        }
+        if self.write {
+            cap |= Cap::WRITE;
+        }
+        cap
+    }
+
+    pub const fn is_valid(&self) -> bool {
+        if !self.read && !self.write && !self.append {
+            return false;
+        }
+        match (self.write, self.append) {
+            (true, false) => {}
+            (false, false) => {
+                if self.truncate || self.create || self.create_new {
+                    return false;
+                }
+            }
+            (_, true) => {
+                if self.truncate && !self.create_new {
+                    return false;
+                }
+            }
+        }
+        true
+    }
+}
+
+#[crate_interface::def_interface]
+/// Current working directory operations.
+pub trait CurrentWorkingDirectoryOps {
+    /// Initializes the root filesystem with the specified mount points.
+    fn init_rootfs(mount_points: Vec<MountPoint>);
+    /// Returns the parent node of the specified path.
+    fn parent_node_of(dir: Option<&VfsNodeRef>, path: &RelPath) -> VfsNodeRef;
+    /// Returns the absolute path of the specified path.
+    fn absolute_path(path: &str) -> AxResult<AbsPath<'static>>;
+    /// Returns the current working directory.
+    fn current_dir() -> AxResult<AbsPath<'static>>;
+    /// Sets the current working directory.
+    fn set_current_dir(path: AbsPath<'static>) -> AxResult;
+    /// get the root directory of the filesystem
+    fn root_dir() -> Arc<RootDirectory>;
+}
+
+pub(crate) fn absolute_path(path: &str) -> AxResult<AbsPath<'static>> {
+    crate_interface::call_interface!(CurrentWorkingDirectoryOps::absolute_path, path)
+}
+
+pub fn current_dir() -> AxResult<AbsPath<'static>> {
+    crate_interface::call_interface!(CurrentWorkingDirectoryOps::current_dir)
+}
+
+pub fn set_current_dir(path: AbsPath<'static>) -> AxResult {
+    crate_interface::call_interface!(CurrentWorkingDirectoryOps::set_current_dir, path)
+}
+
+pub(crate) fn init_rootfs(mount_points: Vec<MountPoint>) {
+    crate_interface::call_interface!(CurrentWorkingDirectoryOps::init_rootfs, mount_points)
+}
+
+pub(crate) fn root_dir() -> Arc<RootDirectory> {
+    crate_interface::call_interface!(CurrentWorkingDirectoryOps::root_dir)
+}
+
 // File operations with absolute path.
 
 /// Look up a file given an absolute path.
 pub fn lookup(path: &AbsPath) -> AxResult<VfsNodeRef> {
-    ROOT_DIR.clone().lookup(&path.to_rel())
+    root_dir().clone().lookup(&path.to_rel())
 }
 
 /// Get the file attributes given an absolute path.
@@ -278,44 +338,53 @@ pub fn get_attr(path: &AbsPath) -> AxResult<FileAttr> {
 }
 
 /// Open a node as a file, with permission checked.
-pub fn open_file(path: &AbsPath, node: VfsNodeRef, cap: Cap, append: bool) -> AxResult<File> {
+pub fn open_file(path: &AbsPath, node: VfsNodeRef, opt: &OpenOptions) -> AxResult<File> {
     let attr = node.get_attr()?;
-    if !perm_to_cap(attr.perm()).contains(cap) {
+    if !perm_to_cap(attr.perm()).contains(opt.to_cap()) {
         return ax_err!(PermissionDenied);
     }
     node.open()?;
-    Ok(File::new(path.to_owned(), node, cap, append))
+    Ok(File::new(path.to_owned(), node, opt.to_cap(), opt.append))
 }
 
 /// Open a node as a directory, with permission checked.
-pub fn open_dir(path: &AbsPath, node: VfsNodeRef, cap: Cap) -> AxResult<Directory> {
+pub fn open_dir(path: &AbsPath, node: VfsNodeRef, opt: &OpenOptions) -> AxResult<Directory> {
     let attr = node.get_attr()?;
-    if !perm_to_cap(attr.perm()).contains(cap) {
+    if !perm_to_cap(attr.perm()).contains(opt.to_cap()) {
         return ax_err!(PermissionDenied);
     }
     node.open()?;
-    Ok(Directory::new(path.to_owned(), node, cap | Cap::EXECUTE))
+    Ok(Directory::new(path.to_owned(), node, opt.to_cap() | Cap::EXECUTE))
+}
+
+/// Lookup and open a file at an arbitrary path.
+/// 
+/// If `path` is relative, it will be resolved against the current working directory.
+pub fn open(path: &str, opt: &OpenOptions) -> AxResult<File> {
+    let path = absolute_path(path)?;
+    let node = lookup(&path)?;
+    open_file(&path, node, opt)
 }
 
 /// Create a file given an absolute path.
 ///
 /// This function will not check if the file exists, check it with [`lookup`] first.
 pub fn create_file(path: &AbsPath) -> AxResult {
-    ROOT_DIR.create(&path.to_rel(), VfsNodeType::File)
+    root_dir().create(&path.to_rel(), VfsNodeType::File)
 }
 
 /// Create a directory given an absolute path.
 ///
 /// This function will not check if the directory exists, check it with [`lookup`] first.
 pub fn create_dir(path: &AbsPath) -> AxResult {
-    ROOT_DIR.create(&path.to_rel(), VfsNodeType::Dir)
+    root_dir().create(&path.to_rel(), VfsNodeType::Dir)
 }
 
 /// Create a directory recursively given an absolute path.
 ///
 /// This function will not check if the directory exists, check it with [`lookup`] first.
 pub fn create_dir_all(path: &AbsPath) -> AxResult {
-    ROOT_DIR.create_recursive(&path.to_rel(), VfsNodeType::Dir)
+    root_dir().create_recursive(&path.to_rel(), VfsNodeType::Dir)
 }
 
 /// Remove a file given an absolute path.
@@ -323,7 +392,7 @@ pub fn create_dir_all(path: &AbsPath) -> AxResult {
 /// This function will not check if the file exits or removeable,
 /// check it with [`lookup`] first.
 pub fn remove_file(path: &AbsPath) -> AxResult {
-    ROOT_DIR.unlink(&path.to_rel())
+    root_dir().unlink(&path.to_rel())
 }
 
 /// Remove a directory given an absolute path.
@@ -331,10 +400,10 @@ pub fn remove_file(path: &AbsPath) -> AxResult {
 /// This function will not check if the directory exists or is empty,
 /// check it with [`lookup`] first.
 pub fn remove_dir(path: &AbsPath) -> AxResult {
-    if ROOT_DIR.contains(path) {
+    if root_dir().contains(path) {
         return ax_err!(PermissionDenied);
     }
-    ROOT_DIR.unlink(&path.to_rel())
+    root_dir().unlink(&path.to_rel())
 }
 
 /// Rename a file given an old and a new absolute path.
@@ -342,40 +411,7 @@ pub fn remove_dir(path: &AbsPath) -> AxResult {
 /// This function will not check if the old path or new path exists, check it with
 /// [`lookup`] first.
 pub fn rename(old: &AbsPath, new: &AbsPath) -> AxResult {
-    ROOT_DIR.rename(&old.to_rel(), &new.to_rel())
-}
-
-/// Get current working directory.
-pub fn current_dir<'a>() -> AbsPath<'a> {
-    CURRENT_DIR.lock().clone()
-}
-
-/// Set current working directory.
-///
-/// Returns error if the path does not exist or is not a directory.
-pub fn set_current_dir(path: AbsPath<'static>) -> AxResult {
-    let node = lookup(&path)?;
-    let attr = node.get_attr()?;
-    if !attr.is_dir() {
-        Err(VfsError::NotADirectory)
-    } else if !attr.perm().owner_executable() {
-        Err(VfsError::PermissionDenied)
-    } else {
-        *CURRENT_DIR.lock() = path;
-        Ok(())
-    }
-}
-
-impl Drop for File {
-    fn drop(&mut self) {
-        unsafe { self.node.access_unchecked().release().ok() };
-    }
-}
-
-impl Drop for Directory {
-    fn drop(&mut self) {
-        unsafe { self.node.access_unchecked().release().ok() };
-    }
+    root_dir().rename(&old.to_rel(), &new.to_rel())
 }
 
 pub fn perm_to_cap(perm: FilePerm) -> Cap {
