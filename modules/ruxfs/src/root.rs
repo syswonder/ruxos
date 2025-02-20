@@ -7,7 +7,7 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-//! Root directory of the filesystem. Filesystem operations are distributed to the
+//! Root directory of the filesystem, where filesystem operations are distributed to the
 //! appropriate filesystem based on the mount points.
 //!
 //! `RootDirectory::lookup_mounted_fs()` performs the distribution of operations.

@@ -7,7 +7,7 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-//! Low-level filesystem operations. Provided for [ruxfs::api] and [ruxos_posix_api::fs] modules.
+//! Low-level filesystem operations. Provided for [`ruxfs::api`] and [`ruxos_posix_api::fs`] modules.
 //!
 //! - File: open, read, write, seek, truncate
 //! - Directory: open, read, create, remove
@@ -37,6 +37,8 @@ pub type FileAttr = axfs_vfs::VfsNodeAttr;
 pub type FilePerm = axfs_vfs::VfsNodePerm;
 
 /// An opened file object, with open permissions and a cursor.
+///
+/// Providing basic file operations.
 pub struct File {
     path: AbsPath<'static>,
     node: WithCap<VfsNodeRef>,
@@ -137,6 +139,8 @@ impl Drop for File {
 }
 
 /// An opened directory object, with open permissions and a cursor for entry reading.
+///
+/// Providing entry reading operations.
 pub struct Directory {
     path: AbsPath<'static>,
     node: WithCap<VfsNodeRef>,
@@ -325,7 +329,7 @@ pub(crate) fn root_dir() -> Arc<RootDirectory> {
     crate_interface::call_interface!(CurrentWorkingDirectoryOps::root_dir)
 }
 
-// File operations with absolute path.
+/* File operations with absolute path. */
 
 /// Look up a file given an absolute path.
 pub fn lookup(path: &AbsPath) -> AxResult<VfsNodeRef> {
@@ -354,12 +358,17 @@ pub fn open_dir(path: &AbsPath, node: VfsNodeRef, opt: &OpenOptions) -> AxResult
         return ax_err!(PermissionDenied);
     }
     node.open()?;
-    Ok(Directory::new(path.to_owned(), node, opt.to_cap() | Cap::EXECUTE))
+    Ok(Directory::new(
+        path.to_owned(),
+        node,
+        opt.to_cap() | Cap::EXECUTE,
+    ))
 }
 
 /// Lookup and open a file at an arbitrary path.
-/// 
+///
 /// If `path` is relative, it will be resolved against the current working directory.
+/// If `path` is absolute, it will be used as is.
 pub fn open(path: &str, opt: &OpenOptions) -> AxResult<File> {
     let path = absolute_path(path)?;
     let node = lookup(&path)?;
@@ -414,7 +423,7 @@ pub fn rename(old: &AbsPath, new: &AbsPath) -> AxResult {
     root_dir().rename(&old.to_rel(), &new.to_rel())
 }
 
-pub fn perm_to_cap(perm: FilePerm) -> Cap {
+fn perm_to_cap(perm: FilePerm) -> Cap {
     let mut cap = Cap::empty();
     if perm.owner_readable() {
         cap |= Cap::READ;

@@ -40,7 +40,7 @@ impl ruxtask::fs::InitFs for InitFsImpl {
 }
 
 /// Convert open flags to [`OpenOptions`].
-pub fn flags_to_options(flags: c_int, _mode: ctypes::mode_t) -> OpenOptions {
+fn flags_to_options(flags: c_int, _mode: ctypes::mode_t) -> OpenOptions {
     let flags = flags as u32;
     let mut options = OpenOptions::new();
     match flags & 0b11 {
@@ -77,18 +77,17 @@ pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> 
     syscall_body!(sys_open, {
         let path = parse_path(filename)?;
         let opts = flags_to_options(flags, mode);
-        let flags = flags as u32;
         debug!("sys_open <= {:?} {:#o} {:#o}", path, flags, mode);
         // Check flag and attr
         let node = match fops::lookup(&path) {
             Ok(node) => {
-                if flags & ctypes::O_EXCL != 0 {
+                if opts.create_new {
                     return Err(LinuxError::EEXIST);
                 }
                 node
             }
             Err(Error::NotFound) => {
-                if !(flags & ctypes::O_CREAT != 0) {
+                if !opts.create {
                     return Err(LinuxError::ENOENT);
                 }
                 fops::create_file(&path)?;
@@ -100,7 +99,7 @@ pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> 
             return Err(LinuxError::EISDIR);
         }
         // Truncate
-        if flags & ctypes::O_TRUNC != 0 {
+        if opts.truncate {
             node.truncate(0)?;
         }
         // Open
@@ -114,7 +113,8 @@ pub fn sys_openat(fd: c_int, path: *const c_char, flags: c_int, mode: ctypes::mo
     syscall_body!(sys_openat, {
         let path = parse_path_at(fd, path)?;
         let opts = flags_to_options(flags, mode);
-        let flags = flags as u32;
+        let open_dir = flags as u32 & ctypes::O_DIRECTORY != 0;
+        let searchable = flags as u32 & ctypes::O_SEARCH != 0;
         debug!(
             "sys_openat <= {}, {:?}, {:#o}, {:#o}",
             fd, path, flags, mode
@@ -124,23 +124,22 @@ pub fn sys_openat(fd: c_int, path: *const c_char, flags: c_int, mode: ctypes::mo
             Ok(node) => {
                 let attr = node.get_attr()?;
                 // Node exists but O_EXCL is set
-                if flags & ctypes::O_EXCL != 0 {
-                    debug!("exist {} {}", flags, ctypes::O_EXCL);
+                if opts.create_new {
                     return Err(LinuxError::EEXIST);
                 }
                 // Node is not a directory but O_DIRECTORY is set
-                if !attr.is_dir() && (flags & ctypes::O_DIRECTORY != 0) {
+                if !attr.is_dir() && open_dir {
                     return Err(LinuxError::ENOTDIR);
                 }
                 // Truncate
-                if attr.is_file() && (flags & ctypes::O_TRUNC != 0) {
+                if attr.is_file() && opts.truncate {
                     node.truncate(0)?;
                 }
                 node
             }
             Err(Error::NotFound) => {
                 // O_CREAT is not set or O_DIRECTORY is set
-                if (flags & ctypes::O_DIRECTORY != 0) || (flags & ctypes::O_CREAT == 0) {
+                if open_dir || !opts.create {
                     return Err(LinuxError::ENOENT);
                 }
                 // Create file
@@ -152,7 +151,7 @@ pub fn sys_openat(fd: c_int, path: *const c_char, flags: c_int, mode: ctypes::mo
         // Open file or directory
         if node.get_attr()?.is_dir() {
             let dir = fops::open_dir(&path, node, &opts)?;
-            Directory::new(dir, flags & ctypes::O_SEARCH != 0).add_to_fd_table(opts)
+            Directory::new(dir, searchable).add_to_fd_table(opts)
         } else {
             let file = fops::open_file(&path, node, &opts)?;
             File::new(file).add_to_fd_table(opts)
