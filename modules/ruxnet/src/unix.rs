@@ -652,7 +652,31 @@ impl UnixSocket {
 
     /// Returns the local address of the socket.
     pub fn local_addr(&self) -> LinuxResult<SocketAddrUnix> {
-        unimplemented!()
+        let now_state = self.get_state();
+        warn!("unix socket local_addr()");
+        match self.get_sockettype() {
+            UnixSocketType::SockStream => {
+                let inner = UNIX_TABLE.read();
+                let socket_inner = inner.get(self.get_sockethandle()).unwrap().lock();
+                let addr = socket_inner.get_addr();
+                if addr.sun_path.iter().all(|&c| c == 0) {
+                    Ok(generate_anonymous_address())
+                } else {
+                    Ok(addr)
+                }
+            }
+            UnixSocketType::SockDgram => {
+                let inner = UNIX_TABLE.read();
+                let socket_inner = inner.get(self.get_sockethandle()).unwrap().lock();
+                let addr = socket_inner.get_addr();
+                if addr.sun_path.iter().all(|&c| c == 0) {
+                    Ok(generate_anonymous_address())
+                } else {
+                    Ok(addr)
+                }
+            }
+            UnixSocketType::SockSeqpacket => unimplemented!(),
+        }
     }
 
     /// Returns the peer address of the socket.
