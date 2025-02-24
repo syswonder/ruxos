@@ -9,6 +9,7 @@
 
 use alloc::sync::{Arc, Weak};
 use core::ffi::c_int;
+use ringbuffer::RingBuffer;
 use ruxfs::{fops, AbsPath};
 
 use axerrno::{LinuxError, LinuxResult};
@@ -19,82 +20,16 @@ use ruxfdtable::{FileLike, RuxStat};
 use crate::{ctypes, sys_fcntl};
 use ruxtask::fs::{add_file_like, close_file_like};
 
-#[derive(Copy, Clone, PartialEq)]
-enum RingBufferStatus {
-    Full,
-    Empty,
-    Normal,
-}
-
-const RING_BUFFER_SIZE: usize = ruxconfig::PIPE_BUFFER_SIZE;
-
-pub struct PipeRingBuffer {
-    arr: [u8; RING_BUFFER_SIZE],
-    head: usize,
-    tail: usize,
-    status: RingBufferStatus,
-}
-
-impl PipeRingBuffer {
-    pub const fn new() -> Self {
-        Self {
-            arr: [0; RING_BUFFER_SIZE],
-            head: 0,
-            tail: 0,
-            status: RingBufferStatus::Empty,
-        }
-    }
-
-    pub fn write_byte(&mut self, byte: u8) {
-        self.status = RingBufferStatus::Normal;
-        self.arr[self.tail] = byte;
-        self.tail = (self.tail + 1) % RING_BUFFER_SIZE;
-        if self.tail == self.head {
-            self.status = RingBufferStatus::Full;
-        }
-    }
-
-    pub fn read_byte(&mut self) -> u8 {
-        self.status = RingBufferStatus::Normal;
-        let c = self.arr[self.head];
-        self.head = (self.head + 1) % RING_BUFFER_SIZE;
-        if self.head == self.tail {
-            self.status = RingBufferStatus::Empty;
-        }
-        c
-    }
-
-    /// Get the length of remaining data in the buffer
-    pub const fn available_read(&self) -> usize {
-        if matches!(self.status, RingBufferStatus::Empty) {
-            0
-        } else if self.tail > self.head {
-            self.tail - self.head
-        } else {
-            self.tail + RING_BUFFER_SIZE - self.head
-        }
-    }
-
-    /// Get the length of remaining space in the buffer
-    pub const fn available_write(&self) -> usize {
-        if matches!(self.status, RingBufferStatus::Full) {
-            0
-        } else {
-            RING_BUFFER_SIZE - self.available_read()
-        }
-    }
-}
-
 pub struct Pipe {
     readable: bool,
-    buffer: Arc<Mutex<PipeRingBuffer>>,
+    buffer: Arc<Mutex<RingBuffer>>,
     // to find the write end when the read end is closed
-    _write_end_closed: Option<Weak<Mutex<PipeRingBuffer>>>,
+    _write_end_closed: Option<Weak<Mutex<RingBuffer>>>,
 }
 
 impl Pipe {
     pub fn new() -> (Pipe, Pipe) {
-        let buffer = Arc::new(Mutex::new(PipeRingBuffer::new()));
+        let buffer = Arc::new(Mutex::new(RingBuffer::new(ruxconfig::PIPE_BUFFER_SIZE)));
         let read_end = Pipe {
             readable: true,
             buffer: buffer.clone(),
