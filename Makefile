@@ -60,6 +60,7 @@ BUS ?= mmio
 RISCV_BIOS ?= default
 
 DISK_IMG ?= disk.img
+FS ?= fat32
 QEMU_LOG ?= n
 NET_DUMP ?= n
 NET_DEV ?= user
@@ -261,18 +262,15 @@ unittest:
 unittest_no_fail_fast:
 	$(call unit_test,--no-fail-fast)
 
-fat_img:
+disk_img:
 ifneq ($(wildcard $(DISK_IMG)),)
 	@printf "$(YELLOW_C)warning$(END_C): disk image \"$(DISK_IMG)\" already exists!\n"
-else
+else ifeq ($(FS), fat32)
 	$(call make_disk_image,fat32,$(DISK_IMG))
-endif
-
-ext4_img:
-ifneq ($(wildcard $(DISK_IMG)),)
-	@printf "$(YELLOW_C)warning$(END_C): disk image \"$(DISK_IMG)\" already exists!\n"
-else
+else ifeq ($(FS), ext4)
 	$(call make_disk_image,ext4,$(DISK_IMG))
+else
+	$(error "FS" must be one of "fat32" or "ext4")
 endif
 
 clean: clean_c clean_musl
