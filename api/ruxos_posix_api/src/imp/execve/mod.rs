@@ -135,6 +135,14 @@ pub fn sys_execve(pathname: *const c_char, argv: usize, envp: usize) -> ! {
         stack.stack_size()
     );
 
+    current()
+        .fs
+        .lock()
+        .as_mut()
+        .unwrap()
+        .fd_table
+        .do_close_on_exec();
+
     set_sp_and_jmp(sp, entry);
 }
 

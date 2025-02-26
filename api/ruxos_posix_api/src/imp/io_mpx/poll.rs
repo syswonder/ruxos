@@ -75,6 +75,7 @@ pub unsafe fn sys_poll(fds: *mut ctypes::pollfd, nfds: ctypes::nfds_t, timeout: 
             return Err(LinuxError::EINVAL);
         }
         let fds = core::slice::from_raw_parts_mut(fds, nfds as usize);
+        debug!("[sys_poll] monitored fds is {:?}", fds);
         let deadline = (!timeout.is_negative())
             .then(|| current_time() + Duration::from_millis(timeout as u64));
         for pollfd_item in fds.iter_mut() {

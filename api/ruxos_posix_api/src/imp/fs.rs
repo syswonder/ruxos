@@ -38,7 +38,7 @@ impl ruxtask::fs::InitFs for InitFsImpl {
 }
 
 /// Convert open flags to [`OpenOptions`].
-fn flags_to_options(flags: c_int, _mode: ctypes::mode_t) -> OpenOptions {
+pub fn flags_to_options(flags: c_int, _mode: ctypes::mode_t) -> OpenOptions {
     let flags = flags as u32;
     let mut options = OpenOptions::new();
     match flags & 0b11 {
@@ -61,6 +61,9 @@ fn flags_to_options(flags: c_int, _mode: ctypes::mode_t) -> OpenOptions {
     if flags & ctypes::O_EXEC != 0 {
         options.create_new(true);
     }
+    if flags & ctypes::O_CLOEXEC != 0 {
+        options.cloexec(true);
+    }
     options
 }
 
@@ -74,7 +77,7 @@ pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> 
     syscall_body!(sys_open, {
         let options = flags_to_options(flags, mode);
         let file = ruxfs::fops::File::open(filename?, &options)?;
-        File::new(file).add_to_fd_table()
+        File::new(file).add_to_fd_table(options)
     })
 }
 
@@ -94,7 +97,7 @@ pub fn sys_openat(fd: usize, path: *const c_char, flags: c_int, mode: ctypes::mo
                     .write()
                     .open_dir_at(path?, &options)?
             };
-            Directory::new(dir).add_to_fd_table()
+            Directory::new(dir).add_to_fd_table(options)
         } else {
             let file = if fd == ctypes::AT_FDCWD {
                 ruxfs::fops::File::open(path?, &options)?
@@ -104,7 +107,7 @@ pub fn sys_openat(fd: usize, path: *const c_char, flags: c_int, mode: ctypes::mo
                     .write()
                     .open_file_at(path?, &options)?
             };
-            File::new(file).add_to_fd_table()
+            File::new(file).add_to_fd_table(options)
         }
     })
 }

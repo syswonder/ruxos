@@ -15,9 +15,11 @@ use crate::current;
 use alloc::{format, string::String, sync::Arc, vec::Vec};
 use axerrno::{ax_err, AxResult};
 use axfs_vfs::VfsNodeRef;
+use bitmaps::Bitmap;
 use flatten_objects::FlattenObjects;
 use ruxfdtable::FileLike;
 use ruxfs::{
+    fops,
     root::{lookup, CurrentWorkingDirectoryOps, RootDirectory},
     MountPoint,
 };
@@ -61,11 +63,13 @@ pub fn get_file_like(fd: i32) -> LinuxResult<Arc<dyn FileLike>> {
 }
 
 /// Adds a file like object to the file descriptor table and returns the file descriptor.
-pub fn add_file_like(f: Arc<dyn FileLike>) -> LinuxResult<i32> {
+/// Actually there only `CLOEXEC` flag in options works.
+pub fn add_file_like(f: Arc<dyn FileLike>, options: fops::OpenOptions) -> LinuxResult<i32> {
     let binding_task = current();
     let mut binding_fs = binding_task.fs.lock();
     let fd_table = &mut binding_fs.as_mut().expect("No fd table found").fd_table;
-    Ok(fd_table.add(f).ok_or(LinuxError::EMFILE)? as i32)
+    let fd = fd_table.add(f, options).ok_or(LinuxError::EMFILE)?;
+    Ok(fd as _)
 }
 
 /// Removes a file like object from the file descriptor table.
@@ -73,7 +77,14 @@ pub fn close_file_like(fd: i32) -> LinuxResult {
     let binding_task = current();
     let mut binding_fs = binding_task.fs.lock();
     let fd_table = &mut binding_fs.as_mut().unwrap().fd_table;
-    let _ = fd_table.remove(fd as usize).ok_or(LinuxError::EBADF)?;
+
+    let file = fd_table.remove(fd as usize).ok_or(LinuxError::EBADF)?;
+
+    // drop the binding_fs to release the lock, as some operations
+    // when closing a file may need to reschedule the task.(e.g. SOCKET_CLOSE)
+    drop(binding_fs);
+    drop(file);
+
     Ok(())
 }
 
@@ -92,8 +103,8 @@ impl File {
     }
 
     /// Adds the file object to the file descriptor table and returns the file descriptor.
-    pub fn add_to_fd_table(self) -> LinuxResult<i32> {
-        add_file_like(Arc::new(self))
+    pub fn add_to_fd_table(self, options: fops::OpenOptions) -> LinuxResult<i32> {
+        add_file_like(Arc::new(self), options)
     }
 
     /// Creates a new file object from the given file descriptor.
@@ -176,8 +187,8 @@ impl Directory {
     }
 
     /// Adds the directory object to the file descriptor table and returns the file descriptor.
-    pub fn add_to_fd_table(self) -> LinuxResult<i32> {
-        add_file_like(Arc::new(self))
+    pub fn add_to_fd_table(self, flags: fops::OpenOptions) -> LinuxResult<i32> {
+        add_file_like(Arc::new(self), flags)
     }
 
     /// Creates a new directory object from the given file descriptor.
@@ -241,9 +252,10 @@ impl FileLike for Directory {
 pub const RUX_FILE_LIMIT: usize = 1024;
 
 /// A struct representing a file system object.
+#[derive(Clone)]
 pub struct FileSystem {
     /// The file descriptor table.
-    pub fd_table: FlattenObjects<Arc<dyn FileLike>, RUX_FILE_LIMIT>,
+    pub fd_table: FdTable,
     /// The current working directory.
     pub current_path: String,
     /// The current directory.
@@ -252,34 +264,153 @@ pub struct FileSystem {
     pub root_dir: Arc<RootDirectory>,
 }
 
-impl FileSystem {
-    /// Closes all file objects in the file descriptor table.
-    pub fn close_all_files(&mut self) {
-        for fd in 0..self.fd_table.capacity() {
-            if self.fd_table.get(fd).is_some() {
-                self.fd_table.remove(fd).unwrap();
+/// A table of file descriptors, containing a collection of file objects and their associated flags(CLOEXEC).
+pub struct FdTable {
+    /// A collection of file objects, indexed by their file descriptor numbers.
+    files: FlattenObjects<Arc<dyn FileLike>, RUX_FILE_LIMIT>,
+    /// A bitmap for tracking `FD_CLOEXEC` flags for each file descriptor.
+    /// If a bit is set, the corresponding file descriptor has the `FD_CLOEXEC` flag enabled.
+    cloexec_bitmap: Bitmap<RUX_FILE_LIMIT>,
+}
+
+impl Clone for FdTable {
+    fn clone(&self) -> Self {
+        // get all file descriptors from the original file system to copy them to the new one
+        // TODO: make this more efficient by only copying the used file descriptors
+        let mut new_files = FlattenObjects::new();
+        for fd in 0..self.files.capacity() {
+            if let Some(f) = self.files.get(fd) {
+                new_files.add_at(fd, f.clone()).unwrap();
             }
+        }
+        Self {
+            files: new_files,
+            cloexec_bitmap: self.cloexec_bitmap,
         }
     }
 }
 
-impl Clone for FileSystem {
-    fn clone(&self) -> Self {
-        let mut new_fd_table = FlattenObjects::new();
-        // get all file descriptors from the original file system to copy them to the new one
-        // TODO: make this more efficient by only copying the used file descriptors
-        for fd in 0..self.fd_table.capacity() {
-            if let Some(f) = self.fd_table.get(fd) {
-                new_fd_table.add_at(fd, f.clone()).unwrap();
+impl Default for FdTable {
+    fn default() -> Self {
+        FdTable {
+            files: FlattenObjects::new(),
+            cloexec_bitmap: Bitmap::new(),
+        }
+    }
+}
+
+impl FdTable {
+    /// Retrieves the file object associated with the given file descriptor (fd).
+    ///
+    /// Returns `Some` with the file object if the file descriptor exists, or `None` if not.
+    pub fn get(&self, fd: usize) -> Option<&Arc<dyn FileLike>> {
+        self.files.get(fd)
+    }
+
+    /// Adds a new file object to the table and associates it with a file descriptor.
+    ///
+    /// Also sets the `FD_CLOEXEC` flag for the file descriptor based on the `flags` argument.
+    /// Returns the assigned file descriptor number (`fd`) if successful, or `None` if the table is full.
+    pub fn add(&mut self, file: Arc<dyn FileLike>, flags: fops::OpenOptions) -> Option<usize> {
+        if let Some(fd) = self.files.add(file) {
+            debug_assert!(!self.cloexec_bitmap.get(fd));
+            if flags.is_cloexec() {
+                self.cloexec_bitmap.set(fd, true);
+            }
+            Some(fd)
+        } else {
+            None
+        }
+    }
+
+    /// Adds a file object to the table at a specific file descriptor.
+    /// It won't be add if the specified fd in the fdtable already exists
+    pub fn add_at(&mut self, fd: usize, file: Arc<dyn FileLike>) -> Option<usize> {
+        self.files.add_at(fd, file)
+    }
+
+    /// Retrieves the `FD_CLOEXEC` flag for the specified file descriptor.
+    ///
+    /// Returns `true` if the flag is set, otherwise `false`.
+    pub fn get_cloexec(&self, fd: usize) -> bool {
+        self.cloexec_bitmap.get(fd)
+    }
+
+    /// Sets the `FD_CLOEXEC` flag for the specified file descriptor.
+    pub fn set_cloexec(&mut self, fd: usize, cloexec: bool) {
+        self.cloexec_bitmap.set(fd, cloexec);
+    }
+
+    /// Removes a file descriptor from the table.
+    ///
+    /// This will clear the `FD_CLOEXEC` flag for the file descriptor and remove the file object.
+    pub fn remove(&mut self, fd: usize) -> Option<Arc<dyn FileLike>> {
+        self.cloexec_bitmap.set(fd, false);
+        // use map_or because RAII. the Arc should be released here. You should not use the return Arc
+        let closing_file = self.files.remove(fd);
+        closing_file
+    }
+
+    /// Closes all file descriptors with the `FD_CLOEXEC` flag set.
+    ///
+    /// This will remove all file descriptors marked for close-on-exec from the table.
+    pub fn do_close_on_exec(&mut self) {
+        for fd in self.cloexec_bitmap.into_iter() {
+            self.files.remove(fd);
+        }
+        self.cloexec_bitmap = Bitmap::new()
+    }
+
+    /// Duplicates a file descriptor and returns a new file descriptor.
+    ///
+    /// The two file descriptors do not share file descriptor flags (the close-on-exec flag).
+    /// The close-on-exec flag (FD_CLOEXEC; see fcntl(2)) for the duplicate descriptor is off.
+    pub fn dup(&mut self, fd: usize) -> LinuxResult<usize> {
+        let f = self.files.get(fd).ok_or(LinuxError::EBADF)?.clone();
+        let new_fd = self.files.add(f).ok_or(LinuxError::EMFILE)?;
+        debug_assert!(!self.cloexec_bitmap.get(new_fd));
+        Ok(new_fd)
+    }
+
+    /// Duplicates a file descriptor to a specific file descriptor number, replacing it if necessary.
+    ///
+    /// If the file descriptor `newfd` was previously open, it is silently closed before being reused.
+    pub fn dup3(&mut self, old_fd: usize, new_fd: usize, cloexec: bool) -> LinuxResult<usize> {
+        let f = self.files.get(old_fd).ok_or(LinuxError::EBADF)?.clone();
+        self.files.remove(new_fd);
+        self.files.add_at(new_fd, f);
+        self.cloexec_bitmap.set(new_fd, cloexec);
+        Ok(new_fd)
+    }
+
+    /// Duplicate the file descriptor fd using the lowest-numbered available file descriptor greater than or equal to `bound`.
+    pub fn dup_with_low_bound(
+        &mut self,
+        fd: usize,
+        bound: usize,
+        cloexec: bool,
+    ) -> LinuxResult<usize> {
+        let f = self.files.get(fd).ok_or(LinuxError::EBADF)?.clone();
+        let new_fd = self
+            .files
+            .add_with_low_bound(f, bound)
+            .ok_or(LinuxError::EMFILE)?;
+        debug_assert!(!self.cloexec_bitmap.get(new_fd));
+        self.cloexec_bitmap.set(new_fd, cloexec);
+        Ok(new_fd)
+    }
+}
+
+impl FileSystem {
+    /// Closes all file objects in the file descriptor table.
+    pub fn close_all_files(&mut self) {
+        for fd in 0..self.fd_table.files.capacity() {
+            if self.fd_table.files.get(fd).is_some() {
+                self.fd_table.files.remove(fd).unwrap();
             }
         }
-
-        Self {
-            fd_table: new_fd_table,
-            current_path: self.current_path.clone(),
-            current_dir: self.current_dir.clone(),
-            root_dir: self.root_dir.clone(),
-        }
+        // this code might not be necessary
+        self.fd_table.cloexec_bitmap = Bitmap::new();
     }
 }
 
@@ -303,7 +434,7 @@ pub fn init_rootfs(mount_points: Vec<MountPoint>) {
     let root_dir_arc = Arc::new(root_dir);
 
     let mut fs = FileSystem {
-        fd_table: FlattenObjects::new(),
+        fd_table: FdTable::default(),
         current_path: "/".into(),
         current_dir: root_dir_arc.clone(),
         root_dir: root_dir_arc.clone(),

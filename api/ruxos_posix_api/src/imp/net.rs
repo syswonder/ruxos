@@ -11,6 +11,7 @@ use alloc::{sync::Arc, vec, vec::Vec};
 use core::ffi::{c_char, c_int, c_void};
 use core::mem::size_of;
 use core::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
+use ruxfs::fops;
 
 use axerrno::{LinuxError, LinuxResult};
 use axio::PollState;
@@ -19,6 +20,7 @@ use ruxfdtable::{FileLike, RuxStat};
 use ruxnet::{SocketAddrUnix, TcpSocket, UdpSocket, UnixSocket, UnixSocketType};
 
 use crate::ctypes;
+use crate::imp::fs::flags_to_options;
 use crate::utils::char_ptr_to_str;
 
 fn addrun_convert(addr: *const ctypes::sockaddr_un) -> SocketAddrUnix {
@@ -60,8 +62,8 @@ pub enum Socket {
 }
 
 impl Socket {
-    fn add_to_fd_table(self) -> LinuxResult<c_int> {
-        ruxtask::fs::add_file_like(Arc::new(self))
+    fn add_to_fd_table(self, flags: fops::OpenOptions) -> LinuxResult<c_int> {
+        ruxtask::fs::add_file_like(Arc::new(self), flags)
     }
 
     fn from_fd(fd: c_int) -> LinuxResult<Arc<Self>> {
@@ -388,31 +390,36 @@ fn from_sockaddr(
 pub fn sys_socket(domain: c_int, socktype: c_int, protocol: c_int) -> c_int {
     debug!("sys_socket <= {} {} {}", domain, socktype, protocol);
     let (domain, socktype, protocol) = (domain as u32, socktype as u32, protocol as u32);
-    pub const _SOCK_STREAM_NONBLOCK: u32 = ctypes::SOCK_STREAM | ctypes::SOCK_NONBLOCK;
+    let fdflags = flags_to_options((socktype & ctypes::SOCK_CLOEXEC) as c_int, 0);
+    let nonblock = (socktype & ctypes::SOCK_NONBLOCK) != 0;
+    let socktype = socktype & !ctypes::SOCK_CLOEXEC & !ctypes::SOCK_NONBLOCK;
     syscall_body!(sys_socket, {
-        match (domain, socktype, protocol) {
-            (ctypes::AF_INET, ctypes::SOCK_STREAM, ctypes::IPPROTO_TCP)
-            | (ctypes::AF_INET, ctypes::SOCK_STREAM, 0) => {
-                Socket::Tcp(Mutex::new(TcpSocket::new())).add_to_fd_table()
-            }
-            (ctypes::AF_INET, ctypes::SOCK_DGRAM, ctypes::IPPROTO_UDP)
-            | (ctypes::AF_INET, ctypes::SOCK_DGRAM, 0) => {
-                Socket::Udp(Mutex::new(UdpSocket::new())).add_to_fd_table()
-            }
-            (ctypes::AF_INET, _SOCK_STREAM_NONBLOCK, ctypes::IPPROTO_TCP) => {
-                let tcp_socket = TcpSocket::new();
-                tcp_socket.set_nonblocking(true);
-                Socket::Tcp(Mutex::new(tcp_socket)).add_to_fd_table()
-            }
-            (ctypes::AF_UNIX, ctypes::SOCK_STREAM, 0) => {
-                Socket::Unix(Mutex::new(UnixSocket::new(UnixSocketType::SockStream)))
-                    .add_to_fd_table()
-            }
-            (ctypes::AF_UNIX, ctypes::SOCK_DGRAM, 0) => {
-                Socket::Unix(Mutex::new(UnixSocket::new(UnixSocketType::SockDgram)))
-                    .add_to_fd_table()
-            }
-            _ => Err(LinuxError::EINVAL),
+        match domain {
+            ctypes::AF_INET => match (socktype, protocol) {
+                (ctypes::SOCK_STREAM, ctypes::IPPROTO_TCP) | (ctypes::SOCK_STREAM, 0) => {
+                    let tcp_socket = TcpSocket::new();
+                    if nonblock {
+                        tcp_socket.set_nonblocking(true);
+                    }
+                    Socket::Tcp(Mutex::new(tcp_socket)).add_to_fd_table(fdflags)
+                }
+                (ctypes::SOCK_DGRAM, ctypes::IPPROTO_UDP) | (ctypes::SOCK_DGRAM, 0) => {
+                    Socket::Udp(Mutex::new(UdpSocket::new())).add_to_fd_table(fdflags)
+                }
+                _ => Err(LinuxError::EINVAL),
+            },
+            ctypes::AF_UNIX => match (socktype, protocol) {
+                (ctypes::SOCK_STREAM, 0) => {
+                    Socket::Unix(Mutex::new(UnixSocket::new(UnixSocketType::SockStream)))
+                        .add_to_fd_table(fdflags)
+                }
+                (ctypes::SOCK_DGRAM, 0) => {
+                    Socket::Unix(Mutex::new(UnixSocket::new(UnixSocketType::SockDgram)))
+                        .add_to_fd_table(fdflags)
+                }
+                _ => Err(LinuxError::EINVAL),
+            },
+            _ => Err(LinuxError::EAFNOSUPPORT),
         }
     })
 }
@@ -638,7 +645,7 @@ pub unsafe fn sys_accept(
         let socket = Socket::from_fd(socket_fd)?;
         let new_socket = socket.accept()?;
         let addr = new_socket.peer_addr()?;
-        let new_fd = Socket::add_to_fd_table(new_socket)?;
+        let new_fd = Socket::add_to_fd_table(new_socket, fops::OpenOptions::new())?;
         match addr {
             UnifiedSocketAddress::Net(addr) => unsafe {
                 (*socket_addr, *socket_len) = into_sockaddr(addr);
@@ -801,7 +808,6 @@ pub fn sys_getsockopt(
         );
     }
     syscall_body!(sys_getsockopt, {
-        return Ok(0);
         if optval.is_null() {
             return Err(LinuxError::EFAULT);
         }
@@ -932,5 +938,38 @@ pub unsafe fn sys_sendmsg(
             };
         }
         Ok(ret)
+    })
+}
+
+/// Creates a pair of Unix domain sockets and stores the file descriptors in `sv`
+///
+/// This system call only works for UNIX domain sockets (AF_UNIX), which are used for communication
+/// between processes on the same machine. It cannot be used for communication over the network (e.g.,
+/// using AF_INET or AF_INET6). The created socket pair is anonymous, meaning it does not require
+/// a pathname, and is typically used for communication between related processes (e.g., parent-child processes)
+pub fn sys_socketpair(domain: c_int, socktype: c_int, protocol: c_int, sv: &mut [c_int]) -> c_int {
+    info!("sys_socketpair <= domain: {domain}, socktype: {socktype}, protocol: {protocol}, sv pointer: {:#x}", sv.as_ptr() as usize);
+    syscall_body!(sys_socketpair, {
+        let (domain, socktype, _protocol) = (domain as u32, socktype as u32, protocol as u32);
+        let fdflags = flags_to_options((socktype & ctypes::SOCK_CLOEXEC) as c_int, 0);
+        let socktype = socktype & !ctypes::SOCK_CLOEXEC & !ctypes::SOCK_NONBLOCK;
+        match domain {
+            ctypes::AF_UNIX => {
+                let (sk1, sk2) = match socktype {
+                    ctypes::SOCK_STREAM => {
+                        UnixSocket::create_socket_pair(UnixSocketType::SockStream)?
+                    }
+                    ctypes::SOCK_DGRAM => {
+                        UnixSocket::create_socket_pair(UnixSocketType::SockDgram)?
+                    }
+                    _ => return Err(LinuxError::EAFNOSUPPORT),
+                };
+                sv[0] = Socket::Unix(Mutex::new(sk1)).add_to_fd_table(fdflags.clone())?;
+                sv[1] = Socket::Unix(Mutex::new(sk2)).add_to_fd_table(fdflags)?;
+                info!("create sv[0] {}, sv[1] {}", sv[0], sv[1]);
+                Ok(0)
+            }
+            _ => return Err(LinuxError::EAFNOSUPPORT),
+        }
     })
 }

@@ -11,7 +11,7 @@ use alloc::{format, sync::Arc, vec};
 use axerrno::{ax_err, AxError, AxResult, LinuxError, LinuxResult};
 use axio::PollState;
 use axsync::Mutex;
-use core::ffi::{c_char, c_int};
+use core::ffi::c_char;
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use spin::RwLock;
 
@@ -26,6 +26,7 @@ use ruxfs::root::{create_file, lookup};
 use ruxtask::yield_now;
 
 const SOCK_ADDR_UN_PATH_LEN: usize = 108;
+const MAX_DGRAM_QUEUE_SIZE: usize = 1024;
 static ANONYMOUS_ADDR_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 /// rust form for ctype sockaddr_un
@@ -300,6 +301,48 @@ impl UnixSocket {
         }
     }
 
+    /// Creates a pair of Unix domain sockets and establishes their connection based on the specified socket type.
+    ///
+    /// For `SOCK_STREAM`, the sockets are connected and marked as "connected" in the UNIX_TABLE.
+    /// For `SOCK_DGRAM`, the sockets are assigned each other's address as their peer address.
+    ///
+    /// Returns:
+    ///
+    /// A result containing a tuple of two connected `UnixSocket` instances on success.
+    /// If the connection setup fails, an error is returned.
+    pub fn create_socket_pair(_type: UnixSocketType) -> AxResult<(Self, Self)> {
+        let sk1 = UnixSocket::new(_type);
+        let sk2 = UnixSocket::new(_type);
+        let handle1 = sk1.get_sockethandle();
+        let handle2 = sk2.get_sockethandle();
+        match _type {
+            UnixSocketType::SockStream => {
+                let mut binding = UNIX_TABLE.write();
+                let mut inner1 = binding.get_mut(handle1).unwrap().lock();
+                inner1.set_peersocket(handle2);
+                inner1.set_state(UnixSocketStatus::Connected);
+                drop(inner1);
+                let mut inner2 = binding.get_mut(handle2).unwrap().lock();
+                inner2.set_peersocket(handle1);
+                inner2.set_state(UnixSocketStatus::Connected);
+            }
+            UnixSocketType::SockDgram => {
+                let addr1 = sk1.check_and_set_addr();
+                let addr2 = sk2.check_and_set_addr();
+                let mut binding = UNIX_TABLE.write();
+                let mut inner1 = binding.get_mut(handle1).unwrap().lock();
+                inner1.set_peersocket(handle2);
+                inner1.dgram_connected_addr = Some(addr2);
+                drop(inner1);
+                let mut inner2 = binding.get_mut(handle2).unwrap().lock();
+                inner2.set_peersocket(handle1);
+                inner2.dgram_connected_addr = Some(addr1);
+            }
+            UnixSocketType::SockSeqpacket => todo!(),
+        }
+        Ok((sk1, sk2))
+    }
+
     /// Sets the socket handle.
     pub fn set_sockethandle(&mut self, fd: usize) {
         self.sockethandle = Some(fd);
@@ -547,44 +590,63 @@ impl UnixSocket {
     /// Polls the socket's readiness for reading or writing.
     pub fn poll(&self) -> LinuxResult<PollState> {
         let now_state = self.get_state();
-        match now_state {
-            UnixSocketStatus::Connecting => self.poll_connect(),
-            UnixSocketStatus::Connected => {
-                let remote_is_close = {
-                    let remote_handle = self.get_peerhandle();
-                    match remote_handle {
-                        Some(handle) => {
-                            let mut binding = UNIX_TABLE.write();
-                            let remote_status = binding.get_mut(handle).unwrap().lock().get_state();
-                            remote_status == UnixSocketStatus::Closed
+        match self.get_sockettype() {
+            UnixSocketType::SockStream => match now_state {
+                UnixSocketStatus::Connecting => self.poll_connect(),
+                UnixSocketStatus::Connected => {
+                    let remote_is_close = {
+                        let remote_handle = self.get_peerhandle();
+                        match remote_handle {
+                            Some(handle) => {
+                                let mut binding = UNIX_TABLE.write();
+                                if let Some(inner) = binding.get_mut(handle) {
+                                    inner.lock().get_state() == UnixSocketStatus::Closed
+                                } else {
+                                    true
+                                }
+                            }
+                            None => {
+                                return Err(LinuxError::ENOTCONN);
+                            }
                         }
-                        None => {
-                            return Err(LinuxError::ENOTCONN);
-                        }
-                    }
-                };
-                let mut binding = UNIX_TABLE.write();
-                let mut socket_inner = binding.get_mut(self.get_sockethandle()).unwrap().lock();
-                Ok(PollState {
-                    readable: !socket_inner.may_recv() || socket_inner.can_recv(),
-                    writable: !socket_inner.may_send() || socket_inner.can_send(),
-                    pollhup: remote_is_close,
-                })
-            }
-            UnixSocketStatus::Listening => {
-                let mut binding = UNIX_TABLE.write();
-                let mut socket_inner = binding.get_mut(self.get_sockethandle()).unwrap().lock();
-                Ok(PollState {
-                    readable: socket_inner.can_accept(),
+                    };
+                    let mut binding = UNIX_TABLE.write();
+                    let mut socket_inner = binding.get_mut(self.get_sockethandle()).unwrap().lock();
+                    Ok(PollState {
+                        readable: !socket_inner.may_recv() || socket_inner.can_recv(),
+                        writable: !socket_inner.may_send() || socket_inner.can_send(),
+                        pollhup: remote_is_close,
+                    })
+                }
+                UnixSocketStatus::Listening => {
+                    let mut binding = UNIX_TABLE.write();
+                    let mut socket_inner = binding.get_mut(self.get_sockethandle()).unwrap().lock();
+                    Ok(PollState {
+                        readable: socket_inner.can_accept(),
+                        writable: false,
+                        pollhup: false,
+                    })
+                }
+                _ => Ok(PollState {
+                    readable: false,
                     writable: false,
                     pollhup: false,
+                }),
+            },
+            UnixSocketType::SockDgram => {
+                let binding = UNIX_TABLE.read();
+                let socket_inner = binding.get(self.get_sockethandle()).unwrap().lock();
+
+                let readable = socket_inner.datagram_queue.len() > 0;
+                let writable = true;
+                let pollhup = false;
+                Ok(PollState {
+                    readable,
+                    writable,
+                    pollhup,
                 })
             }
-            _ => Ok(PollState {
-                readable: false,
-                writable: false,
-                pollhup: false,
-            }),
+            UnixSocketType::SockSeqpacket => unimplemented!(),
         }
     }
 
@@ -751,7 +813,7 @@ impl UnixSocket {
                 }
 
                 // check if the target socket is connected
-                if target_inner.datagram_queue.len() >= target_inner.buf.capacity() {
+                if target_inner.datagram_queue.len() >= MAX_DGRAM_QUEUE_SIZE {
                     return Err(LinuxError::EAGAIN);
                 }
                 target_inner
