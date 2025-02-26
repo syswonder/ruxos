@@ -37,6 +37,11 @@ pub fn set_current_dir(path: AbsPath<'static>) -> io::Result<()> {
     fops::set_current_dir(path)
 }
 
+/// Return the canonicalized and absolute path of the specified path.
+pub fn absolute_path(path: &str) -> io::Result<AbsPath<'static>> {
+    fops::absolute_path(path)
+}
+
 /// Get the attibutes of a file or directory.
 pub fn get_attr(path: &AbsPath) -> io::Result<FileAttr> {
     fops::lookup(path)?.get_attr()
@@ -83,6 +88,9 @@ pub fn remove_dir(path: &AbsPath) -> io::Result<()> {
     if !attr.is_dir() {
         return ax_err!(NotADirectory);
     }
+    if fops::is_mount_point(path) {
+        return ax_err!(PermissionDenied);
+    }
     if !attr.perm().owner_writable() {
         return ax_err!(PermissionDenied);
     }
@@ -112,8 +120,8 @@ pub fn remove_file(path: &AbsPath) -> io::Result<()> {
 pub fn rename(old: &AbsPath, new: &AbsPath) -> io::Result<()> {
     fops::lookup(old)?;
     match fops::lookup(new) {
-        Ok(_) => return ax_err!(AlreadyExists),
+        Ok(_) => ax_err!(AlreadyExists),
         Err(VfsError::NotFound) => fops::rename(old, new),
-        Err(e) => return ax_err!(e),
+        Err(e) => ax_err!(e),
     }
 }

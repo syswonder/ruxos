@@ -441,6 +441,9 @@ pub fn sys_rmdir(pathname: *const c_char) -> c_int {
                 if !attr.is_dir() {
                     return Err(LinuxError::ENOTDIR);
                 }
+                if fops::is_mount_point(&path)? {
+                    return Err(LinuxError::EPERM);
+                }
                 if !attr.perm().owner_writable() {
                     return Err(LinuxError::EPERM);
                 }
@@ -492,6 +495,9 @@ pub fn sys_unlinkat(fd: c_int, pathname: *const c_char, flags: c_int) -> c_int {
                 if rmdir {
                     if !attr.is_dir() {
                         return Err(LinuxError::ENOTDIR);
+                    }
+                    if fops::is_mount_point(&path)? {
+                        return Err(LinuxError::EPERM);
                     }
                     if !attr.perm().owner_writable() {
                         return Err(LinuxError::EPERM);

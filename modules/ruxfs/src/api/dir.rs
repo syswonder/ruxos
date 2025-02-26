@@ -7,48 +7,56 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use alloc::{borrow::ToOwned, string::String, vec};
+use alloc::{borrow::ToOwned, string::String};
 use axerrno::ax_err;
-use axfs_vfs::{AbsPath, VfsError};
+use axfs_vfs::{AbsPath, VfsDirEntry, VfsError};
 use axio::Result;
-use core::{fmt, str};
+use core::{fmt, iter::Iterator, str};
 
-use super::FileType;
+use super::{FileAttr, FileType};
 use crate::fops;
 
-/// Iterator over the entries in a directory.
+/// A wrapped directory type.
+///
+/// Provides a way to open a directory and iterate over its contents.
 pub struct Directory {
     inner: fops::Directory,
 }
 
 impl Directory {
     /// Opens a directory for reading entries.
-    pub fn open(path: AbsPath<'static>) -> Result<Self> {
+    pub fn open(path: &AbsPath) -> Result<Self> {
         let node = fops::lookup(&path)?;
         let inner = fops::open_dir(&path, node, &fops::OpenOptions::new())?;
         Ok(Self { inner })
     }
 
-    /// Reads directory entries starts from the current position into the
-    /// given buffer, returns the number of entries read.
-    ///
-    /// After the read, the cursor of the directory will be advanced by the
-    /// number of entries read.
-    pub fn read_dir(&mut self, buf: &mut [DirEntry]) -> Result<usize> {
-        let mut buffer = vec![fops::DirEntry::default(); buf.len()];
-        let len = self.inner.read_dir(&mut buffer)?;
-        for (i, entry) in buffer.iter().enumerate().take(len) {
-            buf[i] = DirEntry {
-                entry_name: unsafe { str::from_utf8_unchecked(entry.name_as_bytes()).to_owned() },
-                entry_type: entry.entry_type(),
-            };
+    /// Get attributes of the directory.
+    pub fn get_attr(&self) -> Result<FileAttr> {
+        self.inner.get_attr()
+    }
+}
+
+/// Implements the iterator trait for the directory.
+impl Iterator for Directory {
+    type Item = Result<DirEntry>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let mut buf = [VfsDirEntry::default()];
+        match self.inner.read_dir(buf.as_mut_slice()) {
+            Ok(0) => None,
+            Ok(1) => Some(Ok(DirEntry {
+                entry_name: unsafe { str::from_utf8_unchecked(buf[0].name_as_bytes()).to_owned() },
+                entry_type: buf[0].entry_type(),
+            })),
+            Ok(_) => unreachable!(),
+            Err(e) => Some(Err(e)),
         }
-        Ok(len)
     }
 }
 
 /// Entry type used by `Directory::read_dir`.
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub struct DirEntry {
     entry_name: String,
     entry_type: FileType,

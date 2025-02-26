@@ -115,7 +115,7 @@ impl RootDirectory {
                 idx = i;
             }
         }
-        return (idx, max_len);
+        (idx, max_len)
     }
 
     /// Check if path matches a mountpoint, dispatch the operation to the matched filesystem

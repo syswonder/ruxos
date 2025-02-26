@@ -344,6 +344,9 @@ pub fn get_attr(path: &AbsPath) -> AxResult<FileAttr> {
 /// Open a node as a file, with permission checked.
 pub fn open_file(path: &AbsPath, node: VfsNodeRef, opt: &OpenOptions) -> AxResult<File> {
     let attr = node.get_attr()?;
+    if attr.is_dir() {
+        return ax_err!(IsADirectory);
+    }
     if !perm_to_cap(attr.perm()).contains(opt.to_cap()) {
         return ax_err!(PermissionDenied);
     }
@@ -354,6 +357,9 @@ pub fn open_file(path: &AbsPath, node: VfsNodeRef, opt: &OpenOptions) -> AxResul
 /// Open a node as a directory, with permission checked.
 pub fn open_dir(path: &AbsPath, node: VfsNodeRef, opt: &OpenOptions) -> AxResult<Directory> {
     let attr = node.get_attr()?;
+    if !attr.is_dir() {
+        return ax_err!(NotADirectory);
+    }
     if !perm_to_cap(attr.perm()).contains(opt.to_cap()) {
         return ax_err!(PermissionDenied);
     }
@@ -409,10 +415,12 @@ pub fn remove_file(path: &AbsPath) -> AxResult {
 /// This function will not check if the directory exists or is empty,
 /// check it with [`lookup`] first.
 pub fn remove_dir(path: &AbsPath) -> AxResult {
-    if root_dir().contains(path) {
-        return ax_err!(PermissionDenied);
-    }
     root_dir().unlink(&path.to_rel())
+}
+
+/// Check if a directory is a mount point.
+pub fn is_mount_point(path: &AbsPath) -> bool {
+    root_dir().contains(path)
 }
 
 /// Rename a file given an old and a new absolute path.

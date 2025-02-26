@@ -77,7 +77,7 @@ impl OpenOptions {
             return ax_err!(InvalidInput);
         }
         // Find node, check flag and attr
-        let node = match fops::lookup(&path) {
+        let node = match fops::lookup(path) {
             Ok(node) => {
                 if self.0.create_new {
                     return ax_err!(AlreadyExists);
@@ -88,8 +88,8 @@ impl OpenOptions {
                 if !self.0.create && !self.0.create_new {
                     return ax_err!(NotFound);
                 }
-                fops::create_file(&path)?;
-                fops::lookup(&path)?
+                fops::create_file(path)?;
+                fops::lookup(path)?
             }
             Err(e) => return Err(e),
         };
@@ -101,7 +101,32 @@ impl OpenOptions {
             node.truncate(0)?;
         }
         // Open
-        fops::open_file(&path, node, &self.0).map(|inner| File { inner })
+        fops::open_file(path, node, &self.0).map(|inner| File { inner })
+    }
+}
+
+impl fmt::Debug for OpenOptions {
+    #[allow(unused_assignments)]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let mut written = false;
+        macro_rules! fmt_opt {
+            ($field: ident, $label: literal) => {
+                if self.0.$field {
+                    if written {
+                        write!(f, " | ")?;
+                    }
+                    write!(f, $label)?;
+                    written = true;
+                }
+            };
+        }
+        fmt_opt!(read, "READ");
+        fmt_opt!(write, "WRITE");
+        fmt_opt!(append, "APPEND");
+        fmt_opt!(truncate, "TRUNC");
+        fmt_opt!(create, "CREATE");
+        fmt_opt!(create_new, "CREATE_NEW");
+        Ok(())
     }
 }
 
@@ -180,30 +205,5 @@ impl Write for File {
 impl Seek for File {
     fn seek(&mut self, pos: SeekFrom) -> Result<u64> {
         self.inner.seek(pos)
-    }
-}
-
-impl fmt::Debug for OpenOptions {
-    #[allow(unused_assignments)]
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let mut written = false;
-        macro_rules! fmt_opt {
-            ($field: ident, $label: literal) => {
-                if self.0.$field {
-                    if written {
-                        write!(f, " | ")?;
-                    }
-                    write!(f, $label)?;
-                    written = true;
-                }
-            };
-        }
-        fmt_opt!(read, "READ");
-        fmt_opt!(write, "WRITE");
-        fmt_opt!(append, "APPEND");
-        fmt_opt!(truncate, "TRUNC");
-        fmt_opt!(create, "CREATE");
-        fmt_opt!(create_new, "CREATE_NEW");
-        Ok(())
     }
 }

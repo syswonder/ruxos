@@ -65,12 +65,13 @@ impl<'a> AbsPath<'a> {
         AbsPath::new_owned(self.0.to_string())
     }
 
-    /// Transform this `AbsPath` into a raw str slice.
+    /// Convert this `AbsPath` into a raw str slice.
     pub fn as_str(&self) -> &str {
         self.0.as_ref()
     }
 
-    /// Transform this `AbsPath` into a raw string.
+    /// Convert this `AbsPath` into a raw string.
+    #[allow(clippy::inherent_to_string_shadow_display)]
     pub fn to_string(&self) -> String {
         self.0.to_string()
     }
