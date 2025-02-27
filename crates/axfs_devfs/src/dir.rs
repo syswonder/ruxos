@@ -84,7 +84,7 @@ impl VfsNodeOps for DirNode {
                     .ok_or(VfsError::NotFound)?
                     .lookup(&rest),
             }
-        } else if name == "" {
+        } else if name.is_empty() {
             Ok(self.clone() as VfsNodeRef)
         } else if name == ".." {
             self.parent().ok_or(VfsError::NotFound)
@@ -128,7 +128,7 @@ impl VfsNodeOps for DirNode {
                     .ok_or(VfsError::NotFound)?
                     .create(&rest, ty),
             }
-        } else if name == "" || name == ".." {
+        } else if name.is_empty() || name == ".." {
             Ok(()) // already exists
         } else {
             Err(VfsError::PermissionDenied) // do not support to create nodes dynamically

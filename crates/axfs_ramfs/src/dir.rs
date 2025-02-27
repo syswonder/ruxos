@@ -113,7 +113,7 @@ impl VfsNodeOps for DirNode {
                     .ok_or(VfsError::NotFound)?
                     .lookup(&rest),
             }
-        } else if name == "" {
+        } else if name.is_empty() {
             Ok(self.clone() as VfsNodeRef)
         } else if name == ".." {
             self.parent().ok_or(VfsError::NotFound)
@@ -157,7 +157,7 @@ impl VfsNodeOps for DirNode {
                     .ok_or(VfsError::NotFound)?
                     .create(&rest, ty),
             }
-        } else if name == "" || name == ".." {
+        } else if name.is_empty() || name == ".." {
             Ok(()) // already exists
         } else {
             self.create_node(name, ty)
@@ -176,7 +176,7 @@ impl VfsNodeOps for DirNode {
                     .ok_or(VfsError::NotFound)?
                     .unlink(&rest),
             }
-        } else if name == "" || name == ".." {
+        } else if name.is_empty() || name == ".." {
             Err(VfsError::InvalidInput) // remove '.' or '..
         } else {
             self.remove_node(name)
