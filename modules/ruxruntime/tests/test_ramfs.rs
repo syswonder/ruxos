@@ -18,21 +18,21 @@ use axfs_vfs::VfsOps;
 use axio::{Result, Write};
 use driver_block::ramdisk::RamDisk;
 use ruxdriver::AxDeviceContainer;
-use ruxfs::api::{self as fs, File};
-use ruxfs::fops::{Disk, MyFileSystemIf};
+use ruxfs::api as fs;
+use ruxfs::MyFileSystemIf;
 
 struct MyFileSystemIfImpl;
 
 #[crate_interface::impl_interface]
 impl MyFileSystemIf for MyFileSystemIfImpl {
-    fn new_myfs(_disk: Disk) -> Arc<dyn VfsOps> {
+    fn new_myfs() -> Arc<dyn VfsOps> {
         Arc::new(RamFileSystem::new())
     }
 }
 
 fn create_init_files() -> Result<()> {
     fs::write(&fs::absolute_path("./short.txt")?, "Rust is cool!\n")?;
-    let mut file = File::create_new(&fs::absolute_path("/long.txt")?)?;
+    let mut file = fs::File::create_new(&fs::absolute_path("/long.txt")?)?;
     for _ in 0..100 {
         file.write_fmt(format_args!("Rust is cool!\n"))?;
     }
@@ -62,9 +62,7 @@ fn test_ramfs() {
 
     let mut mount_points: Vec<ruxfs::root::MountPoint> = Vec::new();
     // setup and initialize blkfs as one mountpoint for rootfs
-    mount_points.push(ruxfs::init_blkfs(AxDeviceContainer::from_one(Box::new(
-        RamDisk::default(),
-    ))));
+    mount_points.push(ruxfs::init_tempfs());
     ruxfs::prepare_commonfs(&mut mount_points);
 
     // setup and initialize rootfs

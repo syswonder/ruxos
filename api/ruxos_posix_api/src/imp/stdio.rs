@@ -10,7 +10,6 @@
 use axerrno::AxResult;
 use axio::{prelude::*, BufReader};
 use axsync::Mutex;
-use ruxfs::AbsPath;
 
 #[cfg(feature = "fd")]
 use {
@@ -18,6 +17,7 @@ use {
     axerrno::{AxError, LinuxError, LinuxResult},
     axio::PollState,
     core::sync::atomic::{AtomicBool, Ordering},
+    ruxfs::AbsPath,
 };
 
 struct StdinRaw;

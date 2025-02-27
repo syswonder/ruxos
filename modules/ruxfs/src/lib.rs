@@ -37,19 +37,21 @@ extern crate alloc;
 
 mod fs;
 mod mounts;
-
-#[cfg(feature = "blkfs")]
-mod dev;
 #[cfg(feature = "alloc")]
 mod arch;
 
 pub mod api;
 pub mod fops;
 pub mod root;
+#[cfg(feature = "blkfs")]
+pub mod dev;
 
 // Re-export `axfs_vfs` path types.
 pub type AbsPath<'a> = axfs_vfs::AbsPath<'a>;
 pub type RelPath<'a> = axfs_vfs::RelPath<'a>;
+
+#[cfg(feature = "myfs")]
+pub use fs::myfs::MyFileSystemIf;
 
 use alloc::vec::Vec;
 

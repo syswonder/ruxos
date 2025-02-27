@@ -22,11 +22,6 @@ use capability::{Cap, WithCap};
 
 use crate::root::{MountPoint, RootDirectory};
 
-#[cfg(feature = "myfs")]
-pub use crate::dev::Disk;
-#[cfg(feature = "myfs")]
-pub use crate::fs::myfs::MyFileSystemIf;
-
 /// Alias of [`axfs_vfs::VfsNodeType`].
 pub type FileType = axfs_vfs::VfsNodeType;
 /// Alias of [`axfs_vfs::VfsDirEntry`].

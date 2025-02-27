@@ -7,7 +7,7 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-#![cfg(not(feature = "myfs"))]
+#![cfg(feature = "fatfs")]
 
 mod test_common;
 

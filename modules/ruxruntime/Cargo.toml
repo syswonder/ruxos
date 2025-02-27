@@ -38,6 +38,7 @@ musl = ["dep:ruxfutex"]
 
 # for testing
 myfs = ["fs", "multitask", "alloc", "ruxfs/myfs", "ruxtask/test"]
+fatfs = ["fs", "multitask", "alloc", "blkfs", "ruxfs/fatfs", "ruxtask/test"]
 
 [dependencies]
 cfg-if = "1.0"

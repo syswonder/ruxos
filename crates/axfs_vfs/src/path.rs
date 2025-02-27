@@ -159,17 +159,6 @@ impl core::fmt::Display for RelPath<'_> {
 /// normalized.
 ///
 /// It won't force convert the path to an absolute form.
-///
-/// # Examples
-///
-/// ```
-/// use axfs_vfs::path::canonicalize;
-///
-/// assert_eq!(canonicalize("/path/./to//foo"), "/path/to/foo");
-/// assert_eq!(canonicalize("/./path/to/../bar.rs"), "/path/bar.rs");
-/// assert_eq!(canonicalize("./foo/./bar"), "foo/bar");
-/// assert_eq!(canonicalize("../foo/.."), "..");
-/// ```
 fn canonicalize(path: &str) -> String {
     let mut buf = String::new();
     let is_absolute = path.starts_with('/');
