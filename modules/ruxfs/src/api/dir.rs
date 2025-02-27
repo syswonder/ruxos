@@ -7,7 +7,7 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use alloc::{borrow::ToOwned, string::String};
+use alloc::{borrow::ToOwned, string::String, vec};
 use axerrno::ax_err;
 use axfs_vfs::{AbsPath, VfsDirEntry, VfsError};
 use axio::Result;
@@ -26,14 +26,31 @@ pub struct Directory {
 impl Directory {
     /// Opens a directory for reading entries.
     pub fn open(path: &AbsPath) -> Result<Self> {
-        let node = fops::lookup(&path)?;
-        let inner = fops::open_dir(&path, node, &fops::OpenOptions::new())?;
+        let node = fops::lookup(path)?;
+        let inner = fops::open_dir(path, node, &fops::OpenOptions::new())?;
         Ok(Self { inner })
     }
 
     /// Get attributes of the directory.
     pub fn get_attr(&self) -> Result<FileAttr> {
         self.inner.get_attr()
+    }
+
+    /// Reads directory entries starts from the current position into the
+    /// given buffer, returns the number of entries read.
+    ///
+    /// After the read, the cursor of the directory will be advanced by the
+    /// number of entries read.
+    pub fn read_dir(&mut self, buf: &mut [DirEntry]) -> Result<usize> {
+        let mut buffer = vec![fops::DirEntry::default(); buf.len()];
+        let len = self.inner.read_dir(&mut buffer)?;
+        for (i, entry) in buffer.iter().enumerate().take(len) {
+            buf[i] = DirEntry {
+                entry_name: unsafe { str::from_utf8_unchecked(entry.name_as_bytes()).to_owned() },
+                entry_type: entry.entry_type(),
+            };
+        }
+        Ok(len)
     }
 }
 

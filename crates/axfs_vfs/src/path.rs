@@ -139,6 +139,11 @@ impl<'a> RelPath<'a> {
     pub fn new_trimmed(path: &'a str) -> Self {
         Self(Cow::Borrowed(path.trim_start_matches('/')))
     }
+
+    /// Convert this `RelPath` into a raw str slice.
+    pub fn as_str(&self) -> &str {
+        self.0.as_ref()
+    }
 }
 
 impl core::ops::Deref for RelPath<'_> {

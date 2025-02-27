@@ -40,7 +40,7 @@ impl ruxtask::fs::InitFs for InitFsImpl {
 }
 
 /// Convert open flags to [`OpenOptions`].
-fn flags_to_options(flags: c_int, _mode: ctypes::mode_t) -> OpenOptions {
+pub fn flags_to_options(flags: c_int, _mode: ctypes::mode_t) -> OpenOptions {
     let flags = flags as u32;
     let mut options = OpenOptions::new();
     match flags & 0b11 {
@@ -246,10 +246,10 @@ pub unsafe fn sys_stat(path: *const c_char, buf: *mut core::ffi::c_void) -> c_in
         let attr = node.get_attr()?;
         let st: RuxStat = if attr.is_dir() {
             let dir = fops::open_dir(&path, node, &OpenOptions::new())?;
-            Directory::new(dir, false).stat()?.into()
+            Directory::new(dir, false).stat()?
         } else {
             let file = fops::open_file(&path, node, &OpenOptions::new())?;
-            File::new(file).stat()?.into()
+            File::new(file).stat()?
         };
 
         #[cfg(not(feature = "musl"))]
@@ -441,7 +441,7 @@ pub fn sys_rmdir(pathname: *const c_char) -> c_int {
                 if !attr.is_dir() {
                     return Err(LinuxError::ENOTDIR);
                 }
-                if fops::is_mount_point(&path)? {
+                if fops::is_mount_point(&path) {
                     return Err(LinuxError::EPERM);
                 }
                 if !attr.perm().owner_writable() {
@@ -496,7 +496,7 @@ pub fn sys_unlinkat(fd: c_int, pathname: *const c_char, flags: c_int) -> c_int {
                     if !attr.is_dir() {
                         return Err(LinuxError::ENOTDIR);
                     }
-                    if fops::is_mount_point(&path)? {
+                    if fops::is_mount_point(&path) {
                         return Err(LinuxError::EPERM);
                     }
                     if !attr.perm().owner_writable() {
@@ -648,7 +648,7 @@ pub unsafe fn sys_getdents64(fd: c_int, dirp: *mut LinuxDirent64, count: ctypes:
             dirent.d_name[..name_len].copy_from_slice(unsafe {
                 core::slice::from_raw_parts(name.as_ptr() as *const i8, name_len)
             });
-            dirent.d_name[name_len] = 0 as i8;
+            dirent.d_name[name_len] = 0i8;
 
             written += entry_size;
         }

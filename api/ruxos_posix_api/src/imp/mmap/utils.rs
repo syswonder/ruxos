@@ -232,7 +232,7 @@ pub(crate) fn release_pages_swaped(start: usize, end: usize) {
     let mut off_pool = BITMAP_FREE.lock();
 
     let mut removing_vaddr = Vec::new();
-    for (&vaddr, &ref swap_info) in swap_map.range(start..end) {
+    for (&vaddr, swap_info) in swap_map.range(start..end) {
         removing_vaddr.push(vaddr);
         off_pool.push(swap_info.offset);
     }

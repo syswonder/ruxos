@@ -190,7 +190,7 @@ impl Write for File {
     }
 
     fn flush(&mut self) -> Result<()> {
-        api::ax_flush_file(&mut self.inner)
+        api::ax_flush_file(&self.inner)
     }
 }
 

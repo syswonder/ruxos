@@ -358,8 +358,7 @@ impl FdTable {
     pub fn remove(&mut self, fd: usize) -> Option<Arc<dyn FileLike>> {
         self.cloexec_bitmap.set(fd, false);
         // use map_or because RAII. the Arc should be released here. You should not use the return Arc
-        let closing_file = self.files.remove(fd);
-        closing_file
+        self.files.remove(fd)
     }
 
     /// Closes all file descriptors with the `FD_CLOEXEC` flag set.

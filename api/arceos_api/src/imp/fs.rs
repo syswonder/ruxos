@@ -22,8 +22,11 @@ pub use ruxfs::api::FilePerm as AxFilePerm;
 pub use ruxfs::api::FileType as AxFileType;
 pub use ruxfs::api::OpenOptions as AxOpenOptions;
 
+#[cfg(feature = "blkfs")]
+pub use ruxfs::dev::Disk as AxDisk;
+
 #[cfg(feature = "myfs")]
-pub use ruxfs::fops::{Disk as AxDisk, MyFileSystemIf};
+pub use ruxfs::MyFileSystemIf;
 
 /// A handle to an opened file.
 pub struct AxFileHandle(File);
@@ -36,7 +39,7 @@ pub fn ax_open_file(path: &str, opts: &AxOpenOptions) -> AxResult<AxFileHandle> 
 }
 
 pub fn ax_open_dir(path: &str, _opts: &AxOpenOptions) -> AxResult<AxDirHandle> {
-    Ok(AxDirHandle(Directory::open(parse_path(path)?)?))
+    Ok(AxDirHandle(Directory::open(&parse_path(path)?)?))
 }
 
 pub fn ax_get_attr(path: &str) -> AxResult<AxFileAttr> {
@@ -104,5 +107,13 @@ fn parse_path(path: &str) -> AxResult<AbsPath<'static>> {
         Ok(AbsPath::new_canonicalized(path))
     } else {
         ruxfs::api::current_dir().map(|cwd| cwd.join(&RelPath::new_canonicalized(path)))
+    }
+}
+
+impl Iterator for AxDirHandle {
+    type Item = AxResult<AxDirEntry>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.0.next()
     }
 }

@@ -23,6 +23,7 @@ use ruxhal::time::current_time;
 
 use crate::{ctypes, imp::fs::flags_to_options};
 use ruxtask::fs::{add_file_like, get_file_like};
+use ruxfs::AbsPath;
 
 pub struct EpollInstance {
     events: Mutex<BTreeMap<usize, ctypes::epoll_event>>,
@@ -122,6 +123,10 @@ impl EpollInstance {
 }
 
 impl FileLike for EpollInstance {
+    fn path(&self) -> AbsPath {
+        AbsPath::new("/epoll")
+    }
+
     fn read(&self, _buf: &mut [u8]) -> LinuxResult<usize> {
         Err(LinuxError::ENOSYS)
     }
