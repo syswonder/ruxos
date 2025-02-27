@@ -66,7 +66,7 @@ jobs:
     - name: Build display/draw_map
       run: make ARCH=${{ matrix.arch }} A=apps/display/draw_map
     - name: Build fs/shell
-      run: make ARCH=${{ matrix.arch }} A=apps/fs/shell
+      run: make ARCH=${{ matrix.arch }} A=apps/fs/shell FEATURES=fatfs
 
     - name: Build c/helloworld
       run: make ARCH=${{ matrix.arch }} A=apps/c/helloworld
