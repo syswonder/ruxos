@@ -1643,6 +1643,7 @@ dependencies = [
  "ruxnet",
  "ruxruntime",
  "ruxtask",
+ "ruxtty",
  "spinlock",
 ]
 
@@ -1692,6 +1693,8 @@ dependencies = [
  "arm_gic",
  "arm_pl011",
  "axalloc",
+ "axerrno",
+ "axio",
  "axlog",
  "bitflags 2.6.0",
  "cfg-if",
@@ -1715,11 +1718,11 @@ dependencies = [
  "raw-cpuid 11.1.0",
  "riscv",
  "ruxconfig",
+ "ruxtty",
  "sbi-rt",
  "spinlock",
  "static_assertions",
  "tock-registers",
- "tty",
  "virtio-drivers",
  "x2apic",
  "x86",
@@ -1835,6 +1838,7 @@ dependencies = [
  "ruxnet",
  "ruxruntime",
  "ruxtask",
+ "ruxtty",
  "spin",
  "spinlock",
  "static_assertions",
@@ -1881,7 +1885,7 @@ dependencies = [
  "ruxnet",
  "ruxrand",
  "ruxtask",
- "tty",
+ "ruxtty",
 ]
 
 [[package]]
@@ -1914,6 +1918,21 @@ dependencies = [
  "spin",
  "spinlock",
  "timer_list",
+]
+
+[[package]]
+name = "ruxtty"
+version = "0.0.1"
+dependencies = [
+ "axerrno",
+ "axio",
+ "axlog",
+ "bitflags 2.6.0",
+ "lazy_init",
+ "num_enum",
+ "ringbuffer",
+ "spin",
+ "spinlock",
 ]
 
 [[package]]
@@ -2176,15 +2195,6 @@ dependencies = [
  "indexmap",
  "toml_datetime",
  "winnow",
-]
-
-[[package]]
-name = "tty"
-version = "0.0.1"
-dependencies = [
- "lazy_init",
- "log",
- "spinlock",
 ]
 
 [[package]]

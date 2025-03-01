@@ -11,6 +11,7 @@
 #![no_std]
 extern crate alloc;
 use alloc::sync::Arc;
+use axerrno::LinuxError;
 use axfs_vfs::VfsNodeAttr;
 use core::marker::Send;
 use core::marker::Sync;
@@ -196,4 +197,9 @@ pub trait FileLike: Send + Sync {
 
     /// Sets or clears the non-blocking I/O mode for the file-like object.
     fn set_nonblocking(&self, nonblocking: bool) -> LinuxResult;
+
+    /// Handles ioctl commands for the device.
+    fn ioctl(&self, _cmd: usize, _arg: usize) -> LinuxResult<usize> {
+        Err(LinuxError::ENOTTY)
+    }
 }

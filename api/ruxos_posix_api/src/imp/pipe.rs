@@ -96,7 +96,8 @@ impl FileLike for Pipe {
             if read_size == max_len {
                 return Ok(read_size);
             }
-            buf[read_size] = ring_buffer.read_byte();
+            debug_assert!(!ring_buffer.is_empty());
+            buf[read_size] = ring_buffer.dequeue().unwrap();
             read_size += 1;
         }
         Ok(read_size)
@@ -121,7 +122,8 @@ impl FileLike for Pipe {
                 if write_size == max_len {
                     return Ok(write_size);
                 }
-                ring_buffer.write_byte(buf[write_size]);
+                debug_assert!(!ring_buffer.is_full());
+                ring_buffer.enqueue(buf[write_size]);
                 write_size += 1;
             }
         }

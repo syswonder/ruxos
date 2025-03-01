@@ -24,7 +24,7 @@ use ruxfs::{
 use crate::ctypes;
 use ruxtask::fs::{get_file_like, Directory, File};
 
-use super::stdio::{stdin, stdout};
+use super::stdio::{Stdin, Stdout};
 
 struct InitFsImpl;
 
@@ -33,9 +33,9 @@ impl ruxtask::fs::InitFs for InitFsImpl {
     fn add_stdios_to_fd_table(fs: &mut ruxtask::fs::FileSystem) {
         debug!("init initial process's fd_table");
         let fd_table = &mut fs.fd_table;
-        fd_table.add_at(0, Arc::new(stdin()) as _).unwrap(); // stdin
-        fd_table.add_at(1, Arc::new(stdout()) as _).unwrap(); // stdout
-        fd_table.add_at(2, Arc::new(stdout()) as _).unwrap(); // stderr
+        fd_table.add_at(0, Arc::new(Stdin::default()) as _).unwrap(); // stdin
+        fd_table.add_at(1, Arc::new(Stdout {}) as _).unwrap(); // stdout
+        fd_table.add_at(2, Arc::new(Stdout {}) as _).unwrap(); // stderr
     }
 }
 

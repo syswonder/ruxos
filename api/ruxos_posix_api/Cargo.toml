@@ -52,6 +52,7 @@ ruxtask = { path = "../../modules/ruxtask", features = [
 ], optional = true }
 ruxfs = { path = "../../modules/ruxfs", optional = true }
 ruxnet = { path = "../../modules/ruxnet", optional = true }
+ruxtty = { path = "../../modules/ruxtty" }
 
 # Other crates
 axio = { path = "../../crates/axio" }

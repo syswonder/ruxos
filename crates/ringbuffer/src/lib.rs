@@ -18,7 +18,7 @@ enum RingBufferState {
     Normal,
 }
 
-/// A circular buffer implementation using a Vec<u8> as backing storage
+/// A circular buffer implementation using a `Vec<u8>` as backing storage
 pub struct RingBuffer {
     /// Underlying data storage
     arr: Vec<u8>,
@@ -59,32 +59,32 @@ impl RingBuffer {
         self.state == RingBufferState::Full
     }
 
-    /// Read as much as possible to fill `buf`.
+    /// Read as much as possible to fill `dst`.
     ///
     /// # Arguments
-    /// * `buf` - Destination buffer for read data
+    /// * `dst` - Destination buffer for read data
     ///
     /// # Returns
     /// Number of bytes actually written
-    pub fn read(&mut self, buf: &mut [u8]) -> usize {
-        if self.state == RingBufferState::Empty || buf.is_empty() {
+    pub fn read(&mut self, dst: &mut [u8]) -> usize {
+        if self.state == RingBufferState::Empty || dst.is_empty() {
             return 0;
         }
 
         let ret_len;
         let n = self.arr.len();
         if self.head < self.tail {
-            ret_len = cmp::min(self.tail - self.head, buf.len());
-            buf[..ret_len].copy_from_slice(&self.arr[self.head..self.head + ret_len]);
+            ret_len = cmp::min(self.tail - self.head, dst.len());
+            dst[..ret_len].copy_from_slice(&self.arr[self.head..self.head + ret_len]);
         } else {
             // also handles full
-            ret_len = cmp::min(n - self.head + self.tail, buf.len());
+            ret_len = cmp::min(n - self.head + self.tail, dst.len());
             if ret_len <= (n - self.head) {
-                buf[..ret_len].copy_from_slice(&self.arr[self.head..self.head + ret_len]);
+                dst[..ret_len].copy_from_slice(&self.arr[self.head..self.head + ret_len]);
             } else {
                 let right_len = n - self.head;
-                buf[..right_len].copy_from_slice(&self.arr[self.head..]);
-                buf[right_len..ret_len].copy_from_slice(&self.arr[..(ret_len - right_len)]);
+                dst[..right_len].copy_from_slice(&self.arr[self.head..]);
+                dst[right_len..ret_len].copy_from_slice(&self.arr[..(ret_len - right_len)]);
             }
         }
         self.head = (self.head + ret_len) % n;
@@ -101,12 +101,12 @@ impl RingBuffer {
     /// Write as much as possible to fill the ring buffer.
     ///
     /// # Arguments
-    /// * `buf` - Source buffer containing data to write
+    /// * `src` - Source buffer containing data to write
     ///
     /// # Returns
     /// Number of bytes actually written
-    pub fn write(&mut self, buf: &[u8]) -> usize {
-        if self.state == RingBufferState::Full || buf.is_empty() {
+    pub fn write(&mut self, src: &[u8]) -> usize {
+        if self.state == RingBufferState::Full || src.is_empty() {
             return 0;
         }
 
@@ -114,17 +114,17 @@ impl RingBuffer {
         let n = self.arr.len();
         if self.head <= self.tail {
             // also handles empty
-            ret_len = cmp::min(n - (self.tail - self.head), buf.len());
+            ret_len = cmp::min(n - (self.tail - self.head), src.len());
             if ret_len <= (n - self.tail) {
-                self.arr[self.tail..self.tail + ret_len].copy_from_slice(&buf[..ret_len]);
+                self.arr[self.tail..self.tail + ret_len].copy_from_slice(&src[..ret_len]);
             } else {
-                self.arr[self.tail..].copy_from_slice(&buf[..n - self.tail]);
+                self.arr[self.tail..].copy_from_slice(&src[..n - self.tail]);
                 self.arr[..(ret_len - (n - self.tail))]
-                    .copy_from_slice(&buf[n - self.tail..ret_len]);
+                    .copy_from_slice(&src[n - self.tail..ret_len]);
             }
         } else {
-            ret_len = cmp::min(self.head - self.tail, buf.len());
-            self.arr[self.tail..self.tail + ret_len].copy_from_slice(&buf[..ret_len]);
+            ret_len = cmp::min(self.head - self.tail, src.len());
+            self.arr[self.tail..self.tail + ret_len].copy_from_slice(&src[..ret_len]);
         }
         self.tail = (self.tail + ret_len) % n;
 
@@ -180,20 +180,33 @@ impl RingBuffer {
         Some(())
     }
 
-    /// Adds a single byte to the buffer, panics if full
+    /// Forces a byte into the buffer by overwriting the oldest element if full
     ///
-    /// # Panics
-    /// Panics if the buffer is full
-    pub fn write_byte(&mut self, byte: u8) {
-        self.enqueue(byte).expect("Ring buffer is full");
+    /// # Arguments
+    /// * `byte` - Byte to be inserted into the buffer
+    pub fn force_enqueue(&mut self, byte: u8) {
+        if self.is_full() {
+            self.dequeue();
+        }
+        self.enqueue(byte);
     }
 
-    /// Removes and returns a single byte from the buffer, panics if empty
+    /// Clears the buffer, resetting it to an empty state.
     ///
-    /// # Panics
-    /// Panics if the buffer is empty
-    pub fn read_byte(&mut self) -> u8 {
-        self.dequeue().expect("Ring buffer is empty")
+    /// This method resets the read and write pointers to the start of the buffer
+    /// and marks the buffer as empty. All existing data in the buffer is logically
+    /// discarded, and the full capacity becomes available for new writes.
+    pub fn clear(&mut self) {
+        self.head = 0;
+        self.tail = 0;
+        self.state = RingBufferState::Empty;
+    }
+
+    /// Reads and removes all available data from the buffer, returning the collected bytes
+    pub fn drain(&mut self) -> Vec<u8> {
+        let mut ret = vec![0u8; self.available_read()];
+        self.read(ret.as_mut_slice());
+        ret
     }
 
     /// Returns the number of bytes available for reading
@@ -202,11 +215,10 @@ impl RingBuffer {
             RingBufferState::Empty => 0,
             RingBufferState::Full => self.arr.len(),
             RingBufferState::Normal => {
-                let n = self.arr.len();
                 if self.head < self.tail {
                     self.tail - self.head
                 } else {
-                    (n - self.head) + self.tail
+                    (self.arr.len() - self.head) + self.tail
                 }
             }
         }
@@ -381,14 +393,68 @@ mod tests {
     #[test]
     fn test_available() {
         let mut rb = RingBuffer::new(5);
-        rb.write_byte(1);
-        rb.write_byte(2);
+        rb.enqueue(1);
+        rb.enqueue(2);
         assert_eq!(rb.available_read(), 2);
         assert_eq!(rb.available_write(), 3);
 
-        let byte = rb.read_byte();
+        let byte = rb.dequeue().unwrap();
         assert_eq!(byte, 1);
         assert_eq!(rb.available_read(), 1);
         assert_eq!(rb.available_write(), 4);
+    }
+
+    #[test]
+    fn test_clear() {
+        let mut rb = RingBuffer::new(4);
+
+        // Test empty buffer
+        rb.clear();
+        assert!(rb.is_empty());
+        assert_eq!(rb.available_read(), 0);
+        assert_eq!(rb.available_write(), 4);
+
+        // Test after writes
+        rb.write(&[1, 2, 3]);
+        assert_eq!(rb.available_read(), 3);
+        rb.clear();
+        assert!(rb.is_empty());
+        assert_eq!(rb.available_write(), 4);
+
+        // Test after wrap-around
+        rb.write(&[1, 2, 3, 4]); // Fill buffer
+        rb.dequeue(); // head = 1
+        rb.enqueue(5); // tail wraps to 0
+        rb.clear();
+        assert_eq!(rb.head, 0);
+        assert_eq!(rb.tail, 0);
+        assert_eq!(rb.available_write(), 4);
+
+        // Verify post-clear functionality
+        rb.write(&[6, 7]);
+        let mut buf = [0u8; 2];
+        assert_eq!(rb.read(&mut buf), 2);
+        assert_eq!(buf, [6, 7]);
+    }
+
+    #[test]
+    fn test_clear_edge_cases() {
+        let mut rb = RingBuffer::new(3);
+
+        // Clear full buffer
+        rb.write(&[1, 2, 3]);
+        assert!(rb.is_full());
+        rb.clear();
+        assert!(rb.is_empty());
+        rb.write(&[4, 5, 6]);
+        assert_eq!(rb.drain(), vec![4, 5, 6]);
+
+        // Clear partially read buffer
+        rb.write(&[7, 8, 9]);
+        rb.dequeue(); // head = 1
+        rb.dequeue(); // head = 2
+        rb.clear();
+        rb.write(&[10]);
+        assert_eq!(rb.dequeue().unwrap(), 10);
     }
 }

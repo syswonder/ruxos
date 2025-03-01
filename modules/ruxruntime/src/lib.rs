@@ -194,8 +194,7 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     #[cfg(feature = "alloc")]
     init_allocator();
 
-    #[cfg(feature = "tty")]
-    tty::init();
+    ruxtty::init_tty();
 
     info!("Initialize platform devices...");
     ruxhal::platform_init();

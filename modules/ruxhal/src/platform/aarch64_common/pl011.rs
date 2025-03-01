@@ -37,7 +37,8 @@ impl RxRingBuffer {
             empty: true,
         }
     }
-    #[cfg(not(feature = "tty"))]
+
+    #[allow(unused)]
     fn push(&mut self, n: u8) {
         if self.tail != self.head || self.empty {
             self.buffer[self.tail] = n;
@@ -100,24 +101,10 @@ pub fn init_early() {
     UART.inner.lock().init();
 }
 
-#[cfg(feature = "tty")]
-static DRIVER_INDEX: lazy_init::LazyInit<usize> = lazy_init::LazyInit::new();
-#[cfg(feature = "tty")]
-static DEV_INDEX: lazy_init::LazyInit<usize> = lazy_init::LazyInit::new();
-
 /// Set UART IRQ Enable
 pub fn init() {
     #[cfg(feature = "irq")]
     {
-        #[cfg(feature = "tty")]
-        {
-            let ops = tty::TtyDriverOps { putchar };
-            let driver_index = tty::register_driver(ops, "ttyS");
-            let dev_index = tty::register_device(driver_index);
-            assert_ne!(dev_index, -1);
-            DRIVER_INDEX.init_by(driver_index);
-            DEV_INDEX.init_by(dev_index as _);
-        }
         crate::irq::register_handler(crate::platform::irq::UART_IRQ_NUM, irq_handler);
         crate::irq::set_enable(crate::platform::irq::UART_IRQ_NUM, true);
     }
@@ -130,22 +117,14 @@ pub fn irq_handler() {
     let is_receive_interrupt = dev.is_receive_interrupt();
     if is_receive_interrupt {
         dev.ack_interrupts();
-        #[cfg(not(feature = "tty"))]
-        while let Some(c) = dev.getchar() {
-            UART.buffer.lock().push(c);
-        }
-        #[cfg(feature = "tty")]
-        {
-            let mut buf = [0u8; 128];
-            let mut len = 0;
 
-            while let Some(c) = dev.getchar() {
-                buf[len] = c;
-                len += 1;
-            }
-            let drv_idx = *DRIVER_INDEX.try_get().unwrap();
-            let dev_idx = *DEV_INDEX.try_get().unwrap();
-            tty::tty_receive_buf(drv_idx, dev_idx, &buf[..len]);
+        let mut buf = [0u8; 128];
+        let mut len = 0;
+
+        while let Some(c) = dev.getchar() {
+            buf[len] = c;
+            len += 1;
         }
+        ruxtty::tty_receive_buf(&buf[..len]);
     }
 }
