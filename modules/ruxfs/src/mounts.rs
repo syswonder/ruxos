@@ -101,7 +101,11 @@ pub(crate) fn etcfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
     etc_root.create("passwd", VfsNodeType::File)?;
     let file_passwd = etc_root.clone().lookup("passwd")?;
     // format: username:password:uid:gid:allname:homedir:shell
-    file_passwd.write_at(0, b"root:x:0:0:root:/root:/bin/bash\n")?;
+    file_passwd.write_at(
+        0,
+        b"root:x:0:0:root:/root:/bin/busybox\n\
+        syswonder:x:1000:1000:root:/root:/bin/busybox\n",
+    )?;
 
     // Create /etc/group
     etc_root.create("group", VfsNodeType::File)?;
@@ -124,6 +128,10 @@ pub(crate) fn etcfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
         ff02::2 ip6-allrouters \n\
         ff02::3 ip6-allhosts\n",
     )?;
+
+    etc_root.create("services", VfsNodeType::File)?;
+    let file_services = etc_root.clone().lookup("services")?;
+    file_services.write_at(0, b"ssh		22/tcp")?;
 
     // Create /etc/resolv.conf
     etc_root.create("resolv.conf", VfsNodeType::File)?;
