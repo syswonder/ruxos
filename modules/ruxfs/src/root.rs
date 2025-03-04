@@ -56,6 +56,7 @@ impl RootDirectory {
         }
     }
 
+    /// Mount the specified filesystem at the specified path.
     pub fn mount(&mut self, path: AbsPath<'static>, fs: Arc<dyn VfsOps>) -> AxResult {
         if path == AbsPath::new("/") {
             return ax_err!(InvalidInput, "cannot mount root filesystem");
@@ -89,10 +90,12 @@ impl RootDirectory {
         Ok(())
     }
 
+    /// Unmount the filesystem at the specified path.
     pub fn _umount(&mut self, path: &AbsPath) {
         self.mounts.retain(|mp| mp.path != *path);
     }
 
+    /// Check if path is a mount point
     pub fn contains(&self, path: &AbsPath) -> bool {
         self.mounts.iter().any(|mp| mp.path == *path)
     }

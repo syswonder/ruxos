@@ -9,7 +9,7 @@
 
 //! High-level filesystem manipulation operations.
 //!
-//! Provided for [`arceos_api`] module and [`axstd`] user lib.
+//! Provided for `arceos_api` module and `axstd` user lib.
 
 mod dir;
 mod file;

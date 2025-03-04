@@ -7,6 +7,8 @@
  *   See the Mulan PSL v2 for more details.
  */
 
+//! Block device abstraction.
+
 use ruxdriver::prelude::*;
 
 const BLOCK_SIZE: usize = 512;

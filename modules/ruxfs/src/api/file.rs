@@ -14,8 +14,7 @@ use core::fmt;
 
 use crate::fops;
 
-/// A structure representing a type of file with accessors for each file type.
-/// It is returned by [`Metadata::file_type`] method.
+/// A structure representing a type of file with accessors for each file type
 pub type FileType = fops::FileType;
 
 /// Representation of the various permissions on a file.

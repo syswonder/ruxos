@@ -7,7 +7,7 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-//! Low-level filesystem operations. Provided for [`ruxfs::api`] and [`ruxos_posix_api::fs`] modules.
+//! Low-level filesystem operations. Provided for `ruxfs::api` and `ruxos_posix_api::fs` modules.
 //!
 //! - File: open, read, write, seek, truncate
 //! - Directory: open, read, create, remove
@@ -196,13 +196,19 @@ impl Drop for Directory {
 /// Options and flags which can be used to configure how a file is opened.
 #[derive(Clone)]
 pub struct OpenOptions {
-    // generic
+    /// Open for reading.
     pub read: bool,
+    /// Open for writing.
     pub write: bool,
+    /// Append to the end of the file.
     pub append: bool,
+    /// Truncate the file to zero length.
     pub truncate: bool,
+    /// Create a new file.
     pub create: bool,
+    /// Create a new file, failing if it already exists.
     pub create_new: bool,
+    /// Mark the file as close-on-exec.
     pub cloexec: bool,
     // system-specific
     _custom_flags: i32,
@@ -265,7 +271,7 @@ impl OpenOptions {
         }
         cap
     }
-
+    /// Check if the options are valid.
     pub const fn is_valid(&self) -> bool {
         if !self.read && !self.write && !self.append {
             return false;
@@ -308,10 +314,12 @@ pub(crate) fn absolute_path(path: &str) -> AxResult<AbsPath<'static>> {
     crate_interface::call_interface!(CurrentWorkingDirectoryOps::absolute_path, path)
 }
 
+/// Get the current working directory.
 pub fn current_dir() -> AxResult<AbsPath<'static>> {
     crate_interface::call_interface!(CurrentWorkingDirectoryOps::current_dir)
 }
 
+/// Set the current working directory.
 pub fn set_current_dir(path: AbsPath<'static>) -> AxResult {
     crate_interface::call_interface!(CurrentWorkingDirectoryOps::set_current_dir, path)
 }

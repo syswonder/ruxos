@@ -26,7 +26,6 @@
 //!    both are enabled.
 //!
 //! [FAT]: https://en.wikipedia.org/wiki/File_Allocation_Table
-//! [`MyFileSystemIf`]: fops::MyFileSystemIf
 
 #![cfg_attr(all(not(test), not(doc)), no_std)]
 #![feature(doc_auto_cfg)]
@@ -47,7 +46,22 @@ pub mod fops;
 pub mod root;
 
 // Re-export `axfs_vfs` path types.
+
+/// Canonicalized absolute path type. Requirements:
+///
+/// - Starting with `/`
+/// - No `.` or `..` components
+/// - No redundant or tailing `/`
+/// - Valid examples: `/`, `/root/foo/bar`
 pub type AbsPath<'a> = axfs_vfs::AbsPath<'a>;
+
+/// Canonicalized relative path type. Requirements:
+///
+/// - No starting `/`
+/// - No `.` components
+/// - No redundant or tailing `/`
+/// - Possibly starts with `..`
+/// - Valid examples: ` `, `..`, `../b`, `../..`
 pub type RelPath<'a> = axfs_vfs::RelPath<'a>;
 
 #[cfg(feature = "myfs")]
