@@ -21,7 +21,9 @@ fn test_devfs_ops(devfs: &DeviceFileSystem) -> VfsResult {
     assert!(root.get_attr()?.is_dir());
     assert_eq!(root.get_attr()?.file_type(), VfsNodeType::Dir);
     assert_eq!(
-        root.clone().lookup(&RelPath::new_canonicalized("urandom")).err(),
+        root.clone()
+            .lookup(&RelPath::new_canonicalized("urandom"))
+            .err(),
         Some(VfsError::NotFound)
     );
 
@@ -32,9 +34,14 @@ fn test_devfs_ops(devfs: &DeviceFileSystem) -> VfsResult {
     assert_eq!(node.read_at(0, &mut buf)?, 0);
     assert_eq!(buf, [1; N]);
     assert_eq!(node.write_at(N as _, &buf)?, N);
-    assert_eq!(node.lookup(&RelPath::new_canonicalized("/")).err(), Some(VfsError::NotADirectory));
+    assert_eq!(
+        node.lookup(&RelPath::new_canonicalized("/")).err(),
+        Some(VfsError::NotADirectory)
+    );
 
-    let node = devfs.root_dir().lookup(&RelPath::new_canonicalized(".///.//././/.////zero"))?;
+    let node = devfs
+        .root_dir()
+        .lookup(&RelPath::new_canonicalized(".///.//././/.////zero"))?;
     assert_eq!(node.get_attr()?.file_type(), VfsNodeType::CharDevice);
     assert!(!node.get_attr()?.is_dir());
     assert_eq!(node.get_attr()?.size(), 0);
@@ -42,7 +49,9 @@ fn test_devfs_ops(devfs: &DeviceFileSystem) -> VfsResult {
     assert_eq!(buf, [0; N]);
     assert_eq!(node.write_at(0, &buf)?, N);
 
-    let foo = devfs.root_dir().lookup(&RelPath::new_canonicalized(".///.//././/.////foo"))?;
+    let foo = devfs
+        .root_dir()
+        .lookup(&RelPath::new_canonicalized(".///.//././/.////foo"))?;
     assert!(foo.get_attr()?.is_dir());
     assert_eq!(
         foo.read_at(10, &mut buf).err(),
@@ -50,14 +59,21 @@ fn test_devfs_ops(devfs: &DeviceFileSystem) -> VfsResult {
     );
     assert!(Arc::ptr_eq(
         &foo.clone().lookup(&RelPath::new_canonicalized("/f2"))?,
-        &devfs.root_dir().lookup(&RelPath::new_canonicalized(".//./foo///f2"))?,
+        &devfs
+            .root_dir()
+            .lookup(&RelPath::new_canonicalized(".//./foo///f2"))?,
     ));
     assert_eq!(
-        foo.clone().lookup(&RelPath::new_canonicalized("/bar//f1"))?.get_attr()?.file_type(),
+        foo.clone()
+            .lookup(&RelPath::new_canonicalized("/bar//f1"))?
+            .get_attr()?
+            .file_type(),
         VfsNodeType::CharDevice
     );
     assert_eq!(
-        foo.lookup(&RelPath::new_canonicalized("/bar///"))?.get_attr()?.file_type(),
+        foo.lookup(&RelPath::new_canonicalized("/bar///"))?
+            .get_attr()?
+            .file_type(),
         VfsNodeType::Dir
     );
 
@@ -71,25 +87,43 @@ fn test_get_parent(devfs: &DeviceFileSystem) -> VfsResult {
     let node = root.clone().lookup(&RelPath::new_canonicalized("null"))?;
     assert!(node.parent().is_none());
 
-    let node = root.clone().lookup(&RelPath::new_canonicalized(".//foo/bar"))?;
+    let node = root
+        .clone()
+        .lookup(&RelPath::new_canonicalized(".//foo/bar"))?;
     assert!(node.parent().is_some());
     let parent = node.parent().unwrap();
-    assert!(Arc::ptr_eq(&parent, &root.clone().lookup(&RelPath::new_canonicalized("foo"))?));
+    assert!(Arc::ptr_eq(
+        &parent,
+        &root.clone().lookup(&RelPath::new_canonicalized("foo"))?
+    ));
     assert!(parent.lookup(&RelPath::new_canonicalized("bar")).is_ok());
 
     let node = root.clone().lookup(&RelPath::new_canonicalized("foo/.."))?;
-    assert!(Arc::ptr_eq(&node, &root.clone().lookup(&RelPath::new_canonicalized("."))?));
+    assert!(Arc::ptr_eq(
+        &node,
+        &root.clone().lookup(&RelPath::new_canonicalized("."))?
+    ));
 
     assert!(Arc::ptr_eq(
-        &root.clone().lookup(&RelPath::new_canonicalized("/foo/.."))?,
-        &devfs.root_dir().lookup(&RelPath::new_canonicalized(".//./foo/././bar/../.."))?,
+        &root
+            .clone()
+            .lookup(&RelPath::new_canonicalized("/foo/.."))?,
+        &devfs
+            .root_dir()
+            .lookup(&RelPath::new_canonicalized(".//./foo/././bar/../.."))?,
     ));
     assert!(Arc::ptr_eq(
-        &root.clone().lookup(&RelPath::new_canonicalized("././/foo//./../foo//bar///..//././"))?,
-        &devfs.root_dir().lookup(&RelPath::new_canonicalized(".//./foo/"))?,
+        &root.clone().lookup(&RelPath::new_canonicalized(
+            "././/foo//./../foo//bar///..//././"
+        ))?,
+        &devfs
+            .root_dir()
+            .lookup(&RelPath::new_canonicalized(".//./foo/"))?,
     ));
     assert!(Arc::ptr_eq(
-        &root.clone().lookup(&RelPath::new_canonicalized("///foo//bar///../f2"))?,
+        &root
+            .clone()
+            .lookup(&RelPath::new_canonicalized("///foo//bar///../f2"))?,
         &root.lookup(&RelPath::new_canonicalized("foo/.//f2"))?,
     ));
 

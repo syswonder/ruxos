@@ -35,16 +35,16 @@
 extern crate log;
 extern crate alloc;
 
-mod fs;
-mod mounts;
 #[cfg(feature = "alloc")]
 mod arch;
+mod fs;
+mod mounts;
 
 pub mod api;
-pub mod fops;
-pub mod root;
 #[cfg(feature = "blkfs")]
 pub mod dev;
+pub mod fops;
+pub mod root;
 
 // Re-export `axfs_vfs` path types.
 pub type AbsPath<'a> = axfs_vfs::AbsPath<'a>;

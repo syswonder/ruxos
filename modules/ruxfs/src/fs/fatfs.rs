@@ -190,7 +190,7 @@ impl VfsNodeOps for DirWrapper<'static> {
     fn unlink(&self, path: &RelPath) -> VfsResult {
         debug!("remove at fatfs: {}", path);
         if path.is_empty() {
-            return ax_err!(PermissionDenied)
+            return ax_err!(PermissionDenied);
         }
         self.0.remove(path).map_err(as_vfs_err)
     }

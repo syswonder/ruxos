@@ -27,9 +27,9 @@ mod fs;
 #[cfg(feature = "net-9p")]
 mod netdev;
 
-use alloc::{sync::Arc, borrow::ToOwned};
+use alloc::{borrow::ToOwned, sync::Arc};
 use log::*;
-use ruxfs::{AbsPath, root::MountPoint};
+use ruxfs::{root::MountPoint, AbsPath};
 use spin::RwLock;
 
 #[cfg(feature = "virtio-9p")]

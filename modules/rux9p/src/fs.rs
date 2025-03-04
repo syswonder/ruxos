@@ -13,8 +13,8 @@
 use crate::drv::{self, Drv9pOps};
 use alloc::{string::String, string::ToString, sync::Arc, sync::Weak, vec::Vec};
 use axfs_vfs::{
-    VfsDirEntry, VfsError, VfsNodeAttr, VfsNodeOps, VfsNodePerm, VfsNodeRef, VfsNodeType, VfsOps,
-    VfsResult, AbsPath, RelPath
+    AbsPath, RelPath, VfsDirEntry, VfsError, VfsNodeAttr, VfsNodeOps, VfsNodePerm, VfsNodeRef,
+    VfsNodeType, VfsOps, VfsResult,
 };
 use log::*;
 use spin::{once::Once, RwLock};

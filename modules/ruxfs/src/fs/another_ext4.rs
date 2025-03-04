@@ -1,4 +1,4 @@
-//! Reference: 
+//! Reference:
 //! - another_ext4: https://github.com/LJxTHUCS/another_ext4
 //! - axfs: https://github.com/Starry-OS/axfs
 
@@ -8,7 +8,7 @@ use another_ext4::{
     Block, BlockDevice, ErrCode as Ext4ErrorCode, Ext4, Ext4Error, FileType as EXt4FileType,
     InodeMode as Ext4InodeMode, BLOCK_SIZE as EXT4_BLOCK_SIZE, EXT4_ROOT_INO,
 };
-use axfs_vfs::{VfsDirEntry, VfsError, VfsNodePerm, VfsResult, RelPath};
+use axfs_vfs::{RelPath, VfsDirEntry, VfsError, VfsNodePerm, VfsResult};
 use axfs_vfs::{VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps};
 use axsync::Mutex;
 

@@ -1,4 +1,4 @@
-//! Reference: 
+//! Reference:
 //! - ext4_rs: https://github.com/yuoo655/ext4_rs
 //! - axfs: https://github.com/Starry-OS/axfs
 
@@ -6,7 +6,7 @@ use crate::dev::Disk;
 use alloc::sync::Arc;
 use alloc::vec;
 use alloc::vec::*;
-use axfs_vfs::{VfsDirEntry, VfsError, VfsNodePerm, VfsResult, RelPath};
+use axfs_vfs::{RelPath, VfsDirEntry, VfsError, VfsNodePerm, VfsResult};
 use axfs_vfs::{VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps};
 use axsync::Mutex;
 use core::cell::RefCell;

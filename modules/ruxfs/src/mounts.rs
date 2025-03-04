@@ -8,7 +8,7 @@
  */
 
 use alloc::sync::Arc;
-use axfs_vfs::{VfsNodeType, VfsOps, VfsResult, RelPath};
+use axfs_vfs::{RelPath, VfsNodeType, VfsOps, VfsResult};
 
 #[cfg(feature = "alloc")]
 use crate::arch::{get_cpuinfo, get_meminfo};
@@ -53,12 +53,16 @@ pub(crate) fn procfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
 
     // Create /proc/sys/net/core/somaxconn
     proc_root.create_recursive(&RelPath::new("sys/net/core/somaxconn"), VfsNodeType::File)?;
-    let file_somaxconn = proc_root.clone().lookup(&RelPath::new("sys/net/core/somaxconn"))?;
+    let file_somaxconn = proc_root
+        .clone()
+        .lookup(&RelPath::new("sys/net/core/somaxconn"))?;
     file_somaxconn.write_at(0, b"4096\n")?;
 
     // Create /proc/sys/vm/overcommit_memory
     proc_root.create_recursive(&RelPath::new("sys/vm/overcommit_memory"), VfsNodeType::File)?;
-    let file_over = proc_root.clone().lookup(&RelPath::new("sys/vm/overcommit_memory"))?;
+    let file_over = proc_root
+        .clone()
+        .lookup(&RelPath::new("sys/vm/overcommit_memory"))?;
     file_over.write_at(0, b"0\n")?;
 
     // Create /proc/self/stat
@@ -75,7 +79,10 @@ pub(crate) fn sysfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
     debug!("sysfs: {:?}", sys_root.get_attr());
 
     // Create /sys/kernel/mm/transparent_hugepage/enabled
-    sys_root.create_recursive(&RelPath::new("kernel/mm/transparent_hugepage/enabled"), VfsNodeType::File)?;
+    sys_root.create_recursive(
+        &RelPath::new("kernel/mm/transparent_hugepage/enabled"),
+        VfsNodeType::File,
+    )?;
     let file_hp = sys_root
         .clone()
         .lookup(&RelPath::new("kernel/mm/transparent_hugepage/enabled"))?;
@@ -86,9 +93,9 @@ pub(crate) fn sysfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
         &RelPath::new("devices/system/clocksource/clocksource0/current_clocksource"),
         VfsNodeType::File,
     )?;
-    let file_cc = sys_root
-        .clone()
-        .lookup(&RelPath::new("devices/system/clocksource/clocksource0/current_clocksource"))?;
+    let file_cc = sys_root.clone().lookup(&RelPath::new(
+        "devices/system/clocksource/clocksource0/current_clocksource",
+    ))?;
     file_cc.write_at(0, b"tsc\n")?;
 
     Ok(Arc::new(sysfs))
