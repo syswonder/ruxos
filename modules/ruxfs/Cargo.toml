@@ -48,7 +48,7 @@ axalloc = { path = "../axalloc", optional = true }
 memory_addr = "0.1.0"
 # lwext4_rust = { git = "https://github.com/elliott10/lwext4_rust", optional = true }
 ext4_rs = { git = "https://github.com/yuoo655/ext4_rs.git", rev= "6bcc7f5", optional = true }
-another_ext4 = { git = "https://github.com/LJxTHUCS/another_ext4.git", optional = true }
+another_ext4 = { git = "https://github.com/LJxTHUCS/another_ext4.git", rev = "3c3e03a", optional = true }
 
 [dependencies.fatfs]
 git = "https://github.com/syswonder/rust-fatfs.git"

@@ -77,7 +77,7 @@ checksum = "4b46cbb362ab8752921c97e041f5e366ee6297bd428a31275b9fcf1e380f7299"
 [[package]]
 name = "another_ext4"
 version = "0.1.0"
-source = "git+https://github.com/LJxTHUCS/another_ext4.git#282418b4b197472acaae60469b608499ef1161d2"
+source = "git+https://github.com/LJxTHUCS/another_ext4.git?rev=3c3e03a#3c3e03a1b63a254f9cc5adb603d01c746f3fcf4b"
 dependencies = [
  "bitflags 2.6.0",
  "log",
