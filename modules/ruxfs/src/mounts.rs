@@ -110,7 +110,11 @@ pub(crate) fn etcfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
     etc_root.create(&RelPath::new("passwd"), VfsNodeType::File)?;
     let file_passwd = etc_root.clone().lookup(&RelPath::new("passwd"))?;
     // format: username:password:uid:gid:allname:homedir:shell
-    file_passwd.write_at(0, b"root:x:0:0:root:/root:/bin/bash\n")?;
+    file_passwd.write_at(
+        0,
+        b"root:x:0:0:root:/root:/bin/busybox\n\
+        syswonder:x:1000:1000:root:/root:/bin/busybox\n",
+    )?;
 
     // Create /etc/group
     etc_root.create(&RelPath::new("group"), VfsNodeType::File)?;
@@ -134,13 +138,17 @@ pub(crate) fn etcfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
         ff02::3 ip6-allhosts\n",
     )?;
 
+    etc_root.create(&RelPath::new("services"), VfsNodeType::File)?;
+    let file_services = etc_root.clone().lookup(&RelPath::new("services"))?;
+    file_services.write_at(0, b"ssh		22/tcp")?;
+
     // Create /etc/resolv.conf
     etc_root.create(&RelPath::new("resolv.conf"), VfsNodeType::File)?;
     let file_resolv = etc_root.clone().lookup(&RelPath::new("resolv.conf"))?;
     file_resolv.write_at(
         0,
-        b"nameserver 127.0.0.53\n\
-        nameserver 8.8.8.8\n\
+        b"nameserver 8.8.8.8\n\
+        nameserver 114.114.114.114\n\
         options edns0 trust-ad\n\
         search lan\n
         ",

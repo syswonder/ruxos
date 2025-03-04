@@ -856,7 +856,8 @@ pub fn sys_getsockopt(
                     | ctypes::SO_RCVTIMEO
                     | ctypes::SO_REUSEADDR
                     | ctypes::SO_SNDBUF
-                    | ctypes::SO_SNDTIMEO => 0,
+                    | ctypes::SO_SNDTIMEO
+                    | ctypes::SO_BINDTODEVICE => 0,
                     _ => return Err(LinuxError::ENOPROTOOPT),
                 };
 
