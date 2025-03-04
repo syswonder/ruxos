@@ -1105,15 +1105,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "90ed8c1e510134f979dbc4f070f87d4313098b704861a105fe34231c70a3901c"
 
 [[package]]
-name = "lwext4_rust"
-version = "0.2.0"
-source = "git+https://github.com/elliott10/lwext4_rust#83489293ef4535672caee0c5755729f3e0315a96"
-dependencies = [
- "log",
- "printf-compat",
-]
-
-[[package]]
 name = "lwip_rust"
 version = "0.1.0"
 dependencies = [
@@ -1670,7 +1661,6 @@ dependencies = [
  "fatfs",
  "lazy_init",
  "log",
- "lwext4_rust",
  "memory_addr",
  "ruxdriver",
  "spin",

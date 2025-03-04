@@ -51,7 +51,7 @@ blkfs = ["ruxdriver/virtio-blk", "ruxruntime/blkfs", "ruxfs/blkfs"]
 myfs = ["ruxfs?/myfs"]
 9pfs = []
 fatfs = ["ruxfs?/fatfs"]
-lwext4_rust = ["ruxfs?/lwext4_rust"]
+# lwext4_rust = ["ruxfs?/lwext4_rust"]
 ext4_rs = ["ruxfs?/ext4_rs"]
 another_ext4 = ["ruxfs?/another_ext4"]
 

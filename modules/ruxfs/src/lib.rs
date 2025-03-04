@@ -63,9 +63,9 @@ cfg_if::cfg_if! {
     } else if #[cfg(feature = "fatfs")] {
         use lazy_init::LazyInit;
         use alloc::sync::Arc;
-    } else if #[cfg(feature = "lwext4_rust")] {
-        use lazy_init::LazyInit;
-        use alloc::sync::Arc;
+    // } else if #[cfg(feature = "lwext4_rust")] {
+    //     use lazy_init::LazyInit;
+    //     use alloc::sync::Arc;
     } else if #[cfg(feature = "ext4_rs")] {
         use lazy_init::LazyInit;
         use alloc::sync::Arc;
@@ -100,10 +100,10 @@ pub fn init_blkfs(mut blk_devs: AxDeviceContainer<AxBlockDevice>) -> MountPoint 
             FAT_FS.init_by(Arc::new(fs::fatfs::FatFileSystem::new(disk)));
             FAT_FS.init();
             let blk_fs = FAT_FS.clone();
-        } else if #[cfg(feature = "lwext4_rust")] {
-            static EXT4_FS: LazyInit<Arc<fs::lwext4_rust::Ext4FileSystem>> = LazyInit::new();
-            EXT4_FS.init_by(Arc::new(fs::lwext4_rust::Ext4FileSystem::new(disk)));
-            let blk_fs = EXT4_FS.clone();
+        // } else if #[cfg(feature = "lwext4_rust")] {
+        //     static EXT4_FS: LazyInit<Arc<fs::lwext4_rust::Ext4FileSystem>> = LazyInit::new();
+        //     EXT4_FS.init_by(Arc::new(fs::lwext4_rust::Ext4FileSystem::new(disk)));
+        //     let blk_fs = EXT4_FS.clone();
         } else if #[cfg(feature = "ext4_rs")] {
             static EXT4_FS: LazyInit<Arc<fs::ext4_rs::Ext4FileSystem>> = LazyInit::new();
             EXT4_FS.init_by(Arc::new(fs::ext4_rs::Ext4FileSystem::new(disk)));
