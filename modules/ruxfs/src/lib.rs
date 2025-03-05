@@ -77,6 +77,7 @@ cfg_if::cfg_if! {
     } else if #[cfg(feature = "fatfs")] {
         use lazy_init::LazyInit;
         use alloc::sync::Arc;
+    // TODO: wait for CI support for ext4
     // } else if #[cfg(feature = "lwext4_rust")] {
     //     use lazy_init::LazyInit;
     //     use alloc::sync::Arc;
@@ -114,6 +115,7 @@ pub fn init_blkfs(mut blk_devs: AxDeviceContainer<AxBlockDevice>) -> MountPoint 
             FAT_FS.init_by(Arc::new(fs::fatfs::FatFileSystem::new(disk)));
             FAT_FS.init();
             let blk_fs = FAT_FS.clone();
+        // TODO: wait for CI support for ext4
         // } else if #[cfg(feature = "lwext4_rust")] {
         //     static EXT4_FS: LazyInit<Arc<fs::lwext4_rust::Ext4FileSystem>> = LazyInit::new();
         //     EXT4_FS.init_by(Arc::new(fs::lwext4_rust::Ext4FileSystem::new(disk)));

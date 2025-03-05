@@ -605,7 +605,7 @@ pub unsafe fn sys_getdents64(fd: c_int, dirp: *mut LinuxDirent64, count: ctypes:
         if count < DIRENT64_FIXED_SIZE {
             return Err(LinuxError::EINVAL);
         }
-        let buf = unsafe { core::slice::from_raw_parts_mut(dirp, count) };
+        let buf = unsafe { core::slice::from_raw_parts_mut(dirp as *mut u8, count) };
         // EBADFD handles here
         let dir = Directory::from_fd(fd)?;
         // bytes written in buf
@@ -639,12 +639,12 @@ pub unsafe fn sys_getdents64(fd: c_int, dirp: *mut LinuxDirent64, count: ctypes:
             // write entry to buffer
             let dirent: &mut LinuxDirent64 =
                 unsafe { &mut *(buf.as_mut_ptr().add(written) as *mut LinuxDirent64) };
-            // 设置定长部分
+            // set fixed-size fields
             dirent.d_ino = 1;
             dirent.d_off = offset as i64;
             dirent.d_reclen = entry_size as u16;
             dirent.d_type = entry.entry_type() as u8;
-            // 写入文件名
+            // set file name
             dirent.d_name[..name_len].copy_from_slice(unsafe {
                 core::slice::from_raw_parts(name.as_ptr() as *const i8, name_len)
             });

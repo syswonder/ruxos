@@ -19,6 +19,7 @@ sysfs = ["dep:axfs_ramfs"]
 etcfs = ["dep:axfs_ramfs"]
 blkfs = []
 fatfs = ["blkfs", "dep:fatfs"]
+# TODO: wait for CI support for ext4
 # lwext4_rust = ["blkfs", "dep:lwext4_rust"]
 ext4_rs = ["blkfs", "dep:ext4_rs"]
 another_ext4 = ["blkfs","dep:another_ext4"]

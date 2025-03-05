@@ -12,6 +12,7 @@ cfg_if::cfg_if! {
         pub mod myfs;
     } else if #[cfg(feature = "fatfs")] {
         pub mod fatfs;
+    // TODO: wait for CI support for ext4
     // } else if #[cfg(feature = "lwext4_rust")] {
     //     pub mod lwext4_rust;
     } else if #[cfg(feature = "ext4_rs")] {
