@@ -12,16 +12,16 @@
 #![cfg(feature = "fs")]
 
 use crate::current;
-use alloc::{format, string::String, sync::Arc, vec::Vec};
+use alloc::{borrow::ToOwned, format, sync::Arc, vec::Vec};
 use axerrno::{ax_err, AxResult};
 use axfs_vfs::VfsNodeRef;
 use bitmaps::Bitmap;
 use flatten_objects::FlattenObjects;
 use ruxfdtable::FileLike;
 use ruxfs::{
-    fops,
-    root::{lookup, CurrentWorkingDirectoryOps, RootDirectory},
-    MountPoint,
+    fops::{lookup, CurrentWorkingDirectoryOps, OpenOptions},
+    root::{MountPoint, RootDirectory},
+    AbsPath, RelPath,
 };
 
 use axerrno::{LinuxError, LinuxResult};
@@ -64,7 +64,7 @@ pub fn get_file_like(fd: i32) -> LinuxResult<Arc<dyn FileLike>> {
 
 /// Adds a file like object to the file descriptor table and returns the file descriptor.
 /// Actually there only `CLOEXEC` flag in options works.
-pub fn add_file_like(f: Arc<dyn FileLike>, options: fops::OpenOptions) -> LinuxResult<i32> {
+pub fn add_file_like(f: Arc<dyn FileLike>, options: OpenOptions) -> LinuxResult<i32> {
     let binding_task = current();
     let mut binding_fs = binding_task.fs.lock();
     let fd_table = &mut binding_fs.as_mut().expect("No fd table found").fd_table;
@@ -103,7 +103,7 @@ impl File {
     }
 
     /// Adds the file object to the file descriptor table and returns the file descriptor.
-    pub fn add_to_fd_table(self, options: fops::OpenOptions) -> LinuxResult<i32> {
+    pub fn add_to_fd_table(self, options: OpenOptions) -> LinuxResult<i32> {
         add_file_like(Arc::new(self), options)
     }
 
@@ -117,6 +117,10 @@ impl File {
 }
 
 impl FileLike for File {
+    fn path(&self) -> AbsPath {
+        self.inner.read().path().to_owned()
+    }
+
     fn read(&self, buf: &mut [u8]) -> LinuxResult<usize> {
         Ok(self.inner.write().read(buf)?)
     }
@@ -176,18 +180,21 @@ impl FileLike for File {
 pub struct Directory {
     /// The inner directory object.
     pub inner: RwLock<ruxfs::fops::Directory>,
+    /// Searchable.
+    pub searchable: bool,
 }
 
 impl Directory {
     /// Creates a new directory object with the given inner directory object.
-    pub fn new(inner: ruxfs::fops::Directory) -> Self {
+    pub fn new(inner: ruxfs::fops::Directory, searchable: bool) -> Self {
         Self {
             inner: RwLock::new(inner),
+            searchable,
         }
     }
 
     /// Adds the directory object to the file descriptor table and returns the file descriptor.
-    pub fn add_to_fd_table(self, flags: fops::OpenOptions) -> LinuxResult<i32> {
+    pub fn add_to_fd_table(self, flags: OpenOptions) -> LinuxResult<i32> {
         add_file_like(Arc::new(self), flags)
     }
 
@@ -201,6 +208,10 @@ impl Directory {
 }
 
 impl FileLike for Directory {
+    fn path(&self) -> AbsPath {
+        self.inner.read().path().to_owned()
+    }
+
     fn read(&self, _buf: &mut [u8]) -> LinuxResult<usize> {
         Err(LinuxError::EACCES)
     }
@@ -257,7 +268,7 @@ pub struct FileSystem {
     /// The file descriptor table.
     pub fd_table: FdTable,
     /// The current working directory.
-    pub current_path: String,
+    pub current_path: AbsPath<'static>,
     /// The current directory.
     pub current_dir: VfsNodeRef,
     /// The root directory.
@@ -311,10 +322,10 @@ impl FdTable {
     ///
     /// Also sets the `FD_CLOEXEC` flag for the file descriptor based on the `flags` argument.
     /// Returns the assigned file descriptor number (`fd`) if successful, or `None` if the table is full.
-    pub fn add(&mut self, file: Arc<dyn FileLike>, flags: fops::OpenOptions) -> Option<usize> {
+    pub fn add(&mut self, file: Arc<dyn FileLike>, flags: OpenOptions) -> Option<usize> {
         if let Some(fd) = self.files.add(file) {
             debug_assert!(!self.cloexec_bitmap.get(fd));
-            if flags.is_cloexec() {
+            if flags.cloexec {
                 self.cloexec_bitmap.set(fd, true);
             }
             Some(fd)
@@ -347,8 +358,7 @@ impl FdTable {
     pub fn remove(&mut self, fd: usize) -> Option<Arc<dyn FileLike>> {
         self.cloexec_bitmap.set(fd, false);
         // use map_or because RAII. the Arc should be released here. You should not use the return Arc
-        let closing_file = self.files.remove(fd);
-        closing_file
+        self.files.remove(fd)
     }
 
     /// Closes all file descriptors with the `FD_CLOEXEC` flag set.
@@ -424,18 +434,17 @@ pub fn init_rootfs(mount_points: Vec<MountPoint>) {
     let mut root_dir = RootDirectory::new(main_fs);
 
     for mp in mount_points.iter().skip(1) {
-        let path = mp.path;
         let vfsops = mp.fs.clone();
-        let message = format!("failed to mount filesystem at {}", path);
-        info!("mounting {}", path);
-        root_dir.mount(path, vfsops).expect(&message);
+        let message = format!("failed to mount filesystem at {}", mp.path);
+        info!("mounting {}", mp.path);
+        root_dir.mount(mp.path.clone(), vfsops).expect(&message);
     }
 
     let root_dir_arc = Arc::new(root_dir);
 
     let mut fs = FileSystem {
         fd_table: FdTable::default(),
-        current_path: "/".into(),
+        current_path: AbsPath::new_owned("/".to_owned()),
         current_dir: root_dir_arc.clone(),
         root_dir: root_dir_arc.clone(),
     };
@@ -457,34 +466,28 @@ fn parent_node_of(dir: Option<&VfsNodeRef>, path: &str) -> VfsNodeRef {
 }
 
 /// Returns the absolute path of the given path.
-pub fn absolute_path(path: &str) -> AxResult<String> {
+pub fn absolute_path(path: &str) -> AxResult<AbsPath<'static>> {
     if path.starts_with('/') {
-        Ok(axfs_vfs::path::canonicalize(path))
+        Ok(AbsPath::new_canonicalized(path))
     } else {
-        let path = current().fs.lock().as_mut().unwrap().current_path.clone() + path;
-        Ok(axfs_vfs::path::canonicalize(&path))
+        Ok(current()
+            .fs
+            .lock()
+            .as_mut()
+            .unwrap()
+            .current_path
+            .join(&RelPath::new_canonicalized(path)))
     }
 }
 
 /// Returns the current directory.
-pub fn current_dir() -> AxResult<String> {
+pub fn current_dir() -> AxResult<AbsPath<'static>> {
     Ok(current().fs.lock().as_mut().unwrap().current_path.clone())
 }
 
 /// Sets the current directory.
-pub fn set_current_dir(path: &str) -> AxResult {
-    let mut abs_path = absolute_path(path)?;
-    if !abs_path.ends_with('/') {
-        abs_path += "/";
-    }
-    if abs_path == "/" {
-        current().fs.lock().as_mut().unwrap().current_dir =
-            current().fs.lock().as_mut().unwrap().root_dir.clone();
-        current().fs.lock().as_mut().unwrap().current_path = "/".into();
-        return Ok(());
-    }
-
-    let node = lookup(None, &abs_path)?;
+pub fn set_current_dir(path: AbsPath<'static>) -> AxResult {
+    let node = lookup(&path)?;
     let attr = node.get_attr()?;
     if !attr.is_dir() {
         ax_err!(NotADirectory)
@@ -492,7 +495,7 @@ pub fn set_current_dir(path: &str) -> AxResult {
         ax_err!(PermissionDenied)
     } else {
         current().fs.lock().as_mut().unwrap().current_dir = node;
-        current().fs.lock().as_mut().unwrap().current_path = abs_path;
+        current().fs.lock().as_mut().unwrap().current_path = path;
         Ok(())
     }
 }
@@ -504,16 +507,16 @@ impl CurrentWorkingDirectoryOps for CurrentWorkingDirectoryImpl {
     fn init_rootfs(mount_points: Vec<MountPoint>) {
         init_rootfs(mount_points)
     }
-    fn parent_node_of(dir: Option<&VfsNodeRef>, path: &str) -> VfsNodeRef {
+    fn parent_node_of(dir: Option<&VfsNodeRef>, path: &RelPath) -> VfsNodeRef {
         parent_node_of(dir, path)
     }
-    fn absolute_path(path: &str) -> AxResult<String> {
+    fn absolute_path(path: &str) -> AxResult<AbsPath<'static>> {
         absolute_path(path)
     }
-    fn current_dir() -> AxResult<String> {
+    fn current_dir() -> AxResult<AbsPath<'static>> {
         current_dir()
     }
-    fn set_current_dir(path: &str) -> AxResult {
+    fn set_current_dir(path: AbsPath<'static>) -> AxResult {
         set_current_dir(path)
     }
     fn root_dir() -> Arc<RootDirectory> {

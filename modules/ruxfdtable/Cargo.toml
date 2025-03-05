@@ -15,6 +15,7 @@ default = []
 log = "0.4"
 spin = "0.9"
 axio = { path = "../../crates/axio" }
+axfs_vfs = { path = "../../crates/axfs_vfs" }
 lazy_static = { version = "1.4", features = ["spin_no_std"] }
 flatten_objects = { path = "../../crates/flatten_objects" }
 axerrno = { path = "../../crates/axerrno" }

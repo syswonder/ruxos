@@ -18,35 +18,38 @@ use axfs_vfs::VfsOps;
 use axio::{Result, Write};
 use driver_block::ramdisk::RamDisk;
 use ruxdriver::AxDeviceContainer;
-use ruxfs::api::{self as fs, File};
-use ruxfs::fops::{Disk, MyFileSystemIf};
+use ruxfs::api as fs;
+use ruxfs::MyFileSystemIf;
 
 struct MyFileSystemIfImpl;
 
 #[crate_interface::impl_interface]
 impl MyFileSystemIf for MyFileSystemIfImpl {
-    fn new_myfs(_disk: Disk) -> Arc<dyn VfsOps> {
+    fn new_myfs() -> Arc<dyn VfsOps> {
         Arc::new(RamFileSystem::new())
     }
 }
 
 fn create_init_files() -> Result<()> {
-    fs::write("./short.txt", "Rust is cool!\n")?;
-    let mut file = File::create_new("/long.txt")?;
+    fs::write(&fs::absolute_path("./short.txt")?, "Rust is cool!\n")?;
+    let mut file = fs::File::create_new(&fs::absolute_path("/long.txt")?)?;
     for _ in 0..100 {
         file.write_fmt(format_args!("Rust is cool!\n"))?;
     }
 
-    fs::create_dir("very-long-dir-name")?;
+    fs::create_dir(&fs::absolute_path("very-long-dir-name")?)?;
     fs::write(
-        "very-long-dir-name/very-long-file-name.txt",
+        &fs::absolute_path("very-long-dir-name/very-long-file-name.txt")?,
         "Rust is cool!\n",
     )?;
 
-    fs::create_dir("very")?;
-    fs::create_dir("//very/long")?;
-    fs::create_dir("/./very/long/path")?;
-    fs::write(".//very/long/path/test.txt", "Rust is cool!\n")?;
+    fs::create_dir(&fs::absolute_path("very")?)?;
+    fs::create_dir(&fs::absolute_path("//very/long")?)?;
+    fs::create_dir(&fs::absolute_path("/./very/long/path")?)?;
+    fs::write(
+        &fs::absolute_path(".//very/long/path/test.txt")?,
+        "Rust is cool!\n",
+    )?;
     Ok(())
 }
 
@@ -57,11 +60,9 @@ fn test_ramfs() {
     ruxtask::init_scheduler(); // call this to use `axsync::Mutex`.
                                // By default, mount_points[0] will be rootfs
 
-    let mut mount_points: Vec<ruxfs::MountPoint> = Vec::new();
+    let mut mount_points: Vec<ruxfs::root::MountPoint> = Vec::new();
     // setup and initialize blkfs as one mountpoint for rootfs
-    mount_points.push(ruxfs::init_blkfs(AxDeviceContainer::from_one(Box::new(
-        RamDisk::default(),
-    ))));
+    mount_points.push(ruxfs::init_tempfs());
     ruxfs::prepare_commonfs(&mut mount_points);
 
     // setup and initialize rootfs

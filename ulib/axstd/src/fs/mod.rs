@@ -48,7 +48,7 @@ pub fn write<P: AsRef<str>, C: AsRef<[u8]>>(path: P, contents: C) -> io::Result<
 /// Given a path, query the file system to get information about a file,
 /// directory, etc.
 pub fn metadata<P: AsRef<str>>(path: P) -> io::Result<Metadata> {
-    File::open(path.as_ref())?.metadata()
+    arceos_api::fs::ax_get_attr(path.as_ref()).map(Metadata::new)
 }
 
 /// Returns an iterator over the entries within a directory.

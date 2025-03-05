@@ -159,7 +159,7 @@ pub mod fs {
         pub type AxFilePerm;
         pub type AxDirEntry;
         pub type AxSeekFrom;
-        #[cfg(feature = "myfs")]
+        #[cfg(feature = "blkfs")]
         pub type AxDisk;
         #[cfg(feature = "myfs")]
         pub type MyFileSystemIf;
@@ -174,26 +174,19 @@ pub mod fs {
         /// Opens a directory at the path relative to the current directory with
         /// the options specified by `opts`.
         pub fn ax_open_dir(path: &str, opts: &AxOpenOptions) -> AxResult<AxDirHandle>;
+        /// Returns attributes of a file or directory at the given path.
+        pub fn ax_get_attr(path: &str) -> AxResult<AxFileAttr>;
 
         /// Reads the file at the current position, returns the number of bytes read.
         ///
         /// After the read, the cursor will be advanced by the number of bytes read.
         pub fn ax_read_file(file: &mut AxFileHandle, buf: &mut [u8]) -> AxResult<usize>;
-        /// Reads the file at the given position, returns the number of bytes read.
-        ///
-        /// It does not update the file cursor.
-        pub fn ax_read_file_at(file: &AxFileHandle, offset: u64, buf: &mut [u8]) -> AxResult<usize>;
         /// Writes the file at the current position, returns the number of bytes
         /// written.
         ///
         /// After the write, the cursor will be advanced by the number of bytes
         /// written.
         pub fn ax_write_file(file: &mut AxFileHandle, buf: &[u8]) -> AxResult<usize>;
-        /// Writes the file at the given position, returns the number of bytes
-        /// written.
-        ///
-        /// It does not update the file cursor.
-        pub fn ax_write_file_at(file: &AxFileHandle, offset: u64, buf: &[u8]) -> AxResult<usize>;
         /// Truncates the file to the specified size.
         pub fn ax_truncate_file(file: &AxFileHandle, size: u64) -> AxResult;
         /// Flushes the file, writes all buffered data to the underlying device.

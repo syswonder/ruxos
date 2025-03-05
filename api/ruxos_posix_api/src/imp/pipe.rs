@@ -9,7 +9,7 @@
 
 use alloc::sync::{Arc, Weak};
 use core::ffi::c_int;
-use ruxfs::fops;
+use ruxfs::{fops, AbsPath};
 
 use axerrno::{LinuxError, LinuxResult};
 use axio::PollState;
@@ -123,6 +123,10 @@ impl Pipe {
 }
 
 impl FileLike for Pipe {
+    fn path(&self) -> AbsPath {
+        AbsPath::new("/dev/pipe")
+    }
+
     fn read(&self, buf: &mut [u8]) -> LinuxResult<usize> {
         if !self.readable() {
             return Err(LinuxError::EPERM);

@@ -22,6 +22,7 @@ use ruxfdtable::{FileLike, RuxStat};
 use ruxhal::time::current_time;
 
 use crate::{ctypes, imp::fs::flags_to_options};
+use ruxfs::AbsPath;
 use ruxtask::fs::{add_file_like, get_file_like};
 
 pub struct EpollInstance {
@@ -122,6 +123,10 @@ impl EpollInstance {
 }
 
 impl FileLike for EpollInstance {
+    fn path(&self) -> AbsPath {
+        AbsPath::new("/epoll")
+    }
+
     fn read(&self, _buf: &mut [u8]) -> LinuxResult<usize> {
         Err(LinuxError::ENOSYS)
     }

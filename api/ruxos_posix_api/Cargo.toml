@@ -62,6 +62,7 @@ lazy_static = { version = "1.4", features = ["spin_no_std"] }
 flatten_objects = { path = "../../crates/flatten_objects" }
 page_table = { path = "../../crates/page_table" }
 crate_interface = "0.1.1"
+capability = { path = "../../crates/capability" }
 
 cfg-if = "1.0"
 elf = { version = "0.7", default-features = false }

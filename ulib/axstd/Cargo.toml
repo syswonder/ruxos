@@ -52,6 +52,11 @@ blkfs = ["ruxfeat/blkfs"]
 virtio-9p = ["ruxfeat/virtio-9p"]
 virtio_console = ["ruxfeat/virtio_console"]
 net-9p = ["ruxfeat/net-9p"]
+fatfs = ["blkfs", "ruxfeat/fatfs"]
+# TODO: wait for CI support for ext4
+# lwext4_rust = ["blkfs", "ruxfeat/lwext4_rust"]
+ext4_rs = ["blkfs", "ruxfeat/ext4_rs"]
+another_ext4 = ["blkfs", "ruxfeat/another_ext4"]
 
 # Networking
 net = ["arceos_api/net", "ruxfeat/net"]

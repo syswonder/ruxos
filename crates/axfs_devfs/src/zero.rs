@@ -17,6 +17,7 @@ pub struct ZeroDev;
 impl VfsNodeOps for ZeroDev {
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
         Ok(VfsNodeAttr::new(
+            4,
             VfsNodePerm::default_file(),
             VfsNodeType::CharDevice,
             0,

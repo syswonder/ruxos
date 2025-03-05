@@ -9,24 +9,34 @@
 
 use alloc::collections::BTreeMap;
 use alloc::sync::{Arc, Weak};
-use axfs_vfs::{VfsDirEntry, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType};
+use axfs_vfs::{RelPath, VfsDirEntry, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType};
 use axfs_vfs::{VfsError, VfsResult};
 use spin::RwLock;
+
+use crate::InoAllocator;
 
 /// The directory node in the device filesystem.
 ///
 /// It implements [`axfs_vfs::VfsNodeOps`].
 pub struct DirNode {
+    ino: u64,
     parent: RwLock<Weak<dyn VfsNodeOps>>,
     children: RwLock<BTreeMap<&'static str, VfsNodeRef>>,
+    ialloc: Weak<InoAllocator>,
 }
 
 impl DirNode {
-    pub(super) fn new(parent: Option<&VfsNodeRef>) -> Arc<Self> {
+    pub(super) fn new(
+        ino: u64,
+        parent: Option<&VfsNodeRef>,
+        ialloc: Weak<InoAllocator>,
+    ) -> Arc<Self> {
         let parent = parent.map_or(Weak::<Self>::new() as _, Arc::downgrade);
         Arc::new(Self {
+            ino,
             parent: RwLock::new(parent),
             children: RwLock::new(BTreeMap::new()),
+            ialloc,
         })
     }
 
@@ -37,7 +47,11 @@ impl DirNode {
     /// Create a subdirectory at this directory.
     pub fn mkdir(self: &Arc<Self>, name: &'static str) -> Arc<Self> {
         let parent = self.clone() as VfsNodeRef;
-        let node = Self::new(Some(&parent));
+        let node = Self::new(
+            self.ialloc.upgrade().unwrap().alloc(),
+            Some(&parent),
+            self.ialloc.clone(),
+        );
         self.children.write().insert(name, node.clone());
         node
     }
@@ -50,30 +64,36 @@ impl DirNode {
 
 impl VfsNodeOps for DirNode {
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
-        Ok(VfsNodeAttr::new_dir(4096, 0))
+        Ok(VfsNodeAttr::new_dir(self.ino, 4096, 0))
     }
 
     fn parent(&self) -> Option<VfsNodeRef> {
         self.parent.read().upgrade()
     }
 
-    fn lookup(self: Arc<Self>, path: &str) -> VfsResult<VfsNodeRef> {
+    fn lookup(self: Arc<Self>, path: &RelPath) -> VfsResult<VfsNodeRef> {
         let (name, rest) = split_path(path);
-        let node = match name {
-            "" | "." => Ok(self.clone() as VfsNodeRef),
-            ".." => self.parent().ok_or(VfsError::NotFound),
-            _ => self
-                .children
+        if let Some(rest) = rest {
+            match name {
+                ".." => self.parent().ok_or(VfsError::NotFound)?.lookup(&rest),
+                _ => self
+                    .children
+                    .read()
+                    .get(name)
+                    .cloned()
+                    .ok_or(VfsError::NotFound)?
+                    .lookup(&rest),
+            }
+        } else if name.is_empty() {
+            Ok(self.clone() as VfsNodeRef)
+        } else if name == ".." {
+            self.parent().ok_or(VfsError::NotFound)
+        } else {
+            self.children
                 .read()
                 .get(name)
                 .cloned()
-                .ok_or(VfsError::NotFound),
-        }?;
-
-        if let Some(rest) = rest {
-            node.lookup(rest)
-        } else {
-            Ok(node)
+                .ok_or(VfsError::NotFound)
         }
     }
 
@@ -96,52 +116,47 @@ impl VfsNodeOps for DirNode {
         Ok(dirents.len())
     }
 
-    fn create(&self, path: &str, ty: VfsNodeType) -> VfsResult {
-        log::debug!("create {:?} at devfs: {}", ty, path);
+    fn create(&self, path: &RelPath, ty: VfsNodeType) -> VfsResult {
         let (name, rest) = split_path(path);
         if let Some(rest) = rest {
             match name {
-                "" | "." => self.create(rest, ty),
-                ".." => self.parent().ok_or(VfsError::NotFound)?.create(rest, ty),
+                ".." => self.parent().ok_or(VfsError::NotFound)?.create(&rest, ty),
                 _ => self
                     .children
                     .read()
                     .get(name)
                     .ok_or(VfsError::NotFound)?
-                    .create(rest, ty),
+                    .create(&rest, ty),
             }
-        } else if name.is_empty() || name == "." || name == ".." {
+        } else if name.is_empty() || name == ".." {
             Ok(()) // already exists
         } else {
             Err(VfsError::PermissionDenied) // do not support to create nodes dynamically
         }
     }
 
-    fn remove(&self, path: &str) -> VfsResult {
-        log::debug!("remove at devfs: {}", path);
+    fn unlink(&self, path: &RelPath) -> VfsResult {
         let (name, rest) = split_path(path);
         if let Some(rest) = rest {
             match name {
-                "" | "." => self.remove(rest),
-                ".." => self.parent().ok_or(VfsError::NotFound)?.remove(rest),
+                ".." => self.parent().ok_or(VfsError::NotFound)?.unlink(&rest),
                 _ => self
                     .children
                     .read()
                     .get(name)
                     .ok_or(VfsError::NotFound)?
-                    .remove(rest),
+                    .unlink(&rest),
             }
         } else {
-            Err(VfsError::PermissionDenied) // do not support to remove nodes dynamically
+            Err(VfsError::PermissionDenied) // do not support to unlink nodes dynamically
         }
     }
 
     axfs_vfs::impl_vfs_dir_default! {}
 }
 
-fn split_path(path: &str) -> (&str, Option<&str>) {
-    let trimmed_path = path.trim_start_matches('/');
-    trimmed_path.find('/').map_or((trimmed_path, None), |n| {
-        (&trimmed_path[..n], Some(&trimmed_path[n + 1..]))
+fn split_path<'a>(path: &'a RelPath) -> (&'a str, Option<RelPath<'a>>) {
+    path.find('/').map_or((path, None), |n| {
+        (&path[..n], Some(RelPath::new(&path[n + 1..])))
     })
 }

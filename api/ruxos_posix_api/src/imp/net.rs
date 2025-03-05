@@ -11,7 +11,7 @@ use alloc::{sync::Arc, vec, vec::Vec};
 use core::ffi::{c_char, c_int, c_void};
 use core::mem::size_of;
 use core::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
-use ruxfs::fops;
+use ruxfs::{fops, AbsPath};
 
 use axerrno::{LinuxError, LinuxResult};
 use axio::PollState;
@@ -266,6 +266,10 @@ impl Socket {
 }
 
 impl FileLike for Socket {
+    fn path(&self) -> AbsPath {
+        AbsPath::new("/dev/socket")
+    }
+
     fn read(&self, buf: &mut [u8]) -> LinuxResult<usize> {
         self.recv(buf, 0)
     }
@@ -564,7 +568,7 @@ pub unsafe fn sys_recvfrom(
                 UnifiedSocketAddress::Unix(addr) => unsafe {
                     let sockaddr_un_size = addr.get_addr_len();
                     let sockaddr_un = SocketAddrUnix {
-                        sun_family: 1 as u16, //  AF_UNIX
+                        sun_family: 1u16, //  AF_UNIX
                         sun_path: addr.sun_path,
                     };
                     let original_addrlen = *addrlen as usize;
