@@ -42,7 +42,7 @@
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "multitask")] {
-        #[macro_use]
+        #[macro_use(info, debug, trace)]
         extern crate log;
         extern crate alloc;
 

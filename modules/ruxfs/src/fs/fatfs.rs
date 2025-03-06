@@ -8,6 +8,8 @@
  */
 
 use alloc::sync::Arc;
+use axerrno::ax_err;
+use axfs_vfs::RelPath;
 use core::cell::UnsafeCell;
 
 use crate::dev::Disk;
@@ -82,7 +84,7 @@ impl VfsNodeOps for FileWrapper<'static> {
         let blocks = (size + BLOCK_SIZE as u64 - 1) / BLOCK_SIZE as u64;
         // FAT fs doesn't support permissions, we just set everything to 755
         let perm = VfsNodePerm::from_bits_truncate(0o755);
-        Ok(VfsNodeAttr::new(perm, VfsNodeType::File, size, blocks))
+        Ok(VfsNodeAttr::new(0, perm, VfsNodeType::File, size, blocks))
     }
 
     fn read_at(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
@@ -129,6 +131,7 @@ impl VfsNodeOps for DirWrapper<'static> {
 
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
         Ok(VfsNodeAttr::new(
+            0,
             VfsNodePerm::from_bits_truncate(0o755),
             VfsNodeType::Dir,
             BLOCK_SIZE as u64,
@@ -142,16 +145,11 @@ impl VfsNodeOps for DirWrapper<'static> {
             .map_or(None, |dir| Some(FatFileSystem::new_dir(dir)))
     }
 
-    fn lookup(self: Arc<Self>, path: &str) -> VfsResult<VfsNodeRef> {
+    fn lookup(self: Arc<Self>, path: &RelPath) -> VfsResult<VfsNodeRef> {
         debug!("lookup at fatfs: {}", path);
-        let path = path.trim_matches('/');
-        if path.is_empty() || path == "." {
+        if path.is_empty() {
             return Ok(self.clone());
         }
-        if let Some(rest) = path.strip_prefix("./") {
-            return self.lookup(rest);
-        }
-
         if let Ok(Some(is_dir)) = self.0.check_path_type(path) {
             if is_dir {
                 if let Ok(dir) = self.0.open_dir(path) {
@@ -171,16 +169,11 @@ impl VfsNodeOps for DirWrapper<'static> {
         }
     }
 
-    fn create(&self, path: &str, ty: VfsNodeType) -> VfsResult {
+    fn create(&self, path: &RelPath, ty: VfsNodeType) -> VfsResult {
         debug!("create {:?} at fatfs: {}", ty, path);
-        let path = path.trim_matches('/');
-        if path.is_empty() || path == "." {
+        if path.is_empty() {
             return Ok(());
         }
-        if let Some(rest) = path.strip_prefix("./") {
-            return self.create(rest, ty);
-        }
-
         match ty {
             VfsNodeType::File => {
                 self.0.create_file(path).map_err(as_vfs_err)?;
@@ -194,12 +187,10 @@ impl VfsNodeOps for DirWrapper<'static> {
         }
     }
 
-    fn remove(&self, path: &str) -> VfsResult {
+    fn unlink(&self, path: &RelPath) -> VfsResult {
         debug!("remove at fatfs: {}", path);
-        let path = path.trim_matches('/');
-        assert!(!path.is_empty()); // already check at `root.rs`
-        if let Some(rest) = path.strip_prefix("./") {
-            return self.remove(rest);
+        if path.is_empty() {
+            return ax_err!(PermissionDenied);
         }
         self.0.remove(path).map_err(as_vfs_err)
     }
@@ -225,7 +216,7 @@ impl VfsNodeOps for DirWrapper<'static> {
         Ok(dirents.len())
     }
 
-    fn rename(&self, src_path: &str, dst_path: &str) -> VfsResult {
+    fn rename(&self, src_path: &RelPath, dst_path: &RelPath) -> VfsResult {
         // `src_path` and `dst_path` should in the same mounted fs
         debug!(
             "rename at fatfs, src_path: {}, dst_path: {}",

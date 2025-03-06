@@ -21,7 +21,7 @@ fs = ["dep:ruxfs", "ruxfeat/fs"]
 net = ["dep:ruxnet", "ruxfeat/net"]
 lwip = ["ruxfeat/lwip"]
 display = ["dep:ruxdisplay", "ruxfeat/display"]
-
+blkfs = ["ruxfeat/blkfs"]
 myfs = ["ruxfeat/myfs"]
 
 # Use dummy functions if the feature is not enabled

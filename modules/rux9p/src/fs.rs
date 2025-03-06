@@ -13,8 +13,8 @@
 use crate::drv::{self, Drv9pOps};
 use alloc::{string::String, string::ToString, sync::Arc, sync::Weak, vec::Vec};
 use axfs_vfs::{
-    VfsDirEntry, VfsError, VfsNodeAttr, VfsNodeOps, VfsNodePerm, VfsNodeRef, VfsNodeType, VfsOps,
-    VfsResult,
+    AbsPath, RelPath, VfsDirEntry, VfsError, VfsNodeAttr, VfsNodeOps, VfsNodePerm, VfsNodeRef,
+    VfsNodeType, VfsOps, VfsResult,
 };
 use log::*;
 use spin::{once::Once, RwLock};
@@ -86,7 +86,7 @@ impl _9pFileSystem {
 }
 
 impl VfsOps for _9pFileSystem {
-    fn mount(&self, _path: &str, mount_point: VfsNodeRef) -> VfsResult {
+    fn mount(&self, _path: &AbsPath, mount_point: VfsNodeRef) -> VfsResult {
         if let Some(parent) = mount_point.parent() {
             self.root.set_parent(Some(self.parent.call_once(|| parent)));
         } else {
@@ -177,12 +177,12 @@ impl CommonNode {
     }
 
     /// Checks whether a node with the given name exists in this directory.
-    fn exist(&self, path: &str) -> bool {
+    fn exist(&self, path: &RelPath) -> bool {
         self.try_get(path).is_ok()
     }
 
     /// Creates a new node with the given name and type in this directory.
-    fn create_node(&self, name: &str, ty: VfsNodeType) -> VfsResult {
+    fn create_node(&self, name: &RelPath, ty: VfsNodeType) -> VfsResult {
         if self.exist(name) {
             error!("AlreadyExists {}", name);
             return Err(VfsError::AlreadyExists);
@@ -235,18 +235,18 @@ impl CommonNode {
         Ok(())
     }
 
-    fn try_get(&self, path: &str) -> VfsResult<VfsNodeRef> {
+    fn try_get(&self, path: &RelPath) -> VfsResult<VfsNodeRef> {
         let (name, rest) = split_path(path);
         if name == ".." {
             match self.parent() {
-                Some(parent) => return parent.lookup(rest.unwrap_or("")),
+                Some(parent) => return parent.lookup(&rest.unwrap_or(RelPath::new(""))),
                 None => {
                     error!("9pfs: try_get a directory out of 9pfs boundary");
                     return Err(VfsError::BadState);
                 }
             }
         } else if name == "." {
-            return self.try_get(rest.unwrap_or(""));
+            return self.try_get(&rest.unwrap_or(RelPath::new("")));
         }
 
         let fid = match self.inner.write().get_fid() {
@@ -273,7 +273,7 @@ impl CommonNode {
                     self.protocol.clone(),
                 );
                 match rest {
-                    Some(rpath) => node.try_get(rpath),
+                    Some(rpath) => node.try_get(&rpath),
                     None => Ok(node),
                 }
             }
@@ -344,17 +344,17 @@ impl Drop for CommonNode {
 
 impl VfsNodeOps for CommonNode {
     /// Renames or moves existing file or directory.
-    fn rename(&self, src_path: &str, dst_path: &str) -> VfsResult {
+    fn rename(&self, src_path: &RelPath, dst_path: &RelPath) -> VfsResult {
         let (src_prefixs, old_name) = if let Some(src_sindex) = src_path.rfind('/') {
             (&src_path[..src_sindex], &src_path[src_sindex + 1..])
         } else {
-            ("", src_path)
+            ("", src_path.as_str())
         };
 
         let (dst_prefixs, new_name) = if let Some(dst_sindex) = dst_path.rfind('/') {
             (&dst_path[..dst_sindex], &dst_path[dst_sindex + 1..])
         } else {
-            ("", dst_path)
+            ("", dst_path.as_str())
         };
 
         debug!(
@@ -390,7 +390,7 @@ impl VfsNodeOps for CommonNode {
                 dst_fnode.write_at(offset, &buffer[..length])?;
                 offset += length as u64;
             }
-            src_fnode.remove("")?;
+            src_fnode.unlink(&RelPath::new(""))?;
         }
         Ok(())
     }
@@ -401,13 +401,13 @@ impl VfsNodeOps for CommonNode {
             debug!("get_attr {:?}", resp);
             match resp {
                 Ok(stat) if stat.get_ftype() == 0o4 => {
-                    let mut attr = VfsNodeAttr::new_dir(stat.get_size(), stat.get_blk_num());
+                    let mut attr = VfsNodeAttr::new_dir(0, stat.get_size(), stat.get_blk_num());
                     let mode = stat.get_perm() as u16 & 0o777_u16;
                     attr.set_perm(VfsNodePerm::from_bits(mode).unwrap());
                     Ok(attr)
                 }
                 Ok(stat) if stat.get_ftype() == 0o10 => {
-                    let mut attr = VfsNodeAttr::new_file(stat.get_size(), stat.get_blk_num());
+                    let mut attr = VfsNodeAttr::new_file(0, stat.get_size(), stat.get_blk_num());
                     let mode = stat.get_perm() as u16 & 0o777_u16;
                     attr.set_perm(VfsNodePerm::from_bits(mode).unwrap());
                     Ok(attr)
@@ -418,13 +418,13 @@ impl VfsNodeOps for CommonNode {
             let resp = self.inner.write().tstat(*self.fid);
             match resp {
                 Ok(stat) if stat.get_ftype() == 0o4 => {
-                    let mut attr = VfsNodeAttr::new_dir(stat.get_length(), stat.get_blk_num());
+                    let mut attr = VfsNodeAttr::new_dir(0, stat.get_length(), stat.get_blk_num());
                     let mode = stat.get_perm() as u16 & 0o777_u16;
                     attr.set_perm(VfsNodePerm::from_bits(mode).unwrap());
                     Ok(attr)
                 }
                 Ok(stat) if stat.get_ftype() == 0o10 => {
-                    let mut attr = VfsNodeAttr::new_file(stat.get_length(), stat.get_blk_num());
+                    let mut attr = VfsNodeAttr::new_file(0, stat.get_length(), stat.get_blk_num());
                     let mode = stat.get_perm() as u16 & 0o777_u16;
                     attr.set_perm(VfsNodePerm::from_bits(mode).unwrap());
                     Ok(attr)
@@ -441,7 +441,7 @@ impl VfsNodeOps for CommonNode {
     }
 
     /// for 9p filesystem's directory, lookup() will return node in 9p if path existing in both 9p and mounted_map.
-    fn lookup(self: Arc<Self>, path: &str) -> VfsResult<VfsNodeRef> {
+    fn lookup(self: Arc<Self>, path: &RelPath) -> VfsResult<VfsNodeRef> {
         debug!("lookup 9pfs: {}", path);
         self.try_get(path)
     }
@@ -501,25 +501,25 @@ impl VfsNodeOps for CommonNode {
         Ok(vfs_dirents.len())
     }
 
-    fn create(&self, path: &str, ty: VfsNodeType) -> VfsResult {
+    fn create(&self, path: &RelPath, ty: VfsNodeType) -> VfsResult {
         debug!("create {:?} at 9pfs: {}", ty, path);
 
         let (name, rest) = split_path(path);
         if let Some(rpath) = rest {
-            self.try_get(name)?.create(rpath, ty)
+            self.try_get(&RelPath::new(name))?.create(&rpath, ty)
         } else {
-            self.create_node(name, ty)
+            self.create_node(&RelPath::new(name), ty)
         }
     }
 
-    fn remove(&self, path: &str) -> VfsResult {
-        debug!("remove at 9pfs: {}", path);
+    fn unlink(&self, path: &RelPath) -> VfsResult {
+        debug!("unlink at 9pfs: {}", path);
         match split_path(path) {
             ("", None) | (".", None) => match self.inner.write().tremove(*self.fid) {
                 Ok(_) => Ok(()),
                 Err(_) => Err(VfsError::BadState),
             },
-            _ => self.try_get(path)?.remove(""),
+            _ => self.try_get(path)?.unlink(&RelPath::new("")),
         }
     }
 
@@ -608,9 +608,8 @@ impl VfsNodeOps for CommonNode {
     }
 }
 
-fn split_path(path: &str) -> (&str, Option<&str>) {
-    let trimmed_path = path.trim_start_matches('/');
-    trimmed_path.find('/').map_or((trimmed_path, None), |n| {
-        (&trimmed_path[..n], Some(&trimmed_path[n + 1..]))
+fn split_path<'a>(path: &'a RelPath) -> (&'a str, Option<RelPath<'a>>) {
+    path.find('/').map_or((path, None), |n| {
+        (&path[..n], Some(RelPath::new(&path[n + 1..])))
     })
 }

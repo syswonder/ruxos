@@ -7,19 +7,34 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use crate::dev::Disk;
 use alloc::sync::Arc;
 use axfs_vfs::VfsOps;
 
-/// The interface to define custom filesystems in user apps.
+#[cfg(feature = "blkfs")]
+use crate::dev::Disk;
+
+/// The interface to define custom filesystems in user apps (using block device).
+#[cfg(feature = "blkfs")]
 #[crate_interface::def_interface]
 pub trait MyFileSystemIf {
     /// Creates a new instance of the filesystem with initialization.
-    ///
-    /// TODO: use generic disk type
     fn new_myfs(disk: Disk) -> Arc<dyn VfsOps>;
 }
 
+/// The interface to define custom filesystems in user apps (without block device).
+#[cfg(not(feature = "blkfs"))]
+#[crate_interface::def_interface]
+pub trait MyFileSystemIf {
+    /// Creates a new instance of the filesystem with initialization.
+    fn new_myfs() -> Arc<dyn VfsOps>;
+}
+
+#[cfg(feature = "blkfs")]
 pub(crate) fn new_myfs(disk: Disk) -> Arc<dyn VfsOps> {
     crate_interface::call_interface!(MyFileSystemIf::new_myfs(disk))
+}
+
+#[cfg(not(feature = "blkfs"))]
+pub(crate) fn new_myfs() -> Arc<dyn VfsOps> {
+    crate_interface::call_interface!(MyFileSystemIf::new_myfs())
 }

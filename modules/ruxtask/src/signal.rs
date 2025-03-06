@@ -167,7 +167,7 @@ impl Signal {
                 handler(signum as c_int);
             }
         } else {
-            error!("no sigaction !");
+            log::error!("no sigaction !");
         }
     }
     /// Set timer

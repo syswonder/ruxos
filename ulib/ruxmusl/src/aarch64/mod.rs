@@ -84,7 +84,7 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
             SyscallId::CHDIR => ruxos_posix_api::sys_chdir(args[0] as *const c_char) as _,
             #[cfg(feature = "fs")]
             SyscallId::OPENAT => ruxos_posix_api::sys_openat(
-                args[0],
+                args[0] as c_int,
                 args[1] as *const core::ffi::c_char,
                 args[2] as c_int,
                 args[3] as ctypes::mode_t,
@@ -220,6 +220,8 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[0] as *const ctypes::timespec,
                 args[1] as *mut ctypes::timespec,
             ) as _,
+            #[cfg(feature = "signal")]
+            SyscallId::SETITIMER => ruxos_posix_api::sys_setitimer(args[0] as _, args[1] as _) as _,
             SyscallId::CLOCK_SETTIME => ruxos_posix_api::sys_clock_settime(
                 args[0] as ctypes::clockid_t,
                 args[1] as *const ctypes::timespec,
@@ -269,6 +271,7 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 ruxos_posix_api::sys_setpgid(args[0] as pid_t, args[1] as pid_t) as _
             }
             SyscallId::GETPGID => ruxos_posix_api::sys_getpgid(args[0] as pid_t) as _,
+            SyscallId::SETSID => ruxos_posix_api::sys_setsid() as _,
             SyscallId::UNAME => ruxos_posix_api::sys_uname(args[0] as *mut core::ffi::c_void) as _,
             SyscallId::GETRLIMIT => {
                 ruxos_posix_api::sys_getrlimit(args[0] as c_int, args[1] as *mut ctypes::rlimit)

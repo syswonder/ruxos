@@ -13,6 +13,7 @@ use axio::PollState;
 use axsync::Mutex;
 use core::ffi::c_char;
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
+use ruxfs::AbsPath;
 use spin::RwLock;
 
 use alloc::collections::VecDeque;
@@ -22,7 +23,7 @@ use hashbrown::HashMap;
 use lazy_init::LazyInit;
 use smoltcp::socket::tcp::SocketBuffer;
 
-use ruxfs::root::{create_file, lookup};
+use ruxfs::fops::{create_file, lookup};
 use ruxtask::yield_now;
 
 const SOCK_ADDR_UN_PATH_LEN: usize = 108;
@@ -89,7 +90,7 @@ impl<'a> UnixSocketInner<'a> {
     }
 
     pub fn get_addr(&self) -> SocketAddrUnix {
-        self.addr.lock().clone()
+        *self.addr.lock()
     }
 
     pub fn get_peersocket(&self) -> Option<usize> {
@@ -109,7 +110,7 @@ impl<'a> UnixSocketInner<'a> {
     }
 
     pub fn get_dgram_connected_addr(&self) -> Option<SocketAddrUnix> {
-        self.dgram_connected_addr.clone()
+        self.dgram_connected_addr
     }
 
     pub fn can_accept(&mut self) -> bool {
@@ -166,7 +167,7 @@ fn get_inode(addr: SocketAddrUnix) -> AxResult<usize> {
             .to_str()
             .expect("Invalid UTF-8 string")
     };
-    let _vfsnode = match lookup(None, socket_path) {
+    let _vfsnode = match lookup(&AbsPath::new_canonicalized(socket_path)) {
         Ok(node) => node,
         Err(_) => {
             return Err(AxError::NotFound);
@@ -184,7 +185,7 @@ fn create_socket_file(addr: SocketAddrUnix) -> AxResult<usize> {
             .to_str()
             .expect("Invalid UTF-8 string")
     };
-    let _vfsnode = create_file(None, socket_path)?;
+    create_file(&AbsPath::new_canonicalized(socket_path))?;
     Err(AxError::Unsupported)
 }
 
@@ -573,7 +574,7 @@ impl UnixSocket {
         let writable = {
             let mut binding = UNIX_TABLE.write();
             let mut socket_inner = binding.get_mut(self.get_sockethandle()).unwrap().lock();
-            if !socket_inner.get_peersocket().is_none() {
+            if socket_inner.get_peersocket().is_some() {
                 socket_inner.set_state(UnixSocketStatus::Connected);
                 true
             } else {
@@ -637,7 +638,7 @@ impl UnixSocket {
                 let binding = UNIX_TABLE.read();
                 let socket_inner = binding.get(self.get_sockethandle()).unwrap().lock();
 
-                let readable = socket_inner.datagram_queue.len() > 0;
+                let readable = !socket_inner.datagram_queue.is_empty();
                 let writable = true;
                 let pollhup = false;
                 Ok(PollState {
@@ -704,7 +705,7 @@ impl UnixSocket {
                 let inner = UNIX_TABLE.read();
                 let socket_inner = inner.get(self.get_sockethandle()).unwrap().lock();
                 if let Some(addr) = socket_inner.get_dgram_connected_addr() {
-                    Ok(addr.clone())
+                    Ok(addr)
                 } else {
                     Err(AxError::NotConnected)
                 }
@@ -976,10 +977,7 @@ impl UnixSocket {
     /// Checks if the socket is in a listening state.
     pub fn is_listening(&self) -> bool {
         let now_state = self.get_state();
-        match now_state {
-            UnixSocketStatus::Listening => true,
-            _ => false,
-        }
+        matches!(now_state, UnixSocketStatus::Listening)
     }
 
     /// Returns the socket type of the `UnixSocket`.

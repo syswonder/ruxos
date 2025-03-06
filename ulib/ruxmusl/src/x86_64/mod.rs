@@ -485,7 +485,7 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
 
             #[cfg(feature = "fs")]
             SyscallId::OPENAT => ruxos_posix_api::sys_openat(
-                args[0],
+                args[0] as c_int,
                 args[1] as *const core::ffi::c_char,
                 args[2] as c_int,
                 args[3] as ctypes::mode_t,
