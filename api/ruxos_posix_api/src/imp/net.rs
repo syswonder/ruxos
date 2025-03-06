@@ -386,7 +386,7 @@ fn un_into_sockaddr(addr: SocketAddrUnix) -> (ctypes::sockaddr_un, ctypes::sockl
         .sun_path
         .iter()
         .take_while(|&&c| c != 0)
-        .chain(iter::once(&0)) 
+        .chain(iter::once(&0))
         .map(|&c| c as c_char)
         .collect();
 

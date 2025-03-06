@@ -661,7 +661,7 @@ impl UnixSocket {
                 if addr.sun_path.iter().all(|&c| c == 0) {
                     Ok(SocketAddrUnix {
                         sun_family: 1, //AF_UNIX
-                        sun_path:[0; 108],
+                        sun_path: [0; 108],
                     })
                 } else {
                     Ok(addr)
@@ -674,7 +674,7 @@ impl UnixSocket {
                 if addr.sun_path.iter().all(|&c| c == 0) {
                     Ok(SocketAddrUnix {
                         sun_family: 1, //AF_UNIX
-                        sun_path:[0; 108],
+                        sun_path: [0; 108],
                     })
                 } else {
                     Ok(addr)
