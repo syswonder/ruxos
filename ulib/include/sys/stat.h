@@ -77,7 +77,7 @@ struct kstat {
 	long st_ctime_nsec;
 	unsigned __unused[2];
 };
-#elif defined(__x86_64__)
+#else
 struct kstat {
 	dev_t st_dev;
 	ino_t st_ino;

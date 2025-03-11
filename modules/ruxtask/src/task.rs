@@ -387,7 +387,11 @@ impl TaskInner {
         Arc::new(AxTask::new(t))
     }
 
-    #[cfg(all(target_arch = "aarch64", feature = "paging", feature = "fs"))]
+    #[cfg(all(
+        any(target_arch = "aarch64", target_arch = "riscv64"),
+        feature = "paging",
+        feature = "fs"
+    ))]
     /// only support for aarch64
     pub fn fork() -> AxTaskRef {
         use crate::alloc::string::ToString;
@@ -397,7 +401,6 @@ impl TaskInner {
             arch::flush_tlb,
             mem::{direct_virt_to_phys, phys_to_virt},
         };
-
         let current_task = crate::current();
         let name = current_task.as_task_ref().name().to_string();
         let current_stack_bindings = current_task.as_task_ref().kstack.lock();
