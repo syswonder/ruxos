@@ -47,13 +47,17 @@ ruxfdtable = { path = "../../modules/ruxfdtable" }
 ruxmm = { path = "../../modules/ruxmm", optional = true }
 ruxfutex = { path = "../../modules/ruxfutex", optional = true }
 axalloc = { path = "../../modules/axalloc", optional = true }
-ruxtask = { path = "../../modules/ruxtask", features = ["notest"], optional = true }
+ruxtask = { path = "../../modules/ruxtask", features = [
+    "notest",
+], optional = true }
 ruxfs = { path = "../../modules/ruxfs", optional = true }
 ruxnet = { path = "../../modules/ruxnet", optional = true }
+ruxtty = { path = "../../modules/ruxtty" }
 
 # Other crates
 axio = { path = "../../crates/axio" }
 axerrno = { path = "../../crates/axerrno" }
+ringbuffer = { path = "../../crates/ringbuffer" }
 memory_addr = "0.1.0"
 static_assertions = "1.1.0"
 spin = { version = "0.9" }
