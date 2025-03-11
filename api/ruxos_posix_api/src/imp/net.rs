@@ -9,6 +9,7 @@
 
 use alloc::{sync::Arc, vec, vec::Vec};
 use core::ffi::{c_char, c_int, c_void};
+use core::iter;
 use core::mem::size_of;
 use core::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
 use ruxfs::{fops, AbsPath};
@@ -97,11 +98,13 @@ impl Socket {
         }
     }
 
-    fn local_addr(&self) -> LinuxResult<SocketAddr> {
+    fn local_addr(&self) -> LinuxResult<UnifiedSocketAddress> {
         match self {
-            Socket::Udp(udpsocket) => Ok(udpsocket.lock().local_addr()?),
-            Socket::Tcp(tcpsocket) => Ok(tcpsocket.lock().local_addr()?),
-            Socket::Unix(_) => Err(LinuxError::EOPNOTSUPP),
+            Socket::Udp(udpsocket) => Ok(UnifiedSocketAddress::Net(udpsocket.lock().local_addr()?)),
+            Socket::Tcp(tcpsocket) => Ok(UnifiedSocketAddress::Net(tcpsocket.lock().local_addr()?)),
+            Socket::Unix(unixsocket) => {
+                Ok(UnifiedSocketAddress::Unix(unixsocket.lock().local_addr()?))
+            }
         }
     }
 
@@ -348,15 +351,54 @@ impl From<ctypes::sockaddr_in> for SocketAddrV4 {
     }
 }
 
-fn un_into_sockaddr(addr: SocketAddrUnix) -> (ctypes::sockaddr, ctypes::socklen_t) {
-    debug!("convert unixsocket address {:?} into ctypes sockaddr", addr);
-    (
-        unsafe { *(&ctypes::sockaddr_un::from(addr) as *const _ as *const ctypes::sockaddr) },
-        size_of::<ctypes::sockaddr>() as _,
-    )
+fn unified_into_sockaddr(addr: UnifiedSocketAddress) -> (Vec<u8>, ctypes::socklen_t) {
+    match addr {
+        UnifiedSocketAddress::Net(addr) => {
+            let (sockaddr, len) = in_into_sockaddr(addr);
+            let bytes = unsafe {
+                core::slice::from_raw_parts(&sockaddr as *const _ as *const u8, len as usize)
+            }
+            .to_vec();
+            (bytes, len)
+        }
+        UnifiedSocketAddress::Unix(addr) => {
+            let (sockaddr_un, len) = un_into_sockaddr(addr);
+            let bytes = unsafe {
+                core::slice::from_raw_parts(&sockaddr_un as *const _ as *const u8, len as usize)
+            }
+            .to_vec();
+            (bytes, len)
+        }
+    }
 }
 
-fn into_sockaddr(addr: SocketAddr) -> (ctypes::sockaddr, ctypes::socklen_t) {
+fn un_into_sockaddr(addr: SocketAddrUnix) -> (ctypes::sockaddr_un, ctypes::socklen_t) {
+    debug!(
+        "convert unixsocket address {:?} into ctypes sockaddr_un",
+        addr
+    );
+    let mut sockaddr_un = ctypes::sockaddr_un {
+        sun_family: ctypes::AF_UNIX as u16,
+        sun_path: [0; 108],
+    };
+
+    let path_bytes: Vec<c_char> = addr
+        .sun_path
+        .iter()
+        .take_while(|&&c| c != 0)
+        .chain(iter::once(&0))
+        .map(|&c| c as c_char)
+        .collect();
+
+    let copy_len = path_bytes.len().min(sockaddr_un.sun_path.len());
+    sockaddr_un.sun_path[..copy_len].copy_from_slice(&path_bytes[..copy_len]);
+
+    let sun_path_offset = 2;
+    let sockaddr_len = (sun_path_offset + copy_len) as ctypes::socklen_t;
+    (sockaddr_un, sockaddr_len)
+}
+
+fn in_into_sockaddr(addr: SocketAddr) -> (ctypes::sockaddr, ctypes::socklen_t) {
     debug!("convert socket address {} into ctypes sockaddr", addr);
     match addr {
         SocketAddr::V4(addr) => (
@@ -563,7 +605,7 @@ pub unsafe fn sys_recvfrom(
         if let Some(addr) = res.1 {
             match addr {
                 UnifiedSocketAddress::Net(addr) => unsafe {
-                    (*socket_addr, *addrlen) = into_sockaddr(addr);
+                    (*socket_addr, *addrlen) = in_into_sockaddr(addr);
                 },
                 UnifiedSocketAddress::Unix(addr) => unsafe {
                     let sockaddr_un_size = addr.get_addr_len();
@@ -646,19 +688,20 @@ pub unsafe fn sys_accept(
         if socket_addr.is_null() || socket_len.is_null() {
             return Err(LinuxError::EFAULT);
         }
+        let user_buf_len = unsafe { *socket_len } as usize;
         let socket = Socket::from_fd(socket_fd)?;
         let new_socket = socket.accept()?;
-        let addr = new_socket.peer_addr()?;
+        let peer_addr = new_socket.peer_addr()?;
         let new_fd = Socket::add_to_fd_table(new_socket, fops::OpenOptions::new())?;
-        match addr {
-            UnifiedSocketAddress::Net(addr) => unsafe {
-                (*socket_addr, *socket_len) = into_sockaddr(addr);
-            },
-            UnifiedSocketAddress::Unix(addr) => unsafe {
-                (*socket_addr, *socket_len) = un_into_sockaddr(addr);
-            },
-        }
 
+        let (addr_bytes, actual_len) = unified_into_sockaddr(peer_addr);
+
+        let copy_len = user_buf_len.min(addr_bytes.len());
+
+        unsafe {
+            core::ptr::copy_nonoverlapping(addr_bytes.as_ptr(), socket_addr as *mut u8, copy_len);
+            *socket_len = actual_len;
+        }
         Ok(new_fd)
     })
 }
@@ -782,11 +825,19 @@ pub unsafe fn sys_getsockname(
         if addr.is_null() || addrlen.is_null() {
             return Err(LinuxError::EFAULT);
         }
-        if unsafe { *addrlen } < size_of::<ctypes::sockaddr>() as u32 {
-            return Err(LinuxError::EINVAL);
-        }
+
+        let user_buf_len = unsafe { *addrlen } as usize;
+        let (sockaddr_bytes, actual_len) = {
+            let socket = Socket::from_fd(sock_fd)?;
+            let local_addr = socket.local_addr()?;
+            unified_into_sockaddr(local_addr)
+        };
+
+        let copy_len = user_buf_len.min(sockaddr_bytes.len());
+
         unsafe {
-            (*addr, *addrlen) = into_sockaddr(Socket::from_fd(sock_fd)?.local_addr()?);
+            core::ptr::copy_nonoverlapping(sockaddr_bytes.as_ptr(), addr as *mut u8, copy_len);
+            *addrlen = actual_len;
         }
         Ok(0)
     })
@@ -876,30 +927,35 @@ pub fn sys_getsockopt(
 /// Get peer address to which the socket sockfd is connected.
 pub unsafe fn sys_getpeername(
     sock_fd: c_int,
-    addr: *mut ctypes::sockaddr,
-    addrlen: *mut ctypes::socklen_t,
+    socket_addr: *mut ctypes::sockaddr,
+    socket_len: *mut ctypes::socklen_t,
 ) -> c_int {
     debug!(
         "sys_getpeername <= {} {:#x} {:#x}",
-        sock_fd, addr as usize, addrlen as usize
+        sock_fd, socket_addr as usize, socket_len as usize
     );
     syscall_body!(sys_getpeername, {
-        if addr.is_null() || addrlen.is_null() {
+        if socket_addr.is_null() || socket_len.is_null() {
             return Err(LinuxError::EFAULT);
         }
-        if unsafe { *addrlen } < size_of::<ctypes::sockaddr>() as u32 {
+        if unsafe { *socket_len } < size_of::<ctypes::sockaddr>() as u32 {
             return Err(LinuxError::EINVAL);
         }
+        let user_buf_len = unsafe { *socket_len } as usize;
         let sockaddr = Socket::from_fd(sock_fd)?.peer_addr()?;
-        match sockaddr {
-            UnifiedSocketAddress::Net(netaddr) => unsafe {
-                (*addr, *addrlen) = into_sockaddr(netaddr);
-            },
-            UnifiedSocketAddress::Unix(unixaddr) => unsafe {
-                (*addr, *addrlen) = un_into_sockaddr(unixaddr);
-            },
+        let (addr_bytes, actual_len) = unified_into_sockaddr(sockaddr);
+        let copy_len = user_buf_len.min(addr_bytes.len());
+
+        unsafe {
+            core::ptr::copy_nonoverlapping(addr_bytes.as_ptr(), socket_addr as *mut u8, copy_len);
+            *socket_len = actual_len;
         }
-        Ok(0)
+
+        if copy_len < addr_bytes.len() {
+            Err(LinuxError::ENOBUFS)
+        } else {
+            Ok(0)
+        }
     })
 }
 

@@ -502,13 +502,13 @@ impl UnixSocket {
                             .lock()
                             .get_peersocket()
                             .unwrap();
-                        return Ok(UNIX_TABLE
-                            .write()
-                            .get_mut(peer_handle)
-                            .unwrap()
-                            .lock()
-                            .buf
-                            .enqueue_slice(buf));
+                        if let Some(peer) = UNIX_TABLE.write().get_mut(peer_handle) {
+                            let mut peer_inner = peer.lock();
+                            return Ok(peer_inner.buf.enqueue_slice(buf));
+                        } else {
+                            warn!("unix socket send() failed");
+                            return Err(LinuxError::ENOTCONN);
+                        }
                     }
                     _ => {
                         return Err(LinuxError::ENOTCONN);
@@ -653,7 +653,35 @@ impl UnixSocket {
 
     /// Returns the local address of the socket.
     pub fn local_addr(&self) -> LinuxResult<SocketAddrUnix> {
-        unimplemented!()
+        match self.get_sockettype() {
+            UnixSocketType::SockStream => {
+                let inner = UNIX_TABLE.read();
+                let socket_inner = inner.get(self.get_sockethandle()).unwrap().lock();
+                let addr = socket_inner.get_addr();
+                if addr.sun_path.iter().all(|&c| c == 0) {
+                    Ok(SocketAddrUnix {
+                        sun_family: 1, //AF_UNIX
+                        sun_path: [0; 108],
+                    })
+                } else {
+                    Ok(addr)
+                }
+            }
+            UnixSocketType::SockDgram => {
+                let inner = UNIX_TABLE.read();
+                let socket_inner = inner.get(self.get_sockethandle()).unwrap().lock();
+                let addr = socket_inner.get_addr();
+                if addr.sun_path.iter().all(|&c| c == 0) {
+                    Ok(SocketAddrUnix {
+                        sun_family: 1, //AF_UNIX
+                        sun_path: [0; 108],
+                    })
+                } else {
+                    Ok(addr)
+                }
+            }
+            UnixSocketType::SockSeqpacket => unimplemented!(),
+        }
     }
 
     /// Returns the peer address of the socket.
