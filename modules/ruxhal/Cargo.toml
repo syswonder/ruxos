@@ -51,7 +51,7 @@ ratio = { path = "../../crates/ratio" }
 lazy_init = { path = "../../crates/lazy_init" }
 page_table = { path = "../../crates/page_table", optional = true }
 page_table_entry = { path = "../../crates/page_table_entry" }
-percpu = { path = "../../crates/percpu" }
+percpu = "0.2"
 driver_console = { path = "../../crates/driver_console", optional = true }
 driver_virtio = { path = "../../crates/driver_virtio", optional = true }
 driver_common = { path = "../../crates/driver_common", optional = true }

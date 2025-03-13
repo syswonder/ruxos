@@ -46,3 +46,6 @@ pthread-key-max = "1024"
 
 # Pipe channel bufer size.
 pipe-buffer-size = "0x10000"
+
+# Device tree blob address, x86 has no dtb
+DTB_ADDR = "0"
