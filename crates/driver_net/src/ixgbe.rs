@@ -10,7 +10,7 @@
 use core::convert::From;
 use core::{mem::ManuallyDrop, ptr::NonNull};
 
-use alloc::{collections::VecDeque, sync::Arc};
+use alloc::{boxed::Box, collections::VecDeque, sync::Arc};
 use driver_common::{BaseDriverOps, DevError, DevResult, DeviceType};
 use ixgbe_driver::{IxgbeDevice, IxgbeError, IxgbeNetBuf, MemPool, NicDevice};
 pub use ixgbe_driver::{IxgbeHal, PhysAddr, INTEL_82599, INTEL_VEND};
@@ -164,11 +164,14 @@ impl From<IxgbeNetBuf> for NetBufPtr {
         // In ixgbe, `raw_ptr` is the pool entry, `buf_ptr` is the packet ptr, `len` is packet len
         // to avoid too many dynamic memory allocation.
         let buf_ptr = buf.packet_mut().as_mut_ptr();
-        Self::new(
-            NonNull::new(buf.pool_entry() as *mut u8).unwrap(),
-            NonNull::new(buf_ptr).unwrap(),
-            buf.packet_len(),
-        )
+        let raw_ptr = NonNull::new(buf.pool_entry() as *mut u8).unwrap();
+        let buf_ptr = NonNull::new(buf_ptr).unwrap();
+        let len = buf.packet_len();
+        // TODO: Verify the safety of `drop_fn`.
+        let drop_fn = Box::new(move || {
+            ManuallyDrop::into_inner(buf);
+        });
+        Self::new(raw_ptr, buf_ptr, drop_fn, len)
     }
 }
 

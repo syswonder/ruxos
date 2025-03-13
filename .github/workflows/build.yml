@@ -66,7 +66,7 @@ jobs:
     - name: Build display/draw_map
       run: make ARCH=${{ matrix.arch }} A=apps/display/draw_map
     - name: Build fs/shell
-      run: make ARCH=${{ matrix.arch }} A=apps/fs/shell
+      run: make ARCH=${{ matrix.arch }} A=apps/fs/shell FEATURES=fatfs
 
     - name: Build c/helloworld
       run: make ARCH=${{ matrix.arch }} A=apps/c/helloworld
@@ -83,11 +83,11 @@ jobs:
     - name: Build c/iperf
       run: |
         git clone https://github.com/syswonder/rux-iperf ./apps/c/iperf/ \
-          && make ARCH=${{ matrix.arch }} A=apps/c/iperf
+          && make ARCH=${{ matrix.arch }} A=apps/c/iperf FEATURES=fatfs
     - name: Build c/redis
       run: |
         git clone https://github.com/syswonder/rux-redis ./apps/c/redis/ \
-          && make ARCH=${{ matrix.arch }} A=apps/c/redis SMP=4
+          && make ARCH=${{ matrix.arch }} A=apps/c/redis SMP=4 FEATURES=fatfs
 
   build-apps-for-std:
     runs-on: ${{ matrix.os }}

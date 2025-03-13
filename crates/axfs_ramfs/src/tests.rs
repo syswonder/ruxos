@@ -9,7 +9,7 @@
 
 use std::sync::Arc;
 
-use axfs_vfs::{VfsError, VfsNodeType, VfsResult};
+use axfs_vfs::{RelPath, VfsError, VfsNodeType, VfsResult};
 
 use crate::*;
 
@@ -22,15 +22,13 @@ fn test_ramfs_ops(devfs: &RamFileSystem) -> VfsResult {
     assert!(root.get_attr()?.is_dir());
     assert_eq!(root.get_attr()?.file_type(), VfsNodeType::Dir);
     assert_eq!(
-        root.clone().lookup("urandom").err(),
+        root.clone()
+            .lookup(&RelPath::new_canonicalized("urandom"))
+            .err(),
         Some(VfsError::NotFound)
     );
-    assert_eq!(
-        root.clone().lookup("f1/").err(),
-        Some(VfsError::NotADirectory)
-    );
 
-    let node = root.lookup("////f1")?;
+    let node = root.lookup(&RelPath::new_canonicalized("////f1"))?;
     assert_eq!(node.get_attr()?.file_type(), VfsNodeType::File);
     assert!(!node.get_attr()?.is_dir());
     assert_eq!(node.get_attr()?.size(), 0);
@@ -41,24 +39,36 @@ fn test_ramfs_ops(devfs: &RamFileSystem) -> VfsResult {
     assert_eq!(node.read_at(0, &mut buf)?, N);
     assert_eq!(buf[..N_HALF], [0; N_HALF]);
     assert_eq!(buf[N_HALF..], [1; N_HALF]);
-    assert_eq!(node.lookup("/").err(), Some(VfsError::NotADirectory));
+    assert_eq!(
+        node.lookup(&RelPath::new_canonicalized("/")).err(),
+        Some(VfsError::NotADirectory)
+    );
 
-    let foo = devfs.root_dir().lookup(".///.//././/.////foo")?;
+    let foo = devfs
+        .root_dir()
+        .lookup(&RelPath::new_canonicalized(".///.//././/.////foo"))?;
     assert!(foo.get_attr()?.is_dir());
     assert_eq!(
         foo.read_at(10, &mut buf).err(),
         Some(VfsError::IsADirectory)
     );
     assert!(Arc::ptr_eq(
-        &foo.clone().lookup("/f3")?,
-        &devfs.root_dir().lookup(".//./foo///f3")?,
+        &foo.clone().lookup(&RelPath::new_canonicalized("/f3"))?,
+        &devfs
+            .root_dir()
+            .lookup(&RelPath::new_canonicalized(".//./foo///f3"))?,
     ));
     assert_eq!(
-        foo.clone().lookup("/bar//f4")?.get_attr()?.file_type(),
+        foo.clone()
+            .lookup(&RelPath::new_canonicalized("/bar//f4"))?
+            .get_attr()?
+            .file_type(),
         VfsNodeType::File
     );
     assert_eq!(
-        foo.lookup("/bar///")?.get_attr()?.file_type(),
+        foo.lookup(&RelPath::new_canonicalized("/bar///"))?
+            .get_attr()?
+            .file_type(),
         VfsNodeType::Dir
     );
 
@@ -69,29 +79,47 @@ fn test_get_parent(devfs: &RamFileSystem) -> VfsResult {
     let root = devfs.root_dir();
     assert!(root.parent().is_none());
 
-    let node = root.clone().lookup("f1")?;
+    let node = root.clone().lookup(&RelPath::new_canonicalized("f1"))?;
     assert!(node.parent().is_none());
 
-    let node = root.clone().lookup(".//foo/bar")?;
+    let node = root
+        .clone()
+        .lookup(&RelPath::new_canonicalized(".//foo/bar"))?;
     assert!(node.parent().is_some());
     let parent = node.parent().unwrap();
-    assert!(Arc::ptr_eq(&parent, &root.clone().lookup("foo")?));
-    assert!(parent.lookup("bar").is_ok());
+    assert!(Arc::ptr_eq(
+        &parent,
+        &root.clone().lookup(&RelPath::new_canonicalized("foo"))?
+    ));
+    assert!(parent.lookup(&RelPath::new_canonicalized("bar")).is_ok());
 
-    let node = root.clone().lookup("foo/..")?;
-    assert!(Arc::ptr_eq(&node, &root.clone().lookup(".")?));
+    let node = root.clone().lookup(&RelPath::new_canonicalized("foo/.."))?;
+    assert!(Arc::ptr_eq(
+        &node,
+        &root.clone().lookup(&RelPath::new_canonicalized("."))?
+    ));
 
     assert!(Arc::ptr_eq(
-        &root.clone().lookup("/foo/..")?,
-        &devfs.root_dir().lookup(".//./foo/././bar/../..")?,
+        &root
+            .clone()
+            .lookup(&RelPath::new_canonicalized("/foo/.."))?,
+        &devfs
+            .root_dir()
+            .lookup(&RelPath::new_canonicalized(".//./foo/././bar/../.."))?,
     ));
     assert!(Arc::ptr_eq(
-        &root.clone().lookup("././/foo//./../foo//bar///..//././")?,
-        &devfs.root_dir().lookup(".//./foo/")?,
+        &root.clone().lookup(&RelPath::new_canonicalized(
+            "././/foo//./../foo//bar///..//././"
+        ))?,
+        &devfs
+            .root_dir()
+            .lookup(&RelPath::new_canonicalized(".//./foo/"))?,
     ));
     assert!(Arc::ptr_eq(
-        &root.clone().lookup("///foo//bar///../f3")?,
-        &root.lookup("foo/.//f3")?,
+        &root
+            .clone()
+            .lookup(&RelPath::new_canonicalized("///foo//bar///../f3"))?,
+        &root.lookup(&RelPath::new_canonicalized("foo/.//f3"))?,
     ));
 
     Ok(())
@@ -109,16 +137,25 @@ fn test_ramfs() {
 
     let ramfs = RamFileSystem::new();
     let root = ramfs.root_dir();
-    root.create("f1", VfsNodeType::File).unwrap();
-    root.create("f2", VfsNodeType::File).unwrap();
-    root.create("foo", VfsNodeType::Dir).unwrap();
+    root.create(&RelPath::new_canonicalized("f1"), VfsNodeType::File)
+        .unwrap();
+    root.create(&RelPath::new_canonicalized("f2"), VfsNodeType::File)
+        .unwrap();
+    root.create(&RelPath::new_canonicalized("foo"), VfsNodeType::Dir)
+        .unwrap();
 
-    let dir_foo = root.lookup("foo").unwrap();
-    dir_foo.create("f3", VfsNodeType::File).unwrap();
-    dir_foo.create("bar", VfsNodeType::Dir).unwrap();
+    let dir_foo = root.lookup(&RelPath::new_canonicalized("foo")).unwrap();
+    dir_foo
+        .create(&RelPath::new_canonicalized("f3"), VfsNodeType::File)
+        .unwrap();
+    dir_foo
+        .create(&RelPath::new_canonicalized("bar"), VfsNodeType::Dir)
+        .unwrap();
 
-    let dir_bar = dir_foo.lookup("bar").unwrap();
-    dir_bar.create("f4", VfsNodeType::File).unwrap();
+    let dir_bar = dir_foo.lookup(&RelPath::new_canonicalized("bar")).unwrap();
+    dir_bar
+        .create(&RelPath::new_canonicalized("f4"), VfsNodeType::File)
+        .unwrap();
 
     let mut entries = ramfs.root_dir_node().get_entries();
     entries.sort();
@@ -128,18 +165,33 @@ fn test_ramfs() {
     test_get_parent(&ramfs).unwrap();
 
     let root = ramfs.root_dir();
-    assert_eq!(root.remove("f1"), Ok(()));
-    assert_eq!(root.remove("//f2"), Ok(()));
-    assert_eq!(root.remove("f3").err(), Some(VfsError::NotFound));
-    assert_eq!(root.remove("foo").err(), Some(VfsError::DirectoryNotEmpty));
-    assert_eq!(root.remove("foo/..").err(), Some(VfsError::InvalidInput));
+    assert_eq!(root.unlink(&RelPath::new_canonicalized("f1")), Ok(()));
+    assert_eq!(root.unlink(&RelPath::new_canonicalized("//f2")), Ok(()));
     assert_eq!(
-        root.remove("foo/./bar").err(),
+        root.unlink(&RelPath::new_canonicalized("f3")).err(),
+        Some(VfsError::NotFound)
+    );
+    assert_eq!(
+        root.unlink(&RelPath::new_canonicalized("foo")).err(),
         Some(VfsError::DirectoryNotEmpty)
     );
-    assert_eq!(root.remove("foo/bar/f4"), Ok(()));
-    assert_eq!(root.remove("foo/bar"), Ok(()));
-    assert_eq!(root.remove("./foo//.//f3"), Ok(()));
-    assert_eq!(root.remove("./foo"), Ok(()));
+    assert_eq!(
+        root.unlink(&RelPath::new_canonicalized("foo/..")).err(),
+        Some(VfsError::InvalidInput)
+    );
+    assert_eq!(
+        root.unlink(&RelPath::new_canonicalized("foo/./bar")).err(),
+        Some(VfsError::DirectoryNotEmpty)
+    );
+    assert_eq!(
+        root.unlink(&RelPath::new_canonicalized("foo/bar/f4")),
+        Ok(())
+    );
+    assert_eq!(root.unlink(&RelPath::new_canonicalized("foo/bar")), Ok(()));
+    assert_eq!(
+        root.unlink(&RelPath::new_canonicalized("./foo//.//f3")),
+        Ok(())
+    );
+    assert_eq!(root.unlink(&RelPath::new_canonicalized("./foo")), Ok(()));
     assert!(ramfs.root_dir_node().get_entries().is_empty());
 }

@@ -80,8 +80,11 @@ pub enum SyscallId {
     #[cfg(feature = "multitask")]
     FUTEX = 98,
     NANO_SLEEP = 101,
+    #[cfg(feature = "signal")]
+    SETITIMER = 103,
     CLOCK_SETTIME = 112,
     CLOCK_GETTIME = 113,
+    CLOCK_GETRES = 114,
     CLOCK_NANOSLEEP = 115,
     SCHED_YIELD = 124,
     #[cfg(feature = "signal")]
@@ -99,6 +102,7 @@ pub enum SyscallId {
     TIMES = 153,
     SETPGID = 154,
     GETPGID = 155,
+    SETSID = 157,
     UNAME = 160,
     GETRLIMIT = 163,
     SETRLIMIT = 164,
@@ -114,6 +118,8 @@ pub enum SyscallId {
     SYSINFO = 179,
     #[cfg(feature = "net")]
     SOCKET = 198,
+    #[cfg(feature = "net")]
+    SOCKETPAIR = 199,
     #[cfg(feature = "net")]
     BIND = 200,
     #[cfg(feature = "net")]

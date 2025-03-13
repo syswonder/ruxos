@@ -17,6 +17,8 @@ pub struct FileSystemInfo;
 #[allow(dead_code)]
 #[derive(Debug, Clone, Copy)]
 pub struct VfsNodeAttr {
+    /// Inode number.
+    ino: u64,
     /// File permission mode.
     mode: VfsNodePerm,
     /// File type.
@@ -74,7 +76,14 @@ pub enum VfsNodeType {
     Socket = 0o14,
 }
 
+impl Default for VfsNodeType {
+    fn default() -> Self {
+        Self::File
+    }
+}
+
 /// Directory entry.
+#[derive(Clone)]
 pub struct VfsDirEntry {
     d_type: VfsNodeType,
     d_name: [u8; 63],
@@ -206,11 +215,11 @@ impl VfsNodeType {
 }
 
 impl VfsNodeAttr {
-    /// Creates a new `VfsNodeAttr` with the given permission mode, type, size
-    /// inode number and number of blocks.
-    /// if node number is none, means fs do not have inode then vfs will allocate it
-    pub fn new(mode: VfsNodePerm, ty: VfsNodeType, size: u64, blocks: u64) -> Self {
+    /// Creates a new `VfsNodeAttr` with the given inode number, permission mode, type, size
+    /// and number of blocks.
+    pub const fn new(ino: u64, mode: VfsNodePerm, ty: VfsNodeType, size: u64, blocks: u64) -> Self {
         Self {
+            ino,
             mode,
             ty,
             size,
@@ -219,8 +228,9 @@ impl VfsNodeAttr {
     }
 
     /// Creates a new `VfsNodeAttr` for a file, with the default file permission.
-    pub fn new_file(size: u64, blocks: u64) -> Self {
+    pub const fn new_file(ino: u64, size: u64, blocks: u64) -> Self {
         Self {
+            ino,
             mode: VfsNodePerm::default_file(),
             ty: VfsNodeType::File,
             size,
@@ -230,8 +240,9 @@ impl VfsNodeAttr {
 
     /// Creates a new `VfsNodeAttr` for a directory, with the default directory
     /// permission.
-    pub fn new_dir(size: u64, blocks: u64) -> Self {
+    pub const fn new_dir(ino: u64, size: u64, blocks: u64) -> Self {
         Self {
+            ino,
             mode: VfsNodePerm::default_dir(),
             ty: VfsNodeType::Dir,
             size,
@@ -239,6 +250,10 @@ impl VfsNodeAttr {
         }
     }
 
+    /// Returns the inode number of the node.
+    pub const fn ino(&self) -> u64 {
+        self.ino
+    }
     /// Returns the size of the node.
     pub const fn size(&self) -> u64 {
         self.size

@@ -7,7 +7,7 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-#![cfg(not(feature = "myfs"))]
+#![cfg(feature = "fatfs")]
 
 mod test_common;
 
@@ -31,7 +31,7 @@ fn test_fatfs() {
     let disk = make_disk().expect("failed to load disk image");
     ruxtask::init_scheduler(); // call this to use `axsync::Mutex`.
                                // By default, mount_points[0] will be rootfs
-    let mut mount_points: Vec<ruxfs::MountPoint> = Vec::new();
+    let mut mount_points: Vec<ruxfs::root::MountPoint> = Vec::new();
     // setup and initialize blkfs as one mountpoint for rootfs
     mount_points.push(ruxfs::init_blkfs(AxDeviceContainer::from_one(Box::new(
         disk,

@@ -80,6 +80,11 @@ impl OpenOptions {
 }
 
 impl Metadata {
+    /// Wraps an `AxFileAttr` in a `Metadata` object.
+    pub(super) const fn new(attr: api::AxFileAttr) -> Self {
+        Metadata(attr)
+    }
+
     /// Returns the file type for this metadata.
     pub const fn file_type(&self) -> FileType {
         self.0.file_type()

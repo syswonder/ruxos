@@ -38,8 +38,10 @@
 //! | [`parent()`](VfsNodeOps::parent) | Get the parent directory | directory |
 //! | [`lookup()`](VfsNodeOps::lookup) | Lookup the node with the given path | directory |
 //! | [`create()`](VfsNodeOps::create) | Create a new node with the given path | directory |
-//! | [`remove()`](VfsNodeOps::remove) | Remove the node with the given path | directory |
+//! | [`link()`](VfsNodeOps::link) | Create a hard link with the given path | directory |
+//! | [`unlink()`](VfsNodeOps::unlink) | Remove the node with the given path | directory |
 //! | [`read_dir()`](VfsNodeOps::read_dir) | Read directory entries | directory |
+//! | [`is_empty()`](VfsNodeOps::is_empty) | Check if the directory is empty | directory |
 //!
 //! [inodes]: https://en.wikipedia.org/wiki/Inode
 
@@ -48,13 +50,13 @@
 extern crate alloc;
 
 mod macros;
+mod path;
 mod structs;
-
-pub mod path;
 
 use alloc::sync::Arc;
 use axerrno::{ax_err, AxError, AxResult};
 
+pub use self::path::{AbsPath, RelPath};
 pub use self::structs::{FileSystemInfo, VfsDirEntry, VfsNodeAttr, VfsNodePerm, VfsNodeType};
 
 /// A wrapper of [`Arc<dyn VfsNodeOps>`].
@@ -69,7 +71,7 @@ pub type VfsResult<T = ()> = AxResult<T>;
 /// Filesystem operations.
 pub trait VfsOps: Send + Sync {
     /// Do something when the filesystem is mounted.
-    fn mount(&self, _path: &str, _mount_point: VfsNodeRef) -> VfsResult {
+    fn mount(&self, _path: &AbsPath, _mount_point: VfsNodeRef) -> VfsResult {
         Ok(())
     }
 
@@ -109,6 +111,19 @@ pub trait VfsNodeOps: Send + Sync {
         ax_err!(Unsupported)
     }
 
+    /// Set the attributes of the node.
+    ///
+    /// TODO: add time attributes
+    fn setattr(
+        &mut self,
+        _mode: Option<u32>,
+        _uid: Option<u32>,
+        _gid: Option<u32>,
+        _size: Option<u64>,
+    ) -> VfsResult {
+        ax_err!(Unsupported)
+    }
+
     // file operations:
 
     /// Read data from the file at the given offset.
@@ -143,19 +158,29 @@ pub trait VfsNodeOps: Send + Sync {
     /// Lookup the node with given `path` in the directory.
     ///
     /// Return the node if found.
-    fn lookup(self: Arc<Self>, _path: &str) -> VfsResult<VfsNodeRef> {
+    fn lookup(self: Arc<Self>, _path: &RelPath) -> VfsResult<VfsNodeRef> {
         ax_err!(Unsupported)
     }
 
     /// Create a new node with the given `path` in the directory
     ///
     /// Return [`Ok(())`](Ok) if it already exists.
-    fn create(&self, _path: &str, _ty: VfsNodeType) -> VfsResult {
+    fn create(&self, _path: &RelPath, _ty: VfsNodeType) -> VfsResult {
         ax_err!(Unsupported)
     }
 
-    /// Remove the node with the given `path` in the directory.
-    fn remove(&self, _path: &str) -> VfsResult {
+    /// Create a new hard link to the src dentry
+    fn link(&self, _name: &RelPath, _src: Arc<dyn VfsNodeOps>) -> VfsResult<Arc<dyn VfsNodeOps>> {
+        ax_err!(Unsupported)
+    }
+
+    /// Remove (the hard link of) the node with the given `path` in the directory.
+    fn unlink(&self, _path: &RelPath) -> VfsResult {
+        ax_err!(Unsupported)
+    }
+
+    /// Rename the node `src_path` to `dst_path` in the directory.
+    fn rename(&self, _src_path: &RelPath, _dst_path: &RelPath) -> VfsResult<()> {
         ax_err!(Unsupported)
     }
 
@@ -164,9 +189,16 @@ pub trait VfsNodeOps: Send + Sync {
         ax_err!(Unsupported)
     }
 
-    /// Renames or moves existing file or directory.
-    fn rename(&self, _src_path: &str, _dst_path: &str) -> VfsResult {
-        ax_err!(Unsupported)
+    /// Check if the directory is empty. An empty directory only contains `.` and `..`.
+    ///
+    /// Brute implementation: read entries and check if there are more than 2.
+    fn is_empty(&self) -> VfsResult<bool> {
+        let mut buf = [
+            VfsDirEntry::default(),
+            VfsDirEntry::default(),
+            VfsDirEntry::default(),
+        ];
+        self.read_dir(0, &mut buf).map(|n| n <= 2)
     }
 
     /// Convert `&self` to [`&dyn Any`][1] that can use
@@ -184,18 +216,14 @@ pub trait VfsNodeOps: Send + Sync {
     /// implementor may provide a more efficient impl.
     ///
     /// Return [`Ok(())`](Ok) if already exists.
-    fn create_recursive(&self, path: &str, ty: VfsNodeType) -> VfsResult {
-        if path.starts_with('/') {
-            return ax_err!(InvalidInput);
-        }
-        let path = path.trim_end_matches('/');
+    fn create_recursive(&self, path: &RelPath, ty: VfsNodeType) -> VfsResult {
         for (i, c) in path.char_indices() {
             let part = if c == '/' {
                 unsafe { path.get_unchecked(..i) }
             } else {
                 continue;
             };
-            match self.create(part, VfsNodeType::Dir) {
+            match self.create(&RelPath::new(part), VfsNodeType::Dir) {
                 Ok(()) | Err(AxError::AlreadyExists) => {}
                 err @ Err(_) => return err,
             }

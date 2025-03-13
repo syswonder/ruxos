@@ -2,3 +2,4 @@ alloc
 paging
 fs
 blkfs
+fatfs

@@ -7,34 +7,30 @@
  *   See the Mulan PSL v2 for more details.
  */
 
+use axerrno::ax_err;
+use axfs_vfs::{AbsPath, VfsError};
 use axio::{prelude::*, Result, SeekFrom};
 use core::fmt;
 
 use crate::fops;
 
-/// A structure representing a type of file with accessors for each file type.
-/// It is returned by [`Metadata::file_type`] method.
+/// A structure representing a type of file with accessors for each file type
 pub type FileType = fops::FileType;
 
 /// Representation of the various permissions on a file.
-pub type Permissions = fops::FilePerm;
+pub type FilePerm = fops::FilePerm;
 
-/// An object providing access to an open file on the filesystem.
-pub struct File {
-    inner: fops::File,
-}
-
-/// Metadata information about a file.
-pub struct Metadata(fops::FileAttr);
+/// A structure representing the attributes of a file.
+pub type FileAttr = fops::FileAttr;
 
 /// Options and flags which can be used to configure how a file is opened.
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct OpenOptions(fops::OpenOptions);
 
 impl OpenOptions {
     /// Creates a blank new set of options ready for configuration.
     pub const fn new() -> Self {
-        OpenOptions(fops::OpenOptions::new())
+        Self(fops::OpenOptions::new())
     }
 
     /// Sets the option for read access.
@@ -74,72 +70,78 @@ impl OpenOptions {
     }
 
     /// Opens a file at `path` with the options specified by `self`.
-    pub fn open(&self, path: &str) -> Result<File> {
-        fops::File::open(path, &self.0).map(|inner| File { inner })
+    pub fn open(&self, path: &AbsPath) -> Result<File> {
+        // Check options
+        if !self.0.is_valid() {
+            return ax_err!(InvalidInput);
+        }
+        // Find node, check flag and attr
+        let node = match fops::lookup(path) {
+            Ok(node) => {
+                if self.0.create_new {
+                    return ax_err!(AlreadyExists);
+                }
+                node
+            }
+            Err(VfsError::NotFound) => {
+                if !self.0.create && !self.0.create_new {
+                    return ax_err!(NotFound);
+                }
+                fops::create_file(path)?;
+                fops::lookup(path)?
+            }
+            Err(e) => return Err(e),
+        };
+        if node.get_attr()?.is_dir() {
+            return ax_err!(IsADirectory);
+        }
+        // Truncate
+        if self.0.truncate {
+            node.truncate(0)?;
+        }
+        // Open
+        fops::open_file(path, node, &self.0).map(|inner| File { inner })
     }
 }
 
-impl Metadata {
-    /// Returns the file type for this metadata.
-    pub const fn file_type(&self) -> FileType {
-        self.0.file_type()
-    }
-
-    /// Returns `true` if this metadata is for a directory. The
-    /// result is mutually exclusive to the result of
-    /// [`Metadata::is_file`].
-    pub const fn is_dir(&self) -> bool {
-        self.0.is_dir()
-    }
-
-    /// Returns `true` if this metadata is for a regular file. The
-    /// result is mutually exclusive to the result of
-    /// [`Metadata::is_dir`].
-    pub const fn is_file(&self) -> bool {
-        self.0.is_file()
-    }
-
-    /// Returns the size of the file, in bytes, this metadata is for.
-    #[allow(clippy::len_without_is_empty)]
-    pub fn len(&self) -> u64 {
-        self.0.size()
-    }
-
-    /// Returns the permissions of the file this metadata is for.
-    pub const fn permissions(&self) -> Permissions {
-        self.0.perm()
-    }
-
-    /// Returns the total size of this file in bytes.
-    pub const fn size(&self) -> u64 {
-        self.0.size()
-    }
-
-    /// Returns the number of blocks allocated to the file, in 512-byte units.
-    pub const fn blocks(&self) -> u64 {
-        self.0.blocks()
-    }
-}
-
-impl fmt::Debug for Metadata {
+impl fmt::Debug for OpenOptions {
+    #[allow(unused_assignments)]
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("Metadata")
-            .field("file_type", &self.file_type())
-            .field("is_dir", &self.is_dir())
-            .field("is_file", &self.is_file())
-            .field("permissions", &self.permissions())
-            .finish_non_exhaustive()
+        let mut written = false;
+        macro_rules! fmt_opt {
+            ($field: ident, $label: literal) => {
+                if self.0.$field {
+                    if written {
+                        write!(f, " | ")?;
+                    }
+                    write!(f, $label)?;
+                    written = true;
+                }
+            };
+        }
+        fmt_opt!(read, "READ");
+        fmt_opt!(write, "WRITE");
+        fmt_opt!(append, "APPEND");
+        fmt_opt!(truncate, "TRUNC");
+        fmt_opt!(create, "CREATE");
+        fmt_opt!(create_new, "CREATE_NEW");
+        Ok(())
     }
+}
+
+/// An object providing access to an open file on the filesystem.
+pub struct File {
+    inner: fops::File,
 }
 
 impl File {
     /// Attempts to open a file in read-only mode.
-    pub fn open(path: &str) -> Result<Self> {
+    pub fn open(path: &AbsPath) -> Result<Self> {
         OpenOptions::new().read(true).open(path)
     }
 
     /// Opens a file in write-only mode.
-    pub fn create(path: &str) -> Result<Self> {
+    pub fn create(path: &AbsPath) -> Result<Self> {
         OpenOptions::new()
             .write(true)
             .create(true)
@@ -148,7 +150,7 @@ impl File {
     }
 
     /// Creates a new file in read-write mode; error if the file exists.
-    pub fn create_new(path: &str) -> Result<Self> {
+    pub fn create_new(path: &AbsPath) -> Result<Self> {
         OpenOptions::new()
             .read(true)
             .write(true)
@@ -167,9 +169,19 @@ impl File {
         self.inner.truncate(size)
     }
 
-    /// Queries metadata about the underlying file.
-    pub fn metadata(&self) -> Result<Metadata> {
-        self.inner.get_attr().map(Metadata)
+    /// Truncates the file to 0 length.
+    pub fn truncate(&self, size: u64) -> Result<()> {
+        self.inner.truncate(size)
+    }
+
+    /// Flush the buffered contents to disk.
+    pub fn flush(&self) -> Result<()> {
+        self.inner.flush()
+    }
+
+    /// Get the attributes of the file.
+    pub fn get_attr(&self) -> Result<FileAttr> {
+        self.inner.get_attr()
     }
 }
 

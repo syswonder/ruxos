@@ -52,7 +52,7 @@ pub use imp::prctl::{sys_arch_prctl, sys_prctl};
 pub use imp::resources::{sys_getrlimit, sys_prlimit64, sys_setrlimit};
 pub use imp::stat::{
     sys_getegid, sys_geteuid, sys_getgid, sys_getpgid, sys_getuid, sys_setgid, sys_setpgid,
-    sys_setuid, sys_umask,
+    sys_setsid, sys_setuid, sys_umask,
 };
 pub use imp::sys::{sys_sysinfo, sys_uname};
 pub use imp::sys_invalid;
@@ -60,8 +60,8 @@ pub use imp::sys_invalid;
 pub use imp::task::sys_wait4;
 pub use imp::task::{sys_exit, sys_getpid, sys_getppid, sys_gettid, sys_sched_yield};
 pub use imp::time::{
-    sys_clock_gettime, sys_clock_nanosleep, sys_clock_settime, sys_gettimeofday, sys_nanosleep,
-    sys_times,
+    sys_clock_getres, sys_clock_gettime, sys_clock_nanosleep, sys_clock_settime, sys_gettimeofday,
+    sys_nanosleep, sys_times,
 };
 
 #[cfg(all(feature = "fd", feature = "musl"))]
@@ -76,7 +76,7 @@ pub use imp::fs::{
     sys_rmdir, sys_stat, sys_unlink, sys_unlinkat,
 };
 #[cfg(feature = "epoll")]
-pub use imp::io_mpx::{sys_epoll_create, sys_epoll_ctl, sys_epoll_pwait, sys_epoll_wait};
+pub use imp::io_mpx::{sys_epoll_create1, sys_epoll_ctl, sys_epoll_pwait, sys_epoll_wait};
 #[cfg(feature = "poll")]
 pub use imp::io_mpx::{sys_poll, sys_ppoll};
 #[cfg(feature = "select")]
@@ -89,7 +89,7 @@ pub use imp::mmap::{sys_madvise, sys_mmap, sys_mprotect, sys_mremap, sys_msync, 
 pub use imp::net::{
     sys_accept, sys_bind, sys_connect, sys_freeaddrinfo, sys_getaddrinfo, sys_getpeername,
     sys_getsockname, sys_getsockopt, sys_listen, sys_recv, sys_recvfrom, sys_send, sys_sendmsg,
-    sys_sendto, sys_setsockopt, sys_shutdown, sys_socket,
+    sys_sendto, sys_setsockopt, sys_shutdown, sys_socket, sys_socketpair,
 };
 #[cfg(feature = "pipe")]
 pub use imp::pipe::{sys_pipe, sys_pipe2};
