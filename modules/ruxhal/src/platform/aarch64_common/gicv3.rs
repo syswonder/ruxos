@@ -8,16 +8,18 @@
  */
 
 use crate::{irq::IrqHandler, mem::phys_to_virt};
-use arm_gic::gic_v2::{GicCpuInterface, GicDistributor};
+use arm_gic::gic_v3::{GicDistributor, GicRedistributor};
 use arm_gic::{translate_irq, InterruptType};
+use lazy_init::LazyInit;
 use memory_addr::PhysAddr;
 use spinlock::SpinNoIrq;
 
 /// The maximum number of IRQs.
 pub const MAX_IRQ_COUNT: usize = 1024;
 
-/// The timer IRQ number.
-pub const TIMER_IRQ_NUM: usize = translate_irq(14, InterruptType::PPI).unwrap();
+/// The virt timer IRQ number.
+/// Physical timer IRQ number is 14
+pub const TIMER_IRQ_NUM: usize = translate_irq(11, InterruptType::PPI).unwrap();
 
 #[cfg(not(feature = "virtio_console"))]
 /// The UART IRQ number.
@@ -29,18 +31,22 @@ pub const VIRTIO_CONSOLE_IRQ_NUM: usize =
     translate_irq(ruxconfig::VIRTIO_CONSOLE_IRQ, InterruptType::SPI).unwrap();
 
 const GICD_BASE: PhysAddr = PhysAddr::from(ruxconfig::GICD_PADDR);
-const GICC_BASE: PhysAddr = PhysAddr::from(ruxconfig::GICC_PADDR);
+const GICR_BASE: PhysAddr = PhysAddr::from(ruxconfig::GICR_PADDR);
+const GICR_STRIDE: usize = 0x20000;
 
 static GICD: SpinNoIrq<GicDistributor> =
     SpinNoIrq::new(GicDistributor::new(phys_to_virt(GICD_BASE).as_mut_ptr()));
 
-// per-CPU, no lock
-static GICC: GicCpuInterface = GicCpuInterface::new(phys_to_virt(GICC_BASE).as_mut_ptr());
+static GICR: LazyInit<SpinNoIrq<GicRedistributor>> = LazyInit::new();
 
 /// Enables or disables the given IRQ.
 pub fn set_enable(irq_num: usize, enabled: bool) {
-    trace!("GICD set enable: {} {}", irq_num, enabled);
-    GICD.lock().set_enable(irq_num as _, enabled);
+    trace!("set enable: {} {}", irq_num, enabled);
+    if irq_num < 32 {
+        GICR.lock().set_enable(irq_num as _, enabled);
+    } else {
+        GICD.lock().set_enable(irq_num as _, enabled);
+    }
 }
 
 /// Registers an IRQ handler for the given IRQ.
@@ -58,18 +64,21 @@ pub fn register_handler(irq_num: usize, handler: IrqHandler) -> bool {
 /// up in the IRQ handler table and calls the corresponding handler. If
 /// necessary, it also acknowledges the interrupt controller after handling.
 pub fn dispatch_irq(_unused: usize) {
-    GICC.handle_irq(|irq_num| crate::irq::dispatch_irq_common(irq_num as _));
+    GICR.lock()
+        .handle_irq(|irq_num| crate::irq::dispatch_irq_common(irq_num as _));
 }
 
 /// Initializes GICD, GICC on the primary CPU.
-pub(crate) fn init_primary() {
-    info!("Initialize GICv2...");
+pub(crate) fn init_primary(cpu_id: usize) {
+    info!("Initialize GICv3...");
+    debug!("GICv3 GICR addr {:x}", GICR_BASE + cpu_id * GICR_STRIDE);
+    GICR.init_by(SpinNoIrq::new(GicRedistributor::new(
+        phys_to_virt(GICR_BASE + cpu_id * GICR_STRIDE).as_mut_ptr(),
+    )));
+    GICR.lock().init();
     GICD.lock().init();
-    GICC.init();
 }
 
 /// Initializes GICC on secondary CPUs.
 #[cfg(feature = "smp")]
-pub(crate) fn init_secondary() {
-    GICC.init();
-}
+pub(crate) fn init_secondary() {}

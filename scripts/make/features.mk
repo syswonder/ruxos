@@ -50,6 +50,10 @@ ifeq ($(APP_TYPE), c)
   endif
 endif
 
+ifeq ($(GICV3),y)
+  override FEATURES += gic-v3
+endif
+
 override FEATURES := $(strip $(FEATURES))
 
 ax_feat :=

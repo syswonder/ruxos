@@ -58,6 +58,11 @@ impl<'a> DeviceProp<'a> {
     pub fn str(&self) -> &'static str {
         self.0.str().unwrap()
     }
+
+    /// Return offset of the given prop in the node.
+    pub fn offset(&self) -> usize {
+        self.0.nameoff()
+    }
 }
 
 /// Find the first node with given compatible(may not exist).
@@ -111,4 +116,27 @@ where
             Ok(())
         })
         .unwrap();
+}
+
+/// Get DevTreeNode by prop and value
+pub fn get_node_by_prop_value<'a>(prop: &'a str, val: &'a str) -> Option<DeviceNode<'a>> {
+    TREE.props()
+        .find(|p| Ok(p.name()? == prop && p.str()? == val))
+        .unwrap()
+        .map(|prop| prop.node())
+        .map(DeviceNode)
+}
+
+/// Parse DevTreeProp propbuf with given indev, return `u64` type
+///
+/// TODO: error handle
+pub fn get_propbuf_u64(prop: &DeviceProp, index: usize) -> u64 {
+    prop.0.u64(index).unwrap()
+}
+
+/// Parse DevTreeProp propbuf with given indev, return `u32` type
+///
+/// TODO: error handle
+pub fn get_propbuf_u32(prop: &DeviceProp, index: usize) -> u32 {
+    prop.0.u32(index).unwrap()
 }

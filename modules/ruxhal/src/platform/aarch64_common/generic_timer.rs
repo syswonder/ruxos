@@ -9,7 +9,9 @@
 
 #![allow(unused_imports)]
 
-use aarch64_cpu::registers::{CNTFRQ_EL0, CNTPCT_EL0, CNTP_CTL_EL0, CNTP_TVAL_EL0};
+use aarch64_cpu::registers::{
+    CNTFRQ_EL0, CNTPCT_EL0, CNTP_CTL_EL0, CNTP_TVAL_EL0, CNTV_CTL_EL0, CNTV_TVAL_EL0,
+};
 use ratio::Ratio;
 use tock_registers::interfaces::{Readable, Writeable};
 
@@ -44,9 +46,9 @@ pub fn set_oneshot_timer(deadline_ns: u64) {
     if cnptct < cnptct_deadline {
         let interval = cnptct_deadline - cnptct;
         debug_assert!(interval <= u32::MAX as u64);
-        CNTP_TVAL_EL0.set(interval);
+        CNTV_TVAL_EL0.set(interval);
     } else {
-        CNTP_TVAL_EL0.set(0);
+        CNTV_TVAL_EL0.set(0);
     }
 }
 
@@ -62,8 +64,9 @@ pub(crate) fn init_early() {
 pub(crate) fn init_percpu() {
     #[cfg(feature = "irq")]
     {
-        CNTP_CTL_EL0.write(CNTP_CTL_EL0::ENABLE::SET);
-        CNTP_TVAL_EL0.set(0);
+        // TODO: support physical timmer
+        CNTV_CTL_EL0.write(CNTV_CTL_EL0::ENABLE::SET);
+        CNTV_TVAL_EL0.set(0);
         crate::platform::irq::set_enable(crate::platform::irq::TIMER_IRQ_NUM, true);
     }
 }

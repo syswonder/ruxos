@@ -42,3 +42,6 @@ gicd-paddr = "0xFF84_1000"
 
 # Pipe channel bufer size.
 pipe-buffer-size = "0x10000"
+
+# Device tree blob address
+DTB_ADDR = "0x40000000"

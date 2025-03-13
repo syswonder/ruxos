@@ -24,11 +24,17 @@ qemu_args-riscv64 := \
   -bios $(RISCV_BIOS) \
   -kernel $(OUT_BIN)
 
-qemu_args-aarch64 := \
+ifeq ($(GICV3), y)
+  qemu_args-aarch64 := \
   -cpu cortex-a72 \
-  -machine virt \
+  -machine virt,gic-version=3 \
   -kernel $(OUT_BIN)
-
+else
+  qemu_args-aarch64 := \
+  -cpu cortex-a72 \
+  -machine virt,gic-version=2 \
+  -kernel $(OUT_BIN)
+endif
 
 qemu_args-y := -m 2G -smp $(SMP) $(qemu_args-$(ARCH)) \
   -append ";$(ARGS);$(ENVS)"

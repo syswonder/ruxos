@@ -123,6 +123,7 @@ dependencies = [
 name = "arm_gic"
 version = "0.1.0"
 dependencies = [
+ "log",
  "tock-registers",
 ]
 
@@ -722,6 +723,7 @@ version = "0.1.0"
 dependencies = [
  "fdt-rs",
  "lazy_init",
+ "log",
 ]
 
 [[package]]
@@ -1615,6 +1617,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ruxdtb"
+version = "0.1.0"
+dependencies = [
+ "dtb",
+ "log",
+]
+
+[[package]]
 name = "ruxfdtable"
 version = "0.1.0"
 dependencies = [
@@ -1878,6 +1888,7 @@ dependencies = [
  "ruxconfig",
  "ruxdisplay",
  "ruxdriver",
+ "ruxdtb",
  "ruxfs",
  "ruxfutex",
  "ruxhal",

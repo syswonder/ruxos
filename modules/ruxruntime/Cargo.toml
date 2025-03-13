@@ -17,12 +17,13 @@ repository = "https://github.com/syswonder/ruxos/tree/main/modules/ruxruntime"
 default = []
 
 smp = ["ruxhal/smp"]
-irq = ["ruxhal/irq", "ruxtask?/irq", "percpu", "kernel_guard"]
+irq = ["ruxhal/irq", "ruxtask?/irq", "percpu", "kernel_guard", "ruxdtb/irq"]
 tls = ["ruxhal/tls", "ruxtask?/tls"]
-alloc = ["axalloc", "dtb"]
+alloc = ["axalloc", "dtb", "ruxdtb"]
 paging = ["ruxhal/paging", "ruxmm/paging", "lazy_init", "ruxtask/paging"]
 rtc = ["ruxhal/rtc"]
 virtio_console = []
+gic-v3 = ["ruxhal/gic-v3"]
 
 multitask = ["ruxtask/multitask", "dep:ruxfutex", "rand"]
 rand = ["dep:ruxrand"]
@@ -55,6 +56,7 @@ ruxtask = { path = "../ruxtask", optional = true }
 ruxmm = { path = "../ruxmm" }
 axsync = { path = "../axsync", optional = true }
 ruxfutex = { path = "../ruxfutex", optional = true }
+ruxdtb = { path = "../ruxdtb", optional = true }
 ruxrand = { path = "../ruxrand", optional = true }
 ruxtty = { path = "../ruxtty" }
 

@@ -17,8 +17,10 @@ phys-memory-size = "0x8000_0000"     # 2G
 # phys-memory-size = "0x2_0000_0000"     # 8G
 # Base physical address of the kernel image.
 kernel-base-paddr = "0x4008_0000"
+#kernel-base-paddr = "0x4000_0000"
 # Base virtual address of the kernel image.
 kernel-base-vaddr = "0xffff_0000_4008_0000"
+#kernel-base-vaddr = "0xffff_0000_4000_0000"
 # virtual start address of the mapping memory.
 mmap-start-vaddr = "0xffff_8000_0000_0000"
 # virtual end address of the mapping memory.
@@ -29,7 +31,8 @@ phys-virt-offset = "0xffff_0000_0000_0000"
 # MMIO regions with format (`base_paddr`, `size`).
 mmio-regions = [
     ["0x0900_0000", "0x1000"],      # PL011 UART
-    ["0x0800_0000", "0x2_0000"],    # GICv2
+    ["0x0800_0000", "0x10_0000"],    # GICv2
+    #["0x080a_0000", "0x2_0000"],    # GICv3
     ["0x0a00_0000", "0x4000"],      # VirtIO
     ["0x1000_0000", "0x2eff_0000"],     # PCI memory ranges (ranges 1: 32-bit MMIO space)
     ["0x40_1000_0000", "0x1000_0000"],  # PCI config space
@@ -92,9 +95,13 @@ virtio-console-irq = "47"
 # GICC Address
 gicc-paddr = "0x0801_0000"
 gicd-paddr = "0x0800_0000"
+gicr-paddr = "0x080a_0000"
 
 # PSCI
 psci-method = "hvc"
 
 # Pipe channel bufer size.
 pipe-buffer-size = "0x10000"
+
+# Device tree blob address
+DTB_ADDR = "0x40000000"
