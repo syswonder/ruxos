@@ -67,3 +67,6 @@ timer-frequency = "10_000_000"      # 10MHz
 
 # Pipe channel bufer size.
 pipe-buffer-size = "0x10000"
+
+# Device tree blob address not used yet
+DTB_ADDR = "0"

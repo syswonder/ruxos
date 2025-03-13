@@ -24,7 +24,16 @@ default = []
 musl = []
 signal = []
 gic-v3 = ["arm_gic/gic-v3"]
-virtio_console = ["driver_console", "driver_virtio", "driver_virtio/console", "driver_common", "virtio-drivers", "axalloc", "alloc", "virtio"]
+virtio_console = [
+    "driver_console",
+    "driver_virtio",
+    "driver_virtio/console",
+    "driver_common",
+    "virtio-drivers",
+    "axalloc",
+    "alloc",
+    "virtio",
+]
 
 
 [dependencies]

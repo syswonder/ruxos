@@ -139,12 +139,6 @@ fn is_init_ok() -> bool {
     INITED_CPUS.load(Ordering::Acquire) == ruxconfig::SMP
 }
 
-#[inline(never)]
-fn lhw_debug() -> i32 {
-    warn!("lhw debug");
-    1 + 1
-}
-
 /// The main entry point of the Ruxos runtime.
 ///
 /// It is called from the bootstrapping code in [ruxhal]. `cpu_id` is the ID of
@@ -203,26 +197,9 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     #[cfg(feature = "tty")]
     tty::init();
 
-    //let debug_res = lhw_debug();
-    //info!("lhw debug res {}",debug_res);
-
-    #[cfg(feature = "alloc")]
-    {
-        let pl011_base = ruxdtb::get_pl011_base();
-        info!("pl011_base: 0x{:x}", pl011_base);
-        let pl031_base = ruxdtb::get_pl031_base();
-        info!("pl031_base: 0x{:x}", pl031_base);
-        #[cfg(feature = "irq")]
-        {
-            let gicd_base = ruxdtb::get_gicv2_base();
-            info!("gicd_base: 0x{:x}", gicd_base);
-        }
-        ruxdtb::get_psci();
-    }
-
     info!("Initialize platform devices...");
-  
-    ruxhal::platform_init();
+
+    ruxhal::platform_init(cpu_id);
 
     #[cfg(feature = "rand")]
     ruxrand::init(cpu_id);

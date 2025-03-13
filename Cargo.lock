@@ -732,6 +732,7 @@ version = "0.1.0"
 dependencies = [
  "fdt-rs",
  "lazy_init",
+ "log",
 ]
 
 [[package]]
@@ -1633,8 +1634,8 @@ version = "0.1.0"
 dependencies = [
  "dtb",
  "log",
- ]
- 
+]
+
 [[package]]
 name = "ruxfdtable"
 version = "0.1.0"

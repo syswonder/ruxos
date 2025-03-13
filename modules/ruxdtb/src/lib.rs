@@ -11,6 +11,7 @@
 #![no_std]
 
 #[macro_use]
+#[cfg(target_arch = "aarch64")]
 extern crate log;
 
 /// get memory base and size from dtb
@@ -62,6 +63,21 @@ pub fn get_pl031_base() -> usize {
 /// Get pl031 base address from dtb
 #[cfg(not(target_arch = "aarch64"))]
 pub fn get_pl031_base() -> usize {
+    0
+}
+
+/// Get GICV2 base address from dtb
+#[cfg(all(target_arch = "aarch64", feature = "irq"))]
+pub fn get_gicv3_base() -> usize {
+    let gicv3_node = dtb::compatible_node("arm,gic-v3").unwrap();
+    let regs = gicv3_node.find_prop("reg").unwrap();
+    // index 0 for GICD
+    dtb::get_propbuf_u64(&regs, 0) as usize
+}
+
+/// Get GICV2 base address from dtb
+#[cfg(not(target_arch = "aarch64"))]
+pub fn get_gicv3_base() -> usize {
     0
 }
 

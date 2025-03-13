@@ -40,7 +40,6 @@ struct TrapHandlerImpl;
 #[crate_interface::impl_interface]
 impl ruxhal::trap::TrapHandler for TrapHandlerImpl {
     fn handle_page_fault(vaddr: usize, cause: PageFaultCause) -> bool {
-        info!("lhw debug in handle_page_fault addr {:x} case {:?}",vaddr, cause);
         let binding_task = current();
         let mut binding_mem_map = binding_task.mm.vma_map.lock();
         let vma_map = binding_mem_map.deref_mut();

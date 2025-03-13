@@ -14,7 +14,12 @@ pub mod generic_timer;
 pub mod psci;
 
 #[cfg(feature = "irq")]
-pub mod gic;
+#[cfg(not(feature = "gic-v3"))]
+pub mod gicv2;
+
+#[cfg(feature = "irq")]
+#[cfg(feature = "gic-v3")]
+pub mod gicv3;
 
 #[cfg(not(any(platform_family = "aarch64-bsta1000b", feature = "virtio_console")))]
 pub mod pl011;

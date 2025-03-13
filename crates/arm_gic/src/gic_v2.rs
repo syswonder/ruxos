@@ -13,7 +13,7 @@
 
 use core::ptr::NonNull;
 
-use crate::{TriggerMode, GIC_MAX_IRQ, SPI_RANGE, read_sysreg, write_sysreg};
+use crate::{TriggerMode, GIC_MAX_IRQ, SPI_RANGE};
 use tock_registers::interfaces::{Readable, Writeable};
 use tock_registers::register_structs;
 use tock_registers::registers::{ReadOnly, ReadWrite, WriteOnly};
@@ -217,8 +217,6 @@ impl GicDistributor {
         self.regs().CTLR.set(1);
     }
 }
-
-use log::info;
 
 impl GicCpuInterface {
     /// Construct a new GIC CPU interface instance from the base address.

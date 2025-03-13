@@ -46,6 +46,7 @@ members = [
     "modules/ruxconfig",
     "modules/ruxdisplay",
     "modules/ruxdriver",
+    "modules/ruxdtb",
     "modules/ruxfdtable",
     "modules/ruxfs",
     "modules/ruxhal",
@@ -63,7 +64,7 @@ members = [
 
     "apps/display/basic_painting",
     "apps/display/draw_map",
-    "apps/fs/shell", "modules/ruxdtb",
+    "apps/fs/shell",
 ]
 
 [profile.release]

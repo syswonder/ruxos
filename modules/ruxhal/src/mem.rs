@@ -150,20 +150,36 @@ pub(crate) fn default_mmio_regions() -> impl Iterator<Item = MemRegion> {
     })
 }
 
+/// Returns the default MMIO memory regions (from [`ruxconfig::DTB_ADDR`]).
+#[allow(dead_code)]
+pub(crate) fn default_dtb_regions() -> impl Iterator<Item = MemRegion> {
+    let dtb_addr = PhysAddr::from(ruxconfig::DTB_ADDR as usize).align_up_4k();
+    let dtb_resgion = MemRegion {
+        paddr: dtb_addr,
+        size: 0x80000,
+        flags: MemRegionFlags::READ | MemRegionFlags::WRITE | MemRegionFlags::EXECUTE,
+        name: "dtb region",
+    };
+    core::iter::once(dtb_resgion)
+}
+
 /// Returns the default free memory regions (kernel image end to physical memory end).
 #[allow(dead_code)]
 pub(crate) fn default_free_regions() -> impl Iterator<Item = MemRegion> {
-    let start = direct_virt_to_phys((_ekernel as usize).into()).align_up_4k();
+    let start_free = direct_virt_to_phys((_ekernel as usize).into()).align_up_4k();
     let end = PhysAddr::from(ruxconfig::PHYS_MEMORY_END).align_down_4k();
-    core::iter::once(MemRegion {
-        paddr: start,
-        size: end.as_usize() - start.as_usize(),
+
+    let region_free = MemRegion {
+        paddr: start_free,
+        size: end.as_usize() - start_free.as_usize(),
         flags: MemRegionFlags::FREE
             | MemRegionFlags::READ
             | MemRegionFlags::WRITE
             | MemRegionFlags::EXECUTE,
         name: "free memory",
-    })
+    };
+
+    core::iter::once(region_free)
 }
 
 /// Fills the `.bss` section with zeros.
@@ -176,6 +192,7 @@ pub(crate) fn clear_bss() {
 }
 
 extern "C" {
+    fn _skernel();
     fn _stext();
     fn _etext();
     fn _srodata();

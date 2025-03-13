@@ -7,16 +7,50 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-//! Types and definitions for GICv2.
+//! Types and definitions for GICv3.
 //!
 //! The official documentation: <https://developer.arm.com/documentation/ihi0048/latest/>
 
 use core::ptr::NonNull;
 
-use crate::{TriggerMode, GIC_MAX_IRQ, SPI_RANGE, read_sysreg, write_sysreg};
+use crate::{TriggerMode, GIC_MAX_IRQ, SPI_RANGE};
 use tock_registers::interfaces::{Readable, Writeable};
 use tock_registers::register_structs;
 use tock_registers::registers::{ReadOnly, ReadWrite, WriteOnly};
+
+/// Reads and returns the value of the given aarch64 system register.
+/// use crate::arch::sysreg::write_sysreg;
+/// unsafe {write_sysreg!(icc_sgi1r_el1, val);}
+/// let intid = unsafe { read_sysreg!(icc_iar1_el1) } as u32;
+macro_rules! read_sysreg {
+    ($name:ident) => {
+        {
+            let mut value: u64;
+            unsafe{::core::arch::asm!(
+                concat!("mrs {value:x}, ", ::core::stringify!($name)),
+                value = out(reg) value,
+                options(nomem, nostack),
+            );}
+            value
+        }
+    }
+}
+pub(crate) use read_sysreg;
+
+/// Writes the given value to the given aarch64 system register.
+macro_rules! write_sysreg {
+    ($name:ident, $value:expr) => {
+        {
+            let v: u64 = $value;
+            unsafe{::core::arch::asm!(
+                concat!("msr ", ::core::stringify!($name), ", {value:x}"),
+                value = in(reg) v,
+                options(nomem, nostack),
+            )}
+        }
+    }
+}
+pub(crate) use write_sysreg;
 
 register_structs! {
     /// GIC Distributor registers.
@@ -54,8 +88,8 @@ register_structs! {
         (0x0E00 => NSACR: [ReadWrite<u32>; 64]),
         (0x0F00 => _reserved_2),
         /// Interrupt Routing Registers (GICD_IROUTER)
-        (0x6100 => IROUTER: [ReadWrite<u64>; 987]),
-        (0x7FD8 => _reserved_3),
+        (0x6100 => IROUTER: [ReadWrite<u64>; 988]),
+        (0x7FE0 => _reserved_3),
         /// Chip Status Register (GICD_CHIPSR)
         (0xC000 => CHIPSR: ReadWrite<u32>),
         /// Default Chip Register (GICD_DCHIPR)
@@ -90,37 +124,9 @@ register_structs! {
 }
 
 register_structs! {
-    /// GIC CPU Interface registers.
-    #[allow(non_snake_case)]
-    GicCpuInterfaceRegs {
-        /// CPU Interface Control Register.
-        (0x0000 => CTLR: ReadWrite<u32>),
-        /// Interrupt Priority Mask Register.
-        (0x0004 => PMR: ReadWrite<u32>),
-        /// Binary Point Register.
-        (0x0008 => BPR: ReadWrite<u32>),
-        /// Interrupt Acknowledge Register.
-        (0x000c => IAR: ReadOnly<u32>),
-        /// End of Interrupt Register.
-        (0x0010 => EOIR: WriteOnly<u32>),
-        /// Running Priority Register.
-        (0x0014 => RPR: ReadOnly<u32>),
-        /// Highest Priority Pending Interrupt Register.
-        (0x0018 => HPPIR: ReadOnly<u32>),
-        (0x001c => _reserved_1),
-        /// CPU Interface Identification Register.
-        (0x00fc => IIDR: ReadOnly<u32>),
-        (0x0100 => _reserved_2),
-        /// Deactivate Interrupt Register.
-        (0x1000 => DIR: WriteOnly<u32>),
-        (0x1004 => @END),
-    }
-}
-
-register_structs! {
     /// GIC Redistributor Registers
     #[allow(non_snake_case)]
-    GicRedistributorRegs {
+    GICv3RdistLpisIf {
         /// Redistributor Control Register (GICR_CTLR)
         (0x0000 => CTLR: ReadWrite<u32>),
         /// Redistributor Implementation Identification Register (GICR_IIDR)
@@ -175,7 +181,65 @@ register_structs! {
     }
 }
 
-
+register_structs! {
+    /// GIC Redistributor Registers
+    #[allow(non_snake_case)]
+    GICv3RdistSgisIf {
+        (0x0000 => _reserved_0),
+        (0x0080 => IGROUPR0: ReadWrite<u32>),
+        (0x0084 => _reserved_4),
+        /// Interrupt Set-Enable Register
+        (0x0100 => ISENABLER0: ReadWrite<u32>),
+        (0x0104 => _reserved_8),
+        /// Interrupt Clear-Enable Register
+        (0x0180 => ICENABLER0: ReadWrite<u32>),
+        (0x0184 => _reserved_9),
+        /// Interrupt Set-Pending Register
+        (0x0200 => ISPENDR0: ReadWrite<u32>),
+        (0x0204 => _reserved_10),
+        /// Interrupt Clear-Pending Register
+        (0x0280 => ICPENDR0: ReadWrite<u32>),
+        (0x0284 => _reserved_11),
+        /// Interrupt Set-Active Register
+        (0x0300 => ISACTIVER0: ReadWrite<u32>),
+        (0x0304 => _reserved_12),
+        /// Interrupt Clear-Active Register
+        (0x0380 => ICACTIVER0: ReadWrite<u32>),
+        (0x0384 => _reserved_13),
+        /// Interrupt Priority Registers (multiple entries)
+        (0x0400 => IPRIORITYR: [ReadWrite<u32>; 8]),
+        (0x0420 => _reserved_14),
+        /// Interrupt Configuration Register
+        (0x0C00 => ICFGR: [ReadWrite<u32>;2]),
+        (0x0C08 => _reserved_15),
+        /// Interrupt Group Modifier Register
+        (0x0D00 => IGRPMODR0: ReadWrite<u32>),
+        (0x0D04 => _reserved_16),
+        /// Non-secure Access Control Register
+        (0x0E00 => NSACR: ReadWrite<u32>),
+        (0x0E04 => _reserved_17),
+        /// Miscellaneous Status Register
+        (0xC000 => MISCSTATUSR: ReadOnly<u32>),
+        (0xC004 => _reserved_18),
+        /// Interrupt Error Valid Register
+        (0xC008 => IERRVR: ReadOnly<u32>),
+        (0xC00C => _reserved_19),
+        /// SGI Default Register
+        (0xC010 => SGIDR: ReadWrite<u64>),
+        (0xC018 => _reserved_20),
+        /// Configuration ID0 Register
+        (0xF000 => CFGID0: ReadOnly<u32>),
+        /// Configuration ID1 Register
+        (0xF004 => CFGID1: ReadOnly<u32>),
+        (0xF008 => _reserved_21),
+        /// Component ID Registers (GICR_CIDRn)
+        (0xFFF0 => CIDR0: ReadOnly<u32>),
+        (0xFFF4 => CIDR1: ReadOnly<u32>),
+        (0xFFF8 => CIDR2: ReadOnly<u32>),
+        (0xFFFC => CIDR3: ReadOnly<u32>),
+        (0x10000 => @END),
+    }
+}
 
 /// The GIC distributor.
 ///
@@ -200,28 +264,37 @@ pub struct GicDistributor {
     max_irqs: usize,
 }
 
-/// The GIC CPU interface.
+/// The GIC redistributor.
 ///
-/// Each CPU interface block performs priority masking and preemption
-/// handling for a connected processor in the system.
+/// The Redistributor block is responsible for managing per-core interrupts,
+/// including Software Generated Interrupts (SGIs), Private Peripheral Interrupts (PPIs),
+/// and Locality-specific Peripheral Interrupts (LPIs). Each CPU core has its own
+/// instance of the Redistributor.
 ///
-/// Each CPU interface provides a programming interface for:
+/// The Redistributor provides a programming interface for:
+/// - Managing the power state of the Redistributor for each CPU core.
+/// - Enabling or disabling SGIs and PPIs.
+/// - Setting the priority level of SGIs and PPIs.
+/// - Configuring the trigger mode (level-sensitive or edge-triggered) for SGIs and PPIs.
+/// - Managing Locality-specific Peripheral Interrupts (LPIs), which are designed for
+///   scalable interrupt handling.
+/// - Configuring the Redistributor's memory-mapped structures for LPI storage.
 ///
-/// - enabling the signaling of interrupt requests to the processor
-/// - acknowledging an interrupt
-/// - indicating completion of the processing of an interrupt
-/// - setting an interrupt priority mask for the processor
-/// - defining the preemption policy for the processor
-/// - determining the highest priority pending interrupt for the processor.
-pub struct GicCpuInterface {
-    base: NonNull<GicCpuInterfaceRegs>,
+/// In addition, the Redistributor provides:
+/// - A mechanism to wake up a CPU from power-saving states when an interrupt occurs.
+/// - Controls to enable or disable specific interrupts at the core level.
+/// - Support for Interrupt Translation Services (ITS) for LPI handling in large systems.
+
+pub struct GicRedistributor {
+    lpis: NonNull<GICv3RdistLpisIf>,
+    sgis: NonNull<GICv3RdistSgisIf>,
 }
 
 unsafe impl Send for GicDistributor {}
 unsafe impl Sync for GicDistributor {}
 
-unsafe impl Send for GicCpuInterface {}
-unsafe impl Sync for GicCpuInterface {}
+unsafe impl Send for GicRedistributor {}
+unsafe impl Sync for GicRedistributor {}
 
 impl GicDistributor {
     /// Construct a new GIC distributor instance from the base address.
@@ -286,68 +359,103 @@ impl GicDistributor {
     ///
     /// This function should be called only once.
     pub fn init(&mut self) {
-        let max_irqs = self.max_irqs();
-        assert!(max_irqs <= GIC_MAX_IRQ);
-        self.max_irqs = max_irqs;
+        let val: u32;
+        let mut irq_number: usize;
 
-        // Disable all interrupts
-        for i in (0..max_irqs).step_by(32) {
-            self.regs().ICENABLER[i / 32].set(u32::MAX);
-            self.regs().ICPENDR[i / 32].set(u32::MAX);
-        }
-        if self.cpu_num() > 1 {
-            for i in (SPI_RANGE.start..max_irqs).step_by(4) {
-                // Set external interrupts to target cpu 0
-                self.regs().ITARGETSR[i / 4].set(0x01_01_01_01);
-            }
-        }
-        // Initialize all the SPIs to edge triggered
-        for i in SPI_RANGE.start..max_irqs {
-            self.configure_interrupt(i, TriggerMode::Edge);
+        // Disable the distributor
+        //self.disable_dist();
+
+        // Get GIC redistributor interface
+        val = self.regs().TYPER.get();
+        irq_number = ((((val) & 0x1f) + 1) << 5) as usize;
+        if irq_number > GIC_MAX_IRQ {
+            irq_number = GIC_MAX_IRQ + 1;
         }
 
-        // enable GIC0
-        self.regs().CTLR.set(1);
+        // Configure all SPIs as non-secure Group 1
+        for i in (SPI_RANGE.start..irq_number).step_by(32 as usize) {
+            self.regs().IGROUPR[i / 32].set(0xffffffff);
+        }
+
+        // Route all global SPIs to this CPU
+        let mpidr: u64 = read_sysreg!(MPIDR_EL1);
+        let aff = ((mpidr & 0xff00000000) >> 8) | //Affinity AFF3 bit mask
+                (mpidr & 0x0000ff0000) | // Affinity AFF2 bit mask
+                (mpidr & 0x000000ff00) | // Affinity AFF1 bit mask
+                (mpidr & 0x00000000ff); // Affinity AFF0 bit mask
+        let irouter_val = ((aff << 8) & 0xff00000000) | (aff & 0xffffff) | (0 << 31);
+
+        for i in SPI_RANGE.start..irq_number {
+            self.regs().IROUTER[i].set(irouter_val);
+        }
+
+        // Set all SPI's interrupt type to be level-sensitive
+        for i in (SPI_RANGE.start..irq_number).step_by(16 as usize) {
+            self.regs().ICFGR[i / 16].set(0);
+        }
+
+        // Set all SPI's priority to a default value
+        for i in (SPI_RANGE.start..irq_number).step_by(4 as usize) {
+            self.regs().IPRIORITYR[i / 4].set(0x80808080);
+        }
+
+        // Deactivate and disable all SPIs
+        for i in (SPI_RANGE.start..irq_number).step_by(32 as usize) {
+            self.regs().ICACTIVER[i / 32].set(0xffffffff);
+            self.regs().ICENABLER[i / 32].set(0xffffffff);
+        }
+
+        // Wait for completion
+        while self.regs().CTLR.get() & (1 << 31) != 0 {}
+
+        // Enable the distributor
+        self.regs().CTLR.set((1 << 4) | (1 << 1) | (1 << 0));
     }
 }
 
-use log::info;
-
-impl GicCpuInterface {
-    /// Construct a new GIC CPU interface instance from the base address.
+impl GicRedistributor {
+    /// Construct a new GIC redistributor instance from the base address.
     pub const fn new(base: *mut u8) -> Self {
         Self {
-            base: NonNull::new(base).unwrap().cast(),
+            lpis: NonNull::new(base).unwrap().cast(),
+            sgis: NonNull::new(base.wrapping_add(0x010000)).unwrap().cast(),
         }
     }
 
-    /// Returns the interrupt ID of the highest priority pending interrupt for
-    /// the CPU interface. (read GICC_IAR)
+    const fn lpis(&self) -> &GICv3RdistLpisIf {
+        unsafe { self.lpis.as_ref() }
+    }
+
+    const fn sgis(&self) -> &GICv3RdistSgisIf {
+        unsafe { self.sgis.as_ref() }
+    }
+
+    /// Reads the Interrupt Acknowledge Register.
     ///
-    /// The read returns a spurious interrupt ID of `1023` if the distributor
-    /// or the CPU interface are disabled, or there is no pending interrupt on
-    /// the CPU interface.
+    /// This retrieves the IRQ number of the highest-priority pending interrupt.
     pub fn iar(&self) -> u32 {
         read_sysreg!(icc_iar1_el1) as u32
     }
 
-    /// Informs the CPU interface that it has completed the processing of the
-    /// specified interrupt. (write GICC_EOIR)
+    /// Writes to the End of Interrupt Register.
     ///
-    /// The value written must be the value returns from [`Self::iar`].
+    /// Marks the interrupt as handled.
     pub fn eoi(&self, iar: u32) {
         write_sysreg!(icc_eoir1_el1, iar as u64);
     }
 
-    /// handles the signaled interrupt.
+    /// Writes to the Deactivate Interrupt Register.
     ///
-    /// It first reads GICC_IAR to obtain the pending interrupt ID and then
-    /// calls the given handler. After the handler returns, it writes GICC_EOIR
-    /// to acknowledge the interrupt.
+    /// Ensures that the interrupt is fully deactivated in the GIC.
+    pub fn dir(&self, iar: u32) {
+        write_sysreg!(icc_dir_el1, iar as u64);
+    }
+
+    /// Handles an interrupt by invoking the provided handler function.
     ///
-    /// If read GICC_IAR returns a spurious interrupt ID of `1023`, it does
-    /// nothing.
-    pub fn handle_irq<F>(&self, handler: F)
+    /// # Arguments
+    /// - `handler`: A function that takes an IRQ number and processes it.
+    pub fn handle_irq<F>(&mut self, handler: F)
     where
         F: FnOnce(u32),
     {
@@ -356,25 +464,85 @@ impl GicCpuInterface {
         if vector < 1020 {
             handler(vector);
             self.eoi(iar);
+            self.dir(iar);
         } else {
             // spurious
         }
     }
 
-    /// Initializes the GIC CPU interface.
+    /// Configures the trigger mode for the given interrupt.
+    pub fn configure_interrupt(&mut self, vector: usize, tm: TriggerMode) {
+        // Only configurable for SPI interrupts
+        if vector >= 32 {
+            return;
+        }
+
+        // type is encoded with two bits, MSB of the two determine type
+        // 16 irqs encoded per ICFGR register
+        let reg_idx = vector >> 4;
+        let bit_shift = ((vector & 0xf) << 1) + 1;
+        let mut reg_val = self.sgis().ICFGR[reg_idx].get();
+        match tm {
+            TriggerMode::Edge => reg_val |= 1 << bit_shift,
+            TriggerMode::Level => reg_val &= !(1 << bit_shift),
+        }
+        self.sgis().ICFGR[reg_idx].set(reg_val);
+    }
+
+    /// Enables or disables the given SGI or PPI interrupt.
+    pub fn set_enable(&mut self, vector: usize, enable: bool) {
+        if vector >= 32 {
+            return;
+        }
+        let mask = 1 << (vector % 32);
+        if enable {
+            self.sgis().ISENABLER0.set(mask);
+        } else {
+            self.sgis().ICENABLER0.set(mask);
+        }
+    }
+
+    /// Initializes the GIC Redistributor.
     ///
-    /// It unmask interrupts at all priority levels and enables the GICC.
+    /// This function:
+    /// - Wakes up the Redistributor from power-saving mode.
+    /// - Sets default interrupt priorities.
+    /// - Disables all SGIs and PPIs.
+    /// - Configures the GICv3 CPU interface for handling interrupts.
     ///
-    /// This function should be called only once.
-    pub fn init(&self) {
-        // enable GIC0
-        let _ctlr = read_sysreg!(icc_ctlr_el1);
-        write_sysreg!(icc_ctlr_el1, 0x1);
-        // unmask interrupts at all priority levels
+    /// This function should be executed for each CPU before enabling LPIs.
+    pub fn init(&mut self) {
+        let waker = self.lpis().WAKER.get();
+        self.lpis().WAKER.set(waker & !0x02);
+        while self.lpis().WAKER.get() & 0x04 != 0 {}
+        for i in 0..8 {
+            self.sgis().IPRIORITYR[i].set(0x80808080);
+        }
+
+        // Disable all SGIs and PPIs
+        self.sgis().ICACTIVER0.set(0xffffffff);
+        self.sgis().ICENABLER0.set(0xffff0000);
+        self.sgis().IGROUPR0.set(0xffffffff);
+        self.sgis().ISENABLER0.set(0xffff);
+
+        while self.lpis().CTLR.get() & (1 << 31) != 0 {}
+
+        let sre = read_sysreg!(icc_sre_el1);
+        write_sysreg!(icc_sre_el1, sre | 0x7);
+
+        write_sysreg!(icc_bpr1_el1, 0);
+
         let _pmr = read_sysreg!(icc_pmr_el1);
         write_sysreg!(icc_pmr_el1, 0xff);
+        // enable GIC0
+        let _ctlr = read_sysreg!(icc_ctlr_el1);
+        write_sysreg!(icc_ctlr_el1, 0x2);
+        // unmask interrupts at all priority levels
         // Enable group 1 irq
         let _igrpen = read_sysreg!(icc_igrpen1_el1);
         write_sysreg!(icc_igrpen1_el1, 0x1);
+
+        let _cntp = read_sysreg!(CNTP_CTL_EL0);
+        write_sysreg!(CNTP_CTL_EL0, 1);
     }
 }

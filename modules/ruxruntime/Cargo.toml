@@ -23,6 +23,7 @@ alloc = ["axalloc", "dtb", "ruxdtb"]
 paging = ["ruxhal/paging", "ruxmm/paging", "lazy_init", "ruxtask/paging"]
 rtc = ["ruxhal/rtc"]
 virtio_console = []
+gic-v3 = ["ruxhal/gic-v3"]
 
 multitask = ["ruxtask/multitask", "dep:ruxfutex", "rand"]
 rand = ["dep:ruxrand"]

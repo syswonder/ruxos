@@ -14,7 +14,10 @@ pub mod mp;
 
 #[cfg(feature = "irq")]
 pub mod irq {
-    pub use crate::platform::aarch64_common::gic::*;
+    #[cfg(not(feature = "gic-v3"))]
+    pub use crate::platform::aarch64_common::gicv2::*;
+    #[cfg(feature = "gic-v3")]
+    pub use crate::platform::aarch64_common::gicv3::*;
 }
 
 pub mod console {
@@ -66,9 +69,13 @@ pub(crate) unsafe extern "C" fn rust_entry_secondary(cpu_id: usize) {
 /// Initializes the platform devices for the primary CPU.
 ///
 /// For example, the interrupt controller and the timer.
-pub fn platform_init() {
+pub fn platform_init(cpu_id: usize) {
     #[cfg(feature = "irq")]
-    super::aarch64_common::gic::init_primary();
+    #[cfg(not(feature = "gic-v3"))]
+    super::aarch64_common::gicv2::init_primary(cpu_id);
+    #[cfg(feature = "irq")]
+    #[cfg(feature = "gic-v3")]
+    super::aarch64_common::gicv3::init_primary(cpu_id);
     super::aarch64_common::generic_timer::init_percpu();
     #[cfg(feature = "rtc")]
     super::aarch64_common::pl031::init();
@@ -82,6 +89,10 @@ pub fn platform_init() {
 #[cfg(feature = "smp")]
 pub fn platform_init_secondary() {
     #[cfg(feature = "irq")]
-    super::aarch64_common::gic::init_secondary();
+    #[cfg(not(feature = "gic-v3"))]
+    super::aarch64_common::gicv2::init_secondary();
+    #[cfg(feature = "irq")]
+    #[cfg(feature = "gic-v3")]
+    super::aarch64_common::gicv3::init_secondary();
     super::aarch64_common::generic_timer::init_percpu();
 }
