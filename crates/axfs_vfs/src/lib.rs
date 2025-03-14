@@ -97,8 +97,8 @@ pub trait VfsOps: Send + Sync {
 /// Node (file/directory) operations.
 pub trait VfsNodeOps: Send + Sync {
     /// Do something when the node is opened.
-    fn open(&self) -> VfsResult {
-        Ok(())
+    fn open(&self) -> VfsResult<Option<VfsNodeRef>> {
+        Ok(None)
     }
 
     /// Do something when the node is closed.
@@ -108,7 +108,7 @@ pub trait VfsNodeOps: Send + Sync {
 
     /// Get the attributes of the node.
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
-        ax_err!(Unsupported)
+        ax_err!(Unsupported, "get_attr method is unsupported")
     }
 
     /// Set the attributes of the node.
@@ -121,19 +121,19 @@ pub trait VfsNodeOps: Send + Sync {
         _gid: Option<u32>,
         _size: Option<u64>,
     ) -> VfsResult {
-        ax_err!(Unsupported)
+        ax_err!(Unsupported, "setattr method is unsupported")
     }
 
     // file operations:
 
     /// Read data from the file at the given offset.
     fn read_at(&self, _offset: u64, _buf: &mut [u8]) -> VfsResult<usize> {
-        ax_err!(InvalidInput)
+        ax_err!(InvalidInput, "read_at method InvalidInput")
     }
 
     /// Write data to the file at the given offset.
     fn write_at(&self, _offset: u64, _buf: &[u8]) -> VfsResult<usize> {
-        ax_err!(InvalidInput)
+        ax_err!(InvalidInput, "write_at method InvalidInput")
     }
 
     /// Flush the file, synchronize the data to disk.
@@ -158,35 +158,49 @@ pub trait VfsNodeOps: Send + Sync {
     /// Lookup the node with given `path` in the directory.
     ///
     /// Return the node if found.
-    fn lookup(self: Arc<Self>, _path: &RelPath) -> VfsResult<VfsNodeRef> {
-        ax_err!(Unsupported)
+    fn lookup(self: Arc<Self>, path: &RelPath) -> VfsResult<VfsNodeRef> {
+        ax_err!(Unsupported, "lookup method is unsupported in path {}", path)
     }
 
     /// Create a new node with the given `path` in the directory
     ///
     /// Return [`Ok(())`](Ok) if it already exists.
-    fn create(&self, _path: &RelPath, _ty: VfsNodeType) -> VfsResult {
-        ax_err!(Unsupported)
+    fn create(&self, path: &RelPath, ty: VfsNodeType) -> VfsResult {
+        ax_err!(
+            Unsupported,
+            "create method is unsupported in path {} type {:?}",
+            path,
+            ty
+        )
     }
 
     /// Create a new hard link to the src dentry
-    fn link(&self, _name: &RelPath, _src: Arc<dyn VfsNodeOps>) -> VfsResult<Arc<dyn VfsNodeOps>> {
-        ax_err!(Unsupported)
+    fn link(&self, name: &RelPath, _src: Arc<dyn VfsNodeOps>) -> VfsResult<Arc<dyn VfsNodeOps>> {
+        ax_err!(Unsupported, "link method is unsupported in path {}", name)
     }
 
     /// Remove (the hard link of) the node with the given `path` in the directory.
-    fn unlink(&self, _path: &RelPath) -> VfsResult {
-        ax_err!(Unsupported)
+    fn unlink(&self, path: &RelPath) -> VfsResult {
+        ax_err!(Unsupported, "unlink method is unsupported in path {}", path)
     }
 
     /// Rename the node `src_path` to `dst_path` in the directory.
-    fn rename(&self, _src_path: &RelPath, _dst_path: &RelPath) -> VfsResult<()> {
-        ax_err!(Unsupported)
+    fn rename(&self, src_path: &RelPath, dst_path: &RelPath) -> VfsResult<()> {
+        ax_err!(
+            Unsupported,
+            "rename method is unsupported, src {}, dst {}",
+            src_path,
+            dst_path
+        )
     }
 
     /// Read directory entries into `dirents`, starting from `start_idx`.
-    fn read_dir(&self, _start_idx: usize, _dirents: &mut [VfsDirEntry]) -> VfsResult<usize> {
-        ax_err!(Unsupported)
+    fn read_dir(&self, start_idx: usize, _dirents: &mut [VfsDirEntry]) -> VfsResult<usize> {
+        ax_err!(
+            Unsupported,
+            "read_dir method is unsupported, start_idx is {}",
+            start_idx
+        )
     }
 
     /// Check if the directory is empty. An empty directory only contains `.` and `..`.

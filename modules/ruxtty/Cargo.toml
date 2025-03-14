@@ -12,9 +12,9 @@ repository = "https://github.com/syswonder/ruxos/tree/dev/modules/ruxtty"
 spinlock = { path = "../../crates/spinlock" }
 lazy_init = { path = "../../crates/lazy_init" }
 axlog = { path = "../axlog" }
-bitflags = "2.2"
+bitflags = { workspace = true }
 ringbuffer = { path = "../../crates/ringbuffer" }
-spin = { version = "0.9" }
+spin = { workspace = true }
 axerrno = { path = "../../crates/axerrno" }
 axio = { path = "../../crates/axio" }
 num_enum = { version = "0.5.11", default-features = false }

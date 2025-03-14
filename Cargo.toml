@@ -63,8 +63,15 @@ members = [
 
     "apps/display/basic_painting",
     "apps/display/draw_map",
-    "apps/fs/shell"
+    "apps/fs/shell",
 ]
+
+[workspace.dependencies]
+# Centralized dependency version for shared crates.
+# Usage: In child crates, write `bitflags = { workspace = true }`.
+bitflags = "2.2"
+log = "0.4"
+spin = "0.9"
 
 [profile.release]
 lto = true

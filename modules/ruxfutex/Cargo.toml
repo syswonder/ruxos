@@ -24,7 +24,7 @@ ruxtask = { path = "../ruxtask", features = ["multitask"] }
 # Other crates
 log = "0.4"
 lazy_static = { version = "1.4", features = ["spin_no_std"] }
-bitflags = "2.2"
+bitflags = { workspace = true }
 ahash = { version = "0.8.7", default-features = false, features = [
     "compile-time-rng",
 ] }

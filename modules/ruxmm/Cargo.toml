@@ -18,16 +18,16 @@ paging = []
 [dependencies]
 log = "0.4"
 cfg-if = "1.0"
-bitflags = "2.2"
+bitflags = { workspace = true }
 static_assertions = "1.1.0"
 kernel_guard = "0.1.0"
 spinlock = { path = "../../crates/spinlock" }
-page_table = { path = "../../crates/page_table"}
+page_table = { path = "../../crates/page_table" }
 page_table_entry = { path = "../../crates/page_table_entry" }
 memory_addr = "0.1.0"
 crate_interface = "0.1.1"
 
 ruxtask = { path = "../ruxtask" }
-ruxdriver ={ path = "../ruxdriver" }
-axalloc = { path = "../axalloc"}
-ruxhal ={ path = "../ruxhal" }
+ruxdriver = { path = "../ruxdriver" }
+axalloc = { path = "../axalloc" }
+ruxhal = { path = "../ruxhal" }
