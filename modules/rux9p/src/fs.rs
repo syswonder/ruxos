@@ -401,13 +401,21 @@ impl VfsNodeOps for CommonNode {
             debug!("get_attr {:?}", resp);
             match resp {
                 Ok(stat) if stat.get_ftype() == 0o4 => {
-                    let mut attr = VfsNodeAttr::new_dir(0, stat.get_size(), stat.get_blk_num());
+                    let mut attr = VfsNodeAttr::new_dir(
+                        stat.get_qid().path(),
+                        stat.get_size(),
+                        stat.get_blk_num(),
+                    );
                     let mode = stat.get_perm() as u16 & 0o777_u16;
                     attr.set_perm(VfsNodePerm::from_bits(mode).unwrap());
                     Ok(attr)
                 }
                 Ok(stat) if stat.get_ftype() == 0o10 => {
-                    let mut attr = VfsNodeAttr::new_file(0, stat.get_size(), stat.get_blk_num());
+                    let mut attr = VfsNodeAttr::new_file(
+                        stat.get_qid().path(),
+                        stat.get_size(),
+                        stat.get_blk_num(),
+                    );
                     let mode = stat.get_perm() as u16 & 0o777_u16;
                     attr.set_perm(VfsNodePerm::from_bits(mode).unwrap());
                     Ok(attr)
@@ -418,13 +426,21 @@ impl VfsNodeOps for CommonNode {
             let resp = self.inner.write().tstat(*self.fid);
             match resp {
                 Ok(stat) if stat.get_ftype() == 0o4 => {
-                    let mut attr = VfsNodeAttr::new_dir(0, stat.get_length(), stat.get_blk_num());
+                    let mut attr = VfsNodeAttr::new_dir(
+                        stat.get_qid().path(),
+                        stat.get_length(),
+                        stat.get_blk_num(),
+                    );
                     let mode = stat.get_perm() as u16 & 0o777_u16;
                     attr.set_perm(VfsNodePerm::from_bits(mode).unwrap());
                     Ok(attr)
                 }
                 Ok(stat) if stat.get_ftype() == 0o10 => {
-                    let mut attr = VfsNodeAttr::new_file(0, stat.get_length(), stat.get_blk_num());
+                    let mut attr = VfsNodeAttr::new_file(
+                        stat.get_qid().path(),
+                        stat.get_length(),
+                        stat.get_blk_num(),
+                    );
                     let mode = stat.get_perm() as u16 & 0o777_u16;
                     attr.set_perm(VfsNodePerm::from_bits(mode).unwrap());
                     Ok(attr)

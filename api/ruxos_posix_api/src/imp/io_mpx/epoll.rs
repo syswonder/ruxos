@@ -21,8 +21,8 @@ use axsync::Mutex;
 use ruxfdtable::{FileLike, RuxStat};
 use ruxhal::time::current_time;
 
-use crate::{ctypes, imp::fs::flags_to_options};
-use ruxfs::AbsPath;
+use crate::ctypes;
+use ruxfs::{AbsPath, OpenFlags};
 use ruxtask::fs::{add_file_like, get_file_like};
 
 pub struct EpollInstance {
@@ -157,7 +157,7 @@ impl FileLike for EpollInstance {
         Err(LinuxError::ENOSYS)
     }
 
-    fn set_nonblocking(&self, _nonblocking: bool) -> LinuxResult {
+    fn set_flags(&self, _flags: ruxfs::OpenFlags) -> LinuxResult {
         Ok(())
     }
 }
@@ -171,8 +171,10 @@ pub fn sys_epoll_create1(flags: c_int) -> c_int {
         if flags < 0 {
             return Err(LinuxError::EINVAL);
         }
-        let epoll_instance = EpollInstance::new(0);
-        add_file_like(Arc::new(epoll_instance), flags_to_options(flags, 0))
+        add_file_like(
+            Arc::new(EpollInstance::new(0)),
+            OpenFlags::from_bits_truncate(flags),
+        )
     })
 }
 

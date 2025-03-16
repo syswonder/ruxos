@@ -9,9 +9,6 @@
 
 use crate::ctypes;
 
-#[cfg(feature = "fs")]
-use {alloc::sync::Arc, page_table::PagingError, ruxtask::fs::File};
-
 use alloc::{collections::BTreeMap, vec::Vec};
 use core::{
     cmp::{max, min},
@@ -19,11 +16,14 @@ use core::{
 };
 use memory_addr::PAGE_SIZE_4K;
 use page_table::MappingFlags;
+use ruxfs::File;
 use ruxhal::mem::VirtAddr;
 use ruxmm::paging::{alloc_page_preload, do_pte_map, pte_query, pte_swap_preload, pte_unmap_page};
 #[cfg(feature = "fs")]
 use ruxtask::vma::{FileInfo, PageInfo, SwapInfo, BITMAP_FREE, SWAPED_MAP, SWAP_FILE};
 use ruxtask::{current, vma::Vma};
+#[cfg(feature = "fs")]
+use {alloc::sync::Arc, page_table::PagingError};
 
 pub(crate) const VMA_START: usize = ruxconfig::MMAP_START_VADDR;
 pub(crate) const VMA_END: usize = ruxconfig::MMAP_END_VADDR;
@@ -43,11 +43,7 @@ macro_rules! used_fs {
 #[cfg(feature = "fs")]
 pub(crate) fn read_from(file: &Arc<File>, buf: *mut u8, offset: u64, len: usize) {
     let src = unsafe { core::slice::from_raw_parts_mut(buf, len) };
-    let actual_len = file
-        .inner
-        .read()
-        .read_at(offset, src)
-        .expect("read_from failed");
+    let actual_len = file.read_at(offset, src).expect("read_from failed");
     if len != actual_len {
         warn!("read_from len=0x{len:x} but actual_len=0x{actual_len:x}");
     }
@@ -57,11 +53,7 @@ pub(crate) fn read_from(file: &Arc<File>, buf: *mut u8, offset: u64, len: usize)
 #[cfg(feature = "fs")]
 pub(crate) fn write_into(file: &Arc<File>, buf: *mut u8, offset: u64, len: usize) {
     let src = unsafe { core::slice::from_raw_parts_mut(buf, len) };
-    let actual_len = file
-        .inner
-        .write()
-        .write_at(offset, src)
-        .expect("write_into failed");
+    let actual_len = file.write_at(offset, src).expect("write_into failed");
     if len != actual_len {
         warn!("write_into len=0x{len:x} but actual_len=0x{actual_len:x}");
     }

@@ -10,22 +10,34 @@
 //! High-level filesystem manipulation operations.
 //!
 //! Provided for `arceos_api` module and `axstd` user lib.
-
-mod dir;
-mod file;
-
+use super::fops;
+pub use super::{
+    directory::Directory, file::File, AbsPath, DirEntry, FileAttr, FilePerm, FileType, OpenFlags,
+    RelPath,
+};
 use alloc::{string::String, vec::Vec};
 use axerrno::ax_err;
-use axfs_vfs::{AbsPath, VfsError};
-use axio::{self as io, prelude::*};
+use axfs_vfs::VfsError;
+use axio::{self as io, prelude::*, Error, Result};
+/// Opens a regular file at given path. Fails if path points to a directory.
+pub fn open_file(path: &AbsPath, flags: OpenFlags) -> Result<File> {
+    let node = fops::open_abspath(path, flags)?;
+    if node.get_attr()?.is_dir() {
+        Err(Error::IsADirectory)
+    } else {
+        Ok(File::new(path.to_owned(), node, flags))
+    }
+}
 
-use crate::fops;
-
-// Export high-level directory-related types.
-pub use dir::{DirBuilder, DirEntry, Directory};
-
-// Export high-level file-related types.
-pub use file::{File, FileAttr, FilePerm, FileType, OpenOptions};
+/// Opens a directory at given path. Fails if path points to non-directory.
+pub fn open_dir(path: &AbsPath, flags: OpenFlags) -> Result<Directory> {
+    let node = fops::open_abspath(path, flags)?;
+    if node.get_attr()?.is_dir() {
+        Ok(Directory::new(path.to_owned(), node, flags))
+    } else {
+        Err(Error::NotADirectory)
+    }
+}
 
 /// Returns the current working directory as a [`AbsPath`].
 pub fn current_dir() -> io::Result<AbsPath<'static>> {
@@ -49,7 +61,7 @@ pub fn get_attr(path: &AbsPath) -> io::Result<FileAttr> {
 
 /// Read the entire contents of a file into a bytes vector.
 pub fn read(path: &AbsPath) -> io::Result<Vec<u8>> {
-    let mut file = File::open(path)?;
+    let mut file = open_file(path, OpenFlags::O_RDONLY)?;
     let size = file.get_attr().map(|m| m.size()).unwrap_or(0);
     let mut bytes = Vec::with_capacity(size as usize);
     file.read_to_end(&mut bytes)?;
@@ -58,7 +70,7 @@ pub fn read(path: &AbsPath) -> io::Result<Vec<u8>> {
 
 /// Read the entire contents of a file into a string.
 pub fn read_to_string(path: &AbsPath) -> io::Result<String> {
-    let mut file = File::open(path)?;
+    let mut file = open_file(path, OpenFlags::O_RDONLY)?;
     let size = file.get_attr().map(|m| m.size()).unwrap_or(0);
     let mut string = String::with_capacity(size as usize);
     file.read_to_string(&mut string)?;
@@ -67,18 +79,32 @@ pub fn read_to_string(path: &AbsPath) -> io::Result<String> {
 
 /// Write a slice as the entire contents of a file.
 pub fn write<C: AsRef<[u8]>>(path: &AbsPath, contents: C) -> io::Result<()> {
-    File::create(path)?.write_all(contents.as_ref())
+    open_file(
+        path,
+        OpenFlags::O_WRONLY | OpenFlags::O_CREAT | OpenFlags::O_TRUNC,
+    )?
+    .write_all(contents.as_ref())
 }
 
 /// Creates a new, empty directory at the provided path.
 pub fn create_dir(path: &AbsPath) -> io::Result<()> {
-    DirBuilder::new().create(path)
+    match fops::lookup(path) {
+        Ok(_) => return ax_err!(AlreadyExists),
+        Err(VfsError::NotFound) => {}
+        Err(e) => return ax_err!(e),
+    }
+    fops::create_dir(path)
 }
 
 /// Recursively create a directory and all of its parent components if they
 /// are missing.
 pub fn create_dir_all(path: &AbsPath) -> io::Result<()> {
-    DirBuilder::new().recursive(true).create(path)
+    match fops::lookup(path) {
+        Ok(_) => return ax_err!(AlreadyExists),
+        Err(VfsError::NotFound) => {}
+        Err(e) => return ax_err!(e),
+    }
+    fops::create_dir_all(path)
 }
 
 /// Removes an empty directory.

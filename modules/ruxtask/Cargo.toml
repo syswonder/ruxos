@@ -61,7 +61,6 @@ lazy_static = { version = "1.4", features = ["spin_no_std"] }
 page_table = { path = "../../crates/page_table" }
 page_table_entry = { path = "../../crates/page_table_entry" }
 
-bitmaps = { version = "3.2", default-features = false }
 # for testing
 axfs_vfs = { path = "../../crates/axfs_vfs" }
 

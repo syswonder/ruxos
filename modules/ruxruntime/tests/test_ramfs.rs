@@ -18,9 +18,8 @@ use axfs_vfs::VfsOps;
 use axio::{Result, Write};
 use driver_block::ramdisk::RamDisk;
 use ruxdriver::AxDeviceContainer;
-use ruxfs::api as fs;
-use ruxfs::MyFileSystemIf;
-
+use ruxfs::{api as fs, MyFileSystemIf};
+use test_common::open_file_create_new;
 struct MyFileSystemIfImpl;
 
 #[crate_interface::impl_interface]
@@ -32,7 +31,7 @@ impl MyFileSystemIf for MyFileSystemIfImpl {
 
 fn create_init_files() -> Result<()> {
     fs::write(&fs::absolute_path("./short.txt")?, "Rust is cool!\n")?;
-    let mut file = fs::File::create_new(&fs::absolute_path("/long.txt")?)?;
+    let mut file = open_file_create_new(&fs::absolute_path("/long.txt")?)?;
     for _ in 0..100 {
         file.write_fmt(format_args!("Rust is cool!\n"))?;
     }

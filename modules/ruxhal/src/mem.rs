@@ -153,7 +153,7 @@ pub(crate) fn default_mmio_regions() -> impl Iterator<Item = MemRegion> {
 /// Returns the default MMIO memory regions (from [`ruxconfig::DTB_ADDR`]).
 #[allow(dead_code)]
 pub(crate) fn default_dtb_regions() -> impl Iterator<Item = MemRegion> {
-    let dtb_addr = PhysAddr::from(ruxconfig::DTB_ADDR as usize).align_up_4k();
+    let dtb_addr = PhysAddr::from(ruxconfig::DTB_ADDR).align_up_4k();
     let dtb_resgion = MemRegion {
         paddr: dtb_addr,
         size: 0x80000,

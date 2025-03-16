@@ -7,6 +7,10 @@
  *   See the Mulan PSL v2 for more details.
  */
 
+use core::str;
+
+use alloc::{borrow::ToOwned, string::String};
+
 /// Filesystem attributes.
 ///
 /// Currently not used.
@@ -316,6 +320,11 @@ impl VfsDirEntry {
     /// Returns the type of the entry.
     pub fn entry_type(&self) -> VfsNodeType {
         self.d_type
+    }
+
+    /// Convert dentry name from bytes to string. Used in arceos api
+    pub fn name_as_string(&self) -> String {
+        unsafe { alloc::str::from_utf8_unchecked(self.name_as_bytes()).to_owned() }
     }
 
     /// Converts the name of the entry to a byte slice.

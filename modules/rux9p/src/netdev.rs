@@ -28,7 +28,7 @@ impl Net9pDev {
             }
         };
         Self {
-            socket: Mutex::new(TcpSocket::new()),
+            socket: Mutex::new(TcpSocket::new(false)),
             srv_addr: SocketAddr::new(ip_addr, port),
         }
     }

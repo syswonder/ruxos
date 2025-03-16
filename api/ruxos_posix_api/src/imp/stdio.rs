@@ -16,6 +16,7 @@ use {
     axerrno::{LinuxError, LinuxResult},
     axio::PollState,
     core::sync::atomic::{AtomicBool, Ordering},
+    ruxfdtable::OpenFlags,
     ruxfs::AbsPath,
 };
 
@@ -116,13 +117,23 @@ impl ruxfdtable::FileLike for Stdin {
         Ok(ruxtty::tty_poll())
     }
 
-    fn set_nonblocking(&self, nonblocking: bool) -> LinuxResult {
-        self.nonblocking.store(nonblocking, Ordering::Relaxed);
+    fn ioctl(&self, cmd: usize, arg: usize) -> LinuxResult<usize> {
+        ruxtty::tty_ioctl(cmd, arg).map_err(LinuxError::from)
+    }
+
+    fn set_flags(&self, flags: OpenFlags) -> LinuxResult {
+        if flags.contains(OpenFlags::O_NONBLOCK) {
+            self.nonblocking.store(true, Ordering::Release);
+        }
         Ok(())
     }
 
-    fn ioctl(&self, cmd: usize, arg: usize) -> LinuxResult<usize> {
-        ruxtty::tty_ioctl(cmd, arg).map_err(LinuxError::from)
+    fn flags(&self) -> OpenFlags {
+        let mut flags = OpenFlags::empty();
+        if self.nonblocking.load(Ordering::Acquire) {
+            flags |= OpenFlags::O_NONBLOCK;
+        }
+        flags
     }
 }
 
@@ -166,11 +177,11 @@ impl ruxfdtable::FileLike for Stdout {
         })
     }
 
-    fn set_nonblocking(&self, _nonblocking: bool) -> LinuxResult {
-        Ok(())
-    }
-
     fn ioctl(&self, cmd: usize, arg: usize) -> LinuxResult<usize> {
         ruxtty::tty_ioctl(cmd, arg).map_err(LinuxError::from)
+    }
+
+    fn set_flags(&self, _flags: OpenFlags) -> LinuxResult {
+        Ok(())
     }
 }

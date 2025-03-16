@@ -97,6 +97,7 @@ pub trait VfsOps: Send + Sync {
 /// Node (file/directory) operations.
 pub trait VfsNodeOps: Send + Sync {
     /// Do something when the node is opened.
+    /// For example, open some special nodes like `/dev/ptmx` should return a new node named `PtyMaster`
     fn open(&self) -> VfsResult<Option<VfsNodeRef>> {
         Ok(None)
     }
@@ -115,7 +116,7 @@ pub trait VfsNodeOps: Send + Sync {
     ///
     /// TODO: add time attributes
     fn setattr(
-        &mut self,
+        &self,
         _mode: Option<u32>,
         _uid: Option<u32>,
         _gid: Option<u32>,
