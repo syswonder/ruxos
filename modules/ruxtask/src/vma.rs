@@ -14,17 +14,15 @@
 
 use crate::current;
 use crate::fs::get_file_like;
-use crate::{fs::File, TaskId};
+use crate::TaskId;
 use alloc::{collections::BTreeMap, sync::Arc};
 use axalloc::global_allocator;
 use memory_addr::PhysAddr;
+use ruxfs::File;
 use ruxhal::mem::phys_to_virt;
 
 #[cfg(feature = "fs")]
 use alloc::vec::Vec;
-#[cfg(feature = "fs")]
-use ruxfs::fops::OpenOptions;
-
 #[cfg(feature = "fs")]
 use memory_addr::PAGE_SIZE_4K;
 
@@ -59,14 +57,16 @@ used_fs! {
 /// open target file
 #[cfg(feature = "fs")]
 fn open_swap_file(filename: &str) -> Arc<File> {
-    let mut opt = OpenOptions::new();
-    opt.read(true);
-    opt.write(true);
-    opt.append(true);
-    opt.create(true);
+    use crate::fs::absolute_path;
+    use ruxfdtable::OpenFlags;
 
-    let file = ruxfs::fops::open(filename, &opt).expect("create swap file failed");
-    Arc::new(File::new(file))
+    let opt = OpenFlags::O_RDWR | OpenFlags::O_APPEND | OpenFlags::O_CREAT;
+    let path = absolute_path(filename).unwrap();
+    ruxfs::fops::open_file_like(&path, opt)
+        .expect("create swap file failed")
+        .into_any()
+        .downcast::<File>()
+        .expect("create swap file failed")
 }
 
 /// Data structure for file mapping.

@@ -15,14 +15,14 @@ use core::{
 
 use axerrno::{LinuxError, LinuxResult};
 use axio::{Error, SeekFrom};
-use ruxfdtable::{FileLike, RuxStat};
+use ruxfdtable::{FileLike, OpenFlags, RuxStat};
 use ruxfs::{
-    fops::{self, DirEntry, OpenOptions},
-    AbsPath, RelPath,
+    fops::{self, open_file_like},
+    AbsPath, DirEntry, Directory, File, RelPath,
 };
 
 use crate::ctypes;
-use ruxtask::fs::{get_file_like, Directory, File};
+use ruxtask::fs::{add_file_like, get_file_like};
 
 use super::stdio::{Stdin, Stdout};
 
@@ -39,123 +39,24 @@ impl ruxtask::fs::InitFs for InitFsImpl {
     }
 }
 
-/// Convert open flags to [`OpenOptions`].
-pub fn flags_to_options(flags: c_int, _mode: ctypes::mode_t) -> OpenOptions {
-    let flags = flags as u32;
-    let mut options = OpenOptions::new();
-    match flags & 0b11 {
-        ctypes::O_RDONLY => options.read(true),
-        ctypes::O_WRONLY => options.write(true),
-        _ => {
-            options.read(true);
-            options.write(true);
-        }
-    };
-    if flags & ctypes::O_APPEND != 0 {
-        options.append(true);
-    }
-    if flags & ctypes::O_TRUNC != 0 {
-        options.truncate(true);
-    }
-    if flags & ctypes::O_CREAT != 0 {
-        options.create(true);
-    }
-    if flags & ctypes::O_EXEC != 0 {
-        options.create_new(true);
-    }
-    if flags & ctypes::O_CLOEXEC != 0 {
-        options.cloexec(true);
-    }
-    options
-}
-
 /// Open a file by `filename` and insert it into the file descriptor table.
 ///
 /// Return its index in the file table (`fd`). Return `EMFILE` if it already
 /// has the maximum number of files open.
 pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> c_int {
-    syscall_body!(sys_open, {
-        let path = parse_path(filename)?;
-        let opts = flags_to_options(flags, mode);
-        debug!("sys_open <= {:?} {:#o} {:#o}", path, flags, mode);
-        // Check flag and attr
-        let node = match fops::lookup(&path) {
-            Ok(node) => {
-                if opts.create_new {
-                    return Err(LinuxError::EEXIST);
-                }
-                node
-            }
-            Err(Error::NotFound) => {
-                if !opts.create {
-                    return Err(LinuxError::ENOENT);
-                }
-                fops::create_file(&path)?;
-                fops::lookup(&path)?
-            }
-            Err(e) => return Err(e.into()),
-        };
-        if node.get_attr()?.is_dir() {
-            return Err(LinuxError::EISDIR);
-        }
-        // Truncate
-        if opts.truncate {
-            node.truncate(0)?;
-        }
-        // Open
-        let file = fops::open_file(&path, node, &opts)?;
-        File::new(file).add_to_fd_table(opts)
-    })
+    sys_openat(ctypes::AT_FDCWD, filename, flags, mode)
 }
 
 /// Open a file under a specific dir
 pub fn sys_openat(fd: c_int, path: *const c_char, flags: c_int, mode: ctypes::mode_t) -> c_int {
     syscall_body!(sys_openat, {
         let path = parse_path_at(fd, path)?;
-        let opts = flags_to_options(flags, mode);
-        let open_dir = flags as u32 & ctypes::O_DIRECTORY != 0;
-        let searchable = flags as u32 & ctypes::O_SEARCH != 0;
+        let flags = OpenFlags::from_bits(flags).ok_or(LinuxError::EINVAL)?;
         debug!(
-            "sys_openat <= {}, {:?}, {:#o}, {:#o}",
+            "sys_openat <= fd {} {:?}, {:?}, {:#o}",
             fd, path, flags, mode
         );
-        // Check node attributes and handle not found
-        let node = match fops::lookup(&path) {
-            Ok(node) => {
-                let attr = node.get_attr()?;
-                // Node exists but O_EXCL is set
-                if opts.create_new {
-                    return Err(LinuxError::EEXIST);
-                }
-                // Node is not a directory but O_DIRECTORY is set
-                if !attr.is_dir() && open_dir {
-                    return Err(LinuxError::ENOTDIR);
-                }
-                // Truncate
-                if attr.is_file() && opts.truncate {
-                    node.truncate(0)?;
-                }
-                node
-            }
-            Err(Error::NotFound) => {
-                // O_CREAT is not set or O_DIRECTORY is set
-                if open_dir || !opts.create {
-                    return Err(LinuxError::ENOENT);
-                }
-                // Create file
-                fops::create_file(&path)?;
-                fops::lookup(&path)?
-            }
-            Err(e) => return Err(e.into()),
-        };
-        // Open file or directory
-        if node.get_attr()?.is_dir() {
-            let dir = fops::open_dir(&path, node, &opts)?;
-            Directory::new(dir, searchable).add_to_fd_table(opts)
-        } else {
-            let file = fops::open_file(&path, node, &opts)?;
-            File::new(file).add_to_fd_table(opts)
-        }
+        add_file_like(open_file_like(&path, flags)?, flags)
     })
 }
 
@@ -174,7 +75,8 @@ pub fn sys_pread64(
             return Err(LinuxError::EFAULT);
         }
         let dst = unsafe { core::slice::from_raw_parts_mut(buf as *mut u8, count) };
-        let size = File::from_fd(fd)?.inner.write().read_at(pos as u64, dst)?;
+
+        let size = file_from_fd(fd)?.read_at(pos as u64, dst)?;
         Ok(size as ctypes::ssize_t)
     })
 }
@@ -194,7 +96,7 @@ pub fn sys_pwrite64(
             return Err(LinuxError::EFAULT);
         }
         let src = unsafe { core::slice::from_raw_parts_mut(buf as *mut u8, count) };
-        let size = File::from_fd(fd)?.inner.write().write_at(pos as u64, src)?;
+        let size = file_from_fd(fd)?.write_at(pos as u64, src)?;
         Ok(size as ctypes::ssize_t)
     })
 }
@@ -211,7 +113,7 @@ pub fn sys_lseek(fd: c_int, offset: ctypes::off_t, whence: c_int) -> ctypes::off
             2 => SeekFrom::End(offset as _),
             _ => return Err(LinuxError::EINVAL),
         };
-        let off = File::from_fd(fd)?.inner.write().seek(pos)?;
+        let off = file_from_fd(fd)?.seek(pos)?;
         Ok(off)
     })
 }
@@ -243,14 +145,7 @@ pub unsafe fn sys_stat(path: *const c_char, buf: *mut core::ffi::c_void) -> c_in
             return Err(LinuxError::EFAULT);
         }
         let node = fops::lookup(&path)?;
-        let attr = node.get_attr()?;
-        let st: RuxStat = if attr.is_dir() {
-            let dir = fops::open_dir(&path, node, &OpenOptions::new())?;
-            Directory::new(dir, false).stat()?
-        } else {
-            let file = fops::open_file(&path, node, &OpenOptions::new())?;
-            File::new(file).stat()?
-        };
+        let st = RuxStat::from(node.get_attr()?);
 
         #[cfg(not(feature = "musl"))]
         {
@@ -350,11 +245,7 @@ pub unsafe fn sys_newfstatat(
             return Err(LinuxError::EFAULT);
         }
         let node = fops::lookup(&path)?;
-        let st = if node.get_attr()?.is_dir() {
-            Directory::new(fops::open_dir(&path, node, &OpenOptions::new())?, false).stat()?
-        } else {
-            File::new(fops::open_file(&path, node, &OpenOptions::new())?).stat()?
-        };
+        let st = RuxStat::from(node.get_attr()?);
         unsafe {
             (*kst).st_dev = st.st_dev;
             (*kst).st_ino = st.st_ino;
@@ -607,14 +498,14 @@ pub unsafe fn sys_getdents64(fd: c_int, dirp: *mut LinuxDirent64, count: ctypes:
         }
         let buf = unsafe { core::slice::from_raw_parts_mut(dirp as *mut u8, count) };
         // EBADFD handles here
-        let dir = Directory::from_fd(fd)?;
+        let dir = dir_from_fd(fd)?;
         // bytes written in buf
         let mut written = 0;
 
         loop {
             let mut entry = [DirEntry::default()];
-            let offset = dir.inner.read().entry_idx();
-            let n = dir.inner.write().read_dir(&mut entry)?;
+            let offset = dir.entry_idx();
+            let n = dir.read_dir(&mut entry)?;
             debug!(
                 "entry {:?}",
                 str::from_utf8(entry[0].name_as_bytes()).unwrap()
@@ -632,7 +523,7 @@ pub unsafe fn sys_getdents64(fd: c_int, dirp: *mut LinuxDirent64, count: ctypes:
             if written + entry_size > count {
                 debug!("buf not big enough");
                 // revert the offset
-                dir.inner.write().set_entry_idx(offset);
+                dir.set_entry_idx(offset);
                 break;
             }
 
@@ -749,11 +640,25 @@ pub fn parse_path_at(dirfd: c_int, path: *const c_char) -> LinuxResult<AbsPath<'
     } else if dirfd == ctypes::AT_FDCWD {
         Ok(fops::current_dir()?.join(&RelPath::new_canonicalized(path)))
     } else {
-        let dir = Directory::from_fd(dirfd)?;
-        if dir.searchable {
+        let dir = dir_from_fd(dirfd)?;
+        if dir.flags().contains(OpenFlags::O_PATH) {
             Ok(dir.path().join(&RelPath::new_canonicalized(path)))
         } else {
             Err(LinuxError::EACCES)
         }
     }
+}
+
+fn file_from_fd(fd: i32) -> LinuxResult<Arc<File>> {
+    get_file_like(fd)?
+        .into_any()
+        .downcast::<File>()
+        .map_err(|_| LinuxError::EINVAL)
+}
+
+fn dir_from_fd(fd: i32) -> LinuxResult<Arc<Directory>> {
+    get_file_like(fd)?
+        .into_any()
+        .downcast::<Directory>()
+        .map_err(|_| LinuxError::EINVAL)
 }

@@ -8,13 +8,15 @@
  */
 
 use axio as io;
-use ruxfs::{
-    api::{self as fs, Directory},
-    AbsPath,
-};
+use axio::Read;
+use ruxfs::{api as fs, AbsPath, OpenFlags};
 
-use fs::{File, FileType, OpenOptions};
+use fs::{File, FileType};
 use io::{prelude::*, Error, Result};
+
+pub(super) fn open_file_create_new(path: &AbsPath) -> io::Result<File> {
+    fs::open_file(path, OpenFlags::O_RDWR | OpenFlags::CREATE_NEW)
+}
 
 macro_rules! assert_err {
     ($expr: expr) => {
@@ -30,7 +32,7 @@ fn test_read_write_file() -> Result<()> {
     println!("read and write file {:?}:", fname);
 
     // read and write
-    let mut file = File::options().read(true).write(true).open(&fname)?;
+    let mut file = fs::open_file(&fname, OpenFlags::O_RDWR)?;
     let file_size = file.get_attr()?.size();
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
@@ -45,7 +47,7 @@ fn test_read_write_file() -> Result<()> {
     assert_eq!(new_contents, contents + "Hello, world!\n");
 
     // append and check
-    let mut file = OpenOptions::new().write(true).append(true).open(&fname)?;
+    let mut file = fs::open_file(&fname, OpenFlags::O_WRONLY | OpenFlags::O_APPEND)?;
     assert_eq!(file.write(b"new line\n")?, 9);
     drop(file);
 
@@ -54,7 +56,10 @@ fn test_read_write_file() -> Result<()> {
     assert_eq!(new_contents2, new_contents + "new line\n");
 
     // open a non-exist file
-    assert_err!(File::open(&AbsPath::new("/not/exist/file")), NotFound);
+    assert_err!(
+        fs::open_file(&AbsPath::new("/not/exist/file"), OpenFlags::O_RDONLY),
+        NotFound
+    );
 
     println!("test_read_write_file() OK!");
     Ok(())
@@ -63,9 +68,9 @@ fn test_read_write_file() -> Result<()> {
 fn test_read_dir() -> Result<()> {
     let dir = fs::absolute_path("/././//./")?;
     println!("list directory {:?}:", dir);
-    for entry in Directory::open(&dir)? {
+    for entry in fs::open_dir(&dir, OpenFlags::empty())? {
         let entry = entry?;
-        println!("   {}", entry.file_name());
+        println!("   {}", entry.name_as_string());
     }
     println!("test_read_dir() OK!");
     Ok(())
@@ -77,22 +82,26 @@ fn test_file_permission() -> Result<()> {
 
     // write a file that open with read-only mode
     let mut buf = [0; 256];
-    let mut file = File::open(&fname)?;
+    let mut file = fs::open_file(&fname, OpenFlags::O_RDONLY)?;
     let n = file.read(&mut buf)?;
     assert_err!(file.write(&buf), PermissionDenied);
     drop(file);
 
     // read a file that open with write-only mode
-    let mut file = File::create(&fname)?;
+    let mut file = fs::open_file(
+        &fname,
+        OpenFlags::O_WRONLY | OpenFlags::O_CREAT | OpenFlags::O_TRUNC,
+    )?;
+    println!("1");
     assert_err!(file.read(&mut buf), PermissionDenied);
     assert!(file.write(&buf[..n]).is_ok());
     drop(file);
 
     // open with empty options
-    assert_err!(OpenOptions::new().open(&fname), InvalidInput);
+    // assert_err!(open_file(&fname, OpenFlags::empty()), InvalidInput);
 
     // read as a directory
-    assert_err!(Directory::open(&fname), NotADirectory);
+    assert_err!(fs::open_dir(&fname, OpenFlags::empty()), NotADirectory);
 
     println!("test_file_permisson() OK!");
     Ok(())
@@ -106,13 +115,13 @@ fn test_create_file_dir() -> Result<()> {
     let contents = "create a new file!\n";
     fs::write(&fname, contents)?;
 
-    let dirents = Directory::open(&fs::absolute_path(".")?)?
-        .map(|e| e.unwrap().file_name())
+    let dirents = fs::open_dir(&fs::absolute_path(".")?, OpenFlags::empty())?
+        .map(|e| e.unwrap().name_as_string())
         .collect::<Vec<_>>();
     println!("dirents = {:?}", dirents);
     assert!(dirents.contains(&"new-file.txt".into()));
     assert_eq!(fs::read_to_string(&fname)?, contents);
-    assert_err!(File::create_new(&fname), AlreadyExists);
+    assert_err!(open_file_create_new(&fname), AlreadyExists);
 
     // create a directory and test existence
     let dirname = fs::absolute_path("///././/very//.//long/./new-dir")?;
@@ -120,8 +129,8 @@ fn test_create_file_dir() -> Result<()> {
     assert_err!(fs::get_attr(&dirname), NotFound);
     fs::create_dir(&dirname)?;
 
-    let dirents = Directory::open(&fs::absolute_path("./very/long")?)?
-        .map(|e| e.unwrap().file_name())
+    let dirents = fs::open_dir(&fs::absolute_path("./very/long")?, OpenFlags::empty())?
+        .map(|e| e.unwrap().name_as_string())
         .collect::<Vec<_>>();
     println!("dirents = {:?}", dirents);
     assert!(dirents.contains(&"new-dir".into()));
@@ -169,42 +178,37 @@ fn test_devfs_ramfs() -> Result<()> {
     let mut buf = [1; N];
 
     // list '/' and check if /dev and /tmp exist
-    let dirents = Directory::open(&fs::absolute_path("././//.//")?)?
-        .map(|e| e.unwrap().file_name())
+    let dirents = fs::open_dir(&fs::absolute_path("././//.//")?, OpenFlags::empty())?
+        .map(|e| e.unwrap().name_as_string())
         .collect::<Vec<_>>();
     assert!(dirents.contains(&"dev".into()));
     assert!(dirents.contains(&"tmp".into()));
 
     // read and write /dev/null
-    let mut file = File::options()
-        .read(true)
-        .write(true)
-        .open(&fs::absolute_path("/dev/./null")?)?;
+    let mut file = fs::open_file(&fs::absolute_path("/dev/./null")?, OpenFlags::O_RDWR)?;
     assert_eq!(file.read_to_end(&mut Vec::new())?, 0);
     assert_eq!(file.write(&buf)?, N);
     assert_eq!(buf, [1; N]);
 
     // read and write /dev/zero
-    let mut file = OpenOptions::new()
-        .read(true)
-        .write(true)
-        .create(true)
-        .truncate(true)
-        .open(&fs::absolute_path("////dev/zero")?)?;
+    let mut file = fs::open_file(
+        &fs::absolute_path("////dev/zero")?,
+        OpenFlags::O_RDWR | OpenFlags::O_CREAT | OpenFlags::O_TRUNC,
+    )?;
     assert_eq!(file.read(&mut buf)?, N);
     assert!(file.write_all(&buf).is_ok());
     assert_eq!(buf, [0; N]);
 
     // list /dev
-    let dirents = Directory::open(&fs::absolute_path("/dev")?)?
-        .map(|e| e.unwrap().file_name())
+    let dirents = fs::open_dir(&fs::absolute_path("/dev")?, OpenFlags::empty())?
+        .map(|e| e.unwrap().name_as_string())
         .collect::<Vec<_>>();
     assert!(dirents.contains(&"null".into()));
     assert!(dirents.contains(&"zero".into()));
 
     // stat /dev
     let dname = &fs::absolute_path("/dev")?;
-    let dir = Directory::open(dname)?;
+    let dir = fs::open_dir(dname, OpenFlags::empty())?;
     let md = dir.get_attr()?;
     println!("metadata of {:?}: {:?}", dname, md);
     assert_eq!(md.file_type(), FileType::Dir);
@@ -214,7 +218,7 @@ fn test_devfs_ramfs() -> Result<()> {
     // error cases
     assert_err!(fs::create_dir(&fs::absolute_path("dev")?), AlreadyExists);
     assert_err!(
-        File::create_new(&fs::absolute_path("/dev/")?),
+        open_file_create_new(&fs::absolute_path("/dev/")?),
         AlreadyExists
     );
     assert_err!(
@@ -273,7 +277,9 @@ fn test_devfs_ramfs() -> Result<()> {
         Ok(())
     );
     assert_eq!(
-        Directory::open(&fs::absolute_path("tmp")?).unwrap().count(),
+        fs::open_dir(&fs::absolute_path("tmp")?, OpenFlags::empty())
+            .unwrap()
+            .count(),
         3
     );
     assert_eq!(
@@ -297,7 +303,9 @@ fn test_devfs_ramfs() -> Result<()> {
         Ok(())
     );
     assert_eq!(
-        Directory::open(&fs::absolute_path("tmp")?).unwrap().count(),
+        fs::open_dir(&fs::absolute_path("tmp")?, OpenFlags::empty())
+            .unwrap()
+            .count(),
         2
     );
 

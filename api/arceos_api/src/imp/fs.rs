@@ -9,24 +9,124 @@
 
 use alloc::string::String;
 use axerrno::AxResult;
-use ruxfs::{
-    api::{Directory, File},
-    AbsPath, RelPath,
-};
-use axio::{Read, Write, Seek};
-
 pub use axio::SeekFrom as AxSeekFrom;
+use axio::{Read, Seek, Write};
 pub use ruxfs::api::DirEntry as AxDirEntry;
 pub use ruxfs::api::FileAttr as AxFileAttr;
 pub use ruxfs::api::FilePerm as AxFilePerm;
 pub use ruxfs::api::FileType as AxFileType;
-pub use ruxfs::api::OpenOptions as AxOpenOptions;
+use ruxfs::api::{open_dir, open_file, AbsPath, Directory, File, OpenFlags, RelPath};
+#[derive(Clone, Debug)]
+/// arceos api OpenOptions
+pub struct AxOpenOptions {
+    /// Open for reading.
+    pub read: bool,
+    /// Open for writing.
+    pub write: bool,
+    /// Append to the end of the file.
+    pub append: bool,
+    /// Truncate the file to zero length.
+    pub truncate: bool,
+    /// Create a new file.
+    pub create: bool,
+    /// Create a new file, failing if it already exists.
+    pub create_new: bool,
+    // system-specific
+    _custom_flags: i32,
+    _mode: u32,
+}
+
+impl AxOpenOptions {
+    /// Creates a blank new set of options ready for configuration.
+    pub const fn new() -> Self {
+        Self {
+            // generic
+            read: false,
+            write: false,
+            append: false,
+            truncate: false,
+            create: false,
+            create_new: false,
+            // system-specific
+            _custom_flags: 0,
+            _mode: 0o666,
+        }
+    }
+    /// Sets the option for read access.
+    pub fn read(&mut self, read: bool) {
+        self.read = read;
+    }
+    /// Sets the option for write access.
+    pub fn write(&mut self, write: bool) {
+        self.write = write;
+    }
+    /// Sets the option for the append mode.
+    pub fn append(&mut self, append: bool) {
+        self.append = append;
+    }
+    /// Sets the option for truncating a previous file.
+    pub fn truncate(&mut self, truncate: bool) {
+        self.truncate = truncate;
+    }
+    /// Sets the option to create a new file, or open it if it already exists.
+    pub fn create(&mut self, create: bool) {
+        self.create = create;
+    }
+    /// Sets the option to create a new file, failing if it already exists.
+    pub fn create_new(&mut self, create_new: bool) {
+        self.create_new = create_new;
+    }
+
+    /// Get flags access mode
+    fn get_access_mode(&self) -> AxResult<OpenFlags> {
+        match (self.read, self.write) {
+            (true, false) => Ok(OpenFlags::empty()),
+            (false, true) => Ok(OpenFlags::O_WRONLY),
+            (true, true) => Ok(OpenFlags::O_RDWR),
+            (false, false) => Err(axio::Error::InvalidInput),
+        }
+    }
+
+    /// Get flags creation mode
+    fn get_creation_mode(&self) -> AxResult<OpenFlags> {
+        match (self.write, self.append) {
+            (true, false) => {}
+            (false, false) => {
+                if self.truncate || self.create || self.create_new {
+                    return Err(axio::Error::InvalidInput);
+                }
+            }
+            (_, true) => {
+                if self.truncate && !self.create_new {
+                    return Err(axio::Error::InvalidInput);
+                }
+            }
+        }
+
+        Ok(match (self.create, self.truncate, self.create_new) {
+            (false, false, false) => OpenFlags::empty(),
+            (true, false, false) => OpenFlags::O_CREAT,
+            (false, true, false) => OpenFlags::O_TRUNC,
+            (true, true, false) => OpenFlags::O_CREAT | OpenFlags::O_TRUNC,
+            (_, _, true) => OpenFlags::O_CREAT | OpenFlags::O_EXCL,
+        })
+    }
+}
+
+impl TryFrom<AxOpenOptions> for OpenFlags {
+    type Error = axerrno::AxError;
+
+    fn try_from(opt: AxOpenOptions) -> Result<Self, Self::Error> {
+        Ok(opt.get_access_mode()? | opt.get_creation_mode()?)
+    }
+}
 
 #[cfg(feature = "blkfs")]
 pub use ruxfs::dev::Disk as AxDisk;
 
 #[cfg(feature = "myfs")]
 pub use ruxfs::MyFileSystemIf;
+use ruxtask::fs::{FileSystem, InitFs};
 
 /// A handle to an opened file.
 pub struct AxFileHandle(File);
@@ -35,11 +135,13 @@ pub struct AxFileHandle(File);
 pub struct AxDirHandle(Directory);
 
 pub fn ax_open_file(path: &str, opts: &AxOpenOptions) -> AxResult<AxFileHandle> {
-    Ok(AxFileHandle(opts.open(&parse_path(path)?)?))
+    let file = open_file(&parse_path(path)?, OpenFlags::try_from(opts.clone())?)?;
+    Ok(AxFileHandle(file))
 }
 
-pub fn ax_open_dir(path: &str, _opts: &AxOpenOptions) -> AxResult<AxDirHandle> {
-    Ok(AxDirHandle(Directory::open(&parse_path(path)?)?))
+pub fn ax_open_dir(path: &str, opts: &AxOpenOptions) -> AxResult<AxDirHandle> {
+    let dir = open_dir(&parse_path(path)?, OpenFlags::try_from(opts.clone())?)?;
+    Ok(AxDirHandle(dir))
 }
 
 pub fn ax_get_attr(path: &str) -> AxResult<AxFileAttr> {

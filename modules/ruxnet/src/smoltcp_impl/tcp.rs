@@ -61,13 +61,13 @@ unsafe impl Sync for TcpSocket {}
 
 impl TcpSocket {
     /// Creates a new TCP socket.
-    pub const fn new() -> Self {
+    pub const fn new(nonblock: bool) -> Self {
         Self {
             state: AtomicU8::new(STATE_CLOSED),
             handle: UnsafeCell::new(None),
             local_addr: UnsafeCell::new(UNSPECIFIED_ENDPOINT),
             peer_addr: UnsafeCell::new(UNSPECIFIED_ENDPOINT),
-            nonblock: AtomicBool::new(false),
+            nonblock: AtomicBool::new(nonblock),
             iface_name: Mutex::new(None),
         }
     }

@@ -367,6 +367,7 @@ name = "capability"
 version = "0.1.0"
 dependencies = [
  "axerrno",
+ "axfs_vfs",
  "bitflags 2.6.0",
 ]
 
@@ -1635,6 +1636,9 @@ dependencies = [
  "axerrno",
  "axfs_vfs",
  "axio",
+ "bitflags 2.6.0",
+ "bitmaps",
+ "capability",
  "flatten_objects",
  "lazy_static",
  "log",
@@ -1682,6 +1686,7 @@ dependencies = [
  "log",
  "memory_addr",
  "ruxdriver",
+ "ruxfdtable",
  "spin",
 ]
 
@@ -1911,7 +1916,6 @@ dependencies = [
  "axerrno",
  "axfs_vfs",
  "axio",
- "bitmaps",
  "cfg-if",
  "crate_interface",
  "flatten_objects",

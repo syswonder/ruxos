@@ -8,11 +8,12 @@
  */
 
 #[cfg(feature = "fs")]
-use crate::fs::{get_file_like, RUX_FILE_LIMIT};
+use crate::fs::get_file_like;
 use alloc::collections::VecDeque;
 use alloc::sync::Arc;
 use axerrno::LinuxResult;
 use lazy_init::LazyInit;
+use ruxfdtable::RUX_FILE_LIMIT;
 use scheduler::BaseScheduler;
 use spinlock::SpinNoIrq;
 

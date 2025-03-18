@@ -10,12 +10,12 @@
 use alloc::sync::{Arc, Weak};
 use core::ffi::c_int;
 use ringbuffer::RingBuffer;
-use ruxfs::{fops, AbsPath};
+use ruxfs::AbsPath;
 
 use axerrno::{LinuxError, LinuxResult};
 use axio::PollState;
 use axsync::Mutex;
-use ruxfdtable::{FileLike, RuxStat};
+use ruxfdtable::{FileLike, OpenFlags, RuxStat};
 
 use crate::{ctypes, sys_fcntl};
 use ruxtask::fs::{add_file_like, close_file_like};
@@ -159,7 +159,7 @@ impl FileLike for Pipe {
         })
     }
 
-    fn set_nonblocking(&self, _nonblocking: bool) -> LinuxResult {
+    fn set_flags(&self, _flags: OpenFlags) -> LinuxResult {
         Ok(())
     }
 }
@@ -175,9 +175,9 @@ pub fn sys_pipe(fds: &mut [c_int]) -> c_int {
         }
 
         let (read_end, write_end) = Pipe::new();
-        let read_fd = add_file_like(Arc::new(read_end), fops::OpenOptions::new())?;
+        let read_fd = add_file_like(Arc::new(read_end), OpenFlags::empty())?;
         let write_fd =
-            add_file_like(Arc::new(write_end), fops::OpenOptions::new()).inspect_err(|_| {
+            add_file_like(Arc::new(write_end), OpenFlags::empty()).inspect_err(|_| {
                 close_file_like(read_fd).ok();
             })?;
 

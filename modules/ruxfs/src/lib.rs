@@ -42,10 +42,24 @@ mod mounts;
 pub mod api;
 #[cfg(feature = "blkfs")]
 pub mod dev;
+mod directory;
+mod file;
 pub mod fops;
 pub mod root;
 
+pub use directory::Directory;
+pub use file::File;
+pub use ruxfdtable::OpenFlags;
+
 // Re-export `axfs_vfs` path types.
+/// Alias of [`axfs_vfs::VfsNodeType`].
+pub type FileType = axfs_vfs::VfsNodeType;
+/// Alias of [`axfs_vfs::VfsDirEntry`].
+pub type DirEntry = axfs_vfs::VfsDirEntry;
+/// Alias of [`axfs_vfs::VfsNodeAttr`].
+pub type FileAttr = axfs_vfs::VfsNodeAttr;
+/// Alias of [`axfs_vfs::VfsNodePerm`].
+pub type FilePerm = axfs_vfs::VfsNodePerm;
 
 /// Canonicalized absolute path type. Requirements:
 ///

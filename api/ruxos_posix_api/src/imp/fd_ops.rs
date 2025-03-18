@@ -10,9 +10,9 @@
 use core::ffi::c_int;
 
 use axerrno::LinuxError;
-use ruxfdtable::{RuxStat, RuxTimeSpec};
+use ruxfdtable::{OpenFlags, RuxStat, RuxTimeSpec, RUX_FILE_LIMIT};
 use ruxtask::current;
-pub use ruxtask::fs::{close_file_like, get_file_like, RUX_FILE_LIMIT};
+pub use ruxtask::fs::{close_file_like, get_file_like};
 
 use crate::ctypes;
 
@@ -238,28 +238,18 @@ pub fn sys_fcntl(fd: c_int, cmd: c_int, arg: usize) -> c_int {
                 Ok(new_fd as _)
             }
             ctypes::F_SETFL => {
-                if fd == 0 || fd == 1 || fd == 2 {
-                    return Ok(0);
-                }
-                get_file_like(fd)?.set_nonblocking(arg & (ctypes::O_NONBLOCK as usize) > 0)?;
+                // Set the file status flags to the value specified by `arg`
+                get_file_like(fd)?
+                    .set_flags(OpenFlags::from_bits_truncate(arg as _).status_flags())?;
                 Ok(0)
             }
             ctypes::F_GETFL => {
-                use ctypes::{O_RDONLY, O_RDWR, O_WRONLY};
-                let f_state = get_file_like(fd)?.poll()?;
-                let mut flags: core::ffi::c_uint = 0;
-                // Only support read/write flags(O_ACCMODE)
-                if f_state.writable && f_state.readable {
-                    flags |= O_RDWR;
-                } else if f_state.writable {
-                    flags |= O_WRONLY;
-                } else if f_state.readable {
-                    flags |= O_RDONLY;
-                }
-                Ok(flags as c_int)
+                // Return the file access mode and the file status flags; `arg` is ignored.
+                Ok(get_file_like(fd)?.flags().getfl().bits())
             }
             ctypes::F_SETFD => {
-                let cloexec = (arg as u32 & ctypes::FD_CLOEXEC) == 1;
+                let cloexec =
+                    OpenFlags::from_bits_truncate(arg as _).contains(OpenFlags::O_CLOEXEC);
                 let binding_task = current();
                 let mut binding_fs = binding_task.fs.lock();
                 let fd_table = &mut binding_fs.as_mut().unwrap().fd_table;

@@ -11,5 +11,5 @@ documentation = "https://rcore-os.github.io/arceos/axfs_devfs/index.html"
 
 [dependencies]
 axfs_vfs = { path = "../axfs_vfs" }
-spin = "0.9"
-log = "0.4"
+spin = { workspace = true }
+log = { workspace = true }

@@ -8,21 +8,25 @@
  */
 
 use core::ffi::c_int;
+use ruxfdtable::OpenFlags;
 use ruxtask::fs::get_file_like;
 
 pub const FIONBIO: usize = 0x5421;
 pub const FIOCLEX: usize = 0x5451;
 
-/// ioctl implementation,
-/// currently only support fd = 1
+/// ioctl implementation
 pub fn sys_ioctl(fd: c_int, request: usize, data: usize) -> c_int {
     debug!("sys_ioctl <= fd: {}, request: {}", fd, request);
     syscall_body!(sys_ioctl, {
         match request {
             FIONBIO => {
-                unsafe {
-                    get_file_like(fd)?.set_nonblocking(*(data as *const i32) > 0)?;
-                }
+                let f = get_file_like(fd)?;
+                let flags = if unsafe { *(data as *const i32) } > 0 {
+                    f.flags() | OpenFlags::O_NONBLOCK
+                } else {
+                    f.flags() & !OpenFlags::O_NONBLOCK
+                };
+                f.set_flags(flags)?;
                 Ok(0)
             }
             FIOCLEX => Ok(0),

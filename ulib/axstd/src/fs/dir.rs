@@ -94,11 +94,11 @@ impl<'a> Iterator for ReadDir<'a> {
             }
             let entry = &self.dirent_buf[self.buf_pos];
             self.buf_pos += 1;
-            let entry_name = entry.file_name();
+            let entry_name = entry.name_as_string();
             if entry_name == "." || entry_name == ".." {
                 continue;
             }
-            let entry_type = entry.file_type();
+            let entry_type = entry.entry_type();
 
             return Some(Ok(DirEntry {
                 dir_path: self.path,

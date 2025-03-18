@@ -22,7 +22,7 @@ fatfs = ["blkfs", "dep:fatfs"]
 # TODO: wait for CI support for ext4
 # lwext4_rust = ["blkfs", "dep:lwext4_rust"]
 ext4_rs = ["blkfs", "dep:ext4_rs"]
-another_ext4 = ["blkfs","dep:another_ext4"]
+another_ext4 = ["blkfs", "dep:another_ext4"]
 myfs = []
 use-ramdisk = []
 alloc = ["axalloc"]
@@ -31,8 +31,8 @@ fp_simd = []
 default = ["devfs", "ramfs", "procfs", "sysfs", "etcfs"]
 
 [dependencies]
-log = "0.4"
-spin = "0.9"
+log = { workspace = true }
+spin = { workspace = true }
 cfg-if = "1.0"
 lazy_init = { path = "../../crates/lazy_init" }
 capability = { path = "../../crates/capability" }
@@ -43,12 +43,12 @@ axfs_vfs = { path = "../../crates/axfs_vfs" }
 axfs_devfs = { path = "../../crates/axfs_devfs", optional = true }
 axfs_ramfs = { path = "../../crates/axfs_ramfs", optional = true }
 crate_interface = { version = "0.1.1" }
-
+ruxfdtable = { path = "../ruxfdtable" }
 ruxdriver = { path = "../ruxdriver", features = ["block"] }
 axalloc = { path = "../axalloc", optional = true }
 memory_addr = "0.1.0"
 # lwext4_rust = { git = "https://github.com/elliott10/lwext4_rust", optional = true }
-ext4_rs = { git = "https://github.com/yuoo655/ext4_rs.git", rev= "6bcc7f5", optional = true }
+ext4_rs = { git = "https://github.com/yuoo655/ext4_rs.git", rev = "6bcc7f5", optional = true }
 another_ext4 = { git = "https://github.com/LJxTHUCS/another_ext4.git", rev = "3c3e03a", optional = true }
 
 [dependencies.fatfs]

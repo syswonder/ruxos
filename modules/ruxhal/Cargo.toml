@@ -39,7 +39,7 @@ virtio_console = [
 [dependencies]
 log = "0.4"
 cfg-if = "1.0"
-bitflags = "2.2"
+bitflags = { workspace = true }
 static_assertions = "1.1.0"
 embedded-hal = "0.2.7"
 axlog = { path = "../axlog" }

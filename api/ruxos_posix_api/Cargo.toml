@@ -60,7 +60,7 @@ axerrno = { path = "../../crates/axerrno" }
 ringbuffer = { path = "../../crates/ringbuffer" }
 memory_addr = "0.1.0"
 static_assertions = "1.1.0"
-spin = { version = "0.9" }
+spin = { workspace = true }
 spinlock = { path = "../../crates/spinlock" }
 lazy_static = { version = "1.4", features = ["spin_no_std"] }
 flatten_objects = { path = "../../crates/flatten_objects" }
@@ -70,7 +70,7 @@ capability = { path = "../../crates/capability" }
 
 cfg-if = "1.0"
 elf = { version = "0.7", default-features = false }
-bitflags = "2.2"
+bitflags = { workspace = true }
 
 lazy_init = { path = "../../crates/lazy_init" }
 

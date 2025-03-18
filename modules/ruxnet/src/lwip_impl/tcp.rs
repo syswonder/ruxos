@@ -123,12 +123,12 @@ extern "C" fn accept_callback(arg: *mut c_void, newpcb: *mut tcp_pcb, err: err_t
 
 impl TcpSocket {
     /// Creates a new TCP socket.
-    pub fn new() -> Self {
+    pub fn new(nonblock: bool) -> Self {
         let guard = LWIP_MUTEX.lock();
         let mut socket = Self {
             pcb: TcpPcbPointer(Mutex::new(unsafe { tcp_new() })),
             inner: Box::pin(TcpSocketInner {
-                nonblock: AtomicBool::new(false),
+                nonblock: AtomicBool::new(nonblock),
                 remote_closed: false,
                 connect_result: 0.into(),
                 recv_queue: Mutex::new(VecDeque::new()),
@@ -496,6 +496,6 @@ impl Drop for TcpSocket {
 
 impl Default for TcpSocket {
     fn default() -> Self {
-        Self::new()
+        Self::new(false)
     }
 }
