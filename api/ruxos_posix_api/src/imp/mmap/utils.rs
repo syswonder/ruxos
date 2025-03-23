@@ -194,6 +194,23 @@ pub(crate) fn snatch_fixed_region(
     Some(start)
 }
 
+/// release the range of [start, end) in mem_map without writeback.
+/// take care of AA-deadlock, this function should not be used after `MEM_MAP` is used.
+pub(crate) fn release_pages_mapped_without_wb(start: usize, end: usize) {
+    let binding = current();
+    let mut memory_map = binding.mm.mem_map.lock();
+    let mut removing_vaddr = Vec::new();
+    for (&vaddr, _) in memory_map.range(start..end) {
+        if pte_unmap_page(VirtAddr::from(vaddr)).is_err() {
+            panic!("Release page failed when munmapping!");
+        }
+        removing_vaddr.push(vaddr);
+    }
+    for vaddr in removing_vaddr {
+        memory_map.remove(&vaddr);
+    }
+}
+
 /// release the range of [start, end) in mem_map
 /// take care of AA-deadlock, this function should not be used after `MEM_MAP` is used.
 pub(crate) fn release_pages_mapped(start: usize, end: usize) {

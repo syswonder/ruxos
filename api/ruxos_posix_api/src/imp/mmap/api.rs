@@ -19,8 +19,8 @@ use ruxhal::mem::VirtAddr;
 use ruxmm::paging::pte_update_page;
 
 use super::utils::{
-    find_free_region, get_mflags_from_usize, get_overlap, release_pages_mapped, shift_mapped_page,
-    snatch_fixed_region, VMA_END,
+    find_free_region, get_mflags_from_usize, get_overlap, release_pages_mapped,
+    release_pages_mapped_without_wb, shift_mapped_page, snatch_fixed_region, VMA_END,
 };
 use ruxtask::current;
 use ruxtask::vma::Vma;
@@ -50,7 +50,7 @@ pub fn sys_mmap(
     syscall_body!(sys_mmap, {
         // transform C-type into rust-type
         let start = start as usize;
-        let len = VirtAddr::from(len).align_up_4k().as_usize();
+        let mapping_len = VirtAddr::from(len).align_up_4k().as_usize();
         if !VirtAddr::from(start).is_aligned(PAGE_SIZE_4K) || len == 0 {
             error!(
                 "mmap failed because start:0x{:x} is not aligned or len:0x{:x} == 0",
@@ -85,15 +85,16 @@ pub fn sys_mmap(
         let addr_condition = if start == 0 { None } else { Some(start) };
 
         let try_addr = if flags & ctypes::MAP_FIXED != 0 {
-            snatch_fixed_region(&mut vma_map, start, len)
+            snatch_fixed_region(&mut vma_map, start, mapping_len)
         } else {
-            find_free_region(&vma_map, addr_condition, len)
+            find_free_region(&vma_map, addr_condition, mapping_len)
         };
 
         match try_addr {
             Some(vaddr) => {
                 new.start_addr = vaddr;
-                new.end_addr = vaddr + len;
+                new.end_addr = vaddr + mapping_len;
+                new.size = len;
                 vma_map.insert(vaddr, new);
                 Ok(vaddr as *mut c_void)
             }
@@ -449,14 +450,15 @@ pub fn sys_mremap(
                     Vma::clone_from(&old_vma, old_end, old_vma.end_addr),
                 );
             }
-            old_vma.end_addr = new_end;
+            old_vma.end_addr = VirtAddr::from(new_end).align_up_4k().as_usize();
+            old_vma.size = new_size;
+            vma_map.insert(old_vma.start_addr, old_vma);
 
-            // delete the mapped and swapped page outside of new vma.
-            release_pages_mapped(new_end, old_end);
+            // for the shrink region, it should be removed without write-back
+            release_pages_mapped_without_wb(new_end, old_end);
             #[cfg(feature = "fs")]
             release_pages_swaped(new_end, old_end);
 
-            // vma_map.insert(old_vma.start_addr, old_vma);
             return Ok(ret as *mut c_void);
         }
         // expanding the original address does not require changing the mapped page.

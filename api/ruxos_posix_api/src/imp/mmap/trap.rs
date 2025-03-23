@@ -44,8 +44,9 @@ impl ruxhal::trap::TrapHandler for TrapHandlerImpl {
         let mut binding_mem_map = binding_task.mm.vma_map.lock();
         let vma_map = binding_mem_map.deref_mut();
         if let Some(vma) = vma_map.upper_bound(Bound::Included(&vaddr)).value() {
+            let vma_end_aligned = vma.end_addr;
             // Check if page existing in the vma, go to panic if not.
-            if vma.end_addr <= vaddr {
+            if vma_end_aligned <= vaddr {
                 error!(
                     "Page Fault not match: vaddr=0x{:x?}, cause={:?}",
                     vaddr, cause
@@ -163,7 +164,7 @@ impl ruxhal::trap::TrapHandler for TrapHandlerImpl {
                     && (vma.flags & ctypes::MAP_PRIVATE == 0)
                     && (vma.file.is_some())
                 {
-                    let map_length = min(PAGE_SIZE_4K, vma.end_addr - vaddr);
+                    let map_length = min(PAGE_SIZE_4K, vma.start_addr + vma.size - vaddr);
                     let offset = vma.offset + (vaddr - vma.start_addr);
                     let file_info = FileInfo {
                         file: vma.file.as_ref().unwrap().clone(),

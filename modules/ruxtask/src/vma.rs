@@ -146,6 +146,8 @@ pub struct Vma {
     pub start_addr: usize,
     /// end address of the mapping
     pub end_addr: usize,
+    /// mmap size of the mapping
+    pub size: usize,
     /// file that the mapping is backed by
     pub file: Option<Arc<File>>,
     /// offset in the file
@@ -188,6 +190,7 @@ impl Vma {
         Vma {
             start_addr: 0,
             end_addr: 0,
+            size: 0,
             // #[cfg(feature = "fs")]
             file,
             offset,
@@ -202,6 +205,7 @@ impl Vma {
         Vma {
             start_addr,
             end_addr,
+            size: vma.size,
             // #[cfg(feature = "fs")]
             file: vma.file.clone(),
             offset: vma.offset,

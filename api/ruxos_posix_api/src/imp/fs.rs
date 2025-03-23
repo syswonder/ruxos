@@ -118,6 +118,16 @@ pub fn sys_lseek(fd: c_int, offset: ctypes::off_t, whence: c_int) -> ctypes::off
     })
 }
 
+/// Truncate a file to a specified length.
+pub unsafe fn sys_ftruncate(fd: c_int, length: ctypes::off_t) -> c_int {
+    syscall_body!(sys_ftruncate, {
+        debug!("sys_ftruncate <= {} {}", fd, length);
+        let file = file_from_fd(fd)?;
+        file.truncate(length as u64)?;
+        Ok(0)
+    })
+}
+
 /// Synchronize a file's in-core state with storage device
 ///
 /// TODO

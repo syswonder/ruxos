@@ -74,6 +74,10 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[3] as *const core::ffi::c_char,
             ) as _,
             #[cfg(feature = "fs")]
+            SyscallId::FTRUNCATE => {
+                ruxos_posix_api::sys_ftruncate(args[0] as c_int, args[1] as ctypes::off_t) as _
+            }
+            #[cfg(feature = "fs")]
             SyscallId::FACCESSAT => ruxos_posix_api::sys_faccessat(
                 args[0] as c_int,
                 args[1] as *const c_char,
