@@ -133,6 +133,7 @@ typedef struct {{
             "MS_.+",
             "MREMAP_.+",
             "GRND_.*",
+            "S_IF.+",
         ];
 
         #[derive(Debug)]

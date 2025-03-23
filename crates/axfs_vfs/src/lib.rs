@@ -94,12 +94,27 @@ pub trait VfsOps: Send + Sync {
     fn root_dir(&self) -> VfsNodeRef;
 }
 
-/// Node (file/directory) operations.
+/// Node (file/directory/lib) operations.
 pub trait VfsNodeOps: Send + Sync {
     /// Do something when the node is opened.
     /// For example, open some special nodes like `/dev/ptmx` should return a new node named `PtyMaster`
     fn open(&self) -> VfsResult<Option<VfsNodeRef>> {
         Ok(None)
+    }
+
+    /// Do something when the node is opened as a fifo.
+    fn open_fifo(
+        &self,
+        _read: bool,
+        _write: bool,
+        _non_blocking: bool,
+    ) -> VfsResult<Option<VfsNodeRef>> {
+        Ok(None)
+    }
+
+    /// Do something when the node is closed as a fifo.
+    fn release_fifo(&self, _read: bool, _write: bool) -> VfsResult {
+        Ok(())
     }
 
     /// Do something when the node is closed.
@@ -246,6 +261,11 @@ pub trait VfsNodeOps: Send + Sync {
         self.create(path, ty)?;
 
         Ok(())
+    }
+
+    /// if the node is a fifo, check if there are readers
+    fn fifo_has_readers(&self) -> bool {
+        false
     }
 }
 

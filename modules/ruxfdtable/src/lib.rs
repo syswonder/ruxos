@@ -470,6 +470,11 @@ impl OpenFlags {
     pub fn getfl(&self) -> Self {
         *self & Self::O_ACCMODE & !Self::CREATION_FLAGS
     }
+
+    /// Return the mode for `sys_open` syscall, whether it is blocking or non-blocking
+    pub fn is_non_blocking(&self) -> bool {
+        self.contains(Self::O_NONBLOCK)
+    }
 }
 
 impl From<OpenFlags> for Cap {

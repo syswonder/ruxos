@@ -15,6 +15,7 @@ use axfs_vfs::{RelPath, VfsDirEntry, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNod
 use axfs_vfs::{VfsError, VfsResult};
 use spin::rwlock::RwLock;
 
+use crate::fifo::FifoNode;
 use crate::file::FileNode;
 use crate::InoAllocator;
 
@@ -66,6 +67,7 @@ impl DirNode {
         }
         let node: VfsNodeRef = match ty {
             VfsNodeType::File => Arc::new(FileNode::new(self.ialloc.upgrade().unwrap().alloc())),
+            VfsNodeType::Fifo => Arc::new(FifoNode::new(self.ialloc.upgrade().unwrap().alloc())),
             VfsNodeType::Dir => Self::new(
                 self.ialloc.upgrade().unwrap().alloc(),
                 Some(self.this.clone()),

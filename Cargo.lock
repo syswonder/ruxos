@@ -181,8 +181,11 @@ dependencies = [
 name = "axfs_ramfs"
 version = "0.1.0"
 dependencies = [
+ "axerrno",
  "axfs_vfs",
  "log",
+ "ringbuffer",
+ "ruxhal",
  "spin",
 ]
 

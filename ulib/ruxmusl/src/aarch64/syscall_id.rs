@@ -24,6 +24,8 @@ pub enum SyscallId {
     #[cfg(feature = "fd")]
     IOCTL = 29,
     #[cfg(feature = "fs")]
+    MKNODAT = 33,
+    #[cfg(feature = "fs")]
     MKDIRAT = 34,
     #[cfg(feature = "fs")]
     UNLINKAT = 35,

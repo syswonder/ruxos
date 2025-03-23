@@ -16,12 +16,14 @@
 extern crate alloc;
 
 mod dir;
+mod fifo;
 mod file;
 
 #[cfg(test)]
 mod tests;
 
 pub use self::dir::DirNode;
+pub use self::fifo::FifoNode;
 pub use self::file::FileNode;
 
 use alloc::sync::Arc;

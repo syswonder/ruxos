@@ -109,6 +109,20 @@ impl VfsNodePerm {
         Self::from_bits_truncate(0o755)
     }
 
+    /// Returns the default permission for a socket.
+    ///
+    /// The default permission is `0o777` (owner/group/others can read, write and execute).
+    pub const fn default_socket() -> Self {
+        Self::from_bits_truncate(0o777)
+    }
+
+    /// Returns the default permission for a fifo file.
+    ///
+    /// The default permission is `0o777` (owner/group/others can read, write and execute).
+    pub const fn default_fifo() -> Self {
+        Self::from_bits_truncate(0o777)
+    }
+
     /// Returns the underlying raw `st_mode` bits that contain the standard
     /// Unix permissions for this file.
     pub const fn mode(&self) -> u32 {
@@ -254,6 +268,30 @@ impl VfsNodeAttr {
         }
     }
 
+    /// Creates a new `VfsNodeAttr` for a socket, with the default socket permission.
+    /// The size and blocks are set to 0.
+    pub const fn new_socket(ino: u64) -> Self {
+        Self {
+            ino,
+            mode: VfsNodePerm::default_socket(),
+            ty: VfsNodeType::Socket,
+            size: 0,
+            blocks: 0,
+        }
+    }
+
+    /// Creates a new `VfsNodeAttr` for a fifo file, with the default fifo permission.
+    /// The size and blocks are set to 0.
+    pub const fn new_fifo(ino: u64) -> Self {
+        Self {
+            ino,
+            mode: VfsNodePerm::default_fifo(),
+            ty: VfsNodeType::Fifo,
+            size: 0,
+            blocks: 0,
+        }
+    }
+
     /// Returns the inode number of the node.
     pub const fn ino(&self) -> u64 {
         self.ino
@@ -291,6 +329,16 @@ impl VfsNodeAttr {
     /// Whether the node is a directory.
     pub const fn is_dir(&self) -> bool {
         self.ty.is_dir()
+    }
+
+    /// Whether the node is a fifo.
+    pub const fn is_fifo(&self) -> bool {
+        self.ty.is_fifo()
+    }
+
+    ///Whether the node is a socket.
+    pub const fn is_socket(&self) -> bool {
+        self.ty.is_socket()
     }
 }
 
