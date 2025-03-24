@@ -14,5 +14,6 @@ axfs_vfs = { path = "../axfs_vfs" }
 spin = { workspace = true }
 log = { workspace = true }
 axerrno = { path = "../axerrno" }
-ruxhal = { path = "../../modules/ruxhal" }
 ringbuffer = { path = "../ringbuffer" }
+axio = { path = "../axio" }
+ruxfifo = { path = "../ruxfifo" }

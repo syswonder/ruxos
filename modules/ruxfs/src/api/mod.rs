@@ -17,7 +17,6 @@ pub use super::{
 };
 use alloc::{string::String, vec::Vec};
 use axerrno::ax_err;
-use axerrno::AxError;
 use axfs_vfs::VfsError;
 use axio::{self as io, prelude::*, Error, Result};
 /// Opens a regular file at given path. Fails if path points to a directory.
@@ -85,32 +84,6 @@ pub fn write<C: AsRef<[u8]>>(path: &AbsPath, contents: C) -> io::Result<()> {
         OpenFlags::O_WRONLY | OpenFlags::O_CREAT | OpenFlags::O_TRUNC,
     )?
     .write_all(contents.as_ref())
-}
-
-/// Creates a new file at the provided path.
-/// We only support creating regular files and FIFOs.
-///
-/// TODO: support permissions for sys_mknod and create_node.
-pub fn create_node(
-    path: &AbsPath,
-    file_type: FileType,
-    // perm: Permissions,
-) -> io::Result<()> {
-    match file_type {
-        FileType::File => {
-            fops::create_file(&path)?;
-            Ok(())
-        }
-        FileType::Fifo => {
-            if path.starts_with("/tmp/") {
-                fops::create_fifo(&path)?;
-                Ok(())
-            } else {
-                return Err(AxError::Unsupported);
-            }
-        }
-        _ => return Err(AxError::Unsupported),
-    }
 }
 
 /// Creates a new, empty directory at the provided path.

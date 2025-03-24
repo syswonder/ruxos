@@ -13,9 +13,9 @@ use alloc::{string::String, vec::Vec};
 
 use axfs_vfs::{RelPath, VfsDirEntry, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType};
 use axfs_vfs::{VfsError, VfsResult};
+use ruxfifo::FifoNode;
 use spin::rwlock::RwLock;
 
-use crate::fifo::FifoNode;
 use crate::file::FileNode;
 use crate::InoAllocator;
 

@@ -210,6 +210,17 @@ pub fn yield_now() {
     RUN_QUEUE.lock().yield_current();
 }
 
+#[cfg(feature = "fs")]
+struct SchedYieldIfImpl;
+
+#[cfg(feature = "fs")]
+#[crate_interface::impl_interface]
+impl ruxfs::fifo::SchedYieldIf for SchedYieldIfImpl {
+    fn yield_now() {
+        yield_now();
+    }
+}
+
 /// Current task is going to sleep for the given duration.
 ///
 /// If the feature `irq` is not enabled, it uses busy-wait instead.

@@ -353,13 +353,9 @@ pub trait FileLike: Send + Sync {
     /// Only File Status Flags can be changed once a file is opened. Other flags will be ignored.
     fn set_flags(&self, _flags: OpenFlags) -> LinuxResult;
 
-    /// Get flags.
-    ///
-    /// Actually only File Status Flags is used. File Access Modes and Creation Flags needn't store.
-    /// The reason is that this function will be called by `sys_fcntl`, which only need to return status flag.
-    fn flags(&self) -> OpenFlags {
-        OpenFlags::empty()
-    }
+    /// Return File Access Modes and File Status Flags. Creation Flags needn't store.
+    /// `sys_fcntl` command `F_GETFL` will need both kinds
+    fn flags(&self) -> OpenFlags;
 
     /// Handles ioctl commands for the device.
     fn ioctl(&self, _cmd: usize, _arg: usize) -> LinuxResult<usize> {
@@ -468,12 +464,7 @@ impl OpenFlags {
 
     /// Return the file access mode and the file status flags. Used in `sys_fcntl` with `F_GETFL` mode
     pub fn getfl(&self) -> Self {
-        *self & Self::O_ACCMODE & !Self::CREATION_FLAGS
-    }
-
-    /// Return the mode for `sys_open` syscall, whether it is blocking or non-blocking
-    pub fn is_non_blocking(&self) -> bool {
-        self.contains(Self::O_NONBLOCK)
+        *self & !Self::CREATION_FLAGS
     }
 }
 

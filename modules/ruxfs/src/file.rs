@@ -15,7 +15,7 @@ use capability::{Cap, WithCap};
 use ruxfdtable::{FileLike, OpenFlags, RuxStat};
 use spin::{mutex::Mutex, RwLock};
 
-use crate::{AbsPath, FileAttr, FileType};
+use crate::{AbsPath, FileAttr};
 
 /// An opened file with permissions and a cursor for I/O operations.
 pub struct File {
@@ -120,22 +120,7 @@ impl File {
 impl Drop for File {
     fn drop(&mut self) {
         unsafe {
-            let attr = self.node.access_unchecked().get_attr().unwrap();
-            match attr.file_type() {
-                FileType::File => {
-                    self.node.access_unchecked().release().ok();
-                }
-                FileType::Fifo => {
-                    let (read, write) = (
-                        self.node.access(Cap::READ).is_ok(),
-                        self.node.access(Cap::WRITE).is_ok(),
-                    );
-                    self.node.access_unchecked().release_fifo(read, write).ok();
-                }
-                _ => {
-                    self.node.access_unchecked().release().ok();
-                }
-            }
+            self.node.access_unchecked().release().ok();
         }
     }
 }
@@ -185,6 +170,10 @@ impl FileLike for File {
     fn set_flags(&self, flags: OpenFlags) -> LinuxResult {
         *self.flags.write() = flags;
         Ok(())
+    }
+
+    fn flags(&self) -> OpenFlags {
+        *self.flags.read()
     }
 }
 

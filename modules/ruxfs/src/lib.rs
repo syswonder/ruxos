@@ -43,6 +43,7 @@ pub mod api;
 #[cfg(feature = "blkfs")]
 pub mod dev;
 mod directory;
+pub mod fifo;
 mod file;
 pub mod fops;
 pub mod root;

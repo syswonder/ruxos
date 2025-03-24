@@ -129,7 +129,7 @@ impl ruxfdtable::FileLike for Stdin {
     }
 
     fn flags(&self) -> OpenFlags {
-        let mut flags = OpenFlags::empty();
+        let mut flags = OpenFlags::O_RDONLY;
         if self.nonblocking.load(Ordering::Acquire) {
             flags |= OpenFlags::O_NONBLOCK;
         }
@@ -183,5 +183,9 @@ impl ruxfdtable::FileLike for Stdout {
 
     fn set_flags(&self, _flags: OpenFlags) -> LinuxResult {
         Ok(())
+    }
+
+    fn flags(&self) -> OpenFlags {
+        OpenFlags::O_WRONLY
     }
 }

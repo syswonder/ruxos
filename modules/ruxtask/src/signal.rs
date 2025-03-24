@@ -17,6 +17,7 @@ use core::{
     time::Duration,
 };
 
+use log::warn;
 use ruxhal::trap::TrapHandler;
 
 /// sigaction in kernel
@@ -55,7 +56,7 @@ pub struct Signal {
 }
 
 unsafe extern "C" fn default_handler(signum: c_int) {
-    panic!("default_handler, signum: {}", signum);
+    warn!("default_handler, signum: {}", signum);
 }
 
 #[cfg(feature = "signal")]

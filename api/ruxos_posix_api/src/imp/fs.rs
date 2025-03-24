@@ -442,9 +442,14 @@ pub fn sys_mknodat(
         let file_type = match mode & ctypes::S_IFMT {
             ctypes::S_IFREG => FileType::File,
             ctypes::S_IFIFO => FileType::Fifo,
-            _ => return Err(LinuxError::EAFNOSUPPORT),
+            _ => todo!(),
         };
-        ruxfs::api::create_node(&path, file_type)?;
+
+        match file_type {
+            FileType::File => fops::create_file(&path)?,
+            FileType::Fifo => fops::create_fifo(&path)?,
+            _ => todo!(),
+        }
         Ok(0)
     })
 }

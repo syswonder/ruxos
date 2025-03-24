@@ -239,8 +239,11 @@ pub fn sys_fcntl(fd: c_int, cmd: c_int, arg: usize) -> c_int {
             }
             ctypes::F_SETFL => {
                 // Set the file status flags to the value specified by `arg`
-                get_file_like(fd)?
-                    .set_flags(OpenFlags::from_bits_truncate(arg as _).status_flags())?;
+                let f = get_file_like(fd)?;
+                let old_access_flags = f.flags() & OpenFlags::O_ACCMODE;
+                f.set_flags(
+                    old_access_flags | OpenFlags::from_bits_truncate(arg as _).status_flags(),
+                )?;
                 Ok(0)
             }
             ctypes::F_GETFL => {

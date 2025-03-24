@@ -160,6 +160,10 @@ impl FileLike for EpollInstance {
     fn set_flags(&self, _flags: ruxfs::OpenFlags) -> LinuxResult {
         Ok(())
     }
+
+    fn flags(&self) -> OpenFlags {
+        OpenFlags::O_RDWR
+    }
 }
 
 /// Creates a new epoll instance.

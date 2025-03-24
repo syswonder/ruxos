@@ -316,6 +316,19 @@ impl FileLike for Socket {
         }
         Ok(())
     }
+
+    fn flags(&self) -> OpenFlags {
+        let nonblock = match self {
+            Socket::Udp(udpsocket) => udpsocket.lock().is_nonblocking(),
+            Socket::Tcp(tcpsocket) => tcpsocket.lock().is_nonblocking(),
+            Socket::Unix(unixsocket) => unixsocket.lock().is_nonblocking(),
+        };
+        if nonblock {
+            OpenFlags::O_NONBLOCK | OpenFlags::O_RDWR
+        } else {
+            OpenFlags::O_RDWR
+        }
+    }
 }
 
 impl From<SocketAddrV4> for ctypes::sockaddr_in {
