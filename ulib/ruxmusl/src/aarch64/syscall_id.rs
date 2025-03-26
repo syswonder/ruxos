@@ -30,6 +30,8 @@ pub enum SyscallId {
     #[cfg(feature = "fs")]
     RENAMEAT = 38,
     #[cfg(feature = "fs")]
+    FTRUNCATE = 46,
+    #[cfg(feature = "fs")]
     FACCESSAT = 48,
     #[cfg(feature = "fs")]
     CHDIR = 49,
