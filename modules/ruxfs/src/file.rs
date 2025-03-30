@@ -119,7 +119,9 @@ impl File {
 
 impl Drop for File {
     fn drop(&mut self) {
-        unsafe { self.node.access_unchecked().release().ok() };
+        unsafe {
+            self.node.access_unchecked().release().ok();
+        }
     }
 }
 
@@ -168,6 +170,10 @@ impl FileLike for File {
     fn set_flags(&self, flags: OpenFlags) -> LinuxResult {
         *self.flags.write() = flags;
         Ok(())
+    }
+
+    fn flags(&self) -> OpenFlags {
+        *self.flags.read()
     }
 }
 

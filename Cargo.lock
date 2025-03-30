@@ -181,8 +181,12 @@ dependencies = [
 name = "axfs_ramfs"
 version = "0.1.0"
 dependencies = [
+ "axerrno",
  "axfs_vfs",
+ "axio",
  "log",
+ "ringbuffer",
+ "ruxfifo",
  "spin",
 ]
 
@@ -1666,6 +1670,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "ruxfifo"
+version = "0.1.0"
+dependencies = [
+ "axerrno",
+ "axfs_vfs",
+ "axio",
+ "ringbuffer",
+ "spin",
+]
+
+[[package]]
 name = "ruxfs"
 version = "0.1.0"
 dependencies = [
@@ -1687,6 +1702,7 @@ dependencies = [
  "memory_addr",
  "ruxdriver",
  "ruxfdtable",
+ "ruxfifo",
  "spin",
 ]
 

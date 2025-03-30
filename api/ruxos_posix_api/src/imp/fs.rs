@@ -13,6 +13,8 @@ use core::{
     str,
 };
 
+use ruxfs::api::FileType;
+
 use axerrno::{LinuxError, LinuxResult};
 use axio::{Error, SeekFrom};
 use ruxfdtable::{FileLike, OpenFlags, RuxStat};
@@ -418,6 +420,35 @@ pub fn sys_unlinkat(fd: c_int, pathname: *const c_char, flags: c_int) -> c_int {
                 }
             }
             Err(e) => return Err(e.into()),
+        }
+        Ok(0)
+    })
+}
+
+/// Creates a new, empty file at the provided path.
+pub fn sys_mknodat(
+    fd: c_int,
+    pathname: *const c_char,
+    mode: ctypes::mode_t,
+    _dev: ctypes::dev_t,
+) -> c_int {
+    // TODO: implement permissions mode
+    syscall_body!(sys_mknodat, {
+        let path = parse_path_at(fd, pathname)?;
+        debug!(
+            "sys_mknodat <= fd: {}, pathname: {:?}, mode: {:x?}, dev: {:x?}",
+            fd, path, mode, _dev
+        );
+        let file_type = match mode & ctypes::S_IFMT {
+            ctypes::S_IFREG => FileType::File,
+            ctypes::S_IFIFO => FileType::Fifo,
+            _ => todo!(),
+        };
+
+        match file_type {
+            FileType::File => fops::create_file(&path)?,
+            FileType::Fifo => fops::create_fifo(&path)?,
+            _ => todo!(),
         }
         Ok(0)
     })

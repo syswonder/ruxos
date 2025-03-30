@@ -53,6 +53,8 @@ mod macros;
 mod path;
 mod structs;
 
+use core::any::Any;
+
 use alloc::sync::Arc;
 use axerrno::{ax_err, AxError, AxResult};
 
@@ -94,7 +96,7 @@ pub trait VfsOps: Send + Sync {
     fn root_dir(&self) -> VfsNodeRef;
 }
 
-/// Node (file/directory) operations.
+/// Node (file/directory/lib) operations.
 pub trait VfsNodeOps: Send + Sync {
     /// Do something when the node is opened.
     /// For example, open some special nodes like `/dev/ptmx` should return a new node named `PtyMaster`
@@ -222,6 +224,11 @@ pub trait VfsNodeOps: Send + Sync {
     /// [1]: core::any::Any
     /// [2]: core::any::Any#method.downcast_ref
     fn as_any(&self) -> &dyn core::any::Any {
+        unimplemented!()
+    }
+
+    /// Provides type-erased access to the underlying `Arc` for downcasting.
+    fn as_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
         unimplemented!()
     }
 

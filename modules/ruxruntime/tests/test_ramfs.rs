@@ -16,8 +16,6 @@ use std::sync::Arc;
 use axfs_ramfs::RamFileSystem;
 use axfs_vfs::VfsOps;
 use axio::{Result, Write};
-use driver_block::ramdisk::RamDisk;
-use ruxdriver::AxDeviceContainer;
 use ruxfs::{api as fs, MyFileSystemIf};
 use test_common::open_file_create_new;
 struct MyFileSystemIfImpl;

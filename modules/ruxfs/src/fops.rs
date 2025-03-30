@@ -14,13 +14,15 @@
 //!
 //! The interface is designed with low coupling to avoid repetitive error handling.
 use alloc::{sync::Arc, vec::Vec};
-use axerrno::{AxError, AxResult};
+use axerrno::{AxError, AxResult, LinuxResult};
 use axfs_vfs::{AbsPath, RelPath, VfsNodeOps, VfsNodeRef, VfsNodeType};
 use capability::Cap;
 use ruxfdtable::{FileLike, OpenFlags};
+use ruxfifo::FifoNode;
 
 use crate::{
     directory::Directory,
+    fifo::{FifoReader, FifoWriter},
     file::File,
     root::{MountPoint, RootDirectory},
     FileAttr,
@@ -116,12 +118,20 @@ pub(crate) fn open_abspath(path: &AbsPath, flags: OpenFlags) -> AxResult<VfsNode
 }
 
 /// Opens a file-like object (file or directory) at given path with flags.
-pub fn open_file_like(path: &AbsPath, flags: OpenFlags) -> AxResult<Arc<dyn FileLike>> {
+pub fn open_file_like(path: &AbsPath, flags: OpenFlags) -> LinuxResult<Arc<dyn FileLike>> {
     let node = open_abspath(path, flags)?;
-    if node.get_attr()?.is_dir() {
-        Ok(Arc::new(Directory::new(path.to_owned(), node, flags)))
-    } else {
-        Ok(Arc::new(File::new(path.to_owned(), node, flags)))
+    match node.get_attr()?.file_type() {
+        VfsNodeType::Dir => Ok(Arc::new(Directory::new(path.to_owned(), node, flags))),
+        VfsNodeType::File => Ok(Arc::new(File::new(path.to_owned(), node, flags))),
+        VfsNodeType::Fifo => {
+            let node = Arc::downcast::<FifoNode>(node.as_any_arc()).unwrap();
+            if flags.contains(OpenFlags::O_WRONLY) {
+                Ok(Arc::new(FifoWriter::new(path.to_owned(), node, flags)?))
+            } else {
+                Ok(Arc::new(FifoReader::new(path.to_owned(), node, flags)))
+            }
+        }
+        _ => Ok(Arc::new(File::new(path.to_owned(), node, flags))),
     }
 }
 
@@ -137,6 +147,20 @@ pub fn create_file(path: &AbsPath) -> AxResult {
 /// This function will not check if the directory exists, check it with [`lookup`] first.
 pub fn create_dir(path: &AbsPath) -> AxResult {
     root_dir().create(&path.to_rel(), VfsNodeType::Dir)
+}
+
+/// Create a socket file given an absolute path.
+///
+/// This function will not check if the socket exists, check it with [`lookup`] first.
+pub fn create_socket(path: &AbsPath) -> AxResult {
+    root_dir().create(&path.to_rel(), VfsNodeType::Socket)
+}
+
+/// Create a fifo file given an absolute path.
+///
+/// This function will not check if the file exists, check it with [`lookup`] first.
+pub fn create_fifo(path: &AbsPath) -> AxResult {
+    root_dir().create(&path.to_rel(), VfsNodeType::Fifo)
 }
 
 /// Create a directory recursively given an absolute path.

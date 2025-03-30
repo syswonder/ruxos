@@ -42,7 +42,7 @@ impl InitFs for InitFsDefaultImpl {
     }
 }
 
-/// Initializes the file system.
+/// Get the file object associated with the given file descriptor.
 pub fn get_file_like(fd: i32) -> LinuxResult<Arc<dyn FileLike>> {
     // let _exec = *MUST_EXEC;
     let binding_task = current();

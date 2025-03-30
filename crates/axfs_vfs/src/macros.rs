@@ -34,6 +34,13 @@ macro_rules! impl_vfs_dir_default {
         fn as_any(&self) -> &dyn core::any::Any {
             self
         }
+
+        #[inline]
+        fn as_any_arc(
+            self: $crate::__priv::Arc<Self>,
+        ) -> $crate::__priv::Arc<dyn core::any::Any + Send + Sync> {
+            self
+        }
     };
 }
 
@@ -85,6 +92,13 @@ macro_rules! impl_vfs_non_dir_default {
 
         #[inline]
         fn as_any(&self) -> &dyn core::any::Any {
+            self
+        }
+
+        #[inline]
+        fn as_any_arc(
+            self: $crate::__priv::Arc<Self>,
+        ) -> $crate::__priv::Arc<dyn core::any::Any + Send + Sync> {
             self
         }
     };
