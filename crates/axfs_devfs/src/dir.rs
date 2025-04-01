@@ -13,6 +13,7 @@ use axfs_vfs::{RelPath, VfsDirEntry, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNod
 use axfs_vfs::{VfsError, VfsResult};
 use spin::RwLock;
 
+use crate::pts::PTS_FS;
 use crate::InoAllocator;
 
 /// The directory node in the device filesystem.
@@ -88,6 +89,8 @@ impl VfsNodeOps for DirNode {
             Ok(self.clone() as VfsNodeRef)
         } else if name == ".." {
             self.parent().ok_or(VfsError::NotFound)
+        } else if name == "ptmx" {
+            Ok(PTS_FS.get().unwrap().ptmx())
         } else {
             self.children
                 .read()
@@ -99,11 +102,12 @@ impl VfsNodeOps for DirNode {
 
     fn read_dir(&self, start_idx: usize, dirents: &mut [VfsDirEntry]) -> VfsResult<usize> {
         let children = self.children.read();
-        let mut children = children.iter().skip(start_idx.max(2) - 2);
+        let mut children = children.iter().skip(start_idx.max(3) - 3);
         for (i, ent) in dirents.iter_mut().enumerate() {
             match i + start_idx {
                 0 => *ent = VfsDirEntry::new(".", VfsNodeType::Dir),
                 1 => *ent = VfsDirEntry::new("..", VfsNodeType::Dir),
+                2 => *ent = VfsDirEntry::new("ptmx", VfsNodeType::CharDevice),
                 _ => {
                     if let Some((name, node)) = children.next() {
                         *ent = VfsDirEntry::new(name, node.get_attr().unwrap().file_type());
@@ -155,7 +159,7 @@ impl VfsNodeOps for DirNode {
     axfs_vfs::impl_vfs_dir_default! {}
 }
 
-fn split_path<'a>(path: &'a RelPath) -> (&'a str, Option<RelPath<'a>>) {
+pub(crate) fn split_path<'a>(path: &'a RelPath) -> (&'a str, Option<RelPath<'a>>) {
     path.find('/').map_or((path, None), |n| {
         (&path[..n], Some(RelPath::new(&path[n + 1..])))
     })

@@ -33,7 +33,7 @@ ruxfeat = { path = "../ruxfeat" }
 ruxruntime = { path = "../../modules/ruxruntime" }
 ruxconfig = { path = "../../modules/ruxconfig" }
 ruxmm = { path = "../../modules/ruxmm" }
-axlog = { path = "../../modules/axlog" }
+axlog = { path = "../../crates/axlog" }
 axio = { path = "../../crates/axio" }
 axerrno = { path = "../../crates/axerrno" }
 ruxhal = { path = "../../modules/ruxhal" }

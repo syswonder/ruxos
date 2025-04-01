@@ -13,9 +13,9 @@
 extern crate alloc;
 
 mod driver;
-mod ioctl;
-mod ldisc;
-mod termios;
+pub mod ioctl;
+pub mod ldisc;
+pub mod termios;
 mod tty;
 
 use alloc::{ffi::CString, sync::Arc};
@@ -24,9 +24,9 @@ use axio::PollState;
 use axlog::{ax_print, ax_println};
 use driver::TtyDriver;
 use lazy_init::LazyInit;
+
 use spin::once::Once;
 use tty::Tty;
-
 /// Global singleton instance for the default TTY device
 static N_TTY: Once<Arc<Tty>> = Once::new();
 

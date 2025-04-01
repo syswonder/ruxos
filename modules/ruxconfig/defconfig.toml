@@ -32,7 +32,7 @@ timer-frequency = "0"
 
 # Stack size of each task.
 # task-stack-size = "0x40000"   # 256 K
-task-stack-size = "0x80000"   # 512 K
+task-stack-size = "0x80000" # 512 K
 
 # Number of timer ticks per second (Hz). A timer tick may contain several timer
 # interrupts.
@@ -49,3 +49,6 @@ pipe-buffer-size = "0x10000"
 
 # Device tree blob address, x86 has no dtb
 DTB_ADDR = "0"
+
+# Default buffer size used for pty input/output
+pty-buffer-capacity = "4096"

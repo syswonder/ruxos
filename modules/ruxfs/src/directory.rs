@@ -79,7 +79,7 @@ impl Drop for Directory {
 
 impl FileLike for Directory {
     fn path(&self) -> AbsPath {
-        self.path.to_owned()
+        self.path.clone()
     }
 
     fn read(&self, _buf: &mut [u8]) -> LinuxResult<usize> {

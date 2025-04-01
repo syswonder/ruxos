@@ -59,7 +59,7 @@ impl Drop for FifoReader {
 
 impl FileLike for FifoReader {
     fn path(&self) -> AbsPath {
-        self.path.to_owned()
+        self.path.clone()
     }
 
     /// Reads data from FIFO with blocking behavior
@@ -157,7 +157,7 @@ impl Drop for FifoWriter {
 
 impl FileLike for FifoWriter {
     fn path(&self) -> AbsPath {
-        self.path.to_owned()
+        self.path.clone()
     }
 
     /// fd is not open for reading. In this case should return `LinuxError::EBADF`

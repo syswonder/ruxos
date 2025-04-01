@@ -260,6 +260,12 @@ impl Ldisc {
         }
     }
 
+    /// Ldisc read buffer length
+    pub fn read_buffer_len(&self) -> usize {
+        self.read_buffer.lock().available_read()
+    }
+
+    /// poll Ldisc
     pub fn poll(&self) -> PollState {
         let readable = !self.read_buffer.lock().is_empty();
         PollState {
@@ -269,22 +275,27 @@ impl Ldisc {
         }
     }
 
+    /// Get termios
     pub fn termios(&self) -> Termios {
         *self.termios.lock()
     }
 
+    /// Set termios
     pub fn set_termios(&self, termios: &Termios) {
         *self.termios.lock() = *termios
     }
 
+    /// Get winsize
     pub fn winsize(&self) -> WinSize {
         *self.winsize.lock()
     }
 
+    /// Set winsize
     pub fn set_winsize(&self, winsize: &WinSize) {
         *self.winsize.lock() = *winsize
     }
 
+    /// Clear all inputs
     pub fn clear_input(&self) {
         self.current_line.lock().clear();
         self.read_buffer.lock().clear();
