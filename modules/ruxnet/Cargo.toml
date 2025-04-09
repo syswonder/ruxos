@@ -34,7 +34,6 @@ axerrno = { path = "../../crates/axerrno" }
 axfs_vfs = { path = "../../crates/axfs_vfs" }
 ruxhal = { path = "../ruxhal" }
 axsync = { path = "../axsync" }
-axlog = { path = "../axlog" }
 ruxtask = { path = "../ruxtask" }
 ruxfs = { path = "../ruxfs" }
 ruxdriver = { path = "../ruxdriver", features = ["net"] }

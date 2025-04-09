@@ -172,9 +172,15 @@ dependencies = [
 name = "axfs_devfs"
 version = "0.1.0"
 dependencies = [
+ "axerrno",
  "axfs_vfs",
+ "axio",
  "log",
+ "ringbuffer",
+ "ruxconfig",
  "spin",
+ "spinlock",
+ "tty",
 ]
 
 [[package]]
@@ -195,6 +201,7 @@ name = "axfs_vfs"
 version = "0.1.0"
 dependencies = [
  "axerrno",
+ "axio",
  "bitflags 2.6.0",
  "lazy_static",
  "log",
@@ -1665,8 +1672,8 @@ dependencies = [
  "ruxnet",
  "ruxruntime",
  "ruxtask",
- "ruxtty",
  "spinlock",
+ "tty",
 ]
 
 [[package]]
@@ -1753,11 +1760,11 @@ dependencies = [
  "raw-cpuid 11.1.0",
  "riscv",
  "ruxconfig",
- "ruxtty",
  "sbi-rt",
  "spinlock",
  "static_assertions",
  "tock-registers",
+ "tty",
  "virtio-drivers",
  "x2apic",
  "x86",
@@ -1805,7 +1812,6 @@ dependencies = [
  "axerrno",
  "axfs_vfs",
  "axio",
- "axlog",
  "axsync",
  "cfg-if",
  "cty",
@@ -1873,10 +1879,10 @@ dependencies = [
  "ruxnet",
  "ruxruntime",
  "ruxtask",
- "ruxtty",
  "spin",
  "spinlock",
  "static_assertions",
+ "tty",
 ]
 
 [[package]]
@@ -1921,7 +1927,7 @@ dependencies = [
  "ruxnet",
  "ruxrand",
  "ruxtask",
- "ruxtty",
+ "tty",
 ]
 
 [[package]]
@@ -1952,21 +1958,6 @@ dependencies = [
  "spin",
  "spinlock",
  "timer_list",
-]
-
-[[package]]
-name = "ruxtty"
-version = "0.0.1"
-dependencies = [
- "axerrno",
- "axio",
- "axlog",
- "bitflags 2.6.0",
- "lazy_init",
- "num_enum",
- "ringbuffer",
- "spin",
- "spinlock",
 ]
 
 [[package]]
@@ -2229,6 +2220,21 @@ dependencies = [
  "indexmap",
  "toml_datetime",
  "winnow",
+]
+
+[[package]]
+name = "tty"
+version = "0.0.1"
+dependencies = [
+ "axerrno",
+ "axio",
+ "axlog",
+ "bitflags 2.6.0",
+ "lazy_init",
+ "num_enum",
+ "ringbuffer",
+ "spin",
+ "spinlock",
 ]
 
 [[package]]

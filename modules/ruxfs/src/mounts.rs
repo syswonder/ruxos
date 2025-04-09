@@ -20,11 +20,13 @@ pub(crate) fn devfs() -> Arc<fs::devfs::DeviceFileSystem> {
     let zero = fs::devfs::ZeroDev;
     let random = fs::devfs::RandomDev;
     let urandom = fs::devfs::RandomDev;
+    let pts = fs::devfs::init_pts();
     let devfs = fs::devfs::DeviceFileSystem::new();
     devfs.add("null", Arc::new(null));
     devfs.add("zero", Arc::new(zero));
     devfs.add("random", Arc::new(random));
     devfs.add("urandom", Arc::new(urandom));
+    devfs.add("pts", pts);
     Arc::new(devfs)
 }
 

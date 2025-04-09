@@ -40,7 +40,6 @@ musl = ["ruxhal/musl", "ruxruntime/musl", "axalloc/slab", "ruxtask/musl"]
 ruxfeat = { path = "../ruxfeat" }
 ruxruntime = { path = "../../modules/ruxruntime" }
 ruxconfig = { path = "../../modules/ruxconfig" }
-axlog = { path = "../../modules/axlog" }
 ruxhal = { path = "../../modules/ruxhal" }
 axsync = { path = "../../modules/axsync" }
 ruxfdtable = { path = "../../modules/ruxfdtable" }
@@ -52,9 +51,10 @@ ruxtask = { path = "../../modules/ruxtask", features = [
 ], optional = true }
 ruxfs = { path = "../../modules/ruxfs", optional = true }
 ruxnet = { path = "../../modules/ruxnet", optional = true }
-ruxtty = { path = "../../modules/ruxtty" }
 
 # Other crates
+tty = { path = "../../crates/tty" }
+axlog = { path = "../../crates/axlog" }
 axio = { path = "../../crates/axio" }
 axerrno = { path = "../../crates/axerrno" }
 ringbuffer = { path = "../../crates/ringbuffer" }

@@ -97,6 +97,8 @@ pub enum AxError {
     /// It is a temporary error code that usually returns when a non_blocking operation
     /// is not completed, prompting the caller to try again later.
     InProgress,
+    /// Not a tty device
+    NoTty,
 }
 
 /// A specialized [`Result`] type with [`AxError`] as the error type.
@@ -248,6 +250,7 @@ impl AxError {
             WouldBlock => "Operation would block",
             WriteZero => "Write zero",
             InProgress => "non_blocking operation is not completed",
+            NoTty => "not a tty device",
         }
     }
 
@@ -300,6 +303,7 @@ impl From<AxError> for LinuxError {
             UnexpectedEof | WriteZero => LinuxError::EIO,
             WouldBlock => LinuxError::EAGAIN,
             InProgress => LinuxError::EINPROGRESS,
+            NoTty => LinuxError::ENOTTY,
         }
     }
 }
@@ -322,13 +326,13 @@ mod tests {
     #[test]
     fn test_try_from() {
         let max_code = core::mem::variant_count::<AxError>() as i32;
-        assert_eq!(max_code, 23);
-        assert_eq!(max_code, AxError::InProgress.code());
+        assert_eq!(max_code, 24);
+        assert_eq!(max_code, AxError::NoTty.code());
 
         assert_eq!(AxError::AddrInUse.code(), 1);
         assert_eq!(Ok(AxError::AddrInUse), AxError::try_from(1));
         assert_eq!(Ok(AxError::AlreadyExists), AxError::try_from(2));
-        assert_eq!(Ok(AxError::InProgress), AxError::try_from(max_code));
+        assert_eq!(Ok(AxError::NoTty), AxError::try_from(max_code));
         assert_eq!(Err(max_code + 1), AxError::try_from(max_code + 1));
         assert_eq!(Err(0), AxError::try_from(0));
         assert_eq!(Err(-1), AxError::try_from(-1));

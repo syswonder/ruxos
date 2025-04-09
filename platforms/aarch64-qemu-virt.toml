@@ -105,3 +105,6 @@ pipe-buffer-size = "0x10000"
 
 # Device tree blob address
 DTB_ADDR = "0x40000000"
+
+# Default buffer size used for pty input/output
+pty-buffer-capacity = "4096"
