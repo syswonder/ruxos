@@ -11,7 +11,9 @@ use alloc::collections::BTreeMap;
 use alloc::sync::{Arc, Weak};
 use alloc::{string::String, vec::Vec};
 
-use axfs_vfs::{RelPath, VfsDirEntry, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType};
+use axfs_vfs::{
+    RelPath, VfsDirEntry, VfsNodeAttr, VfsNodeOps, VfsNodePerm, VfsNodeRef, VfsNodeType,
+};
 use axfs_vfs::{VfsError, VfsResult};
 use ruxfifo::FifoNode;
 use spin::rwlock::RwLock;
@@ -23,7 +25,7 @@ use crate::InoAllocator;
 ///
 /// It implements [`axfs_vfs::VfsNodeOps`].
 pub struct DirNode {
-    ino: u64,
+    attr: RwLock<VfsNodeAttr>,
     this: Weak<DirNode>,
     parent: RwLock<Weak<dyn VfsNodeOps>>,
     children: RwLock<BTreeMap<String, VfsNodeRef>>,
@@ -33,11 +35,12 @@ pub struct DirNode {
 impl DirNode {
     pub(super) fn new(
         ino: u64,
+        mode: VfsNodePerm,
         parent: Option<Weak<dyn VfsNodeOps>>,
         ialloc: Weak<InoAllocator>,
     ) -> Arc<Self> {
         Arc::new_cyclic(|this| Self {
-            ino,
+            attr: RwLock::new(VfsNodeAttr::new(ino, mode, VfsNodeType::Dir, 4096, 0)),
             this: this.clone(),
             parent: RwLock::new(parent.unwrap_or_else(|| Weak::<Self>::new())),
             children: RwLock::new(BTreeMap::new()),
@@ -60,19 +63,16 @@ impl DirNode {
     }
 
     /// Creates a new node with the given name and type in this directory.
-    pub fn create_node(&self, name: &str, ty: VfsNodeType) -> VfsResult {
+    pub fn create_node(&self, name: &str, ty: VfsNodeType, mode: VfsNodePerm) -> VfsResult {
         if self.exist(name) {
             log::error!("AlreadyExists {}", name);
             return Err(VfsError::AlreadyExists);
         }
+        let ino = self.ialloc.upgrade().unwrap().alloc();
         let node: VfsNodeRef = match ty {
-            VfsNodeType::File => Arc::new(FileNode::new(self.ialloc.upgrade().unwrap().alloc())),
-            VfsNodeType::Fifo => Arc::new(FifoNode::new(self.ialloc.upgrade().unwrap().alloc())),
-            VfsNodeType::Dir => Self::new(
-                self.ialloc.upgrade().unwrap().alloc(),
-                Some(self.this.clone()),
-                self.ialloc.clone(),
-            ),
+            VfsNodeType::File => Arc::new(FileNode::new(ino, mode)),
+            VfsNodeType::Fifo => Arc::new(FifoNode::new(ino, mode)),
+            VfsNodeType::Dir => Self::new(ino, mode, Some(self.this.clone()), self.ialloc.clone()),
             _ => return Err(VfsError::Unsupported),
         };
         self.children.write().insert(name.into(), node);
@@ -95,7 +95,11 @@ impl DirNode {
 
 impl VfsNodeOps for DirNode {
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
-        Ok(VfsNodeAttr::new_dir(self.ino, 4096, 0))
+        Ok(*self.attr.read())
+    }
+    fn set_mode(&self, mode: VfsNodePerm) -> VfsResult {
+        self.attr.write().set_perm(mode);
+        Ok(())
     }
 
     fn parent(&self) -> Option<VfsNodeRef> {
@@ -147,22 +151,25 @@ impl VfsNodeOps for DirNode {
         Ok(dirents.len())
     }
 
-    fn create(&self, path: &RelPath, ty: VfsNodeType) -> VfsResult {
+    fn create(&self, path: &RelPath, ty: VfsNodeType, mode: VfsNodePerm) -> VfsResult {
         let (name, rest) = split_path(path);
         if let Some(rest) = rest {
             match name {
-                ".." => self.parent().ok_or(VfsError::NotFound)?.create(&rest, ty),
+                ".." => self
+                    .parent()
+                    .ok_or(VfsError::NotFound)?
+                    .create(&rest, ty, mode),
                 _ => self
                     .children
                     .read()
                     .get(name)
                     .ok_or(VfsError::NotFound)?
-                    .create(&rest, ty),
+                    .create(&rest, ty, mode),
             }
         } else if name.is_empty() || name == ".." {
             Ok(()) // already exists
         } else {
-            self.create_node(name, ty)
+            self.create_node(name, ty, mode)
         }
     }
 

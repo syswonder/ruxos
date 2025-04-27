@@ -70,10 +70,10 @@ pub use imp::fd_ops::sys_dup3;
 pub use imp::fd_ops::{sys_close, sys_dup, sys_dup2, sys_fcntl};
 #[cfg(feature = "fs")]
 pub use imp::fs::{
-    sys_chdir, sys_faccessat, sys_fchownat, sys_fdatasync, sys_fstat, sys_fsync, sys_ftruncate,
-    sys_getcwd, sys_getdents64, sys_lseek, sys_lstat, sys_mkdir, sys_mkdirat, sys_mknodat,
-    sys_newfstatat, sys_open, sys_openat, sys_pread64, sys_preadv, sys_pwrite64, sys_readlinkat,
-    sys_rename, sys_renameat, sys_rmdir, sys_stat, sys_unlink, sys_unlinkat,
+    sys_chdir, sys_faccessat, sys_fchmodat, sys_fchownat, sys_fdatasync, sys_fstat, sys_fsync,
+    sys_ftruncate, sys_getcwd, sys_getdents64, sys_lseek, sys_lstat, sys_mkdir, sys_mkdirat,
+    sys_mknodat, sys_newfstatat, sys_open, sys_openat, sys_pread64, sys_preadv, sys_pwrite64,
+    sys_readlinkat, sys_rename, sys_renameat, sys_rmdir, sys_stat, sys_unlink, sys_unlinkat,
 };
 #[cfg(feature = "epoll")]
 pub use imp::io_mpx::{sys_epoll_create1, sys_epoll_ctl, sys_epoll_pwait, sys_epoll_wait};

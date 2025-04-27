@@ -66,6 +66,12 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[2] as c_int,
             ) as _,
             #[cfg(feature = "fs")]
+            SyscallId::FCHMODAT => ruxos_posix_api::sys_fchmodat(
+                args[0] as c_int,
+                args[1] as *const core::ffi::c_char,
+                args[2] as ctypes::mode_t,
+            ) as _,
+            #[cfg(feature = "fs")]
             SyscallId::FCHOWNAT => ruxos_posix_api::sys_fchownat(
                 args[0] as c_int,
                 args[1] as *const core::ffi::c_char,

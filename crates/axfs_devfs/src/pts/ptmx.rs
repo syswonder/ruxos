@@ -44,5 +44,9 @@ impl VfsNodeOps for Ptmx {
         ))
     }
 
+    fn set_mode(&self, _mode: VfsNodePerm) -> VfsResult {
+        Ok(())
+    }
+
     impl_vfs_non_dir_default!();
 }

@@ -49,6 +49,10 @@ impl VfsNodeOps for PtySlaveInode {
         ))
     }
 
+    fn set_mode(&self, _mode: VfsNodePerm) -> VfsResult {
+        Ok(())
+    }
+
     fn read_at(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
         self.slave.read_at(offset, buf)
     }
@@ -98,6 +102,10 @@ impl VfsNodeOps for PtySlave {
             0,
             0,
         ))
+    }
+
+    fn set_mode(&self, _mode: VfsNodePerm) -> VfsResult {
+        Ok(())
     }
 
     fn read_at(&self, _offset: u64, dst: &mut [u8]) -> VfsResult<usize> {

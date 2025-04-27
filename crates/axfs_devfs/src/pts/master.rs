@@ -77,6 +77,10 @@ impl VfsNodeOps for PtyMaster {
         ))
     }
 
+    fn set_mode(&self, _mode: VfsNodePerm) -> VfsResult {
+        Ok(())
+    }
+
     fn release(&self) -> VfsResult {
         self.ptmx.ptsfs().remove_pty(self.idx);
         Ok(())

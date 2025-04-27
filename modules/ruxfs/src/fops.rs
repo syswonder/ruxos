@@ -15,7 +15,7 @@
 //! The interface is designed with low coupling to avoid repetitive error handling.
 use alloc::{sync::Arc, vec::Vec};
 use axerrno::{AxError, AxResult, LinuxResult};
-use axfs_vfs::{AbsPath, RelPath, VfsNodeOps, VfsNodeRef, VfsNodeType};
+use axfs_vfs::{AbsPath, RelPath, VfsNodeOps, VfsNodePerm, VfsNodeRef, VfsNodeType};
 use capability::Cap;
 use ruxfdtable::{FileLike, OpenFlags};
 use ruxfifo::FifoNode;
@@ -25,7 +25,7 @@ use crate::{
     fifo::{FifoReader, FifoWriter},
     file::File,
     root::{MountPoint, RootDirectory},
-    FileAttr,
+    FileAttr, FilePerm,
 };
 
 #[crate_interface::def_interface]
@@ -83,7 +83,11 @@ pub fn get_attr(path: &AbsPath) -> AxResult<FileAttr> {
 /// PERF: resolve the same path three times if not found!
 ///
 /// Internal helper to open a file by absolute path with flags and validation.
-pub(crate) fn open_abspath(path: &AbsPath, flags: OpenFlags) -> AxResult<VfsNodeRef> {
+pub(crate) fn open_abspath(
+    path: &AbsPath,
+    flags: OpenFlags,
+    mode: FilePerm,
+) -> AxResult<VfsNodeRef> {
     let node = match lookup(path) {
         Ok(node) => {
             if flags.contains(OpenFlags::O_EXCL | OpenFlags::O_CREAT) {
@@ -102,7 +106,7 @@ pub(crate) fn open_abspath(path: &AbsPath, flags: OpenFlags) -> AxResult<VfsNode
             if !flags.contains(OpenFlags::O_CREAT) || flags.contains(OpenFlags::O_DIRECTORY) {
                 return Err(AxError::NotFound);
             }
-            create_file(path)?;
+            create(path, VfsNodeType::File, mode)?;
             lookup(path)?
         }
         Err(e) => return Err(e),
@@ -118,8 +122,12 @@ pub(crate) fn open_abspath(path: &AbsPath, flags: OpenFlags) -> AxResult<VfsNode
 }
 
 /// Opens a file-like object (file or directory) at given path with flags.
-pub fn open_file_like(path: &AbsPath, flags: OpenFlags) -> LinuxResult<Arc<dyn FileLike>> {
-    let node = open_abspath(path, flags)?;
+pub fn open_file_like(
+    path: &AbsPath,
+    flags: OpenFlags,
+    mode: FilePerm,
+) -> LinuxResult<Arc<dyn FileLike>> {
+    let node = open_abspath(path, flags, mode)?;
     match node.get_attr()?.file_type() {
         VfsNodeType::Dir => Ok(Arc::new(Directory::new(path.to_owned(), node, flags))),
         VfsNodeType::File => Ok(Arc::new(File::new(path.to_owned(), node, flags))),
@@ -134,40 +142,18 @@ pub fn open_file_like(path: &AbsPath, flags: OpenFlags) -> LinuxResult<Arc<dyn F
         _ => Ok(Arc::new(File::new(path.to_owned(), node, flags))),
     }
 }
-
-/// Create a file given an absolute path.
+/// Create a vfs node given an absolute path, type and mode.
 ///
-/// This function will not check if the file exists, check it with [`lookup`] first.
-pub fn create_file(path: &AbsPath) -> AxResult {
-    root_dir().create(&path.to_rel(), VfsNodeType::File)
-}
-
-/// Create a directory given an absolute path.
-///
-/// This function will not check if the directory exists, check it with [`lookup`] first.
-pub fn create_dir(path: &AbsPath) -> AxResult {
-    root_dir().create(&path.to_rel(), VfsNodeType::Dir)
-}
-
-/// Create a socket file given an absolute path.
-///
-/// This function will not check if the socket exists, check it with [`lookup`] first.
-pub fn create_socket(path: &AbsPath) -> AxResult {
-    root_dir().create(&path.to_rel(), VfsNodeType::Socket)
-}
-
-/// Create a fifo file given an absolute path.
-///
-/// This function will not check if the file exists, check it with [`lookup`] first.
-pub fn create_fifo(path: &AbsPath) -> AxResult {
-    root_dir().create(&path.to_rel(), VfsNodeType::Fifo)
+/// This function will not check if the node exists, check it with [`lookup`] first.
+pub fn create(path: &AbsPath, ty: VfsNodeType, mode: VfsNodePerm) -> AxResult {
+    root_dir().create(&path.to_rel(), ty, mode)
 }
 
 /// Create a directory recursively given an absolute path.
 ///
 /// This function will not check if the directory exists, check it with [`lookup`] first.
 pub fn create_dir_all(path: &AbsPath) -> AxResult {
-    root_dir().create_recursive(&path.to_rel(), VfsNodeType::Dir)
+    root_dir().create_recursive(&path.to_rel(), VfsNodeType::Dir, VfsNodePerm::default_dir())
 }
 
 /// Remove a file given an absolute path.

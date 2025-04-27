@@ -24,7 +24,9 @@ impl VfsNodeOps for NullDev {
             0,
         ))
     }
-
+    fn set_mode(&self, _mode: VfsNodePerm) -> VfsResult {
+        Ok(())
+    }
     fn read_at(&self, _offset: u64, _buf: &mut [u8]) -> VfsResult<usize> {
         Ok(0)
     }

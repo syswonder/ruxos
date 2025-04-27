@@ -144,6 +144,10 @@ impl VfsNodeOps for DirWrapper<'static> {
         ))
     }
 
+    fn set_mode(&self, _mode: VfsNodePerm) -> VfsResult {
+        Ok(())
+    }
+
     fn parent(&self) -> Option<VfsNodeRef> {
         self.0
             .open_dir("..")
@@ -174,7 +178,7 @@ impl VfsNodeOps for DirWrapper<'static> {
         }
     }
 
-    fn create(&self, path: &RelPath, ty: VfsNodeType) -> VfsResult {
+    fn create(&self, path: &RelPath, ty: VfsNodeType, _mode: VfsNodePerm) -> VfsResult {
         debug!("create {:?} at fatfs: {}", ty, path);
         if path.is_empty() {
             return Ok(());

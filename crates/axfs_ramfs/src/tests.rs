@@ -9,7 +9,7 @@
 
 use std::sync::Arc;
 
-use axfs_vfs::{RelPath, VfsError, VfsNodeType, VfsResult};
+use axfs_vfs::{RelPath, VfsError, VfsNodePerm, VfsNodeType, VfsResult};
 
 use crate::*;
 
@@ -137,24 +137,48 @@ fn test_ramfs() {
 
     let ramfs = RamFileSystem::new();
     let root = ramfs.root_dir();
-    root.create(&RelPath::new_canonicalized("f1"), VfsNodeType::File)
-        .unwrap();
-    root.create(&RelPath::new_canonicalized("f2"), VfsNodeType::File)
-        .unwrap();
-    root.create(&RelPath::new_canonicalized("foo"), VfsNodeType::Dir)
-        .unwrap();
+    root.create(
+        &RelPath::new_canonicalized("f1"),
+        VfsNodeType::File,
+        VfsNodePerm::default_file(),
+    )
+    .unwrap();
+    root.create(
+        &RelPath::new_canonicalized("f2"),
+        VfsNodeType::File,
+        VfsNodePerm::default_file(),
+    )
+    .unwrap();
+    root.create(
+        &RelPath::new_canonicalized("foo"),
+        VfsNodeType::Dir,
+        VfsNodePerm::default_file(),
+    )
+    .unwrap();
 
     let dir_foo = root.lookup(&RelPath::new_canonicalized("foo")).unwrap();
     dir_foo
-        .create(&RelPath::new_canonicalized("f3"), VfsNodeType::File)
+        .create(
+            &RelPath::new_canonicalized("f3"),
+            VfsNodeType::File,
+            VfsNodePerm::default_file(),
+        )
         .unwrap();
     dir_foo
-        .create(&RelPath::new_canonicalized("bar"), VfsNodeType::Dir)
+        .create(
+            &RelPath::new_canonicalized("bar"),
+            VfsNodeType::Dir,
+            VfsNodePerm::default_dir(),
+        )
         .unwrap();
 
     let dir_bar = dir_foo.lookup(&RelPath::new_canonicalized("bar")).unwrap();
     dir_bar
-        .create(&RelPath::new_canonicalized("f4"), VfsNodeType::File)
+        .create(
+            &RelPath::new_canonicalized("f4"),
+            VfsNodeType::File,
+            VfsNodePerm::default_file(),
+        )
         .unwrap();
 
     let mut entries = ramfs.root_dir_node().get_entries();
