@@ -37,10 +37,14 @@ register_structs! {
         /// Raw Interrupt Status Register.
         (0x3c => ris: ReadOnly<u32>),
         /// Masked Interrupt Status Register.
-        (0x40 => mis: ReadOnly<u32>),
+        (0x40 => utxd: WriteOnly<u32>),
         /// Interrupt Clear Register.
         (0x44 => icr: WriteOnly<u32>),
-        (0x48 => @END),
+        (0x48 => _reserved2),
+        (0x80 => ucr1: ReadWrite<u32>),
+        (0x84 => _reserved3),
+        (0xb4 => uts: ReadWrite<u32>),
+        (0xb8 => @END),
     }
 }
 
@@ -75,42 +79,41 @@ impl Pl011Uart {
     ///
     /// It clears all irqs, sets fifo trigger level, enables rx interrupt, enables receives
     pub fn init(&mut self) {
-        // clear all irqs
-        self.regs().icr.set(0x7ff);
+        // // clear all irqs
+        // self.regs().icr.set(0x7ff);
 
-        // set fifo trigger level
-        self.regs().ifls.set(0); // 1/8 rxfifo, 1/8 txfifo.
+        // // set fifo trigger level
+        // self.regs().ifls.set(0); // 1/8 rxfifo, 1/8 txfifo.
 
-        // enable rx interrupt
-        self.regs().imsc.set(1 << 4); // rxim
+        // // enable rx interrupt
+        // self.regs().imsc.set(1 << 4); // rxim
 
-        // enable receive
-        self.regs().cr.set((1 << 0) | (1 << 8) | (1 << 9)); // tx enable, rx enable, uart enable
+        // // enable receive
+        // self.regs().cr.set((1 << 0) | (1 << 8) | (1 << 9)); // tx enable, rx enable, uart enable
     }
 
     /// Output a char c to data register
     pub fn putchar(&mut self, c: u8) {
-        while self.regs().fr.get() & (1 << 5) != 0 {}
-        self.regs().dr.set(c as u32);
+        while (self.regs().uts.get() & (1 << 6)) == 0 {}
+        self.regs().utxd.set(c as u32);
     }
 
     /// Return a byte if pl011 has received, or it will return `None`.
     pub fn getchar(&mut self) -> Option<u8> {
-        if self.regs().fr.get() & (1 << 4) == 0 {
-            Some(self.regs().dr.get() as u8)
-        } else {
-            None
-        }
+        // if self.regs().fr.get() & (1 << 4) == 0 {
+        //     Some(self.regs().dr.get() as u8)
+        // } else {
+        None
+        // }
     }
 
     /// Return true if pl011 has received an interrupt
     pub fn is_receive_interrupt(&self) -> bool {
-        let pending = self.regs().mis.get();
-        pending & (1 << 4) != 0
+        false
     }
 
     /// Clear all interrupts
     pub fn ack_interrupts(&mut self) {
-        self.regs().icr.set(0x7ff);
+        // self.regs().icr.set(0x7ff);
     }
 }

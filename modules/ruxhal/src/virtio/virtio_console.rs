@@ -20,7 +20,7 @@ const VIRTIO_CONSOLE_REG: usize = 0x200;
 use crate::platform::irq::VIRTIO_CONSOLE_IRQ_NUM;
 
 /// Store buffer size
-const MEM_SIZE: usize = 4096;
+const MEM_SIZE: usize = 16384;
 
 #[cfg(feature = "irq")]
 const BUFFER_SIZE: usize = 128;

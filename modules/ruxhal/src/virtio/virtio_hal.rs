@@ -22,6 +22,9 @@ unsafe impl VirtIoHal for VirtIoHalImpl {
     /// Allocate DMA buffer
     fn dma_alloc(pages: usize, _direction: BufferDirection) -> (PhysAddr, NonNull<u8>) {
         let vaddr = if let Ok(vaddr) = global_allocator().alloc_pages(pages, 0x1000) {
+            unsafe {
+                core::ptr::write_bytes(vaddr as *mut u8, 0, pages * 0x1000);
+            }
             vaddr
         } else {
             return (0, NonNull::dangling());
