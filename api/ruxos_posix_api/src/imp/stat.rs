@@ -11,11 +11,17 @@ use crate::ctypes::{self, gid_t, pid_t, uid_t};
 use core::ffi::c_int;
 
 /// Set file mode creation mask
-///
-/// TODO:
 pub fn sys_umask(mode: ctypes::mode_t) -> ctypes::mode_t {
-    debug!("sys_umask <= mode: {:x}", mode);
-    syscall_body!(sys_umask, Ok(0))
+    debug!("sys_umask <= mode: {:#o}", mode);
+
+    syscall_body!(sys_umask, {
+        #[cfg(feature = "fd")]
+        {
+            Ok(ruxtask::fs::replace_umask(mode as _))
+        }
+        #[cfg(not(feature = "fd"))]
+        Ok(0)
+    })
 }
 
 /// Returns the effective user ID of the calling process

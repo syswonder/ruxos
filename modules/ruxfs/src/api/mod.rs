@@ -17,11 +17,11 @@ pub use super::{
 };
 use alloc::{string::String, vec::Vec};
 use axerrno::ax_err;
-use axfs_vfs::VfsError;
+use axfs_vfs::{VfsError, VfsNodePerm, VfsNodeType};
 use axio::{self as io, prelude::*, Error, Result};
 /// Opens a regular file at given path. Fails if path points to a directory.
 pub fn open_file(path: &AbsPath, flags: OpenFlags) -> Result<File> {
-    let node = fops::open_abspath(path, flags)?;
+    let node = fops::open_abspath(path, flags, VfsNodePerm::default_file())?;
     if node.get_attr()?.is_dir() {
         Err(Error::IsADirectory)
     } else {
@@ -31,7 +31,7 @@ pub fn open_file(path: &AbsPath, flags: OpenFlags) -> Result<File> {
 
 /// Opens a directory at given path. Fails if path points to non-directory.
 pub fn open_dir(path: &AbsPath, flags: OpenFlags) -> Result<Directory> {
-    let node = fops::open_abspath(path, flags)?;
+    let node = fops::open_abspath(path, flags, VfsNodePerm::default_dir())?;
     if node.get_attr()?.is_dir() {
         Ok(Directory::new(path.to_owned(), node, flags))
     } else {
@@ -93,7 +93,7 @@ pub fn create_dir(path: &AbsPath) -> io::Result<()> {
         Err(VfsError::NotFound) => {}
         Err(e) => return ax_err!(e),
     }
-    fops::create_dir(path)
+    fops::create(path, VfsNodeType::Dir, VfsNodePerm::default_dir())
 }
 
 /// Recursively create a directory and all of its parent components if they

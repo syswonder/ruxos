@@ -13,18 +13,18 @@ use core::{
     str,
 };
 
-use ruxfs::api::FileType;
+use ruxfs::{api::FileType, fops::lookup, FilePerm};
 
 use axerrno::{LinuxError, LinuxResult};
 use axio::{Error, SeekFrom};
-use ruxfdtable::{FileLike, OpenFlags, RuxStat};
+use ruxfdtable::{OpenFlags, RuxStat};
 use ruxfs::{
     fops::{self, open_file_like},
     AbsPath, DirEntry, Directory, File, RelPath,
 };
 
 use crate::ctypes;
-use ruxtask::fs::{add_file_like, get_file_like};
+use ruxtask::fs::{add_file_like, get_file_like, get_umask};
 
 use super::stdio::{Stdin, Stdout};
 
@@ -54,11 +54,9 @@ pub fn sys_openat(fd: c_int, path: *const c_char, flags: c_int, mode: ctypes::mo
     syscall_body!(sys_openat, {
         let path = parse_path_at(fd, path)?;
         let flags = OpenFlags::from_bits(flags).ok_or(LinuxError::EINVAL)?;
-        debug!(
-            "sys_openat <= fd {} {:?}, {:?}, {:#o}",
-            fd, path, flags, mode
-        );
-        add_file_like(open_file_like(&path, flags)?, flags)
+        debug!("sys_openat <= fd {fd} {path:?}, {flags:?}, {mode:#o}");
+        let mode = FilePerm::from_bits_truncate(mode as u16 & !get_umask());
+        add_file_like(open_file_like(&path, flags, mode)?, flags)
     })
 }
 
@@ -425,6 +423,17 @@ pub fn sys_unlinkat(fd: c_int, pathname: *const c_char, flags: c_int) -> c_int {
     })
 }
 
+/// Change permissions of a file
+pub fn sys_fchmodat(dirfd: c_int, pathname: *const c_char, mode: ctypes::mode_t) -> c_int {
+    syscall_body!(sys_mknodat, {
+        let path = parse_path_at(dirfd, pathname)?;
+        debug!("sys_fchmodat <= fd: {dirfd}, path: {path:?}, mode: {mode:#o}");
+        let node = lookup(&path)?;
+        node.set_mode(FilePerm::from_bits_truncate(mode as u16))?;
+        Ok(0)
+    })
+}
+
 /// Creates a new, empty file at the provided path.
 pub fn sys_mknodat(
     fd: c_int,
@@ -435,52 +444,32 @@ pub fn sys_mknodat(
     // TODO: implement permissions mode
     syscall_body!(sys_mknodat, {
         let path = parse_path_at(fd, pathname)?;
-        debug!(
-            "sys_mknodat <= fd: {}, pathname: {:?}, mode: {:x?}, dev: {:x?}",
-            fd, path, mode, _dev
-        );
+        debug!("sys_mknodat <= fd: {fd}, pathname: {path:?}, mode: {mode:#o}, dev: {_dev:x?}");
         let file_type = match mode & ctypes::S_IFMT {
             ctypes::S_IFREG => FileType::File,
             ctypes::S_IFIFO => FileType::Fifo,
             _ => todo!(),
         };
-
-        match file_type {
-            FileType::File => fops::create_file(&path)?,
-            FileType::Fifo => fops::create_fifo(&path)?,
-            _ => todo!(),
-        }
+        let mode = FilePerm::from_bits_truncate(mode as u16 & !get_umask());
+        fops::create(&path, file_type, mode)?;
         Ok(0)
     })
 }
 
 /// Creates a new, empty directory at the provided path.
 pub fn sys_mkdir(pathname: *const c_char, mode: ctypes::mode_t) -> c_int {
-    // TODO: implement mode
-    syscall_body!(sys_mkdir, {
-        let path = parse_path(pathname)?;
-        debug!("sys_mkdir <= path: {:?}, mode: {:?}", path, mode);
-        let node = fops::lookup(&path);
-        match node {
-            Ok(_) => return Err(LinuxError::EEXIST),
-            Err(Error::NotFound) => fops::create_dir(&path)?,
-            Err(e) => return Err(e.into()),
-        }
-        Ok(0)
-    })
+    sys_mkdirat(ctypes::AT_FDCWD, pathname, mode)
 }
 
 /// attempts to create a directory named pathname under directory pointed by `fd`
 pub fn sys_mkdirat(fd: c_int, pathname: *const c_char, mode: ctypes::mode_t) -> c_int {
     syscall_body!(sys_mkdirat, {
         let path = parse_path_at(fd, pathname)?;
-        debug!(
-            "sys_mkdirat <= fd: {}, pathname: {:?}, mode: {:x?}",
-            fd, path, mode
-        );
+        debug!("sys_mkdirat <= fd: {fd}, pathname: {path:?}, mode: {mode:#o}",);
+        let mode = FilePerm::from_bits_truncate(mode as u16 & !get_umask());
         match fops::lookup(&path) {
             Ok(_) => return Err(LinuxError::EEXIST),
-            Err(Error::NotFound) => fops::create_dir(&path)?,
+            Err(Error::NotFound) => fops::create(&path, FileType::Dir, mode)?,
             Err(e) => return Err(e.into()),
         }
         Ok(0)
@@ -681,12 +670,9 @@ pub fn parse_path_at(dirfd: c_int, path: *const c_char) -> LinuxResult<AbsPath<'
     } else if dirfd == ctypes::AT_FDCWD {
         Ok(fops::current_dir()?.join(&RelPath::new_canonicalized(path)))
     } else {
-        let dir = dir_from_fd(dirfd)?;
-        if dir.flags().contains(OpenFlags::O_PATH) {
-            Ok(dir.path().join(&RelPath::new_canonicalized(path)))
-        } else {
-            Err(LinuxError::EACCES)
-        }
+        Ok(dir_from_fd(dirfd)?
+            .path()
+            .join(&RelPath::new_canonicalized(path)))
     }
 }
 

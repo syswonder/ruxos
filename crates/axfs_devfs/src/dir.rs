@@ -9,7 +9,9 @@
 
 use alloc::collections::BTreeMap;
 use alloc::sync::{Arc, Weak};
-use axfs_vfs::{RelPath, VfsDirEntry, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType};
+use axfs_vfs::{
+    RelPath, VfsDirEntry, VfsNodeAttr, VfsNodeOps, VfsNodePerm, VfsNodeRef, VfsNodeType,
+};
 use axfs_vfs::{VfsError, VfsResult};
 use spin::RwLock;
 
@@ -20,7 +22,7 @@ use crate::InoAllocator;
 ///
 /// It implements [`axfs_vfs::VfsNodeOps`].
 pub struct DirNode {
-    ino: u64,
+    attr: RwLock<VfsNodeAttr>,
     parent: RwLock<Weak<dyn VfsNodeOps>>,
     children: RwLock<BTreeMap<&'static str, VfsNodeRef>>,
     ialloc: Weak<InoAllocator>,
@@ -29,12 +31,13 @@ pub struct DirNode {
 impl DirNode {
     pub(super) fn new(
         ino: u64,
+        mode: VfsNodePerm,
         parent: Option<&VfsNodeRef>,
         ialloc: Weak<InoAllocator>,
     ) -> Arc<Self> {
         let parent = parent.map_or(Weak::<Self>::new() as _, Arc::downgrade);
         Arc::new(Self {
-            ino,
+            attr: RwLock::new(VfsNodeAttr::new(ino, mode, VfsNodeType::Dir, 4096, 0)),
             parent: RwLock::new(parent),
             children: RwLock::new(BTreeMap::new()),
             ialloc,
@@ -46,13 +49,10 @@ impl DirNode {
     }
 
     /// Create a subdirectory at this directory.
-    pub fn mkdir(self: &Arc<Self>, name: &'static str) -> Arc<Self> {
+    pub fn mkdir(self: &Arc<Self>, name: &'static str, mode: VfsNodePerm) -> Arc<Self> {
         let parent = self.clone() as VfsNodeRef;
-        let node = Self::new(
-            self.ialloc.upgrade().unwrap().alloc(),
-            Some(&parent),
-            self.ialloc.clone(),
-        );
+        let ino = self.ialloc.upgrade().unwrap().alloc();
+        let node = Self::new(ino, mode, Some(&parent), self.ialloc.clone());
         self.children.write().insert(name, node.clone());
         node
     }
@@ -65,7 +65,12 @@ impl DirNode {
 
 impl VfsNodeOps for DirNode {
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
-        Ok(VfsNodeAttr::new_dir(self.ino, 4096, 0))
+        Ok(*self.attr.read())
+    }
+
+    fn set_mode(&self, mode: VfsNodePerm) -> VfsResult {
+        self.attr.write().set_perm(mode);
+        Ok(())
     }
 
     fn parent(&self) -> Option<VfsNodeRef> {
@@ -120,17 +125,20 @@ impl VfsNodeOps for DirNode {
         Ok(dirents.len())
     }
 
-    fn create(&self, path: &RelPath, ty: VfsNodeType) -> VfsResult {
+    fn create(&self, path: &RelPath, ty: VfsNodeType, mode: VfsNodePerm) -> VfsResult {
         let (name, rest) = split_path(path);
         if let Some(rest) = rest {
             match name {
-                ".." => self.parent().ok_or(VfsError::NotFound)?.create(&rest, ty),
+                ".." => self
+                    .parent()
+                    .ok_or(VfsError::NotFound)?
+                    .create(&rest, ty, mode),
                 _ => self
                     .children
                     .read()
                     .get(name)
                     .ok_or(VfsError::NotFound)?
-                    .create(&rest, ty),
+                    .create(&rest, ty, mode),
             }
         } else if name.is_empty() || name == ".." {
             Ok(()) // already exists

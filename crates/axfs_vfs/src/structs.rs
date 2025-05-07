@@ -245,53 +245,6 @@ impl VfsNodeAttr {
         }
     }
 
-    /// Creates a new `VfsNodeAttr` for a file, with the default file permission.
-    pub const fn new_file(ino: u64, size: u64, blocks: u64) -> Self {
-        Self {
-            ino,
-            mode: VfsNodePerm::default_file(),
-            ty: VfsNodeType::File,
-            size,
-            blocks,
-        }
-    }
-
-    /// Creates a new `VfsNodeAttr` for a directory, with the default directory
-    /// permission.
-    pub const fn new_dir(ino: u64, size: u64, blocks: u64) -> Self {
-        Self {
-            ino,
-            mode: VfsNodePerm::default_dir(),
-            ty: VfsNodeType::Dir,
-            size,
-            blocks,
-        }
-    }
-
-    /// Creates a new `VfsNodeAttr` for a socket, with the default socket permission.
-    /// The size and blocks are set to 0.
-    pub const fn new_socket(ino: u64) -> Self {
-        Self {
-            ino,
-            mode: VfsNodePerm::default_socket(),
-            ty: VfsNodeType::Socket,
-            size: 0,
-            blocks: 0,
-        }
-    }
-
-    /// Creates a new `VfsNodeAttr` for a fifo file, with the default fifo permission.
-    /// The size and blocks are set to 0.
-    pub const fn new_fifo(ino: u64) -> Self {
-        Self {
-            ino,
-            mode: VfsNodePerm::default_fifo(),
-            ty: VfsNodeType::Fifo,
-            size: 0,
-            blocks: 0,
-        }
-    }
-
     /// Returns the inode number of the node.
     pub const fn ino(&self) -> u64 {
         self.ino

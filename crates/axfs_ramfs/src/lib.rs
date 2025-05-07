@@ -25,7 +25,7 @@ pub use self::dir::DirNode;
 pub use self::file::FileNode;
 
 use alloc::sync::Arc;
-use axfs_vfs::{AbsPath, VfsNodeRef, VfsOps, VfsResult};
+use axfs_vfs::{AbsPath, VfsNodePerm, VfsNodeRef, VfsOps, VfsResult};
 use core::sync::atomic::AtomicU64;
 use spin::once::Once;
 
@@ -62,7 +62,12 @@ impl RamFileSystem {
         let ialloc = Arc::new(InoAllocator::new(0));
         Self {
             parent: Once::new(),
-            root: DirNode::new(ialloc.alloc(), None, Arc::downgrade(&ialloc)),
+            root: DirNode::new(
+                ialloc.alloc(),
+                VfsNodePerm::default_dir(),
+                None,
+                Arc::downgrade(&ialloc),
+            ),
             _ialloc: ialloc,
         }
     }

@@ -72,6 +72,10 @@ impl VfsNodeOps for PtsRootInode {
         ))
     }
 
+    fn set_mode(&self, _mode: VfsNodePerm) -> VfsResult {
+        Ok(())
+    }
+
     fn parent(&self) -> Option<VfsNodeRef> {
         self.parent.get().unwrap().upgrade()
     }
@@ -123,7 +127,7 @@ impl VfsNodeOps for PtsRootInode {
         Ok(dirents.len())
     }
 
-    fn create(&self, _path: &RelPath, _ty: axfs_vfs::VfsNodeType) -> VfsResult {
+    fn create(&self, _path: &RelPath, _ty: axfs_vfs::VfsNodeType, _mode: VfsNodePerm) -> VfsResult {
         ax_err!(PermissionDenied)
     }
 

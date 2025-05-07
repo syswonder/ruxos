@@ -28,7 +28,7 @@ const FIFO_SIZE: usize = 65536;
 /// with atomic reference counting for concurrent access management.
 pub struct FifoNode {
     /// VFS node attributes
-    attr: VfsNodeAttr,
+    attr: Mutex<VfsNodeAttr>,
     /// Thread-safe ring buffer with mutual exclusion lock
     buffer: Mutex<RingBuffer>,
     /// Active readers counter (atomic for lock-free access)
@@ -39,9 +39,9 @@ pub struct FifoNode {
 
 impl FifoNode {
     /// create a new fifo
-    pub fn new(ino: u64) -> Self {
+    pub fn new(ino: u64, mode: VfsNodePerm) -> Self {
         Self {
-            attr: VfsNodeAttr::new(ino, VfsNodePerm::default_fifo(), VfsNodeType::Fifo, 0, 0),
+            attr: Mutex::new(VfsNodeAttr::new(ino, mode, VfsNodeType::Fifo, 0, 0)),
             buffer: Mutex::new(RingBuffer::new(FIFO_SIZE)),
             readers: AtomicUsize::new(0),
             writers: AtomicUsize::new(0),
@@ -54,7 +54,13 @@ impl FifoNode {
     /// typically used for creating pipe reader/writer endpoints.
     pub fn new_pair() -> (Arc<Self>, Arc<Self>) {
         let node = Arc::new(Self {
-            attr: VfsNodeAttr::new(1, VfsNodePerm::default_fifo(), VfsNodeType::Fifo, 0, 0),
+            attr: Mutex::new(VfsNodeAttr::new(
+                1,
+                VfsNodePerm::default_fifo(),
+                VfsNodeType::Fifo,
+                0,
+                0,
+            )),
             buffer: Mutex::new(RingBuffer::new(FIFO_SIZE)),
             readers: AtomicUsize::new(1),
             writers: AtomicUsize::new(1),
@@ -122,7 +128,12 @@ impl FifoNode {
 
 impl VfsNodeOps for FifoNode {
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
-        Ok(self.attr)
+        Ok(*self.attr.lock())
+    }
+
+    fn set_mode(&self, mode: VfsNodePerm) -> VfsResult {
+        self.attr.lock().set_perm(mode);
+        Ok(())
     }
 
     // for fifo, offset is useless and ignored
