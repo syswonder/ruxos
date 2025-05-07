@@ -67,3 +67,6 @@ timer-frequency = "10_000_000"      # 10MHz
 
 # Pipe channel bufer size.
 pipe-buffer-size = "0x10000"
+
+# Default buffer size used for pty input/output
+pty-buffer-capacity = "4096"

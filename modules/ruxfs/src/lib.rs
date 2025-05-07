@@ -154,27 +154,37 @@ pub fn init_blkfs(mut blk_devs: AxDeviceContainer<AxBlockDevice>) -> MountPoint 
 /// Initializes common filesystems.
 pub fn prepare_commonfs(mount_points: &mut Vec<self::root::MountPoint>) {
     #[cfg(feature = "devfs")]
-    let mount_point = MountPoint::new(AbsPath::new("/dev"), mounts::devfs());
-    mount_points.push(mount_point);
+    {
+        let mount_point = MountPoint::new(AbsPath::new("/dev"), mounts::devfs());
+        mount_points.push(mount_point);
+    }
 
     #[cfg(feature = "ramfs")]
-    let mount_point = MountPoint::new(AbsPath::new("/tmp"), mounts::ramfs());
-    mount_points.push(mount_point);
+    {
+        let mount_point = MountPoint::new(AbsPath::new("/tmp"), mounts::ramfs());
+        mount_points.push(mount_point);
+    }
 
     // Mount another ramfs as procfs
     #[cfg(feature = "procfs")]
-    let mount_point = MountPoint::new(AbsPath::new("/proc"), mounts::procfs().unwrap());
-    mount_points.push(mount_point);
+    {
+        let mount_point = MountPoint::new(AbsPath::new("/proc"), mounts::procfs().unwrap());
+        mount_points.push(mount_point);
+    }
 
     // Mount another ramfs as sysfs
     #[cfg(feature = "sysfs")]
-    let mount_point = MountPoint::new(AbsPath::new("/sys"), mounts::sysfs().unwrap());
-    mount_points.push(mount_point);
+    {
+        let mount_point = MountPoint::new(AbsPath::new("/sys"), mounts::sysfs().unwrap());
+        mount_points.push(mount_point);
+    }
 
     // Mount another ramfs as etcfs
     #[cfg(feature = "etcfs")]
-    let mount_point = MountPoint::new(AbsPath::new("/etc"), mounts::etcfs().unwrap());
-    mount_points.push(mount_point);
+    {
+        let mount_point = MountPoint::new(AbsPath::new("/etc"), mounts::etcfs().unwrap());
+        mount_points.push(mount_point);
+    }
 }
 
 /// Initializes root filesystems.

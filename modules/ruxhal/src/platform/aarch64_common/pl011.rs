@@ -125,6 +125,6 @@ pub fn irq_handler() {
             buf[len] = c;
             len += 1;
         }
-        ruxtty::tty_receive_buf(&buf[..len]);
+        tty::tty_receive_buf(&buf[..len]);
     }
 }

@@ -1,6 +1,16 @@
+/* Copyright (c) [2023] [Syswonder Community]
+ *   [Ruxos] is licensed under Mulan PSL v2.
+ *   You can use this software according to the terms and conditions of the Mulan PSL v2.
+ *   You may obtain a copy of Mulan PSL v2 at:
+ *               http://license.coscl.org.cn/MulanPSL2
+ *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ *   See the Mulan PSL v2 for more details.
+ */
+//! Tty/Pty Ioctl Command
 #![allow(clippy::upper_case_acronyms)]
 #![allow(dead_code)]
-use num_enum::FromPrimitive;
+pub use num_enum::FromPrimitive;
+
 #[derive(Debug, FromPrimitive, Clone, Copy, Eq, PartialEq)]
 #[repr(u32)]
 /// Tty IO control command
@@ -87,6 +97,9 @@ pub enum IoctlCommand {
     ///
     /// Sets terminal window size (rows/columns)
     TIOCSWINSZ = 0x5414,
+
+    /// Get the number of bytes in the input buffer.
+    FIONREAD = 0x541B,
 
     /// TIOCNOTTY: Terminal IOCtl No TTY
     ///

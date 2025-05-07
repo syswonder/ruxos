@@ -50,7 +50,7 @@ impl Tty {
 
     /// Retrieves current foreground process group ID
     pub fn fg_pgid(&self) -> usize {
-        self.fg_pgid.load(Ordering::Relaxed)
+        self.fg_pgid.load(Ordering::Acquire)
     }
 
     /// Updates foreground process group ID with release ordering
@@ -103,8 +103,8 @@ impl Tty {
                 warn!("TtyIoctlCmd::TIOCSCTTY not implemented");
                 Ok(0)
             }
-            _ => {
-                warn!("unimplemented tty ioctl, cmd {cmd}");
+            ioctl_cmd => {
+                warn!("unimplemented tty ioctl, cmd {:?} {:x}", ioctl_cmd, cmd);
                 Ok(0)
             }
         }

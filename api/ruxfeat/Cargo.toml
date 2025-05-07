@@ -114,9 +114,7 @@ tty = []
 [dependencies]
 ruxruntime = { path = "../../modules/ruxruntime" }
 ruxhal = { path = "../../modules/ruxhal" }
-ruxtty = { path = "../../modules/ruxtty" }
 ruxmm = { path = "../../modules/ruxmm" }
-axlog = { path = "../../modules/axlog" }
 axalloc = { path = "../../modules/axalloc", optional = true }
 ruxdriver = { path = "../../modules/ruxdriver", optional = true }
 ruxfs = { path = "../../modules/ruxfs", optional = true }
@@ -126,3 +124,5 @@ ruxdisplay = { path = "../../modules/ruxdisplay", optional = true }
 axsync = { path = "../../modules/axsync", optional = true }
 ruxtask = { path = "../../modules/ruxtask", optional = true }
 spinlock = { path = "../../crates/spinlock", optional = true }
+axlog = { path = "../../crates/axlog" }
+tty = { path = "../../crates/tty" }

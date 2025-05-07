@@ -42,10 +42,10 @@ cfg-if = "1.0"
 bitflags = { workspace = true }
 static_assertions = "1.1.0"
 embedded-hal = "0.2.7"
-axlog = { path = "../axlog" }
 ruxconfig = { path = "../ruxconfig" }
 axalloc = { path = "../axalloc", optional = true }
 kernel_guard = "0.1.0"
+axlog = { path = "../../crates/axlog" }
 spinlock = { path = "../../crates/spinlock" }
 ratio = { path = "../../crates/ratio" }
 lazy_init = { path = "../../crates/lazy_init" }
@@ -62,7 +62,7 @@ handler_table = "0.1.0"
 crate_interface = "0.1.1"
 axerrno = { path = "../../crates/axerrno" }
 axio = { path = "../../crates/axio" }
-ruxtty = { path = "../ruxtty" }
+tty = { path = "../../crates/tty" }
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 x86 = "0.52"

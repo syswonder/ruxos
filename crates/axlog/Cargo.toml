@@ -6,7 +6,7 @@ authors = ["Yuekai Jia <equation618@gmail.com>"]
 description = "Macros for multi-level formatted logging used by ArceOS"
 license = "GPL-3.0-or-later OR Apache-2.0"
 homepage = "https://github.com/rcore-os/arceos"
-repository = "https://github.com/rcore-os/arceos/tree/main/modules/axlog"
+repository = "https://github.com/rcore-os/arceos/tree/main/crates/axlog"
 documentation = "https://rcore-os.github.io/arceos/axlog/index.html"
 
 [features]
@@ -22,7 +22,7 @@ default = []
 [dependencies]
 cfg-if = "1.0"
 log = "< 0.4.22"
-spinlock = { path = "../../crates/spinlock" }
+spinlock = { path = "../spinlock" }
 crate_interface = { version = "0.1.1" }
 chrono = { version = "0.4", optional = true }
 

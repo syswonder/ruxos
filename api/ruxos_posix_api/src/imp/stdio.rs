@@ -41,10 +41,10 @@ impl Stdin {
                 // x86_64 and riscv architectures lack this capability, requiring polling-based
                 // reads from the console instead.
                 while let Some(c) = ruxhal::console::getchar() {
-                    ruxtty::tty_receive_char(c);
+                    tty::tty_receive_char(c);
                 }
             }
-            match ruxtty::tty_read(buf) {
+            match tty::tty_read(buf) {
                 Ok(len) => return Ok(len),
                 Err(AxError::WouldBlock) => {
                     #[cfg(feature = "fd")]
@@ -67,7 +67,7 @@ impl Read for Stdin {
 
 impl Write for Stdout {
     fn write(&mut self, buf: &[u8]) -> AxResult<usize> {
-        ruxtty::tty_write(buf)
+        tty::tty_write(buf)
     }
 
     fn flush(&mut self) -> AxResult {
@@ -111,14 +111,14 @@ impl ruxfdtable::FileLike for Stdin {
         #[cfg(not(all(feature = "irq", target_arch = "aarch64")))]
         {
             while let Some(c) = ruxhal::console::getchar() {
-                ruxtty::tty_receive_char(c);
+                tty::tty_receive_char(c);
             }
         }
-        Ok(ruxtty::tty_poll())
+        Ok(tty::tty_poll())
     }
 
     fn ioctl(&self, cmd: usize, arg: usize) -> LinuxResult<usize> {
-        ruxtty::tty_ioctl(cmd, arg).map_err(LinuxError::from)
+        tty::tty_ioctl(cmd, arg).map_err(LinuxError::from)
     }
 
     fn set_flags(&self, flags: OpenFlags) -> LinuxResult {
@@ -148,7 +148,7 @@ impl ruxfdtable::FileLike for Stdout {
     }
 
     fn write(&self, buf: &[u8]) -> LinuxResult<usize> {
-        ruxtty::tty_write(buf).map_err(LinuxError::from)
+        tty::tty_write(buf).map_err(LinuxError::from)
     }
 
     fn flush(&self) -> LinuxResult {
@@ -178,7 +178,7 @@ impl ruxfdtable::FileLike for Stdout {
     }
 
     fn ioctl(&self, cmd: usize, arg: usize) -> LinuxResult<usize> {
-        ruxtty::tty_ioctl(cmd, arg).map_err(LinuxError::from)
+        tty::tty_ioctl(cmd, arg).map_err(LinuxError::from)
     }
 
     fn set_flags(&self, _flags: OpenFlags) -> LinuxResult {

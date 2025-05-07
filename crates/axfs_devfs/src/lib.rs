@@ -20,11 +20,13 @@ mod null;
 mod random;
 mod zero;
 
+mod pts;
 #[cfg(test)]
 mod tests;
 
 pub use self::dir::DirNode;
 pub use self::null::NullDev;
+pub use self::pts::{init_pts, PtsFileSystem};
 pub use self::random::RandomDev;
 pub use self::zero::ZeroDev;
 

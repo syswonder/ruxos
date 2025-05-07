@@ -18,3 +18,4 @@ spin = { workspace = true }
 bitflags = { workspace = true }
 axerrno = { path = "../axerrno" }
 lazy_static = { version = "1.4", features = ["spin_no_std"] }
+axio = { path = "../axio" }

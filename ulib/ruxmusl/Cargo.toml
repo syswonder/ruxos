@@ -57,6 +57,6 @@ ruxfeat = { path = "../../api/ruxfeat" }
 ruxos_posix_api = { path = "../../api/ruxos_posix_api" }
 num_enum = { version = "0.5.11", default-features = false }
 ruxhal = { path = "../../modules/ruxhal" }
-axlog = { path = "../../modules/axlog" }
+axlog = { path = "../../crates/axlog" }
 kernel_guard = "0.1.0"
 crate_interface = "0.1.1"
