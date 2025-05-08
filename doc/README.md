@@ -40,8 +40,6 @@
 * [linked_list](../crates/linked_list): Linked lists that supports arbitrary removal in constant time.
 * [page_table](../crates/page_table): Generic page table structures for various hardware architectures.
 * [page_table_entry](../crates/page_table_entry): Page table entry definition for various hardware architectures.
-* [percpu](../crates/percpu): Define and access per-CPU data structures.
-* [percpu_macros](../crates/percpu_macros): Macros to define and access a per-CPU data structure.
 * [ratio](../crates/ratio): The type of ratios and related operations.
 * [scheduler](../crates/scheduler): Various scheduler algorithms in a unified interface.
 * [slab_allocator](../crates/slab_allocator): Slab allocator for `no_std` systems. Uses multiple slabs with blocks of different sizes and a linked list for blocks larger than 4096 bytes.

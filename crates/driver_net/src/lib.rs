@@ -15,11 +15,14 @@
 #![feature(box_into_inner)]
 
 extern crate alloc;
-use alloc::sync::Arc;
+use alloc::{boxed::Box, sync::Arc};
 
 #[cfg(feature = "ixgbe")]
 /// ixgbe NIC device driver.
 pub mod ixgbe;
+#[cfg(feature = "loopback")]
+/// loopback device driver
+pub mod loopback;
 mod net_buf;
 
 use core::ptr::NonNull;
@@ -94,15 +97,23 @@ pub struct NetBufPtr {
     raw_ptr: NonNull<u8>,
     // The pointer to the net buffer.
     buf_ptr: NonNull<u8>,
+    // drop function for the original object.
+    drop_fn: Box<dyn FnOnce()>,
     len: usize,
 }
 
 impl NetBufPtr {
     /// Create a new [`NetBufPtr`].
-    pub fn new(raw_ptr: NonNull<u8>, buf_ptr: NonNull<u8>, len: usize) -> Self {
+    pub fn new(
+        raw_ptr: NonNull<u8>,
+        buf_ptr: NonNull<u8>,
+        drop_fn: Box<dyn FnOnce()>,
+        len: usize,
+    ) -> Self {
         Self {
             raw_ptr,
             buf_ptr,
+            drop_fn,
             len,
         }
     }
@@ -125,5 +136,12 @@ impl NetBufPtr {
     /// Return [`NetBufPtr`] buffer as &mut [u8].
     pub fn packet_mut(&mut self) -> &mut [u8] {
         unsafe { core::slice::from_raw_parts_mut(self.buf_ptr.as_ptr(), self.len) }
+    }
+}
+
+impl Drop for NetBufPtr {
+    fn drop(&mut self) {
+        let todo = core::mem::replace(&mut self.drop_fn, Box::new(|| {}));
+        todo();
     }
 }

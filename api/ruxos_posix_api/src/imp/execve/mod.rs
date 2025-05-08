@@ -4,6 +4,7 @@ mod stack;
 
 use alloc::vec;
 use core::ffi::c_char;
+use ruxtask::current;
 
 use crate::{
     config,
@@ -14,9 +15,14 @@ use crate::{
 
 /// int execve(const char *pathname, char *const argv[], char *const envp[] );
 pub fn sys_execve(pathname: *const c_char, argv: usize, envp: usize) -> ! {
+    debug!(
+        "execve: pathname {:?}, argv {:?}, envp {:?}",
+        pathname, argv, envp
+    );
     use auxv::*;
 
     let path = char_ptr_to_str(pathname).unwrap();
+    debug!("sys_execve: path is {}", path);
     let prog = load_elf::ElfProg::new(path);
 
     // get entry
@@ -33,6 +39,7 @@ pub fn sys_execve(pathname: *const c_char, argv: usize, envp: usize) -> ! {
     };
 
     // create stack
+    // memory broken, use stack alloc to store args and envs
     let mut stack = stack::Stack::new();
 
     // non 8B info
@@ -118,6 +125,23 @@ pub fn sys_execve(pathname: *const c_char, argv: usize, envp: usize) -> ! {
         "sys_execve: sp is 0x{sp:x}, run at 0x{entry:x}, then jump to 0x{:x} ",
         prog.entry
     );
+
+    // TODO: may lead to memory leaky, release stack after the change of stack
+    current().set_stack_top(stack.stack_top() - stack.stack_size(), stack.stack_size());
+    warn!(
+        "sys_execve: current_id_name {:?}, stack top 0x{:x}, size 0x{:x}",
+        current().id_name(),
+        current().stack_top(),
+        stack.stack_size()
+    );
+
+    current()
+        .fs
+        .lock()
+        .as_mut()
+        .unwrap()
+        .fd_table
+        .do_close_on_exec();
 
     set_sp_and_jmp(sp, entry);
 }

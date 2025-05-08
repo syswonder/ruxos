@@ -8,14 +8,15 @@
  */
 
 use alloc::sync::Arc;
+use axerrno::ax_err;
+use axfs_vfs::RelPath;
 use core::cell::UnsafeCell;
 
+use crate::dev::Disk;
 use axfs_vfs::{VfsDirEntry, VfsError, VfsNodePerm, VfsResult};
 use axfs_vfs::{VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps};
-use axsync::Mutex;
 use fatfs::{Dir, File, LossyOemCpConverter, NullTimeProvider, Read, Seek, SeekFrom, Write};
-
-use crate::dev::Disk;
+use spin::RwLock;
 
 const BLOCK_SIZE: usize = 512;
 
@@ -24,7 +25,7 @@ pub struct FatFileSystem {
     root_dir: UnsafeCell<Option<VfsNodeRef>>,
 }
 
-pub struct FileWrapper<'a>(Mutex<File<'a, Disk, NullTimeProvider, LossyOemCpConverter>>);
+pub struct FileWrapper<'a>(RwLock<File<'a, Disk, NullTimeProvider, LossyOemCpConverter>>);
 pub struct DirWrapper<'a>(Dir<'a, Disk, NullTimeProvider, LossyOemCpConverter>);
 
 unsafe impl Sync for FatFileSystem {}
@@ -63,7 +64,7 @@ impl FatFileSystem {
     }
 
     fn new_file(file: File<'_, Disk, NullTimeProvider, LossyOemCpConverter>) -> Arc<FileWrapper> {
-        Arc::new(FileWrapper(Mutex::new(file)))
+        Arc::new(FileWrapper(RwLock::new(file)))
     }
 
     fn new_dir(dir: Dir<'_, Disk, NullTimeProvider, LossyOemCpConverter>) -> Arc<DirWrapper> {
@@ -75,19 +76,24 @@ impl VfsNodeOps for FileWrapper<'static> {
     axfs_vfs::impl_vfs_non_dir_default! {}
 
     fn fsync(&self) -> VfsResult {
-        self.0.lock().flush().map_err(as_vfs_err)
+        self.0.write().flush().map_err(as_vfs_err)
     }
 
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
-        let size = self.0.lock().seek(SeekFrom::End(0)).map_err(as_vfs_err)?;
+        let size = self.0.write().seek(SeekFrom::End(0)).map_err(as_vfs_err)?;
         let blocks = (size + BLOCK_SIZE as u64 - 1) / BLOCK_SIZE as u64;
         // FAT fs doesn't support permissions, we just set everything to 755
         let perm = VfsNodePerm::from_bits_truncate(0o755);
-        Ok(VfsNodeAttr::new(perm, VfsNodeType::File, size, blocks))
+
+        // WARN: Inode of files, for musl dynamic linker.
+        // WARN: there will be collision for files with the same size.
+        // TODO: implement real inode.
+        let ino = size + VfsNodeType::File as u64 | perm.bits() as u64;
+        Ok(VfsNodeAttr::new(ino, perm, VfsNodeType::File, size, blocks))
     }
 
     fn read_at(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
-        let mut file = self.0.lock();
+        let mut file = self.0.write();
         file.seek(SeekFrom::Start(offset)).map_err(as_vfs_err)?;
 
         let mut total_read = 0;
@@ -103,7 +109,7 @@ impl VfsNodeOps for FileWrapper<'static> {
     }
 
     fn write_at(&self, offset: u64, buf: &[u8]) -> VfsResult<usize> {
-        let mut file = self.0.lock();
+        let mut file = self.0.write();
         file.seek(SeekFrom::Start(offset)).map_err(as_vfs_err)?; // TODO: more efficient
 
         let mut total_write = 0;
@@ -119,7 +125,7 @@ impl VfsNodeOps for FileWrapper<'static> {
     }
 
     fn truncate(&self, size: u64) -> VfsResult {
-        let mut file = self.0.lock();
+        let mut file = self.0.write();
         file.seek(SeekFrom::Start(size)).map_err(as_vfs_err)?; // TODO: more efficient
         file.truncate().map_err(as_vfs_err)
     }
@@ -129,8 +135,8 @@ impl VfsNodeOps for DirWrapper<'static> {
     axfs_vfs::impl_vfs_dir_default! {}
 
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
-        // FAT fs doesn't support permissions, we just set everything to 755
         Ok(VfsNodeAttr::new(
+            1,
             VfsNodePerm::from_bits_truncate(0o755),
             VfsNodeType::Dir,
             BLOCK_SIZE as u64,
@@ -144,16 +150,11 @@ impl VfsNodeOps for DirWrapper<'static> {
             .map_or(None, |dir| Some(FatFileSystem::new_dir(dir)))
     }
 
-    fn lookup(self: Arc<Self>, path: &str) -> VfsResult<VfsNodeRef> {
+    fn lookup(self: Arc<Self>, path: &RelPath) -> VfsResult<VfsNodeRef> {
         debug!("lookup at fatfs: {}", path);
-        let path = path.trim_matches('/');
-        if path.is_empty() || path == "." {
+        if path.is_empty() {
             return Ok(self.clone());
         }
-        if let Some(rest) = path.strip_prefix("./") {
-            return self.lookup(rest);
-        }
-
         if let Ok(Some(is_dir)) = self.0.check_path_type(path) {
             if is_dir {
                 if let Ok(dir) = self.0.open_dir(path) {
@@ -173,16 +174,11 @@ impl VfsNodeOps for DirWrapper<'static> {
         }
     }
 
-    fn create(&self, path: &str, ty: VfsNodeType) -> VfsResult {
+    fn create(&self, path: &RelPath, ty: VfsNodeType) -> VfsResult {
         debug!("create {:?} at fatfs: {}", ty, path);
-        let path = path.trim_matches('/');
-        if path.is_empty() || path == "." {
+        if path.is_empty() {
             return Ok(());
         }
-        if let Some(rest) = path.strip_prefix("./") {
-            return self.create(rest, ty);
-        }
-
         match ty {
             VfsNodeType::File => {
                 self.0.create_file(path).map_err(as_vfs_err)?;
@@ -196,12 +192,10 @@ impl VfsNodeOps for DirWrapper<'static> {
         }
     }
 
-    fn remove(&self, path: &str) -> VfsResult {
+    fn unlink(&self, path: &RelPath) -> VfsResult {
         debug!("remove at fatfs: {}", path);
-        let path = path.trim_matches('/');
-        assert!(!path.is_empty()); // already check at `root.rs`
-        if let Some(rest) = path.strip_prefix("./") {
-            return self.remove(rest);
+        if path.is_empty() {
+            return ax_err!(PermissionDenied);
         }
         self.0.remove(path).map_err(as_vfs_err)
     }
@@ -227,7 +221,7 @@ impl VfsNodeOps for DirWrapper<'static> {
         Ok(dirents.len())
     }
 
-    fn rename(&self, src_path: &str, dst_path: &str) -> VfsResult {
+    fn rename(&self, src_path: &RelPath, dst_path: &RelPath) -> VfsResult {
         // `src_path` and `dst_path` should in the same mounted fs
         debug!(
             "rename at fatfs, src_path: {}, dst_path: {}",

@@ -16,7 +16,7 @@ use smoltcp::socket::dns::{self, GetQueryResultError, StartQueryError};
 use smoltcp::wire::DnsQueryType;
 
 use super::addr::into_core_ipaddr;
-use super::{SocketSetWrapper, ETH0, SOCKET_SET};
+use super::{SocketSetWrapper, IFACE_LIST, SOCKET_SET};
 
 /// A DNS socket.
 struct DnsSocket {
@@ -44,7 +44,12 @@ impl DnsSocket {
     pub fn query(&self, name: &str, query_type: DnsQueryType) -> AxResult<Vec<IpAddr>> {
         // let local_addr = self.local_addr.unwrap_or_else(f);
         let handle = self.handle.ok_or_else(|| ax_err_type!(InvalidInput))?;
-        let iface = &ETH0.iface;
+        let binding = IFACE_LIST.lock();
+        let iface = &binding
+            .iter()
+            .find(|iface| iface.name() == "eth0")
+            .unwrap()
+            .iface;
         let query_handle = SOCKET_SET
             .with_socket_mut::<dns::Socket, _, _>(handle, |socket| {
                 socket.start_query(iface.lock().context(), name, query_type)
@@ -61,7 +66,7 @@ impl DnsSocket {
                 }
             })?;
         loop {
-            SOCKET_SET.poll_interfaces();
+            SOCKET_SET.poll_interfaces(None);
             match SOCKET_SET.with_socket_mut::<dns::Socket, _, _>(handle, |socket| {
                 socket.get_query_result(query_handle).map_err(|e| match e {
                     GetQueryResultError::Pending => AxError::WouldBlock,

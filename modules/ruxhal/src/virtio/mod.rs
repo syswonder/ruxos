@@ -10,5 +10,5 @@
 //! ruxos and virtio code related mod definition
 #[cfg(feature = "virtio_console")]
 pub mod virtio_console;
-#[cfg(feature = "virtio_hal")]
+#[cfg(feature = "virtio")]
 pub mod virtio_hal;

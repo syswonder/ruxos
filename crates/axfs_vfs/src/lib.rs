@@ -38,8 +38,10 @@
 //! | [`parent()`](VfsNodeOps::parent) | Get the parent directory | directory |
 //! | [`lookup()`](VfsNodeOps::lookup) | Lookup the node with the given path | directory |
 //! | [`create()`](VfsNodeOps::create) | Create a new node with the given path | directory |
-//! | [`remove()`](VfsNodeOps::remove) | Remove the node with the given path | directory |
+//! | [`link()`](VfsNodeOps::link) | Create a hard link with the given path | directory |
+//! | [`unlink()`](VfsNodeOps::unlink) | Remove the node with the given path | directory |
 //! | [`read_dir()`](VfsNodeOps::read_dir) | Read directory entries | directory |
+//! | [`is_empty()`](VfsNodeOps::is_empty) | Check if the directory is empty | directory |
 //!
 //! [inodes]: https://en.wikipedia.org/wiki/Inode
 
@@ -48,13 +50,16 @@
 extern crate alloc;
 
 mod macros;
+mod path;
 mod structs;
 
-pub mod path;
+use core::any::Any;
 
 use alloc::sync::Arc;
 use axerrno::{ax_err, AxError, AxResult};
+use axio::PollState;
 
+pub use self::path::{AbsPath, RelPath};
 pub use self::structs::{FileSystemInfo, VfsDirEntry, VfsNodeAttr, VfsNodePerm, VfsNodeType};
 
 /// A wrapper of [`Arc<dyn VfsNodeOps>`].
@@ -69,7 +74,7 @@ pub type VfsResult<T = ()> = AxResult<T>;
 /// Filesystem operations.
 pub trait VfsOps: Send + Sync {
     /// Do something when the filesystem is mounted.
-    fn mount(&self, _path: &str, _mount_point: VfsNodeRef) -> VfsResult {
+    fn mount(&self, _path: &AbsPath, _mount_point: VfsNodeRef) -> VfsResult {
         Ok(())
     }
 
@@ -92,11 +97,12 @@ pub trait VfsOps: Send + Sync {
     fn root_dir(&self) -> VfsNodeRef;
 }
 
-/// Node (file/directory) operations.
+/// Node (file/directory/lib) operations.
 pub trait VfsNodeOps: Send + Sync {
     /// Do something when the node is opened.
-    fn open(&self) -> VfsResult {
-        Ok(())
+    /// For example, open some special nodes like `/dev/ptmx` should return a new node named `PtyMaster`
+    fn open(&self) -> VfsResult<Option<VfsNodeRef>> {
+        Ok(None)
     }
 
     /// Do something when the node is closed.
@@ -106,19 +112,32 @@ pub trait VfsNodeOps: Send + Sync {
 
     /// Get the attributes of the node.
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
-        ax_err!(Unsupported)
+        ax_err!(Unsupported, "get_attr method is unsupported")
+    }
+
+    /// Set the attributes of the node.
+    ///
+    /// TODO: add time attributes
+    fn setattr(
+        &self,
+        _mode: Option<u32>,
+        _uid: Option<u32>,
+        _gid: Option<u32>,
+        _size: Option<u64>,
+    ) -> VfsResult {
+        ax_err!(Unsupported, "setattr method is unsupported")
     }
 
     // file operations:
 
     /// Read data from the file at the given offset.
     fn read_at(&self, _offset: u64, _buf: &mut [u8]) -> VfsResult<usize> {
-        ax_err!(InvalidInput)
+        ax_err!(InvalidInput, "read_at method InvalidInput")
     }
 
     /// Write data to the file at the given offset.
     fn write_at(&self, _offset: u64, _buf: &[u8]) -> VfsResult<usize> {
-        ax_err!(InvalidInput)
+        ax_err!(InvalidInput, "write_at method InvalidInput")
     }
 
     /// Flush the file, synchronize the data to disk.
@@ -143,30 +162,61 @@ pub trait VfsNodeOps: Send + Sync {
     /// Lookup the node with given `path` in the directory.
     ///
     /// Return the node if found.
-    fn lookup(self: Arc<Self>, _path: &str) -> VfsResult<VfsNodeRef> {
-        ax_err!(Unsupported)
+    fn lookup(self: Arc<Self>, path: &RelPath) -> VfsResult<VfsNodeRef> {
+        ax_err!(Unsupported, "lookup method is unsupported in path {}", path)
     }
 
     /// Create a new node with the given `path` in the directory
     ///
     /// Return [`Ok(())`](Ok) if it already exists.
-    fn create(&self, _path: &str, _ty: VfsNodeType) -> VfsResult {
-        ax_err!(Unsupported)
+    fn create(&self, path: &RelPath, ty: VfsNodeType) -> VfsResult {
+        ax_err!(
+            Unsupported,
+            "create method is unsupported in path {} type {:?}",
+            path,
+            ty
+        )
     }
 
-    /// Remove the node with the given `path` in the directory.
-    fn remove(&self, _path: &str) -> VfsResult {
-        ax_err!(Unsupported)
+    /// Create a new hard link to the src dentry
+    fn link(&self, name: &RelPath, _src: Arc<dyn VfsNodeOps>) -> VfsResult<Arc<dyn VfsNodeOps>> {
+        ax_err!(Unsupported, "link method is unsupported in path {}", name)
+    }
+
+    /// Remove (the hard link of) the node with the given `path` in the directory.
+    fn unlink(&self, path: &RelPath) -> VfsResult {
+        ax_err!(Unsupported, "unlink method is unsupported in path {}", path)
+    }
+
+    /// Rename the node `src_path` to `dst_path` in the directory.
+    fn rename(&self, src_path: &RelPath, dst_path: &RelPath) -> VfsResult<()> {
+        ax_err!(
+            Unsupported,
+            "rename method is unsupported, src {}, dst {}",
+            src_path,
+            dst_path
+        )
     }
 
     /// Read directory entries into `dirents`, starting from `start_idx`.
-    fn read_dir(&self, _start_idx: usize, _dirents: &mut [VfsDirEntry]) -> VfsResult<usize> {
-        ax_err!(Unsupported)
+    fn read_dir(&self, start_idx: usize, _dirents: &mut [VfsDirEntry]) -> VfsResult<usize> {
+        ax_err!(
+            Unsupported,
+            "read_dir method is unsupported, start_idx is {}",
+            start_idx
+        )
     }
 
-    /// Renames or moves existing file or directory.
-    fn rename(&self, _src_path: &str, _dst_path: &str) -> VfsResult {
-        ax_err!(Unsupported)
+    /// Check if the directory is empty. An empty directory only contains `.` and `..`.
+    ///
+    /// Brute implementation: read entries and check if there are more than 2.
+    fn is_empty(&self) -> VfsResult<bool> {
+        let mut buf = [
+            VfsDirEntry::default(),
+            VfsDirEntry::default(),
+            VfsDirEntry::default(),
+        ];
+        self.read_dir(0, &mut buf).map(|n| n <= 2)
     }
 
     /// Convert `&self` to [`&dyn Any`][1] that can use
@@ -178,24 +228,25 @@ pub trait VfsNodeOps: Send + Sync {
         unimplemented!()
     }
 
+    /// Provides type-erased access to the underlying `Arc` for downcasting.
+    fn as_any_arc(self: Arc<Self>) -> Arc<dyn Any + Send + Sync> {
+        unimplemented!()
+    }
+
     /// Create a new node with given `path` in the directory, recursively.
     ///
     /// Default implementation `create`s all prefix sub-paths sequentially,
     /// implementor may provide a more efficient impl.
     ///
     /// Return [`Ok(())`](Ok) if already exists.
-    fn create_recursive(&self, path: &str, ty: VfsNodeType) -> VfsResult {
-        if path.starts_with('/') {
-            return ax_err!(InvalidInput);
-        }
-        let path = path.trim_end_matches('/');
+    fn create_recursive(&self, path: &RelPath, ty: VfsNodeType) -> VfsResult {
         for (i, c) in path.char_indices() {
             let part = if c == '/' {
                 unsafe { path.get_unchecked(..i) }
             } else {
                 continue;
             };
-            match self.create(part, VfsNodeType::Dir) {
+            match self.create(&RelPath::new(part), VfsNodeType::Dir) {
                 Ok(()) | Err(AxError::AlreadyExists) => {}
                 err @ Err(_) => return err,
             }
@@ -203,6 +254,29 @@ pub trait VfsNodeOps: Send + Sync {
         self.create(path, ty)?;
 
         Ok(())
+    }
+
+    /// Manipulates the underlying device parameters of special files.
+    /// In particular, many operating characteristics of character special files
+    /// (e.g., terminals) may be controlled with ioctl() requests.
+    fn ioctl(&self, _cmd: usize, _arg: usize) -> VfsResult<usize> {
+        Err(AxError::Unsupported)
+    }
+
+    /// For regular files, the poll() always returns immediately with POLLIN | POLLOUT
+    /// events set, since I/O operations on regular files are always considered ready.
+    ///
+    /// For special files like character devices, poll() requires actual readiness
+    /// checks:
+    /// - POLLIN is set when the device's input buffer has data available
+    /// - POLLOUT is set when the device's output buffer has space available
+    /// - POLLHUP is set when peer closed
+    fn poll(&self) -> AxResult<PollState> {
+        Ok(PollState {
+            readable: true,
+            writable: true,
+            pollhup: false,
+        })
     }
 }
 

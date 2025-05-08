@@ -24,11 +24,15 @@ pub enum SyscallId {
     #[cfg(feature = "fd")]
     IOCTL = 29,
     #[cfg(feature = "fs")]
+    MKNODAT = 33,
+    #[cfg(feature = "fs")]
     MKDIRAT = 34,
     #[cfg(feature = "fs")]
     UNLINKAT = 35,
     #[cfg(feature = "fs")]
     RENAMEAT = 38,
+    #[cfg(feature = "fs")]
+    FTRUNCATE = 46,
     #[cfg(feature = "fs")]
     FACCESSAT = 48,
     #[cfg(feature = "fs")]
@@ -74,12 +78,17 @@ pub enum SyscallId {
     CAP_GET = 90,
     EXIT = 93,
     #[cfg(feature = "multitask")]
+    EXIT_GROUP = 94,
+    #[cfg(feature = "multitask")]
     SET_TID_ADDRESS = 96,
     #[cfg(feature = "multitask")]
     FUTEX = 98,
     NANO_SLEEP = 101,
+    #[cfg(feature = "signal")]
+    SETITIMER = 103,
     CLOCK_SETTIME = 112,
     CLOCK_GETTIME = 113,
+    CLOCK_GETRES = 114,
     CLOCK_NANOSLEEP = 115,
     SCHED_YIELD = 124,
     #[cfg(feature = "signal")]
@@ -97,6 +106,7 @@ pub enum SyscallId {
     TIMES = 153,
     SETPGID = 154,
     GETPGID = 155,
+    SETSID = 157,
     UNAME = 160,
     GETRLIMIT = 163,
     SETRLIMIT = 164,
@@ -112,6 +122,8 @@ pub enum SyscallId {
     SYSINFO = 179,
     #[cfg(feature = "net")]
     SOCKET = 198,
+    #[cfg(feature = "net")]
+    SOCKETPAIR = 199,
     #[cfg(feature = "net")]
     BIND = 200,
     #[cfg(feature = "net")]
@@ -152,6 +164,8 @@ pub enum SyscallId {
     MSYNC = 227,
     #[cfg(feature = "alloc")]
     MADVISE = 233,
+    #[cfg(feature = "multitask")]
+    WAIT4 = 260,
     PRLIMIT64 = 261,
     GETRANDOM = 278,
 }

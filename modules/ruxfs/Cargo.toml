@@ -17,16 +17,22 @@ ramfs = ["dep:axfs_ramfs"]
 procfs = ["dep:axfs_ramfs"]
 sysfs = ["dep:axfs_ramfs"]
 etcfs = ["dep:axfs_ramfs"]
-fatfs = ["dep:fatfs"]
-myfs = ["dep:crate_interface"]
+blkfs = []
+fatfs = ["blkfs", "dep:fatfs"]
+# TODO: wait for CI support for ext4
+# lwext4_rust = ["blkfs", "dep:lwext4_rust"]
+ext4_rs = ["blkfs", "dep:ext4_rs"]
+another_ext4 = ["blkfs", "dep:another_ext4"]
+myfs = []
 use-ramdisk = []
 alloc = ["axalloc"]
 fp_simd = []
 
-default = ["devfs", "ramfs", "fatfs", "procfs", "sysfs", "etcfs"]
+default = ["devfs", "ramfs", "procfs", "sysfs", "etcfs"]
 
 [dependencies]
-log = "0.4"
+log = { workspace = true }
+spin = { workspace = true }
 cfg-if = "1.0"
 lazy_init = { path = "../../crates/lazy_init" }
 capability = { path = "../../crates/capability" }
@@ -36,15 +42,18 @@ axerrno = { path = "../../crates/axerrno" }
 axfs_vfs = { path = "../../crates/axfs_vfs" }
 axfs_devfs = { path = "../../crates/axfs_devfs", optional = true }
 axfs_ramfs = { path = "../../crates/axfs_ramfs", optional = true }
+ruxfifo = { path = "../../crates/ruxfifo" }
+crate_interface = { version = "0.1.1" }
+ruxfdtable = { path = "../ruxfdtable" }
 ruxdriver = { path = "../ruxdriver", features = ["block"] }
-axsync = { path = "../axsync" }
-crate_interface = { version = "0.1.1", optional = true }
 axalloc = { path = "../axalloc", optional = true }
 memory_addr = "0.1.0"
+# lwext4_rust = { git = "https://github.com/elliott10/lwext4_rust", optional = true }
+ext4_rs = { git = "https://github.com/yuoo655/ext4_rs.git", rev = "6bcc7f5", optional = true }
+another_ext4 = { git = "https://github.com/LJxTHUCS/another_ext4.git", rev = "3c3e03a", optional = true }
 
 [dependencies.fatfs]
 git = "https://github.com/syswonder/rust-fatfs.git"
-rev = "bf8ad02"
 optional = true
 default-features = false
 features = [ # no std
@@ -55,7 +64,5 @@ features = [ # no std
 ]
 
 [dev-dependencies]
-ruxdriver = { path = "../ruxdriver", features = ["block", "ramdisk"] }
+ruxdriver = { path = "../ruxdriver", features = ["block", "ramdisk", "dyn"] }
 driver_block = { path = "../../crates/driver_block", features = ["ramdisk"] }
-axsync = { path = "../axsync", features = ["multitask"] }
-ruxtask = { path = "../ruxtask", features = ["test"] }

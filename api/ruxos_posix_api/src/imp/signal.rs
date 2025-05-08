@@ -14,7 +14,7 @@ use crate::ctypes::k_sigaction;
 use crate::ctypes::{self, pid_t};
 
 use axerrno::LinuxError;
-use ruxruntime::{rx_sigaction, Signal};
+use ruxtask::{rx_sigaction, Signal};
 
 /// Set signal handler
 pub fn sys_sigaction(

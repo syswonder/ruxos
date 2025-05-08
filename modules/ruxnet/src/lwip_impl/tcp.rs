@@ -7,13 +7,13 @@ use axerrno::{ax_err, AxError, AxResult};
 use axio::PollState;
 use axsync::Mutex;
 use core::cell::UnsafeCell;
-use core::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use core::sync::atomic::{AtomicBool, Ordering};
 use core::{ffi::c_void, pin::Pin, ptr::null_mut};
 use lwip_rust::bindings::{
     err_enum_t_ERR_MEM, err_enum_t_ERR_OK, err_enum_t_ERR_USE, err_enum_t_ERR_VAL, err_t,
     ip_addr_t, pbuf, pbuf_free, tcp_accept, tcp_arg, tcp_bind, tcp_close, tcp_connect,
     tcp_listen_with_backlog, tcp_new, tcp_output, tcp_pcb, tcp_recv, tcp_recved, tcp_state_CLOSED,
-    tcp_state_LISTEN, tcp_write, TCP_DEFAULT_LISTEN_BACKLOG, TCP_MSS,
+    tcp_state_CLOSE_WAIT, tcp_state_LISTEN, tcp_write, TCP_DEFAULT_LISTEN_BACKLOG, TCP_MSS,
 };
 use ruxtask::yield_now;
 
@@ -123,12 +123,12 @@ extern "C" fn accept_callback(arg: *mut c_void, newpcb: *mut tcp_pcb, err: err_t
 
 impl TcpSocket {
     /// Creates a new TCP socket.
-    pub fn new() -> Self {
+    pub fn new(nonblock: bool) -> Self {
         let guard = LWIP_MUTEX.lock();
         let mut socket = Self {
             pcb: TcpPcbPointer(Mutex::new(unsafe { tcp_new() })),
             inner: Box::pin(TcpSocketInner {
-                nonblock: AtomicBool::new(false),
+                nonblock: AtomicBool::new(nonblock),
                 remote_closed: false,
                 connect_result: 0.into(),
                 recv_queue: Mutex::new(VecDeque::new()),
@@ -375,7 +375,7 @@ impl TcpSocket {
     }
 
     /// Receives data from the socket, stores it in the given buffer.
-    pub fn recv(&self, buf: &mut [u8], flags: i32) -> AxResult<usize> {
+    pub fn recv(&self, buf: &mut [u8], _flags: i32) -> AxResult<usize> {
         loop {
             if self.inner.remote_closed {
                 return Ok(0);
@@ -470,18 +470,18 @@ impl TcpSocket {
         trace!("poll pcbstate: {:?}", unsafe { (*self.pcb.get()).state });
         lwip_loop_once();
         if unsafe { (*self.pcb.get()).state } == tcp_state_LISTEN {
-            let test = self.inner.accept_queue.lock().len();
             // listener
             Ok(PollState {
                 readable: self.inner.accept_queue.lock().len() != 0,
                 writable: false,
+                pollhup: false,
             })
         } else {
-            let test = self.inner.recv_queue.lock().len();
             // stream
             Ok(PollState {
                 readable: self.inner.recv_queue.lock().len() != 0,
                 writable: true,
+                pollhup: unsafe { (*self.pcb.get()).state } == tcp_state_CLOSE_WAIT,
             })
         }
     }
@@ -496,6 +496,6 @@ impl Drop for TcpSocket {
 
 impl Default for TcpSocket {
     fn default() -> Self {
-        Self::new()
+        Self::new(false)
     }
 }

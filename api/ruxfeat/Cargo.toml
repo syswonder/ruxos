@@ -22,6 +22,7 @@ fp_simd = ["ruxhal/fp_simd", "ruxfs/fp_simd"]
 
 # Interrupts
 irq = ["ruxhal/irq", "ruxruntime/irq", "ruxtask?/irq"]
+gic-v3 = ["ruxhal/gic-v3","ruxruntime/gic-v3"]
 
 # Real time clock
 rtc = ["ruxhal/rtc", "ruxruntime/rtc"]
@@ -31,7 +32,13 @@ alloc = ["axalloc", "ruxruntime/alloc", "ruxfs/alloc", "ruxhal/alloc"]
 alloc-tlsf = ["axalloc/tlsf"]
 alloc-slab = ["axalloc/slab"]
 alloc-buddy = ["axalloc/buddy"]
-paging = ["alloc", "ruxhal/paging", "ruxruntime/paging"]
+paging = [
+    "alloc",
+    "ruxhal/paging",
+    "ruxtask/paging",
+    "ruxruntime/paging",
+    "ruxmm/paging",
+]
 tls = ["alloc", "ruxhal/tls", "ruxruntime/tls", "ruxtask?/tls"]
 
 # Multi-threading and scheduler
@@ -47,9 +54,13 @@ sched_cfs = ["ruxtask/sched_cfs", "irq"]
 
 # File system
 fs = ["alloc", "dep:ruxfs", "ruxruntime/fs"]
-blkfs = ["ruxdriver/virtio-blk", "ruxruntime/blkfs"]
+blkfs = ["ruxdriver/virtio-blk", "ruxruntime/blkfs", "ruxfs/blkfs"]
 myfs = ["ruxfs?/myfs"]
 9pfs = []
+fatfs = ["ruxfs?/fatfs"]
+# lwext4_rust = ["ruxfs?/lwext4_rust"]
+ext4_rs = ["ruxfs?/ext4_rs"]
+another_ext4 = ["ruxfs?/another_ext4"]
 
 # Networking
 net = ["alloc", "ruxdriver/virtio-net", "dep:ruxnet", "ruxruntime/net"]
@@ -74,7 +85,13 @@ virtio-9p = [
 net-9p = ["9pfs", "net", "rux9p/net-9p", "ruxruntime/net-9p"]
 
 # virtio console
-virtio_console = ["ruxhal/virtio_console", "ruxruntime/virtio_console", "alloc", "ruxdriver/virtio_console", "ruxdriver/virtio"]
+virtio_console = [
+    "ruxhal/virtio_console",
+    "ruxruntime/virtio_console",
+    "alloc",
+    "ruxdriver/virtio_console",
+    "ruxdriver/virtio",
+]
 
 # Device drivers
 bus-mmio = ["ruxdriver?/bus-mmio"]
@@ -91,12 +108,13 @@ log-level-info = ["axlog/log-level-info"]
 log-level-debug = ["axlog/log-level-debug"]
 log-level-trace = ["axlog/log-level-trace"]
 
-tty = ["ruxhal/tty", "ruxruntime/tty", "alloc", "irq"]
+# this feature has already been deprecated
+tty = []
 
 [dependencies]
 ruxruntime = { path = "../../modules/ruxruntime" }
 ruxhal = { path = "../../modules/ruxhal" }
-axlog = { path = "../../modules/axlog" }
+ruxmm = { path = "../../modules/ruxmm" }
 axalloc = { path = "../../modules/axalloc", optional = true }
 ruxdriver = { path = "../../modules/ruxdriver", optional = true }
 ruxfs = { path = "../../modules/ruxfs", optional = true }
@@ -106,3 +124,5 @@ ruxdisplay = { path = "../../modules/ruxdisplay", optional = true }
 axsync = { path = "../../modules/axsync", optional = true }
 ruxtask = { path = "../../modules/ruxtask", optional = true }
 spinlock = { path = "../../crates/spinlock", optional = true }
+axlog = { path = "../../crates/axlog" }
+tty = { path = "../../crates/tty" }

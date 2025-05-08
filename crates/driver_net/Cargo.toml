@@ -2,7 +2,10 @@
 name = "driver_net"
 version = "0.1.0"
 edition = "2021"
-authors = ["Yuekai Jia <equation618@gmail.com>", "ChengXiang Qi <kuangjux@outlook.com>"]
+authors = [
+    "Yuekai Jia <equation618@gmail.com>",
+    "ChengXiang Qi <kuangjux@outlook.com>",
+]
 description = "Common traits and types for network device (NIC) drivers"
 license = "GPL-3.0-or-later OR Apache-2.0"
 homepage = "https://github.com/rcore-os/arceos"
@@ -11,10 +14,11 @@ documentation = "https://rcore-os.github.io/arceos/driver_net/index.html"
 
 [features]
 default = []
+loopback = []
 ixgbe = ["dep:ixgbe-driver"]
 
 [dependencies]
-spin = "0.9"
-log = "0.4"
+spin = { workspace = true }
+log = { workspace = true }
 driver_common = { path = "../driver_common" }
-ixgbe-driver = {git = "https://github.com/KuangjuX/ixgbe-driver.git", rev = "8e5eb74", optional = true}
+ixgbe-driver = { git = "https://github.com/KuangjuX/ixgbe-driver.git", rev = "8e5eb74", optional = true }

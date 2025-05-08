@@ -14,6 +14,7 @@ mod listen_table;
 mod tcp;
 mod udp;
 
+use alloc::string::{String, ToString};
 use alloc::vec;
 use core::cell::RefCell;
 use core::ops::DerefMut;
@@ -61,7 +62,15 @@ const LISTEN_QUEUE_SIZE: usize = 512;
 
 static LISTEN_TABLE: LazyInit<ListenTable> = LazyInit::new();
 static SOCKET_SET: LazyInit<SocketSetWrapper> = LazyInit::new();
-static ETH0: LazyInit<InterfaceWrapper> = LazyInit::new();
+static IFACE_LIST: LazyInit<Mutex<vec::Vec<InterfaceWrapper>>> = LazyInit::new();
+
+fn route_dev(addr: [u8; 4]) -> String {
+    if addr[0] == 127 {
+        "loopback".to_string()
+    } else {
+        "eth0".to_string()
+    }
+}
 
 struct SocketSetWrapper<'a>(Mutex<SocketSet<'a>>);
 
@@ -128,8 +137,12 @@ impl<'a> SocketSetWrapper<'a> {
         f(socket)
     }
 
-    pub fn poll_interfaces(&self) {
-        ETH0.poll(&self.0);
+    pub fn poll_interfaces(&self, iface_name: Option<String>) {
+        for iface in IFACE_LIST.lock().iter() {
+            if iface_name.is_none() || iface_name.clone().unwrap() == iface.name() {
+                iface.poll(&self.0);
+            }
+        }
     }
 
     pub fn remove(&self, handle: SocketHandle) {
@@ -276,7 +289,6 @@ impl<'a> TxToken for AxNetTxToken<'a> {
         let mut dev = self.0.borrow_mut();
         let mut tx_buf = dev.alloc_tx_buffer(len).unwrap();
         let ret = f(tx_buf.packet_mut());
-        trace!("SEND {} bytes: {:02X?}", len, tx_buf.packet());
         dev.transmit(tx_buf).unwrap();
         ret
     }
@@ -306,34 +318,70 @@ fn snoop_tcp_packet(buf: &[u8], sockets: &mut SocketSet<'_>) -> Result<(), smolt
 /// It may receive packets from the NIC and process them, and transmit queued
 /// packets to the NIC.
 pub fn poll_interfaces() {
-    SOCKET_SET.poll_interfaces();
+    SOCKET_SET.poll_interfaces(None);
 }
 
 /// Benchmark raw socket transmit bandwidth.
 pub fn bench_transmit() {
-    ETH0.dev.lock().bench_transmit_bandwidth();
+    IFACE_LIST
+        .lock()
+        .iter()
+        .find(|iface| iface.name() == "eth0")
+        .unwrap()
+        .dev
+        .lock()
+        .bench_transmit_bandwidth();
 }
 
 /// Benchmark raw socket receive bandwidth.
 pub fn bench_receive() {
-    ETH0.dev.lock().bench_receive_bandwidth();
+    IFACE_LIST
+        .lock()
+        .iter()
+        .find(|iface| iface.name() == "eth0")
+        .unwrap()
+        .dev
+        .lock()
+        .bench_receive_bandwidth();
 }
 
-pub(crate) fn init(net_dev: AxNetDevice) {
-    let ether_addr = EthernetAddress(net_dev.mac_address().0);
-    let eth0 = InterfaceWrapper::new("eth0", net_dev, ether_addr);
+pub(crate) fn init() {
+    let socketset = SocketSetWrapper::new();
 
-    let ip = IP.parse().expect("invalid IP address");
-    let gateway = GATEWAY.parse().expect("invalid gateway IP address");
-    eth0.setup_ip_addr(ip, IP_PREFIX);
-    eth0.setup_gateway(gateway);
-
-    ETH0.init_by(eth0);
-    SOCKET_SET.init_by(SocketSetWrapper::new());
+    IFACE_LIST.init_by(Mutex::new(vec::Vec::new()));
+    SOCKET_SET.init_by(socketset);
     LISTEN_TABLE.init_by(ListenTable::new());
+}
 
-    info!("created net interface {:?}:", ETH0.name());
-    info!("  ether:    {}", ETH0.ethernet_address());
-    info!("  ip:       {}/{}", ip, IP_PREFIX);
-    info!("  gateway:  {}", gateway);
+pub(crate) fn init_netdev(net_dev: AxNetDevice) {
+    match net_dev.device_name() {
+        "loopback" => {
+            let ether_addr = EthernetAddress(net_dev.mac_address().0);
+            let lo = InterfaceWrapper::new("loopback", net_dev, ether_addr);
+
+            let ip = "127.0.0.1".parse().expect("invalid IP address");
+            lo.setup_ip_addr(ip, IP_PREFIX);
+
+            info!("created net interface {:?}:", lo.name());
+            info!("  ether:    {}", lo.ethernet_address());
+            info!("  ip:       {}/{}", "127.0.0.1", IP_PREFIX);
+            IFACE_LIST.lock().push(lo);
+        }
+        _ => {
+            let ether_addr = EthernetAddress(net_dev.mac_address().0);
+            let eth0 = InterfaceWrapper::new("eth0", net_dev, ether_addr);
+
+            let ip = IP.parse().expect("invalid IP address");
+            let gateway = GATEWAY.parse().expect("invalid gateway IP address");
+            eth0.setup_ip_addr(ip, IP_PREFIX);
+            eth0.setup_gateway(gateway);
+
+            info!("created net interface {:?}:", eth0.name());
+            info!("  ether:    {}", eth0.ethernet_address());
+            info!("  ip:       {}/{}", ip, IP_PREFIX);
+            info!("  gateway:  {}", gateway);
+
+            IFACE_LIST.lock().push(eth0);
+        }
+    }
 }

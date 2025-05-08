@@ -7,10 +7,11 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use crate::{ctypes, imp::fd_ops::get_file_like};
 use axerrno::{LinuxError, LinuxResult};
 use ruxhal::time::current_time;
+use ruxtask::fs::get_file_like;
 
+use crate::ctypes;
 use core::{ffi::c_int, time::Duration};
 
 fn poll_all(fds: &mut [ctypes::pollfd]) -> LinuxResult<usize> {
@@ -35,6 +36,11 @@ fn poll_all(fds: &mut [ctypes::pollfd]) -> LinuxResult<usize> {
 
                 if state.writable && (events & ctypes::EPOLLOUT as i16 != 0) {
                     *revents |= ctypes::EPOLLOUT as i16;
+                    events_num += 1;
+                }
+
+                if state.pollhup {
+                    *revents |= ctypes::EPOLLHUP as i16;
                     events_num += 1;
                 }
             }
@@ -69,6 +75,7 @@ pub unsafe fn sys_poll(fds: *mut ctypes::pollfd, nfds: ctypes::nfds_t, timeout: 
             return Err(LinuxError::EINVAL);
         }
         let fds = core::slice::from_raw_parts_mut(fds, nfds as usize);
+        debug!("[sys_poll] monitored fds is {:?}", fds);
         let deadline = (!timeout.is_negative())
             .then(|| current_time() + Duration::from_millis(timeout as u64));
         for pollfd_item in fds.iter_mut() {

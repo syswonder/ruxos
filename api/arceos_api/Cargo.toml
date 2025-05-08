@@ -21,17 +21,19 @@ fs = ["dep:ruxfs", "ruxfeat/fs"]
 net = ["dep:ruxnet", "ruxfeat/net"]
 lwip = ["ruxfeat/lwip"]
 display = ["dep:ruxdisplay", "ruxfeat/display"]
-
+blkfs = ["ruxfeat/blkfs"]
 myfs = ["ruxfeat/myfs"]
 
 # Use dummy functions if the feature is not enabled
 dummy-if-not-enabled = []
 
 [dependencies]
+crate_interface = "0.1.1"
 ruxfeat = { path = "../ruxfeat" }
 ruxruntime = { path = "../../modules/ruxruntime" }
 ruxconfig = { path = "../../modules/ruxconfig" }
-axlog = { path = "../../modules/axlog" }
+ruxmm = { path = "../../modules/ruxmm" }
+axlog = { path = "../../crates/axlog" }
 axio = { path = "../../crates/axio" }
 axerrno = { path = "../../crates/axerrno" }
 ruxhal = { path = "../../modules/ruxhal" }

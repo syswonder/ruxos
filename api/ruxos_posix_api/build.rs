@@ -105,6 +105,7 @@ typedef struct {{
             "kstat",
             "stack_t",
             "ino_t",
+            "rusage",
             "dirent",
         ];
         let allow_vars = [
@@ -132,6 +133,7 @@ typedef struct {{
             "MS_.+",
             "MREMAP_.+",
             "GRND_.*",
+            "S_IF.+",
         ];
 
         #[derive(Debug)]
@@ -147,7 +149,7 @@ typedef struct {{
 
         let mut builder = bindgen::Builder::default()
             .header(in_file)
-            .clang_arg("-I./../../ulib/ruxlibc/include")
+            .clang_arg("-I./../../ulib/include")
             .parse_callbacks(Box::new(MyCallbacks))
             .derive_default(true)
             .size_t_is_usize(false)
@@ -166,7 +168,7 @@ typedef struct {{
             .expect("Couldn't write bindings!");
     }
 
-    gen_pthread_mutex("../../ulib/ruxlibc/include/ax_pthread_mutex.h").unwrap();
-    gen_pthread_cond("../../ulib/ruxlibc/include/ax_pthread_cond.h").unwrap();
+    gen_pthread_mutex("../../ulib/include/ax_pthread_mutex.h").unwrap();
+    gen_pthread_cond("../../ulib/include/ax_pthread_cond.h").unwrap();
     gen_c_to_rust_bindings("ctypes.h", "src/ctypes_gen.rs");
 }

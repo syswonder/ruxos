@@ -7,7 +7,7 @@ env:
 
 jobs:
   clippy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
     steps:
@@ -37,7 +37,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-22.04]
         arch: [x86_64, riscv64, aarch64]
     steps:
     - uses: actions/checkout@v3
@@ -51,7 +51,7 @@ jobs:
     - uses: actions-rs/install@v0.1
       with:
         crate: cargo-binutils
-        version: latest
+        version: 0.3.5
         use-tool-cache: true
     - name: Install gcc multilib
       run: sudo apt update && sudo apt install -y gcc-multilib
@@ -66,7 +66,7 @@ jobs:
     - name: Build display/draw_map
       run: make ARCH=${{ matrix.arch }} A=apps/display/draw_map
     - name: Build fs/shell
-      run: make ARCH=${{ matrix.arch }} A=apps/fs/shell
+      run: make ARCH=${{ matrix.arch }} A=apps/fs/shell FEATURES=fatfs
 
     - name: Build c/helloworld
       run: make ARCH=${{ matrix.arch }} A=apps/c/helloworld
@@ -83,18 +83,18 @@ jobs:
     - name: Build c/iperf
       run: |
         git clone https://github.com/syswonder/rux-iperf ./apps/c/iperf/ \
-          && make ARCH=${{ matrix.arch }} A=apps/c/iperf
+          && make ARCH=${{ matrix.arch }} A=apps/c/iperf FEATURES=fatfs
     - name: Build c/redis
       run: |
         git clone https://github.com/syswonder/rux-redis ./apps/c/redis/ \
-          && make ARCH=${{ matrix.arch }} A=apps/c/redis SMP=4
+          && make ARCH=${{ matrix.arch }} A=apps/c/redis SMP=4 FEATURES=fatfs
 
   build-apps-for-std:
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
+        os: [ubuntu-22.04]
         arch: [x86_64]
     steps:
     - uses: actions/checkout@v3

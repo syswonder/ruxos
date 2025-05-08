@@ -2,69 +2,23 @@
 resolver = "2"
 
 members = [
-    "crates/allocator",
-    "crates/arm_gic",
-    "crates/arm_pl011",
-    "crates/dw_apb_uart",
-    "crates/axerrno",
-    "crates/axfs_devfs",
-    "crates/axfs_ramfs",
-    "crates/axfs_vfs",
-    "crates/axio",
-    "crates/capability",
-    "crates/driver_9p",
-    "crates/driver_block",
-    "crates/driver_common",
-    "crates/driver_display",
-    "crates/driver_console",
-    "crates/driver_net",
-    "crates/driver_pci",
-    "crates/driver_virtio",
-    "crates/dtb",
-    "crates/flatten_objects",
-    "crates/lazy_init",
-    "crates/linked_list",
-    "crates/lwip_rust",
-    "crates/page_table",
-    "crates/page_table_entry",
-    "crates/percpu",
-    "crates/percpu_macros",
-    "crates/ratio",
-    "crates/scheduler",
-    "crates/slab_allocator",
-    "crates/spinlock",
-    "crates/timer_list",
-    "crates/tuple_for_each",
-    "crates/tty",
-
-    "modules/axalloc",
-    "modules/axlog",
-    "modules/ruxnet",
-    "modules/axsync",
-    "modules/rux9p",
-    "modules/ruxconfig",
-    "modules/ruxdisplay",
-    "modules/ruxdriver",
-    "modules/ruxfdtable",
-    "modules/ruxfs",
-    "modules/ruxhal",
-    "modules/ruxruntime",
-    "modules/ruxtask",
-    "modules/ruxfutex",
-    "modules/ruxrand",
-
-    "api/ruxfeat",
-    "api/arceos_api",
-    "api/ruxos_posix_api",
-
+    "crates/*",
+    "modules/*",
+    "api/*",
     "ulib/axstd",
-    "ulib/ruxlibc",
     "ulib/ruxmusl",
 
     "apps/display/basic_painting",
     "apps/display/draw_map",
     "apps/fs/shell",
 ]
+
+[workspace.dependencies]
+# Centralized dependency version for shared crates.
+# Usage: In child crates, write `bitflags = { workspace = true }`.
+bitflags = "2.6"
+log = "0.4"
+spin = "0.9"
 
 [profile.release]
 lto = true

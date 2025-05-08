@@ -20,7 +20,7 @@ const VIRTIO_CONSOLE_REG: usize = 0x200;
 use crate::platform::irq::VIRTIO_CONSOLE_IRQ_NUM;
 
 /// Store buffer size
-const MEM_SIZE: usize = 4096;
+const MEM_SIZE: usize = 16384;
 
 #[cfg(feature = "irq")]
 const BUFFER_SIZE: usize = 128;
@@ -153,7 +153,6 @@ pub fn enable_interrupt() {
         crate::irq::set_enable(VIRTIO_CONSOLE_IRQ_NUM, true);
         ack_interrupt();
         info!("Interrupt enabled!");
-        return;
     }
     #[cfg(not(target_arch = "aarch64"))]
     warn!("Interrupt is not supported on this platform!");

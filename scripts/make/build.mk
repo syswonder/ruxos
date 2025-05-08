@@ -41,11 +41,7 @@ ifeq ($(APP_TYPE), rust)
 	$(call cargo_build,--manifest-path $(APP)/Cargo.toml,$(RUX_FEAT) $(LIB_FEAT) $(APP_FEAT))
 	@cp $(rust_elf) $(OUT_ELF)
 else ifeq ($(APP_TYPE), c)
-  ifeq ($(MUSL), y)
-		$(call cargo_build,-p ruxmusl,$(RUX_FEAT) $(LIB_FEAT))
-  else
-		$(call cargo_build,-p ruxlibc,$(RUX_FEAT) $(LIB_FEAT))
-  endif
+	$(call cargo_build,-p ruxmusl,$(RUX_FEAT) $(LIB_FEAT))
 endif
 
 $(OUT_DIR):

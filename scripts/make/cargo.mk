@@ -34,13 +34,13 @@ endef
 
 define cargo_clippy
   $(call run_cmd,cargo clippy,--all-features --workspace --exclude axlog $(1) $(verbose))
-  $(call run_cmd,cargo clippy,-p axlog -p percpu -p percpu_macros $(1) $(verbose))
+  $(call run_cmd,cargo clippy,-p axlog $(1) $(verbose))
 endef
 
 all_packages := \
   $(shell ls $(CURDIR)/crates) \
   $(shell ls $(CURDIR)/modules) \
-  ruxfeat arceos_api axstd ruxlibc ruxmusl
+  ruxfeat arceos_api axstd ruxmusl
 
 define cargo_doc
   $(call run_cmd,cargo doc,--no-deps --all-features --workspace --exclude "arceos-*" --exclude "ruxos-*" --exclude "ruxos-*" $(verbose))
@@ -49,5 +49,4 @@ define cargo_doc
     $(call run_cmd,cargo rustdoc,--all-features -p $(p) $(verbose))
   )
   @# for some crates, re-generate without `--all-features`
-  $(call run_cmd,cargo doc,--no-deps -p percpu $(verbose))
 endef

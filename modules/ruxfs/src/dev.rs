@@ -7,6 +7,8 @@
  *   See the Mulan PSL v2 for more details.
  */
 
+//! Block device abstraction.
+
 use ruxdriver::prelude::*;
 
 const BLOCK_SIZE: usize = 512;
@@ -97,6 +99,30 @@ impl Disk {
             count
         };
         Ok(write_size)
+    }
+
+    /// Read a single block starting from the specified offset.
+    #[allow(unused)]
+    pub fn read_offset(&mut self, offset: usize) -> [u8; BLOCK_SIZE] {
+        let block_id = offset / BLOCK_SIZE;
+        let mut block_data = [0u8; BLOCK_SIZE];
+        self.dev
+            .read_block(block_id as u64, &mut block_data)
+            .unwrap();
+        block_data
+    }
+
+    /// Write single block starting from the specified offset.
+    #[allow(unused)]
+    pub fn write_offset(&mut self, offset: usize, buf: &[u8]) -> DevResult<usize> {
+        assert!(
+            buf.len() == BLOCK_SIZE,
+            "Buffer length must be equal to BLOCK_SIZE"
+        );
+        assert!(offset % BLOCK_SIZE == 0);
+        let block_id = offset / BLOCK_SIZE;
+        self.dev.write_block(block_id as u64, buf).unwrap();
+        Ok(buf.len())
     }
 
     ///flush device cache

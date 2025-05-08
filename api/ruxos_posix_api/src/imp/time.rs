@@ -77,13 +77,31 @@ pub unsafe fn sys_clock_settime(_clk: ctypes::clockid_t, ts: *const ctypes::time
     })
 }
 
+/// Return the resolution (precision) of a specified clock `clk_id`.
+/// TODO: Currently we only have one simple clock source in the OS.
+/// We ignore `clk_id` and always return a fixed resolution of 1ns.
+/// In the future, we may:
+///  - Distinguish different clock IDs (e.g., REALTIME vs MONOTONIC).
+///  - Return a more realistic resolution based on hardware capabilities.
+pub unsafe fn sys_clock_getres(clk_id: ctypes::clockid_t, ts: *mut ctypes::timespec) -> c_int {
+    syscall_body!(sys_clock_getres, {
+        if ts.is_null() {
+            return Err(LinuxError::EFAULT);
+        }
+        (*ts).tv_sec = 0;
+        (*ts).tv_nsec = 1;
+        debug!("sys_clock_getres: clk_id={}, returning 0s + 1ns", clk_id);
+        Ok(0)
+    })
+}
+
 /// Sleep until some nanoseconds
 ///
 /// TODO: should be woken by signals, and set errno
 /// TODO: deal with flags
 pub unsafe fn sys_clock_nanosleep(
-    which_clock: ctypes::clockid_t,
-    flags: c_int,
+    _which_clock: ctypes::clockid_t,
+    _flags: c_int,
     req: *const ctypes::timespec,
     rem: *mut ctypes::timespec,
 ) -> c_int {
