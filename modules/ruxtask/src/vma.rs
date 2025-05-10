@@ -58,11 +58,12 @@ used_fs! {
 #[cfg(feature = "fs")]
 fn open_swap_file(filename: &str) -> Arc<File> {
     use crate::fs::absolute_path;
+    use axfs_vfs::VfsNodePerm;
     use ruxfdtable::OpenFlags;
 
     let opt = OpenFlags::O_RDWR | OpenFlags::O_APPEND | OpenFlags::O_CREAT;
     let path = absolute_path(filename).unwrap();
-    ruxfs::fops::open_file_like(&path, opt)
+    ruxfs::fops::open_file_like(&path, opt, VfsNodePerm::default_file())
         .expect("create swap file failed")
         .into_any()
         .downcast::<File>()

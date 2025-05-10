@@ -144,9 +144,9 @@ fn test_devfs() {
     devfs.add("null", Arc::new(NullDev));
     devfs.add("zero", Arc::new(ZeroDev));
 
-    let dir_foo = devfs.mkdir("foo");
+    let dir_foo = devfs.mkdir("foo", VfsNodePerm::default_dir());
     dir_foo.add("f2", Arc::new(ZeroDev));
-    let dir_bar = dir_foo.mkdir("bar");
+    let dir_bar = dir_foo.mkdir("bar", VfsNodePerm::default_dir());
     dir_bar.add("f1", Arc::new(NullDev));
 
     test_devfs_ops(&devfs).unwrap();

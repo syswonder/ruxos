@@ -15,7 +15,8 @@
 use alloc::{format, sync::Arc, vec::Vec};
 use axerrno::{ax_err, AxResult};
 use axfs_vfs::{
-    AbsPath, RelPath, VfsError, VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodeType, VfsOps, VfsResult,
+    AbsPath, RelPath, VfsError, VfsNodeAttr, VfsNodeOps, VfsNodePerm, VfsNodeRef, VfsNodeType,
+    VfsOps, VfsResult,
 };
 
 /// mount point information
@@ -77,9 +78,11 @@ impl RootDirectory {
             }
             Err(e) => {
                 if e == VfsError::NotFound {
-                    self.main_fs
-                        .root_dir()
-                        .create(&path.to_rel(), VfsNodeType::Dir)?;
+                    self.main_fs.root_dir().create(
+                        &path.to_rel(),
+                        VfsNodeType::Dir,
+                        VfsNodePerm::default_dir(),
+                    )?;
                 } else {
                     return Err(e);
                 }
@@ -145,16 +148,20 @@ impl VfsNodeOps for RootDirectory {
         self.main_fs.root_dir().get_attr()
     }
 
+    fn set_mode(&self, _mode: VfsNodePerm) -> VfsResult {
+        Ok(())
+    }
+
     fn lookup(self: Arc<Self>, path: &RelPath) -> VfsResult<VfsNodeRef> {
         self.lookup_mounted_fs_then(path, |fs, rest_path| fs.root_dir().lookup(rest_path))
     }
 
-    fn create(&self, path: &RelPath, ty: VfsNodeType) -> VfsResult {
+    fn create(&self, path: &RelPath, ty: VfsNodeType, mode: VfsNodePerm) -> VfsResult {
         self.lookup_mounted_fs_then(path, |fs, rest_path| {
             if rest_path.is_empty() {
                 Ok(()) // already exists
             } else {
-                fs.root_dir().create(rest_path, ty)
+                fs.root_dir().create(rest_path, ty, mode)
             }
         })
     }

@@ -115,17 +115,9 @@ pub trait VfsNodeOps: Send + Sync {
         ax_err!(Unsupported, "get_attr method is unsupported")
     }
 
-    /// Set the attributes of the node.
-    ///
-    /// TODO: add time attributes
-    fn setattr(
-        &self,
-        _mode: Option<u32>,
-        _uid: Option<u32>,
-        _gid: Option<u32>,
-        _size: Option<u64>,
-    ) -> VfsResult {
-        ax_err!(Unsupported, "setattr method is unsupported")
+    /// Set the mode of the node.
+    fn set_mode(&self, _mode: VfsNodePerm) -> VfsResult {
+        ax_err!(Unsupported, "set_attr method is unsupported")
     }
 
     // file operations:
@@ -169,12 +161,13 @@ pub trait VfsNodeOps: Send + Sync {
     /// Create a new node with the given `path` in the directory
     ///
     /// Return [`Ok(())`](Ok) if it already exists.
-    fn create(&self, path: &RelPath, ty: VfsNodeType) -> VfsResult {
+    fn create(&self, path: &RelPath, ty: VfsNodeType, mode: VfsNodePerm) -> VfsResult {
         ax_err!(
             Unsupported,
-            "create method is unsupported in path {} type {:?}",
+            "create method is unsupported in path {} type {:?}, mode {:?}",
             path,
-            ty
+            ty,
+            mode
         )
     }
 
@@ -239,20 +232,23 @@ pub trait VfsNodeOps: Send + Sync {
     /// implementor may provide a more efficient impl.
     ///
     /// Return [`Ok(())`](Ok) if already exists.
-    fn create_recursive(&self, path: &RelPath, ty: VfsNodeType) -> VfsResult {
+    fn create_recursive(&self, path: &RelPath, ty: VfsNodeType, mode: VfsNodePerm) -> VfsResult {
         for (i, c) in path.char_indices() {
             let part = if c == '/' {
                 unsafe { path.get_unchecked(..i) }
             } else {
                 continue;
             };
-            match self.create(&RelPath::new(part), VfsNodeType::Dir) {
+            match self.create(
+                &RelPath::new(part),
+                VfsNodeType::Dir,
+                VfsNodePerm::default_dir(),
+            ) {
                 Ok(()) | Err(AxError::AlreadyExists) => {}
                 err @ Err(_) => return err,
             }
         }
-        self.create(path, ty)?;
-
+        self.create(path, ty, mode)?;
         Ok(())
     }
 

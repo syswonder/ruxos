@@ -83,6 +83,22 @@ pub fn close_file_like(fd: i32) -> LinuxResult {
     Ok(())
 }
 
+/// Get current task umask
+pub fn get_umask() -> u16 {
+    current().fs.lock().as_ref().unwrap().umask.get()
+}
+
+/// Replace current task umask
+pub fn replace_umask(new_mask: u16) -> u16 {
+    current()
+        .fs
+        .lock()
+        .as_mut()
+        .unwrap()
+        .umask
+        .replace(new_mask)
+}
+
 /// A struct representing a file system object.
 #[derive(Clone)]
 pub struct FileSystem {
@@ -94,6 +110,8 @@ pub struct FileSystem {
     pub current_dir: VfsNodeRef,
     /// The root directory.
     pub root_dir: Arc<RootDirectory>,
+    /// file mode creation maskq
+    umask: UMask,
 }
 
 impl FileSystem {
@@ -126,6 +144,7 @@ pub fn init_rootfs(mount_points: Vec<MountPoint>) {
         current_path: AbsPath::new_owned("/".to_owned()),
         current_dir: root_dir_arc.clone(),
         root_dir: root_dir_arc.clone(),
+        umask: UMask::new(),
     };
 
     // TODO: make a more clear interface for adding stdios to fd table when not in unit tests
@@ -176,6 +195,26 @@ pub fn set_current_dir(path: AbsPath<'static>) -> AxResult {
         current().fs.lock().as_mut().unwrap().current_dir = node;
         current().fs.lock().as_mut().unwrap().current_path = path;
         Ok(())
+    }
+}
+
+#[derive(Clone, Copy, Debug)]
+struct UMask(u16);
+
+impl UMask {
+    fn new() -> Self {
+        Self(0o022)
+    }
+
+    fn get(&self) -> u16 {
+        self.0
+    }
+
+    fn replace(&mut self, new_mask: u16) -> u16 {
+        let new_mask = new_mask & 0o777;
+        let old_mask = self.0;
+        self.0 = new_mask;
+        old_mask
     }
 }
 

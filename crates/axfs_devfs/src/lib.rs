@@ -31,7 +31,7 @@ pub use self::random::RandomDev;
 pub use self::zero::ZeroDev;
 
 use alloc::sync::Arc;
-use axfs_vfs::{AbsPath, VfsNodeRef, VfsOps, VfsResult};
+use axfs_vfs::{AbsPath, VfsNodePerm, VfsNodeRef, VfsOps, VfsResult};
 use core::sync::atomic::AtomicU64;
 use spin::once::Once;
 
@@ -68,14 +68,14 @@ impl DeviceFileSystem {
         let ialloc = Arc::new(InoAllocator::new(10));
         Self {
             parent: Once::new(),
-            root: DirNode::new(2, None, Arc::downgrade(&ialloc)),
+            root: DirNode::new(2, VfsNodePerm::default_dir(), None, Arc::downgrade(&ialloc)),
             _ialloc: ialloc,
         }
     }
 
     /// Create a subdirectory at the root directory.
-    pub fn mkdir(&self, name: &'static str) -> Arc<DirNode> {
-        self.root.mkdir(name)
+    pub fn mkdir(&self, name: &'static str, mode: VfsNodePerm) -> Arc<DirNode> {
+        self.root.mkdir(name, mode)
     }
 
     /// Add a node to the root directory.

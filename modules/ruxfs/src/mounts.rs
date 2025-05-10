@@ -37,44 +37,68 @@ pub(crate) fn ramfs() -> Arc<fs::ramfs::RamFileSystem> {
 
 #[cfg(feature = "procfs")]
 pub(crate) fn procfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
+    use axfs_vfs::VfsNodePerm;
+
     let procfs = fs::ramfs::RamFileSystem::new();
     let proc_root = procfs.root_dir();
 
     #[cfg(feature = "alloc")]
     {
         // Create /proc/cpuinfo
-        proc_root.create(&RelPath::new("cpuinfo"), VfsNodeType::File)?;
+        proc_root.create(
+            &RelPath::new("cpuinfo"),
+            VfsNodeType::File,
+            VfsNodePerm::default_file(),
+        )?;
         let file_cpuinfo = proc_root.clone().lookup(&RelPath::new("cpuinfo"))?;
         file_cpuinfo.write_at(0, get_cpuinfo().as_bytes())?;
 
         // Create /proc/meminfo
-        proc_root.create(&RelPath::new("meminfo"), VfsNodeType::File)?;
+        proc_root.create(
+            &RelPath::new("meminfo"),
+            VfsNodeType::File,
+            VfsNodePerm::default_file(),
+        )?;
         let file_meminfo = proc_root.clone().lookup(&RelPath::new("meminfo"))?;
         file_meminfo.write_at(0, get_meminfo().as_bytes())?;
     }
 
     // Create /proc/sys/net/core/somaxconn
-    proc_root.create_recursive(&RelPath::new("sys/net/core/somaxconn"), VfsNodeType::File)?;
+    proc_root.create_recursive(
+        &RelPath::new("sys/net/core/somaxconn"),
+        VfsNodeType::File,
+        VfsNodePerm::default_file(),
+    )?;
     let file_somaxconn = proc_root
         .clone()
         .lookup(&RelPath::new("sys/net/core/somaxconn"))?;
     file_somaxconn.write_at(0, b"4096\n")?;
 
     // Create /proc/sys/vm/overcommit_memory
-    proc_root.create_recursive(&RelPath::new("sys/vm/overcommit_memory"), VfsNodeType::File)?;
+    proc_root.create_recursive(
+        &RelPath::new("sys/vm/overcommit_memory"),
+        VfsNodeType::File,
+        VfsNodePerm::default_file(),
+    )?;
     let file_over = proc_root
         .clone()
         .lookup(&RelPath::new("sys/vm/overcommit_memory"))?;
     file_over.write_at(0, b"0\n")?;
 
     // Create /proc/self/stat
-    proc_root.create_recursive(&RelPath::new("self/stat"), VfsNodeType::File)?;
+    proc_root.create_recursive(
+        &RelPath::new("self/stat"),
+        VfsNodeType::File,
+        VfsNodePerm::default_file(),
+    )?;
 
     Ok(Arc::new(procfs))
 }
 
 #[cfg(feature = "sysfs")]
 pub(crate) fn sysfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
+    use axfs_vfs::VfsNodePerm;
+
     let sysfs = fs::ramfs::RamFileSystem::new();
     let sys_root = sysfs.root_dir();
 
@@ -84,6 +108,7 @@ pub(crate) fn sysfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
     sys_root.create_recursive(
         &RelPath::new("kernel/mm/transparent_hugepage/enabled"),
         VfsNodeType::File,
+        VfsNodePerm::default_file(),
     )?;
     let file_hp = sys_root
         .clone()
@@ -94,6 +119,7 @@ pub(crate) fn sysfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
     sys_root.create_recursive(
         &RelPath::new("devices/system/clocksource/clocksource0/current_clocksource"),
         VfsNodeType::File,
+        VfsNodePerm::default_file(),
     )?;
     let file_cc = sys_root.clone().lookup(&RelPath::new(
         "devices/system/clocksource/clocksource0/current_clocksource",
@@ -105,11 +131,17 @@ pub(crate) fn sysfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
 
 #[cfg(feature = "etcfs")]
 pub(crate) fn etcfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
+    use axfs_vfs::VfsNodePerm;
+
     let etcfs = fs::ramfs::RamFileSystem::new();
     let etc_root = etcfs.root_dir();
 
     // Create /etc/passwd, and /etc/hosts
-    etc_root.create(&RelPath::new("passwd"), VfsNodeType::File)?;
+    etc_root.create(
+        &RelPath::new("passwd"),
+        VfsNodeType::File,
+        VfsNodePerm::default_file(),
+    )?;
     let file_passwd = etc_root.clone().lookup(&RelPath::new("passwd"))?;
     // format: username:password:uid:gid:allname:homedir:shell
     file_passwd.write_at(
@@ -119,15 +151,27 @@ pub(crate) fn etcfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
     )?;
 
     // Create /etc/group
-    etc_root.create(&RelPath::new("group"), VfsNodeType::File)?;
+    etc_root.create(
+        &RelPath::new("group"),
+        VfsNodeType::File,
+        VfsNodePerm::default_file(),
+    )?;
     let file_group = etc_root.clone().lookup(&RelPath::new("group"))?;
     file_group.write_at(0, b"root:x:0:\n")?;
 
     // Create /etc/localtime
-    etc_root.create(&RelPath::new("localtime"), VfsNodeType::File)?;
+    etc_root.create(
+        &RelPath::new("localtime"),
+        VfsNodeType::File,
+        VfsNodePerm::default_file(),
+    )?;
 
     // Create /etc/hosts
-    etc_root.create(&RelPath::new("hosts"), VfsNodeType::File)?;
+    etc_root.create(
+        &RelPath::new("hosts"),
+        VfsNodeType::File,
+        VfsNodePerm::default_file(),
+    )?;
     let file_hosts = etc_root.clone().lookup(&RelPath::new("hosts"))?;
     file_hosts.write_at(
         0,
@@ -140,12 +184,20 @@ pub(crate) fn etcfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
         ff02::3 ip6-allhosts\n",
     )?;
 
-    etc_root.create(&RelPath::new("services"), VfsNodeType::File)?;
+    etc_root.create(
+        &RelPath::new("services"),
+        VfsNodeType::File,
+        VfsNodePerm::default_file(),
+    )?;
     let file_services = etc_root.clone().lookup(&RelPath::new("services"))?;
     file_services.write_at(0, b"ssh		22/tcp")?;
 
     // Create /etc/resolv.conf
-    etc_root.create(&RelPath::new("resolv.conf"), VfsNodeType::File)?;
+    etc_root.create(
+        &RelPath::new("resolv.conf"),
+        VfsNodeType::File,
+        VfsNodePerm::default_file(),
+    )?;
     let file_resolv = etc_root.clone().lookup(&RelPath::new("resolv.conf"))?;
     file_resolv.write_at(
         0,

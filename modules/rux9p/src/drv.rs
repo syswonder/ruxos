@@ -915,6 +915,11 @@ impl FileAttr {
         self.mode
     }
 
+    pub fn set_perm(&mut self, perm: u32) {
+        self.vaild |= _9P_SETATTR_MODE;
+        self.mode = perm;
+    }
+
     pub fn set_size(&mut self, size: u64) {
         self.vaild |= _9P_SETATTR_SIZE;
         self.size = size;
@@ -1032,6 +1037,10 @@ impl UStatFs {
 
     pub fn get_perm(&self) -> u32 {
         self.mode
+    }
+
+    pub fn set_mode(&mut self, perm: u32) {
+        self.mode = perm;
     }
 
     pub fn get_ftype(&self) -> u8 {

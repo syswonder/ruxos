@@ -38,6 +38,10 @@ impl VfsNodeOps for RandomDev {
         ))
     }
 
+    fn set_mode(&self, _mode: VfsNodePerm) -> VfsResult {
+        Ok(())
+    }
+
     fn read_at(&self, _offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
         let len = buf.len() >> 2;
         let remainder = buf.len() & 0x3;

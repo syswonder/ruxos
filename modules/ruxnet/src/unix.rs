@@ -9,11 +9,12 @@
 
 use alloc::{format, sync::Arc, vec};
 use axerrno::{ax_err, AxError, AxResult, LinuxError, LinuxResult};
+use axfs_vfs::{VfsNodePerm, VfsNodeType};
 use axio::PollState;
 use axsync::Mutex;
 use core::ffi::c_char;
 use core::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use ruxfs::AbsPath;
+use ruxfs::{fops, AbsPath};
 use spin::RwLock;
 
 use alloc::collections::VecDeque;
@@ -23,7 +24,7 @@ use hashbrown::HashMap;
 use lazy_init::LazyInit;
 use smoltcp::socket::tcp::SocketBuffer;
 
-use ruxfs::fops::{create_file, lookup};
+use ruxfs::fops::lookup;
 use ruxtask::yield_now;
 
 const SOCK_ADDR_UN_PATH_LEN: usize = 108;
@@ -185,7 +186,11 @@ fn create_socket_file(addr: SocketAddrUnix) -> AxResult<usize> {
             .to_str()
             .expect("Invalid UTF-8 string")
     };
-    create_file(&AbsPath::new_canonicalized(socket_path))?;
+    fops::create(
+        &AbsPath::new_canonicalized(socket_path),
+        VfsNodeType::Socket,
+        VfsNodePerm::default_socket(),
+    )?;
     Err(AxError::Unsupported)
 }
 
