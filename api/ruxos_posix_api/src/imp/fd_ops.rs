@@ -127,9 +127,6 @@ impl From<RuxStat> for ctypes::stat {
 /// Close a file by `fd`.
 pub fn sys_close(fd: c_int) -> c_int {
     debug!("sys_close <= {}", fd);
-    if (0..=2).contains(&fd) {
-        return 0; // stdin, stdout, stderr
-    }
     syscall_body!(sys_close, close_file_like(fd).map(|_| 0))
 }
 

@@ -171,6 +171,15 @@ pub trait VfsNodeOps: Send + Sync {
         )
     }
 
+    /// Add a new node(especially `SocketNode`) with the given `name` in the directory.
+    fn create_socket_node(&self, name: &RelPath, _node: VfsNodeRef) -> VfsResult {
+        ax_err!(
+            Unsupported,
+            "create_socket_node method is unsupported in path {}",
+            name
+        )
+    }
+
     /// Create a new hard link to the src dentry
     fn link(&self, name: &RelPath, _src: Arc<dyn VfsNodeOps>) -> VfsResult<Arc<dyn VfsNodeOps>> {
         ax_err!(Unsupported, "link method is unsupported in path {}", name)

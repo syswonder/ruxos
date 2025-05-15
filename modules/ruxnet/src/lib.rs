@@ -35,8 +35,11 @@
 extern crate log;
 extern crate alloc;
 
-mod unix;
-pub use unix::{SocketAddrUnix, UnixSocket, UnixSocketType};
+pub mod address;
+pub mod message;
+pub mod socket;
+pub mod socket_node;
+pub mod unix;
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "lwip")] {
@@ -58,7 +61,35 @@ pub use self::net_impl::TcpSocket;
 pub use self::net_impl::UdpSocket;
 pub use self::net_impl::{dns_query, poll_interfaces};
 
+use axerrno::LinuxError;
 use ruxdriver::{prelude::*, AxDeviceContainer};
+
+bitflags::bitflags! {
+    /// The flags for shutting down sockets.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+    pub struct ShutdownFlags: i32 {
+        /// Further transmissions will be disallowed.
+        const WRITE = 1 << 0;
+        /// Further receptions will be disallowed.
+        const READ = 1 << 1;
+    }
+}
+
+impl TryFrom<i32> for ShutdownFlags {
+    type Error = LinuxError;
+
+    fn try_from(how: i32) -> Result<Self, Self::Error> {
+        const SHUT_RD: i32 = 0;
+        const SHUT_WR: i32 = 1;
+        const SHUT_RDWR: i32 = 2;
+        match how {
+            SHUT_RD => Ok(ShutdownFlags::READ),
+            SHUT_WR => Ok(ShutdownFlags::WRITE),
+            SHUT_RDWR => Ok(ShutdownFlags::READ | ShutdownFlags::WRITE),
+            _ => Err(LinuxError::EINVAL),
+        }
+    }
+}
 
 /// Initializes the network subsystem by NIC devices.
 pub fn init_network(mut net_devs: AxDeviceContainer<AxNetDevice>) {
@@ -74,7 +105,6 @@ pub fn init_network(mut net_devs: AxDeviceContainer<AxNetDevice>) {
         }
     }
     net_impl::init();
-    unix::init_unix();
     while !net_devs.is_empty() {
         let dev = net_devs.take_one().expect("No NIC device found!");
         info!("  use NIC: {:?}", dev.device_name());

@@ -1,0 +1,13 @@
+[package]
+name = "iovec"
+version = "0.0.1"
+edition = "2021"
+authors = ["Quan Shi <749990226@qq.com>"]
+description = ""
+license = "Mulan PSL v2"
+homepage = "https://github.com/syswonder/ruxos"
+repository = "https://github.com/syswonder/ruxos/tree/dev/crates/iovec"
+
+[dependencies]
+smallvec = "1.15.0"
+axerrno = { path = "../axerrno" }

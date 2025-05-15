@@ -12,13 +12,17 @@ use core::net::SocketAddr;
 use core::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 
 use alloc::string::String;
+use alloc::vec;
 use axerrno::{ax_err, ax_err_type, AxError, AxResult};
 use axio::PollState;
 use axsync::Mutex;
 
+use iovec::IoVecsOutput;
 use smoltcp::iface::SocketHandle;
 use smoltcp::socket::tcp::{self, ConnectError, State};
 use smoltcp::wire::{IpEndpoint, IpListenEndpoint};
+
+use crate::message::{MessageFlags, MessageReadInfo};
 
 use super::addr::{from_core_sockaddr, into_core_sockaddr, is_unspecified, UNSPECIFIED_ENDPOINT};
 use super::{route_dev, SocketSetWrapper, IFACE_LIST, LISTEN_TABLE, SOCKET_SET};
@@ -34,9 +38,6 @@ const STATE_BUSY: u8 = 1;
 const STATE_CONNECTING: u8 = 2;
 const STATE_CONNECTED: u8 = 3;
 const STATE_LISTENING: u8 = 4;
-
-const MSG_PEEK: i32 = 2;
-const MSG_DONTWAIT: i32 = 4;
 
 /// A TCP socket that provides POSIX-like APIs.
 ///
@@ -311,7 +312,7 @@ impl TcpSocket {
     }
 
     /// Receives data from the socket, stores it in the given buffer.
-    pub fn recv(&self, buf: &mut [u8], flags: i32) -> AxResult<usize> {
+    pub fn recv(&self, buf: &mut [u8], flags: MessageFlags) -> AxResult<usize> {
         if self.is_connecting() {
             return Err(AxError::WouldBlock);
         } else if !self.is_connected() {
@@ -332,10 +333,11 @@ impl TcpSocket {
                     } else if socket.recv_queue() > 0 {
                         // data available
                         // TODO: use socket.recv(|buf| {...})
-                        if flags & MSG_DONTWAIT != 0 {
+                        if flags.contains(MessageFlags::MSG_DONTWAIT) {
+                            // FIXME: MSG_DONTWAIT means socket should be temporarily set `true`
                             self.set_nonblocking(true);
                         }
-                        if flags & MSG_PEEK != 0 {
+                        if flags.contains(MessageFlags::MSG_PEEK) {
                             let len = socket
                                 .peek_slice(buf)
                                 .map_err(|_| ax_err_type!(BadState, "socket recv() failed"))?;
@@ -354,6 +356,54 @@ impl TcpSocket {
             },
             None,
         )
+    }
+
+    pub fn recvmsg(
+        &self,
+        iovecs: &mut IoVecsOutput,
+        flags: MessageFlags,
+    ) -> AxResult<MessageReadInfo> {
+        if !flags.is_empty() {
+            warn!("unsupported TCP recvmsg flags");
+        }
+        if self.is_connecting() {
+            return Err(AxError::WouldBlock);
+        } else if !self.is_connected() {
+            return ax_err!(NotConnected, "socket recv() failed");
+        }
+        // SAFETY: `self.handle` should be initialized in a connected socket.
+        let handle = unsafe { self.handle.get().read().unwrap() };
+        let bytes_read = self.block_on(
+            || {
+                SOCKET_SET.with_socket_mut::<tcp::Socket, _, _>(handle, |socket| {
+                    if !socket.is_active() {
+                        // not open
+                        ax_err!(ConnectionRefused, "socket recv() failed")
+                    } else if !socket.may_recv() {
+                        // connection closed
+                        Ok(0)
+                    } else if socket.recv_queue() > 0 {
+                        let bytes_received = socket
+                            .recv(|data| {
+                                let total_bytes_copied = iovecs.write(&data);
+                                (total_bytes_copied, Ok::<usize, AxError>(total_bytes_copied))
+                            })
+                            .map_err(|_| ax_err_type!(BadState, "socket recvmsg() failed"))??;
+                        Ok(bytes_received)
+                    } else {
+                        // no more data
+                        Err(AxError::WouldBlock)
+                    }
+                })
+            },
+            None,
+        )?;
+        Ok(MessageReadInfo {
+            bytes_read,
+            bytes_total: bytes_read,
+            address: None,
+            ancillary_data: vec![],
+        })
     }
 
     /// Transmits data in the given buffer.
@@ -568,7 +618,7 @@ impl Drop for TcpSocket {
 
 impl axio::Read for TcpSocket {
     fn read(&mut self, buf: &mut [u8]) -> AxResult<usize> {
-        self.recv(buf, 0)
+        self.recv(buf, MessageFlags::empty())
     }
 }
 

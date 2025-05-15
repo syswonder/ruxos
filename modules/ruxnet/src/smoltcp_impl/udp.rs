@@ -11,14 +11,18 @@ use core::net::{Ipv4Addr, SocketAddr, SocketAddrV4};
 use core::sync::atomic::{AtomicBool, Ordering};
 
 use alloc::string::String;
+use alloc::vec;
 use axerrno::{ax_err, ax_err_type, AxError, AxResult};
 use axio::PollState;
 use axsync::Mutex;
+use iovec::IoVecsOutput;
 use spin::RwLock;
 
 use smoltcp::iface::SocketHandle;
 use smoltcp::socket::udp::{self, BindError, SendError};
 use smoltcp::wire::{IpEndpoint, IpListenEndpoint};
+
+use crate::message::{MessageFlags, MessageReadInfo};
 
 use super::addr::{from_core_sockaddr, into_core_sockaddr, is_unspecified, UNSPECIFIED_ENDPOINT};
 use super::{route_dev, SocketSetWrapper, SOCKET_SET};
@@ -177,6 +181,33 @@ impl UdpSocket {
                 return Err(AxError::WouldBlock);
             }
             Ok(len)
+        })
+    }
+
+    pub fn recvmsg(
+        &self,
+        iovecs: &mut IoVecsOutput,
+        flags: MessageFlags,
+    ) -> AxResult<MessageReadInfo> {
+        self.recv_impl(move |socket| {
+            let (data, meta) = if flags.contains(MessageFlags::MSG_PEEK) {
+                let peek = socket
+                    .peek()
+                    .map_err(|_| ax_err_type!(BadState, "socket recvmsg() failed"))?;
+                (peek.0, *peek.1)
+            } else {
+                socket
+                    .recv()
+                    .map_err(|_| ax_err_type!(BadState, "socket recvmsg() failed"))?
+            };
+
+            let bytes_read = iovecs.write(data);
+            Ok(MessageReadInfo {
+                bytes_read,
+                bytes_total: data.len(),
+                address: Some(into_core_sockaddr(meta.endpoint).into()),
+                ancillary_data: vec![],
+            })
         })
     }
 

@@ -58,6 +58,7 @@ axlog = { path = "../../crates/axlog" }
 axio = { path = "../../crates/axio" }
 axerrno = { path = "../../crates/axerrno" }
 ringbuffer = { path = "../../crates/ringbuffer" }
+iovec = { path = "../../crates/iovec" }
 memory_addr = "0.1.0"
 static_assertions = "1.1.0"
 spin = { workspace = true }
