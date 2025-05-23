@@ -108,7 +108,7 @@ cfg_if::cfg_if! {
 use root::MountPoint;
 
 /// Initialize an empty filesystems by ramfs.
-#[cfg(not(any(feature = "blkfs", feature = "virtio-9p", feature = "net-9p")))]
+#[cfg(not(feature = "blkfs"))]
 pub fn init_tempfs() -> MountPoint {
     MountPoint::new(AbsPath::new("/"), mounts::ramfs())
 }

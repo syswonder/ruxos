@@ -138,7 +138,7 @@ else ifeq ($(ARCH), riscv64)
 else ifeq ($(ARCH), aarch64)
   ACCEL ?= n
   PLATFORM_NAME ?= aarch64-qemu-virt
-  TARGET := aarch64-unknown-none-softfloat
+  TARGET := aarch64-unknown-none
   ifeq ($(findstring fp_simd,$(FEATURES)),)
     TARGET_CFLAGS := -mgeneral-regs-only
   endif
@@ -206,9 +206,9 @@ endif
 
 _force: ;
 
-# prebuild scripts must track their dependencies by themselves
-prebuild: _force
-	$(call run_prebuild)
+# # prebuild scripts must track their dependencies by themselves
+# prebuild: _force
+# 	$(call run_prebuild)
 
 $(OUT_DIR): prebuild
 

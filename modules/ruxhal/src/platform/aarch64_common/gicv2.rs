@@ -31,8 +31,6 @@ pub const VIRTIO_CONSOLE_IRQ_NUM: usize =
 
 const GICD_BASE: PhysAddr = PhysAddr::from(ruxconfig::GICD_PADDR);
 const GICC_BASE: PhysAddr = PhysAddr::from(ruxconfig::GICC_PADDR);
-const GICR_BASE: PhysAddr = PhysAddr::from(ruxconfig::GICR_PADDR);
-const GICR_STRIDE: usize = 0x20000;
 
 static GICD: SpinNoIrq<GicDistributor> =
     SpinNoIrq::new(GicDistributor::new(phys_to_virt(GICD_BASE).as_mut_ptr()));
@@ -65,7 +63,7 @@ pub fn dispatch_irq(_unused: usize) {
 }
 
 /// Initializes GICD, GICC on the primary CPU.
-pub(crate) fn init_primary(cpu_id: usize) {
+pub(crate) fn init_primary(_cpu_id: usize) {
     info!("Initialize GICv2...");
     GICD.lock().init();
     GICC.init();

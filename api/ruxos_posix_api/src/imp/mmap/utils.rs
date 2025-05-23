@@ -101,16 +101,17 @@ pub(crate) fn find_free_region(
 ) -> Option<usize> {
     // Search free region in select region if start!=NULL, return error if `MAP_FIXED` flags exist.
     if let Some(start) = addr {
-        let end_addr = if let Some(lower_vma) = vma_map.upper_bound(Bound::Included(&start)).value()
+        let end_addr = if let Some((_, lower_vma)) =
+            vma_map.upper_bound(Bound::Included(&start)).peek_prev()
         {
             lower_vma.end_addr
         } else {
             VMA_START
         };
-        let upper = vma_map
+        let (upper, _) = vma_map
             .lower_bound(Bound::Included(&start))
-            .key()
-            .unwrap_or(&VMA_END);
+            .peek_next()
+            .unwrap_or((&VMA_END, &Vma::new(-1, 0, 0, 0)));
         if upper - start >= len && end_addr <= start {
             return Some(start);
         }
@@ -157,7 +158,7 @@ pub(crate) fn snatch_fixed_region(
     let mut post_remove: Vec<usize> = Vec::new(); // vma should be removed.
 
     let mut node = vma_map.upper_bound_mut(Bound::Included(&start));
-    while let Some(vma) = node.value_mut() {
+    while let Some((_, vma)) = node.peek_prev() {
         if vma.start_addr >= end {
             break;
         }
@@ -175,7 +176,9 @@ pub(crate) fn snatch_fixed_region(
                 post_remove.push(vma.start_addr);
             }
         }
-        node.move_next();
+        if node.next().is_none() {
+            break;
+        }
     }
 
     // do action after success.

@@ -16,6 +16,7 @@ documentation = "https://rcore-os.github.io/arceos/spinlock/index.html"
 # To use in the multi-core environment
 smp = []
 default = []
+rand = []
 
 [dependencies]
 cfg-if = "1.0"

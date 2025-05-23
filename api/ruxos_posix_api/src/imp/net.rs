@@ -38,7 +38,7 @@ fn addrun_convert_withlen(addr: *const ctypes::sockaddr_un, addrlen: usize) -> S
         let mut sun_path_array = [0i8; 108];
         if addrlen > 2 {
             let len = (addrlen - 2).min(108);
-            let src = (addr as *const u8).add(2) as *const i8;
+            let src = (addr as *const i8).add(2) as *const i8;
             let dst = sun_path_array.as_mut_ptr();
             core::ptr::copy_nonoverlapping(src, dst, len);
         }

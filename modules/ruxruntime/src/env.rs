@@ -6,6 +6,9 @@
  *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  *   See the Mulan PSL v2 for more details.
  */
+
+// TODO: rewrite this file and remove this allowance
+#[allow(static_mut_refs)]
 extern crate alloc;
 use alloc::vec::Vec;
 use core::ffi::c_char;
@@ -95,7 +98,7 @@ pub(crate) fn boot_add_environ(env: &str) {
     unsafe {
         let buf = buf_alloc(size);
         for i in 0..size - 1 {
-            core::ptr::write(buf.add(i), *ptr.add(i));
+            core::ptr::write(buf.add(i), *ptr.add(i) as i8);
         }
         core::ptr::write(buf.add(size - 1), 0);
         RUX_ENVIRON.push(buf);

@@ -12,7 +12,6 @@
 //! [Ruxos]: https://github.com/syswonder/ruxos
 
 #![cfg_attr(all(not(test), not(doc)), no_std)]
-#![feature(ip_in_core)]
 #![feature(doc_cfg)]
 #![feature(doc_auto_cfg)]
 #![allow(clippy::missing_safety_doc)]

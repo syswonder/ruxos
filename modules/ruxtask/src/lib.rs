@@ -39,6 +39,7 @@
 #![feature(doc_auto_cfg)]
 // TODO: remove this once we have a better way to handle
 #![allow(clippy::arc_with_non_send_sync)]
+#![allow(static_mut_refs)]
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "multitask")] {
