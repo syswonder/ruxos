@@ -9,10 +9,6 @@
 
 use core::marker::PhantomData;
 
-// Re-exports extra strategies when feature enabled.
-#[cfg(feature = "rand")]
-pub use crate::rand_strategy::*;
-
 #[inline(always)]
 fn exp_backoff(current_limit: &mut u32, max: u32) {
     let limit = *current_limit;

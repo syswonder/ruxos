@@ -56,6 +56,12 @@ pub struct FlattenObjects<T, const CAP: usize> {
     count: usize,
 }
 
+impl<T, const CAP: usize> Default for FlattenObjects<T, CAP> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T, const CAP: usize> FlattenObjects<T, CAP> {
     /// Creates a new empty `FlattenObjects`.
     pub const fn new() -> Self {

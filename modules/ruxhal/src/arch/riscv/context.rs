@@ -7,7 +7,6 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use core::arch::asm;
 use core::arch::naked_asm;
 use memory_addr::VirtAddr;
 
@@ -135,6 +134,7 @@ unsafe extern "C" fn context_switch(_current_task: &mut TaskContext, _next_task:
     naked_asm!(
         "
         // save old context (callee-saved registers)
+        sd     ra, 0(a0)
         sd     sp, 8(a0)
         sd     s0, 16(a0)
         sd     s1, 24(a0)

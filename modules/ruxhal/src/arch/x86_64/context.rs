@@ -152,6 +152,12 @@ pub struct TaskContext {
     pub ext_state: ExtendedState,
 }
 
+impl Default for TaskContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TaskContext {
     /// Creates a new default context for a new task.
     pub const fn new() -> Self {

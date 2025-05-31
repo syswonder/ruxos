@@ -207,8 +207,8 @@ endif
 _force: ;
 
 # # prebuild scripts must track their dependencies by themselves
-# prebuild: _force
-# 	$(call run_prebuild)
+prebuild: _force
+	$(call run_prebuild)
 
 $(OUT_DIR): prebuild
 

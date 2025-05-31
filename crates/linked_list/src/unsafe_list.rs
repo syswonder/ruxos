@@ -104,6 +104,12 @@ unsafe impl<A: Adapter + ?Sized> Send for List<A> where A::EntryType: Send {}
 // `Sync` only when its entries are also `Sync`.
 unsafe impl<A: Adapter + ?Sized> Sync for List<A> where A::EntryType: Sync {}
 
+impl<A: Adapter + ?Sized> Default for List<A> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<A: Adapter + ?Sized> List<A> {
     /// Constructs a new empty list.
     pub const fn new() -> Self {
@@ -439,6 +445,12 @@ unsafe impl<T: ?Sized> Send for Links<T> {}
 // SAFETY: `Links` is usable from other threads via references but we restrict it to being `Sync`
 // only when the list entries it points to are also `Sync`.
 unsafe impl<T: ?Sized> Sync for Links<T> {}
+
+impl<T: ?Sized> Default for Links<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl<T: ?Sized> Links<T> {
     /// Constructs a new instance of the linked-list links.

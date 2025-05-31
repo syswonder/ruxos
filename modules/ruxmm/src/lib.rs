@@ -12,9 +12,6 @@
 #![no_std]
 #![feature(doc_auto_cfg)]
 
-#[allow(unused_imports)]
-#[macro_use]
-
 pub mod mem;
 #[cfg(feature = "paging")]
 /// A module for paging operations.

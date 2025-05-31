@@ -90,7 +90,7 @@ pub unsafe fn sys_poll(fds: *mut ctypes::pollfd, nfds: ctypes::nfds_t, timeout: 
                 return Ok(fds_num as c_int);
             }
 
-            if deadline.map_or(false, |ddl| current_time() >= ddl) {
+            if deadline.is_some_and(|ddl| current_time() >= ddl) {
                 debug!("    timeout!");
                 return Ok(0);
             }

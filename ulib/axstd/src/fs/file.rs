@@ -31,6 +31,12 @@ pub struct Metadata(api::AxFileAttr);
 #[derive(Clone, Debug)]
 pub struct OpenOptions(api::AxOpenOptions);
 
+impl Default for OpenOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OpenOptions {
     /// Creates a blank new set of options ready for configuration.
     pub const fn new() -> Self {

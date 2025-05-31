@@ -104,7 +104,7 @@ pub fn get_cpuinfo() -> String {
         cpuinfo.push_str("model name\t: unknown\n".as_ref());
     } else {
         let model_name = String::from_utf8_lossy(&model_bytes);
-        cpuinfo.push_str(format!("model name\t: {}\n", model_name).as_ref());
+        cpuinfo.push_str(format!("model name\t: {model_name}\n").as_ref());
     }
 
     if c.x86_mask != 0 || c.cpuid_level >= 0 {

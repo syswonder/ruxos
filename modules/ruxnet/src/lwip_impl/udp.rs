@@ -225,7 +225,7 @@ impl UdpSocket {
         loop {
             lwip_loop_once();
             let mut recv_queue = self.inner.recv_queue.lock();
-            let res: Result<(usize, SocketAddr), AxError> = if recv_queue.len() == 0 {
+            let res: Result<(usize, SocketAddr), AxError> = if recv_queue.is_empty() {
                 Err(AxError::WouldBlock)
             } else {
                 let (p, offset, caddr) = recv_queue.pop_front().unwrap();
@@ -333,7 +333,7 @@ impl UdpSocket {
     pub fn poll(&self) -> AxResult<PollState> {
         lwip_loop_once();
         Ok(PollState {
-            readable: self.inner.recv_queue.lock().len() != 0,
+            readable: !self.inner.recv_queue.lock().is_empty(),
             writable: true,
             pollhup: false,
         })

@@ -8,11 +8,12 @@
  */
 
 // TODO: rewrite this file and remove this allowance
-#[allow(static_mut_refs)]
+#![allow(static_mut_refs)]
+
 extern crate alloc;
 use alloc::vec::Vec;
 use core::ffi::c_char;
-use core::{ptr, usize};
+use core::ptr;
 use ruxhal::mem::PAGE_SIZE_4K;
 
 pub const AT_PAGESIZE: usize = 6;
@@ -38,7 +39,7 @@ pub(crate) unsafe fn init_argv(args: Vec<&str>) {
         let arg = arg.as_ptr();
         let buf = buf_alloc(len + 1);
         for i in 0..len {
-            *buf.add(i) = *arg.add(i) as i8;
+            *buf.add(i) = *arg.add(i) as c_char;
         }
         *buf.add(len) = 0;
         RUX_ARGV.push(buf);
@@ -90,7 +91,7 @@ unsafe fn buf_alloc(size: usize) -> *mut c_char {
 }
 
 pub(crate) fn boot_add_environ(env: &str) {
-    let ptr = env.as_ptr() as *const i8;
+    let ptr = env.as_ptr() as *const c_char;
     let size = env.len() + 1;
     if size == 1 {
         return;
@@ -98,7 +99,7 @@ pub(crate) fn boot_add_environ(env: &str) {
     unsafe {
         let buf = buf_alloc(size);
         for i in 0..size - 1 {
-            core::ptr::write(buf.add(i), *ptr.add(i) as i8);
+            core::ptr::write(buf.add(i), *ptr.add(i));
         }
         core::ptr::write(buf.add(size - 1), 0);
         RUX_ENVIRON.push(buf);

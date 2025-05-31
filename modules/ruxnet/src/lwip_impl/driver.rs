@@ -4,10 +4,11 @@ use crate::{
     IpAddr,
 };
 use alloc::{boxed::Box, collections::VecDeque, sync::Arc};
-#[cfg(feature = "irq")]
-use axdriver::register_interrupt_handler;
 use axsync::Mutex;
-use core::{cell::RefCell, ffi::c_void};
+use core::{
+    cell::RefCell,
+    ffi::{c_char, c_void},
+};
 use driver_net::{DevError, NetBuf, NetBufBox};
 use lazy_init::LazyInit;
 use lwip_rust::bindings::{
@@ -54,11 +55,6 @@ impl DeviceWrapper {
 
     fn receive(&mut self) -> Option<NetBufBox> {
         self.rx_buf_queue.pop_front()
-    }
-
-    #[cfg(feature = "irq")]
-    fn ack_interrupt(&mut self) -> bool {
-        unsafe { self.inner.as_ptr().as_mut().unwrap().ack_interrupt() }
     }
 }
 
@@ -108,11 +104,6 @@ impl InterfaceWrapper {
             }
         }
     }
-
-    #[cfg(feature = "irq")]
-    pub fn ack_interrupt(&self) {
-        unsafe { &mut *self.dev.as_mut_ptr() }.ack_interrupt();
-    }
 }
 
 extern "C" fn pbuf_free_custom(p: *mut pbuf) {
@@ -139,8 +130,8 @@ extern "C" fn pbuf_free_custom(p: *mut pbuf) {
 extern "C" fn ethif_init(netif: *mut netif) -> err_t {
     trace!("ethif_init");
     unsafe {
-        (*netif).name[0] = 'e' as i8;
-        (*netif).name[1] = 'n' as i8;
+        (*netif).name[0] = 'e' as c_char;
+        (*netif).name[1] = 'n' as c_char;
         (*netif).num = 0;
 
         (*netif).output = Some(etharp_output);

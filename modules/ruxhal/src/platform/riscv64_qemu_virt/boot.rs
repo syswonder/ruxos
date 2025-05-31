@@ -80,10 +80,10 @@ unsafe extern "C" fn _start() -> ! {
 #[unsafe(naked)]
 #[no_mangle]
 #[link_section = ".text.boot"]
-unsafe extern "C" fn _start_secondary() -> ! {
+unsafe extern "C" fn _start_secondary() {
     // a0 = hartid
     // a1 = SP
-    core::arch::asm!("
+    core::arch::naked_asm!("
         mv      s0, a0                  // save hartid
         mv      sp, a1                  // set SP
 

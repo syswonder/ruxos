@@ -33,7 +33,7 @@ impl<'a, T: Debug + LowerHex> Debug for EnumerateReg<'a, T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let mut dbg_l = f.debug_list();
         for (i, r) in self.0.iter().enumerate() {
-            dbg_l.entry(&format_args!("x{}: {:#x}", i, r));
+            dbg_l.entry(&format_args!("x{i}: {r:#x}"));
         }
         dbg_l.finish()
     }
@@ -93,6 +93,12 @@ pub struct TaskContext {
     pub lr: u64, // r30
     #[cfg(feature = "fp_simd")]
     pub fp_state: FpState,
+}
+
+impl Default for TaskContext {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl TaskContext {
