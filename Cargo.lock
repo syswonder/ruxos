@@ -1719,6 +1719,7 @@ dependencies = [
  "ruxfdtable",
  "ruxfifo",
  "spin",
+ "spinlock",
 ]
 
 [[package]]

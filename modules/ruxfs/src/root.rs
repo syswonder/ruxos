@@ -18,6 +18,7 @@ use axfs_vfs::{
     AbsPath, RelPath, VfsError, VfsNodeAttr, VfsNodeOps, VfsNodePerm, VfsNodeRef, VfsNodeType,
     VfsOps, VfsResult,
 };
+use spinlock::SpinNoIrq;
 
 /// mount point information
 pub struct MountPoint {
