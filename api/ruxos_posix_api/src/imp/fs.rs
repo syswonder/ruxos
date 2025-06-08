@@ -646,7 +646,7 @@ pub fn sys_umount2(target: *const c_char, flags: c_int) -> c_int {
     syscall_body!(sys_umount2, {
         let target = char_ptr_to_str(target)?;
         let dir = ruxtask::current().fs.lock().as_mut().unwrap().root_dir.clone();
-        dir.umount(target)?;
+        // dir.umount(target)?;
         Ok(0)
     })
 }
@@ -679,9 +679,9 @@ pub fn sys_mount(
         let dir = ruxtask::current().fs.lock().as_mut().unwrap().root_dir.clone();
         // let mount_point = ruxfs::root::MountPoint::new(target1, ruxfs::fuse::fusefs());
         // let vfsops = mount_point.fs.clone();
-        let vfsops = ruxfuse::fuse::fusefs();
+        // let vfsops = ruxfuse::fuse::fusefs();
         info!("mounting filesystem at {}", target);
-        dir.mount(target, vfsops)?;
+        // dir.mount(target, vfsops)?;
         Ok(0)
     })
 }
