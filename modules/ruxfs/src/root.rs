@@ -59,7 +59,7 @@ impl RootDirectory {
     }
 
     /// Mount the specified filesystem at the specified path.
-    pub fn mount(&mut self, path: AbsPath<'static>, fs: Arc<dyn VfsOps>) -> AxResult {
+    pub fn mount(&self, path: AbsPath<'static>, fs: Arc<dyn VfsOps>) -> AxResult {
         if path == AbsPath::new("/") {
             return ax_err!(InvalidInput, "cannot mount root filesystem");
         }
@@ -74,9 +74,9 @@ impl RootDirectory {
                 if !node.get_attr()?.is_dir() {
                     return ax_err!(InvalidInput, "mount point is not a directory");
                 }
-                if !node.is_empty()? {
-                    return ax_err!(InvalidInput, "mount point is not empty");
-                }
+                // if !node.is_empty()? {
+                //     return ax_err!(InvalidInput, "mount point is not empty");
+                // }
                 // TODO: permission check
             }
             Err(e) => {
@@ -98,7 +98,7 @@ impl RootDirectory {
     }
 
     /// Unmount the filesystem at the specified path.
-    pub fn umount(&mut self, path: &AbsPath) {
+    pub fn umount(&self, path: &AbsPath) {
         self.mounts_lock.lock().retain(|mp| mp.path != *path);
     }
 

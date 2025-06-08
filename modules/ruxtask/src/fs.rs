@@ -128,7 +128,7 @@ pub fn init_rootfs(mount_points: Vec<MountPoint>) {
         .expect("No filesystem found")
         .fs
         .clone();
-    let mut root_dir = RootDirectory::new(main_fs);
+    let root_dir = RootDirectory::new(main_fs);
 
     for mp in mount_points.iter().skip(1) {
         let vfsops = mp.fs.clone();

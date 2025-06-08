@@ -1965,6 +1965,7 @@ dependencies = [
  "ruxnet",
  "ruxrand",
  "ruxtask",
+ "ruxvda",
  "tty",
 ]
 

@@ -97,6 +97,8 @@ pub enum AxError {
     /// It is a temporary error code that usually returns when a non_blocking operation
     /// is not completed, prompting the caller to try again later.
     InProgress,
+    /// The function is not implemented.
+    FunctionNotImplemented,
     /// Not a tty device
     NoTty,
 }
@@ -249,6 +251,7 @@ impl AxError {
             WouldBlock => "Operation would block",
             WriteZero => "Write zero",
             InProgress => "non_blocking operation is not completed",
+            FunctionNotImplemented => "Function not implemented",
             NoTty => "not a tty device",
         }
     }
@@ -302,6 +305,7 @@ impl From<AxError> for LinuxError {
             UnexpectedEof | WriteZero => LinuxError::EIO,
             WouldBlock => LinuxError::EAGAIN,
             InProgress => LinuxError::EINPROGRESS,
+            FunctionNotImplemented => LinuxError::ENOSYS,
             NoTty => LinuxError::ENOTTY,
         }
     }
