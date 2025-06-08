@@ -55,6 +55,7 @@ sched_cfs = ["ruxtask/sched_cfs", "irq"]
 # File system
 fs = ["alloc", "dep:ruxfs", "ruxruntime/fs"]
 blkfs = ["ruxdriver/virtio-blk", "ruxruntime/blkfs", "ruxfs/blkfs"]
+fusefs = ["ruxdriver/virtio-blk"]
 myfs = ["ruxfs?/myfs"]
 9pfs = []
 fatfs = ["ruxfs?/fatfs"]
@@ -120,6 +121,8 @@ ruxdriver = { path = "../../modules/ruxdriver", optional = true }
 ruxfs = { path = "../../modules/ruxfs", optional = true }
 rux9p = { path = "../../modules/rux9p", optional = true }
 ruxnet = { path = "../../modules/ruxnet", optional = true }
+ruxfuse = { path = "../../modules/ruxfuse", optional = true }
+ruxvda = { path = "../../modules/ruxvda", optional = true }
 ruxdisplay = { path = "../../modules/ruxdisplay", optional = true }
 axsync = { path = "../../modules/axsync", optional = true }
 ruxtask = { path = "../../modules/ruxtask", optional = true }

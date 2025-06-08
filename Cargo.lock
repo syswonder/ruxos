@@ -1667,11 +1667,13 @@ dependencies = [
  "ruxdisplay",
  "ruxdriver",
  "ruxfs",
+ "ruxfuse",
  "ruxhal",
  "ruxmm",
  "ruxnet",
  "ruxruntime",
  "ruxtask",
+ "ruxvda",
  "spinlock",
  "tty",
 ]
@@ -1710,6 +1712,28 @@ dependencies = [
  "ruxdriver",
  "ruxfdtable",
  "ruxfifo",
+ "spin",
+ "spinlock",
+]
+
+[[package]]
+name = "ruxfuse"
+version = "0.1.0"
+dependencies = [
+ "axalloc",
+ "axfs_devfs",
+ "axfs_ramfs",
+ "axfs_vfs",
+ "capability",
+ "cfg-if",
+ "crate_interface",
+ "driver_block",
+ "lazy_init",
+ "log",
+ "memory_addr",
+ "ruxdriver",
+ "ruxfs",
+ "ruxtask",
  "spin",
  "spinlock",
 ]
@@ -1874,6 +1898,7 @@ dependencies = [
  "ruxfdtable",
  "ruxfeat",
  "ruxfs",
+ "ruxfuse",
  "ruxfutex",
  "ruxhal",
  "ruxmm",
@@ -1959,6 +1984,29 @@ dependencies = [
  "spin",
  "spinlock",
  "timer_list",
+]
+
+[[package]]
+name = "ruxvda"
+version = "0.1.0"
+dependencies = [
+ "axalloc",
+ "axfs_devfs",
+ "axfs_ramfs",
+ "axfs_vfs",
+ "capability",
+ "cfg-if",
+ "crate_interface",
+ "driver_block",
+ "driver_common",
+ "lazy_init",
+ "log",
+ "memory_addr",
+ "ruxdriver",
+ "ruxfs",
+ "ruxtask",
+ "spin",
+ "spinlock",
 ]
 
 [[package]]

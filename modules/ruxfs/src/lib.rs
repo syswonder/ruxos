@@ -47,6 +47,8 @@ pub mod fifo;
 mod file;
 pub mod fops;
 pub mod root;
+pub mod devfuse;
+pub mod fuse_st;
 
 pub use directory::Directory;
 pub use file::File;
@@ -105,7 +107,7 @@ cfg_if::cfg_if! {
     }
 }
 
-use root::MountPoint;
+pub use root::MountPoint;
 
 /// Initialize an empty filesystems by ramfs.
 #[cfg(not(any(feature = "blkfs", feature = "virtio-9p", feature = "net-9p")))]
@@ -183,6 +185,13 @@ pub fn prepare_commonfs(mount_points: &mut Vec<self::root::MountPoint>) {
     #[cfg(feature = "etcfs")]
     {
         let mount_point = MountPoint::new(AbsPath::new("/etc"), mounts::etcfs().unwrap());
+        mount_points.push(mount_point);
+    }
+
+    // Mount another ramfs as mntfs
+    #[cfg(feature = "sysfs")]
+    {
+        let mount_point = MountPoint::new(AbsPath::new("/mnt"), mounts::mntfs().unwrap());
         mount_points.push(mount_point);
     }
 }
