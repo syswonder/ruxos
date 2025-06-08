@@ -2,7 +2,7 @@
 
 pub mod syscall_id;
 
-use core::ffi::{c_char, c_int};
+use core::ffi::{c_char, c_int, c_ulong, c_void};
 use ruxos_posix_api::ctypes::{self, gid_t, pid_t, uid_t};
 use syscall_id::SyscallId;
 
@@ -70,6 +70,19 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[0] as c_int,
                 args[1] as *const core::ffi::c_char,
                 args[2] as ctypes::mode_t,
+            ) as _,
+            #[cfg(feature = "fs")]
+            SyscallId::UMOUNT2 => ruxos_posix_api::sys_umount2(
+                args[0] as *const c_char,
+                args[1] as c_int,
+            ) as _,
+            #[cfg(feature = "fs")]
+            SyscallId::MOUNT => ruxos_posix_api::sys_mount(
+                args[0] as *const c_char,
+                args[1] as *const c_char,
+                args[2] as *const c_char,
+                args[3] as c_ulong,
+                args[4] as *const c_void,
             ) as _,
             #[cfg(feature = "fs")]
             SyscallId::FCHOWNAT => ruxos_posix_api::sys_fchownat(
@@ -466,6 +479,11 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[0] as *mut core::ffi::c_void,
                 args[1] as ctypes::size_t,
                 args[2] as c_int,
+            ) as _,
+            #[cfg(feature = "fs")]
+            SyscallId::MEMBARRIER => ruxos_posix_api::sys_membarrier(
+                args[0] as c_int,
+                args[1] as c_int,
             ) as _,
         }
     }
