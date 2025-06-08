@@ -270,8 +270,10 @@ else ifeq ($(FS), fat32)
 	$(call make_disk_image,fat32,$(DISK_IMG))
 else ifeq ($(FS), ext4)
 	$(call make_disk_image,ext4,$(DISK_IMG))
+else ifeq ($(FS), exfat)
+  $(call make_disk_image,exfat,$(DISK_IMG))
 else
-	$(error "FS" must be one of "fat32" or "ext4")
+	$(error "FS" must be one of "fat32" or "ext4" or "exfat")
 endif
 
 clean: clean_c clean_musl

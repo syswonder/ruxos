@@ -10,9 +10,9 @@ compile_commands.json
 /fw_dynamic.bin
 
 *.asm
-disk.img
+*.img
 actual.out
-qemu.log
+*.log
 rusty-tags.vi
 apps/c/redis/
 apps/c/iperf/

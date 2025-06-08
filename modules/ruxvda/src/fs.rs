@@ -42,6 +42,24 @@ impl VdaFileSystem {
     }
 }
 
+impl VfsOps for VdaFileSystem {
+    fn mount(&self, path: &AbsPath, mount_point: VfsNodeRef) -> VfsResult {
+        debug!("Mount VDA filesystem, path: {:?}", path);
+        if let Some(parent) = mount_point.parent() {
+            self.root.set_parent(Some(self.parent.call_once(|| parent)));
+        } else {
+            self.root.set_parent(None);
+        }
+        Ok(())
+    }
+
+    fn root_dir(&self) -> VfsNodeRef {
+        info!("Get root directory of VDA filesystem");
+        self.root.clone()
+    }
+
+}
+
 pub struct VdaNode {
     this: Weak<VdaNode>,
     parent: RwLock<Weak<dyn VfsNodeOps>>,
@@ -56,6 +74,10 @@ impl VdaNode {
             parent: RwLock::new(parent.unwrap_or_else(|| Weak::<Self>::new())),
             transport: Arc::new(RwLock::new(dev)),
         })
+    }
+
+    pub(super) fn set_parent(&self, parent: Option<&VfsNodeRef>) {
+        *self.parent.write() = parent.map_or(Weak::<Self>::new() as _, Arc::downgrade);
     }
     
 }
