@@ -8,6 +8,7 @@
  */
 
 use alloc::sync::Arc;
+use alloc::string::String;
 use core::{
     ffi::{c_char, c_int, c_long, c_ulong, c_void, CStr},
     str,
@@ -675,13 +676,11 @@ pub fn sys_mount(
         }
 
         let target = char_ptr_to_str(raw_target)?;
-        // let target = String::from(target);
+        let target = String::from(target);
         let dir = ruxtask::current().fs.lock().as_mut().unwrap().root_dir.clone();
-        // let mount_point = ruxfs::root::MountPoint::new(target1, ruxfs::fuse::fusefs());
-        // let vfsops = mount_point.fs.clone();
         let vfsops = ruxfuse::fuse::fusefs();
         info!("mounting filesystem at {}", target);
-        dir.mount(AbsPath::new(target), vfsops)?;
+        dir.mount(target, vfsops)?;
         Ok(0)
     })
 }

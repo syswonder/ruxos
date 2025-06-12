@@ -19,9 +19,9 @@ pub mod fs;
 
 // use alloc::vec::Vec;
 use alloc::sync::Arc;
+use alloc::string::String;
 use log::*;
 use ruxdriver::{prelude::*, AxDeviceContainer};
-use ruxfs::AbsPath;
 use ruxfs::MountPoint;
 
 pub fn init_vdafs(mut vda_devs: AxDeviceContainer<AxBlockDevice>) -> MountPoint {
@@ -33,5 +33,5 @@ pub fn init_vdafs(mut vda_devs: AxDeviceContainer<AxBlockDevice>) -> MountPoint 
     // let vda_driver = self::drv::DrvVdaOps::new(vda);
     let vda_fs = self::fs::VdaFileSystem::new(vda);
 
-    MountPoint::new(AbsPath::new("/vda1"), Arc::new(vda_fs))
+    MountPoint::new(String::from("/vda1"), Arc::new(vda_fs))
 }
