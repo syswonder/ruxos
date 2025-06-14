@@ -7,6 +7,8 @@
 *   See the Mulan PSL v2 for more details.
 */
 //! Unix socket node in vfs
+use core::u64;
+
 use alloc::sync::{Arc, Weak};
 use axerrno::{ax_err, LinuxError, LinuxResult};
 use axfs_vfs::{
@@ -34,7 +36,7 @@ impl SocketNode {
         Self {
             // FIXME: use a proper inode number
             attr: RwLock::new(VfsNodeAttr::new(
-                520,
+                u64::MAX, // Placeholder inode number, should be replaced with a proper allocator
                 VfsNodePerm::default_socket(),
                 VfsNodeType::Socket,
                 0,

@@ -30,29 +30,29 @@ bitflags::bitflags! {
         const MSG_TRUNC	= 0x20;
         /// **Temporarily** Enable non-blocking operation
         const MSG_DONTWAIT	= 0x40;
-        /// TODO
+        /// End of record (for SOCK_SEQPACKET sockets)
         const MSG_EOR = 0x80;
-        /// TODO
+        /// Wait until the requested amount of data is available
         const MSG_WAITALL = 0x100;
-        /// TODO
+        /// TCP FIN flag indication (TCP connection termination)
         const MSG_FIN = 0x200;
-        /// TODO
+        /// TCP SYN flag indication (TCP connection initiation)
         const MSG_SYN = 0x400;
-        /// TODO
+        /// Confirm path validity (used for ARP or similar protocols)
         const MSG_CONFIRM = 0x800;
-        /// TODO
+        /// TCP RST flag indication (TCP connection reset)
         const MSG_RST = 0x1000;
-        /// TODO
+        /// Fetch message from error queue (used for IP_RECVERR)
         const MSG_ERRQUEUE = 0x2000;
-        /// TODO
+        /// Do not generate SIGPIPE signal when writing to disconnected socket
         const MSG_NOSIGNAL = 0x4000;
-        /// TODO
+        /// Sender will send more data (used for TCP_CORK or similar)
         const MSG_MORE = 0x8000;
-        /// TODO
+        /// Wait for at least one packet (used with recvmmsg())
         const MSG_WAITFORONE = 0x10000;
-        /// TODO
+        /// Used for multiple send/recv operations (internal optimization)
         const MSG_BATCH = 0x40000;
-        /// TODO
+        /// Enable TCP Fast Open (TFO) for this operation
         const MSG_FASTOPEN = 0x20000000;
         /// Set close_on_exec for file descriptor received through SCM_RIGHTS
         const MSG_CMSG_CLOEXEC = 0x40000000;
@@ -134,10 +134,11 @@ impl ControlMessageData {
                 match unix_control_data {
                     UnixControlData::Rights(files) => {
                         // Convert file descriptors to byte representation
-                        let cloexec = flags
-                            .contains(MessageFlags::MSG_CMSG_CLOEXEC)
-                            .then_some(OpenFlags::O_CLOEXEC)
-                            .unwrap_or_default();
+                        let cloexec = if flags.contains(MessageFlags::MSG_CMSG_CLOEXEC) {
+                            OpenFlags::O_CLOEXEC
+                        } else {
+                            Default::default()
+                        };
                         let mut fds = Vec::with_capacity(files.len());
                         for file in files {
                             let fd = add_file_like(file, cloexec)?;
@@ -251,9 +252,8 @@ impl MessageQueue {
 
     /// Removes and returns the next message from the queue
     pub fn read_one_message(&mut self) -> Option<Message> {
-        self.messages.pop_front().map(|msg| {
+        self.messages.pop_front().inspect(|msg| {
             self.length -= msg.data.len();
-            msg
         })
     }
 

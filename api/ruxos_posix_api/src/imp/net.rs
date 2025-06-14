@@ -64,7 +64,7 @@ fn parse_socket_address(
                     path,
                 ))))
             } else {
-                let abs_path = parse_path(sun_path.as_ptr() as *const i8)?;
+                let abs_path = parse_path(sun_path.as_ptr() as *const c_char)?;
                 Ok(SocketAddress::Unix(UnixSocketAddr::PathName(abs_path)))
             }
         }
@@ -339,16 +339,16 @@ pub fn sys_recv(
     len: ctypes::size_t,
     flags: c_int,
 ) -> ctypes::ssize_t {
-    debug!(
-        "sys_recv <= {} {:#x} {} {}",
-        socket_fd, buf_ptr as usize, len, flags
-    );
     syscall_body!(sys_recv, {
         if buf_ptr.is_null() {
             return Err(LinuxError::EFAULT);
         }
         let buf = unsafe { core::slice::from_raw_parts_mut(buf_ptr as *mut u8, len) };
         let flags = MessageFlags::from_bits_truncate(flags);
+        debug!(
+            "sys_recv <= {} {:#x} {} {:?}",
+            socket_fd, buf_ptr as usize, len, flags
+        );
         socket_from_fd(socket_fd)?.recv(buf, flags)
     })
 }
