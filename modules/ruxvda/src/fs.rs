@@ -20,7 +20,6 @@ use axfs_vfs::{
 };
 use log::*;
 use ruxdriver::AxBlockDevice;
-use ruxdriver::prelude::BlockDriverOps;
 use spin::{once::Once, RwLock};
 
 const BLOCK_SIZE: usize = 512;
@@ -54,7 +53,7 @@ impl VfsOps for VdaFileSystem {
     }
 
     fn root_dir(&self) -> VfsNodeRef {
-        info!("Get root directory of VDA filesystem");
+        debug!("Get root directory of VDA filesystem");
         self.root.clone()
     }
 
@@ -68,7 +67,7 @@ pub struct VdaNode {
 
 impl VdaNode {
     pub(super) fn new(parent: Option<Weak<dyn VfsNodeOps>>, dev: AxBlockDevice) -> Arc<Self> {
-        info!("Create VDA node");
+        debug!("Create VDA node");
         Arc::new_cyclic(|this| Self {
             this: this.clone(),
             parent: RwLock::new(parent.unwrap_or_else(|| Weak::<Self>::new())),
@@ -84,17 +83,17 @@ impl VdaNode {
 
 impl VfsNodeOps for VdaNode {
     fn open(&self) -> VfsResult<Option<VfsNodeRef>> {
-        info!("Open VDA node");
+        debug!("Open VDA node");
         Ok(None)
     }
 
     fn lookup(self: Arc<Self>, path: &RelPath) -> VfsResult<VfsNodeRef> {
-        info!("Lookup VDA node {:?}", path);
+        debug!("Lookup VDA node {:?}", path);
         Ok(self)
     }
 
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
-        info!("Get VDA node attributes");
+        debug!("Get VDA node attributes");
         Ok(VfsNodeAttr::new(
             0,
             VfsNodePerm::from_bits_truncate(0o777),
@@ -181,8 +180,6 @@ impl VfsNodeOps for VdaNode {
             let start = cur_offset as usize % 512;
             let end = BLOCK_SIZE.min(start + remain);
             let copy_len = end - start;
-            // let copy_len = remain.min(BLOCK_SIZE as usize);
-            // let end = start + copy_len;
             temp_buf[start..end].copy_from_slice(&buf[pos..pos + copy_len]);
             let ret = dev.write_block(cur_offset / 512, &temp_buf);
             if ret.is_err() {
