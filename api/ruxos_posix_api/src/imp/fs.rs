@@ -567,9 +567,9 @@ pub unsafe fn sys_getdents64(fd: c_int, dirp: *mut LinuxDirent64, count: ctypes:
             dirent.d_type = entry.entry_type() as u8;
             // set file name
             dirent.d_name[..name_len].copy_from_slice(unsafe {
-                core::slice::from_raw_parts(name.as_ptr() as *const i8, name_len)
+                core::slice::from_raw_parts(name.as_ptr() as *const c_char, name_len)
             });
-            dirent.d_name[name_len] = 0i8;
+            dirent.d_name[name_len] = 0;
 
             written += entry_size;
         }

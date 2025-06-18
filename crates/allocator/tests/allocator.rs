@@ -73,7 +73,7 @@ pub fn test_alignment(n: usize, alloc: &(impl Allocator + Clone)) {
     let mut rng = rand::thread_rng();
     let mut blocks = vec![];
     for _ in 0..n {
-        if rng.gen_ratio(2, 3) || blocks.len() == 0 {
+        if rng.gen_ratio(2, 3) || blocks.is_empty() {
             // insert a block
             let size =
                 ((1 << rng.gen_range(0..16)) as f32 * rng.gen_range(1.0..2.0)).round() as usize;

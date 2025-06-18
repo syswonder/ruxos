@@ -35,10 +35,10 @@ fn addrun_convert(addr: *const ctypes::sockaddr_un) -> SocketAddrUnix {
 fn addrun_convert_withlen(addr: *const ctypes::sockaddr_un, addrlen: usize) -> SocketAddrUnix {
     unsafe {
         let sun_family = *(addr as *const u16);
-        let mut sun_path_array = [0i8; 108];
+        let mut sun_path_array = [0 as c_char; 108];
         if addrlen > 2 {
             let len = (addrlen - 2).min(108);
-            let src = (addr as *const u8).add(2) as *const i8;
+            let src = (addr as *const c_char).add(2) as *const c_char;
             let dst = sun_path_array.as_mut_ptr();
             core::ptr::copy_nonoverlapping(src, dst, len);
         }

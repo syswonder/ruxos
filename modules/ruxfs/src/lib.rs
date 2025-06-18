@@ -14,16 +14,16 @@
 //! # Cargo Features
 //!
 //! - `fatfs`: Use [FAT] as the main filesystem and mount it on `/`. Requires
-//!    `blkfs` to be enabled.
+//!   `blkfs` to be enabled.
 //! - `devfs`: Mount [`axfs_devfs::DeviceFileSystem`] on `/dev`. This feature is
-//!    **enabled** by default.
+//!   **enabled** by default.
 //! - `ramfs`: Mount [`axfs_ramfs::RamFileSystem`] on `/tmp`. This feature is
-//!    **enabled** by default.
+//!   **enabled** by default.
 //! - `myfs`: Allow users to define their custom filesystems to override the
-//!    default. In this case, [`MyFileSystemIf`] is required to be implemented
-//!    to create and initialize other filesystems. This feature is **disabled** by
-//!    by default, but it will override other filesystem selection features if
-//!    both are enabled.
+//!   default. In this case, [`MyFileSystemIf`] is required to be implemented
+//!   to create and initialize other filesystems. This feature is **disabled** by
+//!   by default, but it will override other filesystem selection features if
+//!   both are enabled.
 //!
 //! [FAT]: https://en.wikipedia.org/wiki/File_Allocation_Table
 
@@ -108,7 +108,7 @@ cfg_if::cfg_if! {
 use root::MountPoint;
 
 /// Initialize an empty filesystems by ramfs.
-#[cfg(not(any(feature = "blkfs", feature = "virtio-9p", feature = "net-9p")))]
+#[cfg(not(feature = "blkfs"))]
 pub fn init_tempfs() -> MountPoint {
     MountPoint::new(AbsPath::new("/"), mounts::ramfs())
 }

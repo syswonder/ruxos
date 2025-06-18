@@ -196,7 +196,7 @@ fn create_socket_file(addr: SocketAddrUnix) -> AxResult<usize> {
 
 fn generate_anonymous_address() -> SocketAddrUnix {
     let unique_id = ANONYMOUS_ADDR_COUNTER.fetch_add(1, Ordering::SeqCst);
-    let addr_str = format!("anonymous_{}", unique_id);
+    let addr_str = format!("anonymous_{unique_id}");
 
     let mut sun_path = [0 as c_char; SOCK_ADDR_UN_PATH_LEN];
     for (i, byte) in addr_str.as_bytes().iter().enumerate() {

@@ -58,6 +58,12 @@ pub struct GlobalAllocator {
     palloc: SpinNoIrq<BitmapPageAllocator<PAGE_SIZE>>,
 }
 
+impl Default for GlobalAllocator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl GlobalAllocator {
     /// Creates an empty [`GlobalAllocator`].
     pub const fn new() -> Self {

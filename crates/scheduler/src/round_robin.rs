@@ -75,6 +75,12 @@ pub struct RRScheduler<T, const MAX_TIME_SLICE: usize> {
     ready_queue: VecDeque<Arc<RRTask<T, MAX_TIME_SLICE>>>,
 }
 
+impl<T, const S: usize> Default for RRScheduler<T, S> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T, const S: usize> RRScheduler<T, S> {
     /// Creates a new empty [`RRScheduler`].
     pub const fn new() -> Self {

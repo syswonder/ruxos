@@ -29,7 +29,7 @@ ifeq ($(MAKECMDGOALS), doc_check_missing)
 endif
 
 define cargo_build
-  $(call run_cmd,cargo build,$(build_args) $(1) --features "$(strip $(2))")
+  $(call run_cmd,cargo build -Z unstable-options,$(build_args) $(1) --features "$(strip $(2))")
 endef
 
 define cargo_clippy

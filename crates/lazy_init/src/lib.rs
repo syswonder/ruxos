@@ -53,6 +53,12 @@ pub struct LazyInit<T> {
 unsafe impl<T: Send + Sync> Sync for LazyInit<T> {}
 unsafe impl<T: Send> Send for LazyInit<T> {}
 
+impl<T> Default for LazyInit<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> LazyInit<T> {
     /// Creates a new uninitialized value.
     pub const fn new() -> Self {

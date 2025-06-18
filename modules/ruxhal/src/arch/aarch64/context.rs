@@ -8,7 +8,7 @@
  */
 
 use core::{
-    arch::asm,
+    arch::naked_asm,
     fmt::{Debug, LowerHex},
 };
 use memory_addr::{PhysAddr, VirtAddr};
@@ -33,7 +33,7 @@ impl<'a, T: Debug + LowerHex> Debug for EnumerateReg<'a, T> {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         let mut dbg_l = f.debug_list();
         for (i, r) in self.0.iter().enumerate() {
-            dbg_l.entry(&format_args!("x{}: {:#x}", i, r));
+            dbg_l.entry(&format_args!("x{i}: {r:#x}"));
         }
         dbg_l.finish()
     }
@@ -95,6 +95,12 @@ pub struct TaskContext {
     pub fp_state: FpState,
 }
 
+impl Default for TaskContext {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl TaskContext {
     /// Creates a new default context for a new task.
     pub const fn new() -> Self {
@@ -145,12 +151,12 @@ impl TaskContext {
     }
 }
 
-#[naked]
+#[unsafe(naked)]
 #[allow(named_asm_labels)]
 // TODO: consider using SIMD instructions to copy the stack in parallel.
 unsafe extern "C" fn save_stack(src: *const u8, dst: *mut u8, size: usize) {
     // x0: src, x1: dst, x2: size
-    asm!(
+    naked_asm!(
         "
         mov x9, 0x0 // clear x9
 
@@ -168,14 +174,13 @@ unsafe extern "C" fn save_stack(src: *const u8, dst: *mut u8, size: usize) {
         dsb  sy
         isb
         ret",
-        options(noreturn),
     )
 }
 
-#[naked]
+#[unsafe(naked)]
 #[allow(named_asm_labels)]
 unsafe extern "C" fn save_current_context(_current_task: &mut TaskContext) {
-    asm!(
+    naked_asm!(
         "
         stp     x29, x30, [x0, 12 * 8]
         stp     x27, x28, [x0, 10 * 8]
@@ -189,14 +194,13 @@ unsafe extern "C" fn save_current_context(_current_task: &mut TaskContext) {
         ldp     x19, x20, [x0, 2 * 8]
         isb
         ret",
-        options(noreturn),
     )
 }
 
-#[naked]
+#[unsafe(naked)]
 #[cfg(feature = "fp_simd")]
 unsafe extern "C" fn save_fpstate_context(_current_fpstate: &mut FpState) {
-    asm!(
+    naked_asm!(
         "
         // save fp/neon context
         mrs     x9, fpcr
@@ -221,18 +225,17 @@ unsafe extern "C" fn save_fpstate_context(_current_fpstate: &mut FpState) {
         str     x10, [x0, 65 * 8]
         isb
         ret",
-        options(noreturn),
     )
 }
 
-#[naked]
+#[unsafe(naked)]
 #[allow(named_asm_labels)]
 unsafe extern "C" fn context_switch(
     _current_task: &mut TaskContext,
     _next_task: &TaskContext,
     _page_table_addr: u64,
 ) {
-    asm!(
+    naked_asm!(
         "
         // save old context (callee-saved registers)
         stp     x29, x30, [x0, 12 * 8]
@@ -271,14 +274,13 @@ unsafe extern "C" fn context_switch(
 
         isb
         ret",
-        options(noreturn),
     )
 }
 
-#[naked]
+#[unsafe(naked)]
 #[cfg(feature = "fp_simd")]
 unsafe extern "C" fn fpstate_switch(_current_fpstate: &mut FpState, _next_fpstate: &FpState) {
-    asm!(
+    naked_asm!(
         "
         // save fp/neon context
         mrs     x9, fpcr
@@ -326,6 +328,5 @@ unsafe extern "C" fn fpstate_switch(_current_fpstate: &mut FpState, _next_fpstat
 
         isb
         ret",
-        options(noreturn),
     )
 }
