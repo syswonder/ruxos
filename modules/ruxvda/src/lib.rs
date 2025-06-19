@@ -24,6 +24,7 @@ use log::*;
 use ruxdriver::{prelude::*, AxDeviceContainer};
 use ruxfs::MountPoint;
 
+/// Initializes filesystems by block devices.
 pub fn init_vdafs(mut vda_devs: AxDeviceContainer<AxBlockDevice>) -> MountPoint {
     info!("Initialize VDA filesystem...");
 
