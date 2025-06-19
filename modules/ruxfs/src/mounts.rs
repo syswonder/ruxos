@@ -148,7 +148,7 @@ pub(crate) fn etcfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
     // format: username:password:uid:gid:allname:homedir:shell
     file_passwd.write_at(
         0,
-        b"root:x:1000:1000:root:/root:/bin/busybox\n\
+        b"root:x:0:0:root:/root:/bin/busybox\n\
         syswonder:x:1000:1000:root:/root:/bin/busybox\n",
     )?;
 
