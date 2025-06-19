@@ -87,8 +87,8 @@ pub use imp::mmap::{sys_madvise, sys_mmap, sys_mprotect, sys_mremap, sys_msync, 
 #[cfg(feature = "net")]
 pub use imp::net::{
     sys_accept, sys_bind, sys_connect, sys_freeaddrinfo, sys_getaddrinfo, sys_getpeername,
-    sys_getsockname, sys_getsockopt, sys_listen, sys_recv, sys_recvfrom, sys_send, sys_sendmsg,
-    sys_sendto, sys_setsockopt, sys_shutdown, sys_socket, sys_socketpair,
+    sys_getsockname, sys_getsockopt, sys_listen, sys_recv, sys_recvfrom, sys_recvmsg, sys_send,
+    sys_sendmsg, sys_sendto, sys_setsockopt, sys_shutdown, sys_socket, sys_socketpair,
 };
 #[cfg(feature = "pipe")]
 pub use imp::pipe::{sys_pipe, sys_pipe2};

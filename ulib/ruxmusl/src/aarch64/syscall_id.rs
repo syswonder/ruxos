@@ -150,6 +150,8 @@ pub enum SyscallId {
     SHUTDOWN = 210,
     #[cfg(feature = "net")]
     SENDMSG = 211,
+    #[cfg(feature = "net")]
+    RECVMSG = 212,
     #[cfg(feature = "alloc")]
     MUNMAP = 215,
     #[cfg(feature = "alloc")]

@@ -983,6 +983,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "iovec"
+version = "0.0.1"
+dependencies = [
+ "axerrno",
+ "smallvec",
+]
+
+[[package]]
 name = "is-terminal"
 version = "0.4.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1813,17 +1821,20 @@ dependencies = [
  "axfs_vfs",
  "axio",
  "axsync",
+ "bitflags 2.6.0",
  "cfg-if",
  "cty",
  "driver_net",
  "flatten_objects",
  "hashbrown",
+ "iovec",
  "lazy_init",
  "lazy_static",
  "log",
  "lwip_rust",
  "printf-compat",
  "ruxdriver",
+ "ruxfdtable",
  "ruxfs",
  "ruxhal",
  "ruxtask",
@@ -1864,6 +1875,7 @@ dependencies = [
  "crate_interface",
  "elf",
  "flatten_objects",
+ "iovec",
  "lazy_init",
  "lazy_static",
  "memory_addr",
@@ -2068,6 +2080,12 @@ version = "0.3.1"
 dependencies = [
  "buddy_system_allocator",
 ]
+
+[[package]]
+name = "smallvec"
+version = "1.15.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8917285742e9f3e1683f0a9c4e6b57960b7314d0b08d30d1ecd426713ee2eee9"
 
 [[package]]
 name = "smoltcp"

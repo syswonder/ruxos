@@ -86,12 +86,6 @@ impl FdTable {
         }
     }
 
-    /// Adds a file object to the table at a specific file descriptor.
-    /// It won't be add if the specified fd in the fdtable already exists
-    pub fn add_at(&mut self, fd: usize, file: Arc<dyn FileLike>) -> Option<usize> {
-        self.files.add_at(fd, file)
-    }
-
     /// Retrieves the `FD_CLOEXEC` flag for the specified file descriptor.
     ///
     /// Returns `true` if the flag is set, otherwise `false`.
@@ -370,7 +364,7 @@ bitflags! {
     /// The `file creation flags` affect the semantics of the open operation itself, while the `file status
     /// flag` affect the semantics of subsequent I/O operations.
     /// The file status flags can be retrieved and (in some cases) modified in `sys_fcntl`.
-    #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+    #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
     pub struct OpenFlags: i32 {
         // ----------------------------
         // File Access Modes (won't be changed once a file is opened)

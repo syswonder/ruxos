@@ -94,6 +94,7 @@ typedef struct {{
             "rlimit",
             "aibuf",
             "msghdr",
+            "cmsghdr",
             "pthread_cond_t",
             "pthread_condattr_t",
             "sysinfo",
@@ -134,6 +135,7 @@ typedef struct {{
             "MREMAP_.+",
             "GRND_.*",
             "S_IF.+",
+            "SCM_.*",
         ];
 
         #[derive(Debug)]

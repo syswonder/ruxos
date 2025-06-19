@@ -396,6 +396,12 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[1] as *const ctypes::msghdr,
                 args[2] as c_int,
             ) as _,
+            #[cfg(feature = "net")]
+            SyscallId::RECVMSG => ruxos_posix_api::sys_recvmsg(
+                args[0] as c_int,
+                args[1] as *mut ctypes::msghdr,
+                args[2] as c_int,
+            ) as _,
             #[cfg(feature = "alloc")]
             SyscallId::MUNMAP => ruxos_posix_api::sys_munmap(
                 args[0] as *mut core::ffi::c_void,
