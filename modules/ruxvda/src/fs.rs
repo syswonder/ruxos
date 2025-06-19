@@ -20,6 +20,7 @@ use axfs_vfs::{
 };
 use log::*;
 use ruxdriver::AxBlockDevice;
+use ruxdriver::prelude::BlockDriverOps;
 use spin::{once::Once, RwLock};
 
 const BLOCK_SIZE: usize = 512;
@@ -59,6 +60,7 @@ impl VfsOps for VdaFileSystem {
 
 }
 
+/// It implements [`axfs_vfs::VfsNodeOps`].
 pub struct VdaNode {
     this: Weak<VdaNode>,
     parent: RwLock<Weak<dyn VfsNodeOps>>,
