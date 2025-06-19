@@ -51,6 +51,7 @@ fn get_mask(mask: *const usize) -> usize {
 }
 
 /// Set mask for given thread
+#[allow(static_mut_refs)]
 pub fn sys_rt_sigprocmask(
     how: c_int,
     _new_mask: *const usize,

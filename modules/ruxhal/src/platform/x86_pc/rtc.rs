@@ -13,6 +13,7 @@ use core::marker::PhantomData;
 use core::ops::{BitAnd, BitOr, Not};
 use lazy_init::LazyInit;
 
+#[allow(dead_code)]
 pub trait Io {
     type Value: Copy
         + PartialEq

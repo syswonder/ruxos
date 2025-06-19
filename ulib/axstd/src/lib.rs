@@ -58,7 +58,6 @@
 #![cfg_attr(all(not(test), not(doc)), no_std)]
 #![feature(doc_cfg)]
 #![feature(doc_auto_cfg)]
-#![feature(ip_in_core)]
 
 #[cfg(feature = "alloc")]
 extern crate alloc;

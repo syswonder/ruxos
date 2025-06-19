@@ -20,8 +20,8 @@ runs:
     shell: bash
     run: |
       MUSL_PATH=${{ inputs.arch }}-linux-musl-cross
-      wget https://musl.cc/${MUSL_PATH}.tgz
-      tar -xf ${MUSL_PATH}.tgz
+      git clone -b ${{ inputs.arch }} https://github.com/syswonder/ruxos-musl-toolchain.git
+      tar -xf ruxos-musl-toolchain/${MUSL_PATH}.tgz
   - uses: actions/cache/save@v3
     if: steps.cache-musl.outputs.cache-hit != 'true'
     with:

@@ -757,7 +757,7 @@ impl _9PReq {
     }
 
     fn write_str(&mut self, value: &str) {
-        let str_size: u32 = value.as_bytes().len() as u32;
+        let str_size: u32 = value.len() as u32;
         self.write_u16(str_size as u16);
         for cbyte in value.bytes() {
             self.buffer.push(cbyte);

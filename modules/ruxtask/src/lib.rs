@@ -19,8 +19,8 @@
 //!   management and scheduling is used, as well as more task-related APIs.
 //!   Otherwise, only a few APIs with naive implementation is available.
 //! - `irq`: Interrupts are enabled. If this feature is enabled, timer-based
-//!    APIs can be used, such as [`sleep`], [`sleep_until`], and
-//!    [`WaitQueue::wait_timeout`].
+//!   APIs can be used, such as [`sleep`], [`sleep_until`], and
+//!   [`WaitQueue::wait_timeout`].
 //! - `preempt`: Enable preemptive scheduling.
 //! - `sched_fifo`: Use the [FIFO cooperative scheduler][1]. It also enables the
 //!   `multitask` feature if it is enabled. This feature is enabled by default,
@@ -39,6 +39,7 @@
 #![feature(doc_auto_cfg)]
 // TODO: remove this once we have a better way to handle
 #![allow(clippy::arc_with_non_send_sync)]
+#![allow(static_mut_refs)]
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "multitask")] {
@@ -54,7 +55,8 @@ cfg_if::cfg_if! {
         pub mod signal;
         #[cfg(feature = "paging")]
         pub mod vma;
-        #[cfg(feature = "fs")]
+        // TODO: make fs module optional
+        // #[cfg(feature = "fs")]
         pub mod fs;
         #[cfg(feature = "irq")]
         /// load average

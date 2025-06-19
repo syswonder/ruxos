@@ -204,10 +204,7 @@ fn probe_mmio(
                 "VirtIO Console found at {:#x} size {:#x}",
                 mmio_base, mmio_size
             );
-            return match VirtIoConsoleDev::try_new(transport) {
-                Ok(dev) => Some(dev),
-                Err(_e) => None,
-            };
+            return VirtIoConsoleDev::try_new(transport).ok();
         }
     }
     None

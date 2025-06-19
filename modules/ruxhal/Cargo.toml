@@ -66,8 +66,8 @@ tty = { path = "../../crates/tty" }
 
 [target.'cfg(target_arch = "x86_64")'.dependencies]
 x86 = "0.52"
-x86_64 = "0.14"
-x2apic = "0.4"
+x86_64 = "0.14.13"
+x2apic = "0.5"
 raw-cpuid = "11.0"
 
 [target.'cfg(any(target_arch = "riscv32", target_arch = "riscv64"))'.dependencies]

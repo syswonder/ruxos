@@ -18,6 +18,7 @@ lwip = ["dep:lwip_rust"]
 loopback = ["ruxdriver/loopback"]
 smoltcp = []
 default = ["smoltcp", "loopback"]
+irq = []
 
 [dependencies]
 hashbrown = "0.14.5"

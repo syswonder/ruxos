@@ -166,7 +166,7 @@ fn main() -> Result<()> {
     let platform = option_env!("RUX_PLATFORM");
     let config_path = resolve_config_path(platform)?;
 
-    println!("Reading config file: {:?}", config_path);
+    println!("Reading config file: {config_path:?}");
     let config_rs = gen_config_rs(&config_path)?;
 
     let out_dir = std::env::var("OUT_DIR").unwrap();

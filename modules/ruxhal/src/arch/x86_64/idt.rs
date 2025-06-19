@@ -41,7 +41,9 @@ impl IdtStruct {
             )
         };
         for i in 0..NUM_INT {
-            entries[i].set_handler_fn(unsafe { core::mem::transmute(ENTRIES[i]) });
+            entries[i].set_handler_fn(unsafe {
+                core::mem::transmute::<extern "C" fn(), HandlerFunc>(ENTRIES[i])
+            });
         }
         idt
     }

@@ -178,10 +178,10 @@ mod tests {
         assert_eq!(c.shift, 0);
         assert_eq!(c.mul_trunc(u32::MAX as _), u32::MAX as _);
 
-        println!("{:?}", a);
-        println!("{:?}", b);
-        println!("{:?}", c);
-        println!("{:?}", d);
+        println!("{a:?}");
+        println!("{b:?}");
+        println!("{c:?}");
+        println!("{d:?}");
     }
 
     #[test]

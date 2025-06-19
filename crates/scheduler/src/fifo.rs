@@ -73,6 +73,12 @@ pub struct FifoScheduler<T> {
     ready_queue: List<Arc<FifoTask<T>>>,
 }
 
+impl<T> Default for FifoScheduler<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> FifoScheduler<T> {
     /// Creates a new empty [`FifoScheduler`].
     pub const fn new() -> Self {

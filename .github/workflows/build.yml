@@ -3,7 +3,7 @@ name: Build CI
 on: [push, pull_request]
 
 env:
-  rust-toolchain: nightly-2023-09-01
+  rust-toolchain: nightly-2025-05-07
 
 jobs:
   clippy:

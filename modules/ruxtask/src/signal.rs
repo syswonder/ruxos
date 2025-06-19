@@ -117,14 +117,12 @@ impl Signal {
                     old & !(1 << signum)
                 };
 
-                match {
-                    current_signal_if.signal.compare_exchange_weak(
-                        old,
-                        new,
-                        Ordering::AcqRel,
-                        Ordering::Acquire,
-                    )
-                } {
+                match current_signal_if.signal.compare_exchange_weak(
+                    old,
+                    new,
+                    Ordering::AcqRel,
+                    Ordering::Acquire,
+                ) {
                     Ok(_) => break,
                     Err(x) => old = x,
                 }

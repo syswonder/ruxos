@@ -130,7 +130,7 @@ pub fn sys_munmap(start: *mut c_void, len: ctypes::size_t) -> c_int {
 
         let mut node = vma_map.upper_bound_mut(Bound::Included(&start));
         let mut counter = 0; // counter to check if all address in [start, start+len) is mapped.
-        while let Some(vma) = node.value_mut() {
+        while let Some((_, vma)) = node.peek_prev() {
             if vma.start_addr >= end {
                 break;
             }
@@ -152,7 +152,10 @@ pub fn sys_munmap(start: *mut c_void, len: ctypes::size_t) -> c_int {
                     post_remove.push(vma.start_addr);
                 }
             }
-            node.move_next();
+
+            if node.next().is_none() {
+                break;
+            }
         }
 
         // check if any address in [start, end) not mayed.
@@ -214,7 +217,7 @@ pub fn sys_mprotect(start: *mut c_void, len: ctypes::size_t, prot: c_int) -> c_i
         let mut vma_map = binding_task.mm.vma_map.lock();
         let mut node = vma_map.upper_bound_mut(Bound::Included(&start));
         let mut counter = 0; // counter to check if all address in [start, start+len) is mapped.
-        while let Some(vma) = node.value_mut() {
+        while let Some((_, vma)) = node.peek_prev() {
             if vma.start_addr >= end {
                 break;
             }
@@ -243,7 +246,9 @@ pub fn sys_mprotect(start: *mut c_void, len: ctypes::size_t, prot: c_int) -> c_i
                     post_align_changed.push((vma.start_addr, overlapped_end));
                 }
             }
-            node.move_next();
+            if node.next().is_none() {
+                break;
+            }
         }
         // check if any address in [start, end) not mayed.
         if counter != end - start {
@@ -355,7 +360,7 @@ pub fn sys_mremap(
         let mut vma_map = binding_task.mm.vma_map.lock();
         // collect and check vma alongside the range of [old_start, old_end).
         let mut node = vma_map.upper_bound_mut(Bound::Included(&old_start));
-        while let Some(vma) = node.value_mut() {
+        while let Some((_, vma)) = node.peek_prev() {
             if vma.start_addr > old_end {
                 break;
             }
@@ -389,7 +394,9 @@ pub fn sys_mremap(
             }
 
             post_remove.push(vma.start_addr);
-            node.move_next();
+            if node.next().is_none() {
+                break;
+            }
         }
 
         // check if consistent_vma full match the remapping memory.
@@ -468,10 +475,10 @@ pub fn sys_mremap(
                 return Err(LinuxError::ENOMEM);
             }
             // find the right region to expand them in orignal addr.
-            let upper = vma_map
+            let (upper, _) = vma_map
                 .lower_bound(Bound::Included(&old_end))
-                .key()
-                .unwrap_or(&VMA_END);
+                .peek_next()
+                .unwrap_or((&VMA_END, &Vma::new(-1, 0, 0, 0)));
             if upper - old_end >= new_size - old_size {
                 let ret = old_vma.start_addr;
                 let new_end = old_start + new_size;

@@ -114,7 +114,7 @@ impl RootDirectory {
         for (i, mp) in self.mounts.iter().enumerate() {
             let rel_mp = mp.path.to_rel();
             // path must have format: "<mountpoint>" or "<mountpoint>/..."
-            if (rel_mp == *path || path.starts_with(&format!("{}/", rel_mp)))
+            if (rel_mp == *path || path.starts_with(&format!("{rel_mp}/")))
                 && rel_mp.len() > max_len
             {
                 max_len = mp.path.len() - 1;
