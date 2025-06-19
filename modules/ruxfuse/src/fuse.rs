@@ -7,7 +7,9 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-// #![cfg(feature = "multitask")]
+//! FUSE filesystem used by [RuxOS](https://github.com/syswonder/ruxos).
+//!
+//! The implementation is based on [`axfs_vfs`].
 
 use alloc::sync::{Arc, Weak};
 use alloc::string::{String, ToString};
@@ -28,9 +30,13 @@ use ruxfs::fuse_st::{
 };
 use ruxfs::devfuse::{FUSEFLAG, FUSE_VEC};
 
+/// Unique id for FUSE operations.
 pub static UNIQUE_ID: AtomicU64 = AtomicU64::new(0);
+/// A flag for FuseRename operation.
 pub static NEWID: AtomicI32 = AtomicI32::new(-1);
+/// A flag to indicate whether FUSE is initialized.
 pub static INITFLAG: AtomicI32 = AtomicI32::new(1);
+/// A static wait queue for FUSE operations.
 pub static WQ: WaitQueue = WaitQueue::new();
 
 /// It implements [`axfs_vfs::VfsOps`].
@@ -102,56 +108,67 @@ impl FuseNode {
         *self.parent.write() = parent.map_or(Weak::<Self>::new() as _, Arc::downgrade);
     }
 
+    /// Get inode of this FuseNode.
     pub fn get_node_inode(&self) -> u64 {
         let inode_guard = self.inode.lock();
         *inode_guard
     }
 
+    /// Get attr of this FuseNode.
     pub fn get_node_attr(&self) -> FuseAttr {
         let attr_guard = self.attr.lock();
         *attr_guard
     }
 
+    /// Get nlink of this FuseNode.
     pub fn get_node_nlink(&self) -> u32 {
         let nlink_guard = self.nlink.lock();
         *nlink_guard
     }
 
+    /// Get flags of this FuseNode.
     pub fn get_node_flags(&self) -> u32 {
         let flags_guard = self.flags.lock();
         *flags_guard
     }
 
+    /// Get file handle (fh) of this FuseNode.
     pub fn get_fh(&self) -> u64 {
         let fh_guard = self.fh.lock();
         *fh_guard
     }
 
+    /// Set inode of this FuseNode.
     pub fn set_node_inode(&self, inode: u64) {
         let mut inode_guard = self.inode.lock();
         *inode_guard = inode;
     }
 
+    /// Set attr of this FuseNode.
     pub fn set_node_attr(&self, attr: FuseAttr) {
         let mut attr_guard = self.attr.lock();
         *attr_guard = attr;
     }
 
+    /// Set nlink of this FuseNode.
     pub fn set_node_nlink(&self, nlink: u32) {
         let mut nlink_guard = self.nlink.lock();
         *nlink_guard = nlink;
     }
 
+    /// Set flags of this FuseNode.
     pub fn set_node_flags(&self, flags: u32) {
         let mut flags_guard = self.flags.lock();
         *flags_guard = flags;
     }
 
+    /// Set file handle (fh) of this FuseNode.
     pub fn set_fh(&self, fh: u64) {
         let mut fh_guard = self.fh.lock();
         *fh_guard = fh;
     }
 
+    /// Get inode of this FuseNode.
     pub fn find_inode(&self, path: &str) -> Option<u64> {
         let (mut name, mut raw_rest) = split_path(path);
         if raw_rest.is_none() {
@@ -169,6 +186,7 @@ impl FuseNode {
         node.get_inode()
     }
 
+    /// Get final name of the path.
     pub fn get_final_name(&self, path: &str) -> Option<String> {
         let (name, rest) = split_path(path);
         if rest.is_none() {
@@ -177,6 +195,7 @@ impl FuseNode {
         self.get_final_name(rest.unwrap())
     }
     
+    /// Check if the node is a directory.
     pub fn is_dir(&self) -> bool {
         let attr_guard = self.attr.lock();
         let attr = &*attr_guard;
@@ -189,6 +208,7 @@ impl FuseNode {
         mode & 0x4000 == 0x4000
     }
 
+    /// Get file flags for this FuseNode.
     pub fn file_flags(&self) -> u32 {
         let attr_guard = self.attr.lock();
         let attr = &*attr_guard;
@@ -203,6 +223,7 @@ impl FuseNode {
         flags
     }
 
+    /// Get directory flags for this FuseNode.
     pub fn dir_flags(&self) -> u32 {
         let attr_guard = self.attr.lock();
         let attr = &*attr_guard;
@@ -216,6 +237,7 @@ impl FuseNode {
         flags
     }
 
+    /// Check if already initialized.
     pub fn check_init(&self) {
         let f1 = INITFLAG.load(Ordering::SeqCst);
         if f1 == 1 {
@@ -231,7 +253,7 @@ impl FuseNode {
         }
     }
 
-    // FuseInit = 26
+    /// FuseInit = 26
     pub fn init(&self) {
         debug!("\nNEW FUSE REQUEST:\n  fuse_node INIT({:?}) here...", FuseOpcode::FuseInit as u32);
 
@@ -294,7 +316,7 @@ impl FuseNode {
         debug!("fuse_node init finish successfully...");
     }
 
-    // FuseLookup = 1
+    /// FuseLookup = 1
     fn try_get(&self, path: &RelPath) -> VfsResult<VfsNodeRef> {
         self.check_init();
 
@@ -402,7 +424,7 @@ impl FuseNode {
 
     }
 
-    // FuseOpendir = 27
+    /// FuseOpendir = 27
     pub fn open_dir(&self) -> Result<Option<Arc<dyn VfsNodeOps>>, VfsError> {
         debug!("\nNEW FUSE REQUEST:\n  fuse_node OPENDIR({:?}) here...", FuseOpcode::FuseOpendir as u32);
 
@@ -487,7 +509,7 @@ impl FuseNode {
         Ok(None)
     }
 
-    // FuseReleasedir = 28
+    /// FuseReleasedir = 28
     pub fn release_dir(&self) -> VfsResult {
         debug!("\nNEW FUSE REQUEST:\n  fuse_node RELEASEDIR({:?}) here...", FuseOpcode::FuseReleasedir as u32);
 
@@ -562,7 +584,7 @@ impl FuseNode {
         }
     }
 
-    // FuseForget = 2
+    /// FuseForget = 2
     pub fn forget(&self) -> VfsResult {
         debug!("\nNEW FUSE REQUEST:\n  fuse_node FORGET({:?}) here...", FuseOpcode::FuseForget as u32);
 
@@ -636,7 +658,7 @@ impl FuseNode {
         }
     }
 
-    // FuseSetattr = 4
+    /// FuseSetattr = 4
     pub fn set_attr(&self, attr: &FuseAttr, to_set: u32) -> VfsResult {
         debug!("\nNEW FUSE REQUEST:\n  fuse_node SETATTR({:?}) here...", FuseOpcode::FuseSetattr as u32);
 
@@ -749,7 +771,7 @@ impl FuseNode {
         Ok(())
     }
 
-    // FuseReadlink = 5
+    /// FuseReadlink = 5
     pub fn readlink(&self) -> VfsResult<String> {
         debug!("\nNEW FUSE REQUEST:\n  fuse_node READLINK({:?}) here...", FuseOpcode::FuseReadlink as u32);
 
@@ -823,7 +845,7 @@ impl FuseNode {
         Ok(readlinkout)
     }
 
-    // FuseSymlink = 6
+    /// FuseSymlink = 6
     pub fn symlink(&self, name: &RelPath, link: &RelPath) -> VfsResult {
         debug!("\nNEW FUSE REQUEST:\n  fuse_node SYMLINK({:?}) {:?} link to {:?} here...", FuseOpcode::FuseSymlink as u32, name, link);
 
@@ -900,7 +922,7 @@ impl FuseNode {
         }
     }
     
-    // FuseMknod = 8
+    /// FuseMknod = 8
     pub fn mknod(&self, name: &RelPath, ty: VfsNodeType) -> VfsResult {
         let newtype = match ty {
             VfsNodeType::Fifo => "fifo",
@@ -1002,7 +1024,7 @@ impl FuseNode {
         }
     }
 
-    // FuseMkdir = 9
+    /// FuseMkdir = 9
     pub fn mkdir(&self, name: &RelPath) -> VfsResult {
         debug!("\nNEW FUSE REQUEST:\n  fuse_node MKDIR({:?}) {:?} here...", FuseOpcode::FuseMkdir as u32, name);
 
@@ -1083,7 +1105,7 @@ impl FuseNode {
         Ok(())
     }
 
-    // FuseRmdir = 11
+    /// FuseRmdir = 11
     pub fn rmdir(&self, name: &RelPath) -> VfsResult {
         let mut dirents:[VfsDirEntry; 8] = [VfsDirEntry::new("", VfsNodeType::File); 8];
         let mut cur = 0;
@@ -1184,7 +1206,7 @@ impl FuseNode {
         }
     }
 
-    // FuseUnlink = 10
+    /// FuseUnlink = 10
     pub fn unlink_node(&self, name: &RelPath) -> VfsResult {
         debug!("\nNEW FUSE REQUEST:\n  fuse_node UNLINK({:?}) {:?} here...", FuseOpcode::FuseUnlink as u32, name);
 
@@ -1259,7 +1281,7 @@ impl FuseNode {
         }
     }
     
-    // FuseRead = 15
+    /// FuseRead = 15
     fn read(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
         debug!("\nNEW FUSE REQUEST:\n  fuse_node READ({:?}) here, offset: {:?}, buf_len: {:?}...", FuseOpcode::FuseRead as u32, offset, buf.len());
 
@@ -1345,7 +1367,7 @@ impl FuseNode {
         }
     }
 
-    // FuseStatfs = 17
+    /// FuseStatfs = 17
     pub fn statfs(&self) -> VfsResult<FuseStatfsOut> {
         debug!("\nNEW FUSE REQUEST:\n  fuse_node STATFS({:?}) here...", FuseOpcode::FuseStatfs as u32);
 
@@ -1419,7 +1441,7 @@ impl FuseNode {
         }
     }
 
-    // FuseFlush = 25
+    /// FuseFlush = 25
     pub fn flush(&self) -> VfsResult {
         debug!("\nNEW FUSE REQUEST:\n  fuse_node FLUSH({:?}) here...", FuseOpcode::FuseFlush as u32);
 
@@ -1493,7 +1515,7 @@ impl FuseNode {
         }
     }
 
-    // FuseAccess = 34
+    /// FuseAccess = 34
     pub fn access(&self) -> VfsResult {
         debug!("\nNEW FUSE REQUEST:\n  fuse_node ACCESS({:?}) here...", FuseOpcode::FuseAccess as u32);
 
@@ -1568,7 +1590,7 @@ impl FuseNode {
 
     }
 
-    // FuseRename2 = 45
+    /// FuseRename2 = 45
     pub fn rename2(&self, old: &RelPath, new: &RelPath) -> VfsResult {
         debug!("\nNEW FUSE REQUEST:\n  fuse_node RENAME2({:?}) from {:?} to {:?} here...", FuseOpcode::FuseRename2 as u32, old, new);
 
@@ -1647,7 +1669,7 @@ impl FuseNode {
         }
     }
 
-    // FuseLseek = 46
+    /// FuseLseek = 46
     pub fn lseek(&self, offset: u64, whence: u32) -> VfsResult<u64> {
         debug!("\nNEW FUSE REQUEST:\n  fuse_node LSEEK({:?}) offset: {:?}, whence: {:?} here...", FuseOpcode::FuseLseek as u32, offset, whence);
 
@@ -1724,7 +1746,7 @@ impl FuseNode {
         }
     }
 
-    // FuseDestroy = 38
+    /// FuseDestroy = 38
     pub fn destroy(&self) -> VfsResult {
         debug!("\nNEW FUSE REQUEST:\n  fuse_node DESTROY({:?}) here...", FuseOpcode::FuseDestroy as u32);
 
@@ -1806,7 +1828,7 @@ impl FuseNode {
 }
 
 impl VfsNodeOps for FuseNode {
-    // FuseOpen = 14
+    /// FuseOpen = 14
     fn open(&self) -> Result<Option<Arc<dyn VfsNodeOps>>, VfsError> {
         if self.is_dir() {
             return self.open_dir()
@@ -1894,7 +1916,7 @@ impl VfsNodeOps for FuseNode {
         Ok(None)
     }
     
-    // FuseRelease = 18
+    /// FuseRelease = 18
     fn release(&self) -> VfsResult {
         if self.is_dir() {
             return self.release_dir()            
@@ -1974,7 +1996,7 @@ impl VfsNodeOps for FuseNode {
         }
     }
 
-    // FuseGetattr = 3
+    /// FuseGetattr = 3
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
         self.check_init();
         debug!("\nNEW FUSE REQUEST:\n  fuse_node GET_ATTR({:?}) here...", FuseOpcode::FuseGetattr as u32);
@@ -2072,7 +2094,7 @@ impl VfsNodeOps for FuseNode {
         Ok(start)
     }
 
-    // FuseWrite = 16
+    /// FuseWrite = 16
     fn write_at(&self, offset: u64, buf: &[u8]) -> VfsResult<usize> {
         debug!("\nNEW FUSE REQUEST:\n  fuse_node WRITE({:?}) here, offset: {:?}, buf_len: {:?}", FuseOpcode::FuseWrite as u32, offset, buf.len());
         trace!("buf: {:?}", buf);
@@ -2161,7 +2183,7 @@ impl VfsNodeOps for FuseNode {
     }
 
 
-    // FuseFsync = 20
+    /// FuseFsync = 20
     fn fsync(&self) -> VfsResult {
         debug!("\nNEW FUSE REQUEST:\n  fuse_node FSYNC({:?}) here...", FuseOpcode::FuseFsync as u32);
 
@@ -2243,7 +2265,7 @@ impl VfsNodeOps for FuseNode {
         self.try_get(raw_path)
     }
 
-    // FuseCreate = 20
+    /// FuseCreate = 20
     fn create(&self, path: &RelPath, ty: VfsNodeType, mode: VfsNodePerm) -> VfsResult {
         let (name, raw_rest) = split_path(path.as_str());
         if let Some(rest) = raw_rest {
@@ -2369,7 +2391,7 @@ impl VfsNodeOps for FuseNode {
         }
     }
 
-    // FuseReaddir = 28
+    /// FuseReaddir = 28
     fn read_dir(&self, start_idx: usize, dirents: &mut [VfsDirEntry]) -> VfsResult<usize> {
         debug!("\nNEW FUSE REQUEST:\n  fuse_node READ_DIR({:?}) here, start: {:?}...", FuseOpcode::FuseReaddir as u32, start_idx);
 
@@ -2484,7 +2506,7 @@ impl VfsNodeOps for FuseNode {
         Ok(dirents.len())
     }
 
-    // FuseRename = 12
+    /// FuseRename = 12
     fn rename(&self, src_path: &RelPath, dst_path: &RelPath) -> VfsResult {
         debug!("fuse_node(inode: {:?}) rename src: {:?}, dst: {:?}", self.get_node_inode(), src_path, dst_path);
         
@@ -2598,6 +2620,7 @@ fn split_path(path: &str) -> (&str, Option<&str>) {
     })
 }
 
+/// Create a new FuseFS instance
 pub fn fusefs() -> Arc<FuseFS> {
     trace!("fusefs newfs here...");
     Arc::new(FuseFS::new())
