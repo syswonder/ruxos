@@ -39,8 +39,6 @@
 //! ```
 
 #![no_std]
-#![feature(maybe_uninit_uninit_array)]
-#![feature(const_maybe_uninit_uninit_array)]
 
 use bitmaps::Bitmap;
 use core::mem::MaybeUninit;
@@ -58,12 +56,18 @@ pub struct FlattenObjects<T, const CAP: usize> {
     count: usize,
 }
 
+impl<T, const CAP: usize> Default for FlattenObjects<T, CAP> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T, const CAP: usize> FlattenObjects<T, CAP> {
     /// Creates a new empty `FlattenObjects`.
     pub const fn new() -> Self {
         assert!(CAP <= 1024);
         Self {
-            objects: MaybeUninit::uninit_array(),
+            objects: [const { MaybeUninit::uninit() }; CAP],
             // SAFETY: zero initialization is OK for `id_bitmap` (an array of integers).
             id_bitmap: unsafe { MaybeUninit::zeroed().assume_init() },
             count: 0,

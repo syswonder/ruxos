@@ -74,7 +74,7 @@ pub(super) fn init_primary() {
         use x2apic::lapic::{TimerDivide, TimerMode};
         let lapic = super::apic::local_apic();
         lapic.set_timer_mode(TimerMode::OneShot);
-        lapic.set_timer_divide(TimerDivide::Div256); // indeed it is Div1, the name is confusing.
+        lapic.set_timer_divide(TimerDivide::Div1); // indeed it is Div1, the name is confusing.
         lapic.enable_timer();
 
         // TODO: calibrate with HPET

@@ -20,8 +20,7 @@ net = ["driver_net"]
 block = ["driver_block"]
 display = ["driver_display"]
 _9p = ["driver_9p"]
-
-
+pci = []
 
 # Enabled by features `virtio-*`
 virtio = ["driver_virtio", "dep:axalloc", "dep:ruxhal", "dep:ruxconfig", "ruxhal/virtio"]
@@ -54,6 +53,3 @@ driver_virtio = { path = "../../crates/driver_virtio", optional = true }
 axalloc = { path = "../axalloc", optional = true }
 ruxhal = { path = "../ruxhal", optional = true }
 ruxconfig = { path = "../ruxconfig", optional = true }
-
-
-

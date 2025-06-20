@@ -172,6 +172,12 @@ impl MmapStruct {
     }
 }
 
+impl Default for MmapStruct {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Impl for Vma.
 impl Vma {
     /// Create a new `Vma` instance.

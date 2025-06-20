@@ -205,7 +205,7 @@ impl CommonNode {
                             fid,
                             name,
                             0x02,
-                            (0o100000 + mode.bits() & 0o777) as _,
+                            ((0o100000 + mode.bits()) & 0o777) as _,
                             500
                         ),
                         "9pfs l_create failed! error code: {}"
@@ -231,7 +231,7 @@ impl CommonNode {
                     "9pfs mkdir failed! error code: {}"
                 );
                 handle_result!(
-                    self.inner.write().twalk(*self.fid, fid, 1, &[&name]),
+                    self.inner.write().twalk(*self.fid, fid, 1, &[name]),
                     "9pfs twalk failed! error code: {}"
                 );
             }

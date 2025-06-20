@@ -9,6 +9,21 @@
 
 use std::io::Result;
 
+const BUILTIN_PLATFORMS: &[&str] = &[
+    "aarch64-qemu-virt",
+    "riscv64-qemu-virt",
+    "x86_64-pc-oslab",
+    "x86_64-qemu-q35",
+];
+
+const BUILTIN_PLATFORM_FAMILIES: &[&str] = &[
+    "aarch64-qemu-virt",
+    "aarch64-raspi",
+    "aarch64-bsta1000b",
+    "riscv64-qemu-virt",
+    "x86-pc",
+];
+
 fn main() {
     let arch = std::env::var("CARGO_CFG_TARGET_ARCH").unwrap();
     let platform = ruxconfig::PLATFORM;
@@ -16,12 +31,32 @@ fn main() {
         gen_linker_script(&arch, platform).unwrap();
     }
 
-    println!("cargo:rustc-cfg=platform=\"{}\"", platform);
     println!("cargo:rustc-cfg=platform_family=\"{}\"", ruxconfig::FAMILY);
+    println!("cargo:rustc-cfg=platform=\"{platform}\"");
+    println!(
+        "cargo:rustc-cfg=platform_family=\"{}\"",
+        ruxconfig::PLATFORM
+    );
+    println!(
+        "cargo::rustc-check-cfg=cfg(platform, values({}))",
+        make_cfg_values(BUILTIN_PLATFORMS)
+    );
+    println!(
+        "cargo::rustc-check-cfg=cfg(platform_family, values({}))",
+        make_cfg_values(BUILTIN_PLATFORM_FAMILIES)
+    );
+}
+
+fn make_cfg_values(str_list: &[&str]) -> String {
+    str_list
+        .iter()
+        .map(|s| format!("{s:?}"))
+        .collect::<Vec<_>>()
+        .join(", ")
 }
 
 fn gen_linker_script(arch: &str, platform: &str) -> Result<()> {
-    let fname = format!("linker_{}.lds", platform);
+    let fname = format!("linker_{platform}.lds");
     let output_arch = if arch == "x86_64" {
         "i386:x86-64"
     } else if arch.contains("riscv") {

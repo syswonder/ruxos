@@ -15,7 +15,6 @@
 
 #![cfg_attr(all(not(test), not(doc)), no_std)]
 #![feature(doc_auto_cfg)]
-#![feature(ip_in_core)]
 #![cfg(any(feature = "virtio-9p", feature = "net-9p"))]
 
 #[doc(no_inline)]

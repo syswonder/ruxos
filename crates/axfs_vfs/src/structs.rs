@@ -312,7 +312,7 @@ impl VfsNodeAttr {
         self.ty.is_fifo()
     }
 
-    ///Whether the node is a socket.
+    /// Whether the node is a socket.
     pub const fn is_socket(&self) -> bool {
         self.ty.is_socket()
     }

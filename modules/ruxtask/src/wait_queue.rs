@@ -45,6 +45,12 @@ pub struct WaitQueueWithMetadata<Meta> {
 /// A wait queue with no metadata.
 pub type WaitQueue = WaitQueueWithMetadata<()>;
 
+impl<Meta> Default for WaitQueueWithMetadata<Meta> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<Meta> WaitQueueWithMetadata<Meta> {
     /// Creates an empty wait queue.
     pub const fn new() -> Self {

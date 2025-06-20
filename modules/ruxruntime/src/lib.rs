@@ -33,6 +33,7 @@
 
 #![cfg_attr(not(test), no_std)]
 #![feature(doc_auto_cfg)]
+#![allow(static_mut_refs)]
 
 #[macro_use]
 extern crate axlog;

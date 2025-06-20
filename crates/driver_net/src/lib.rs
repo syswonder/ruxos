@@ -10,8 +10,6 @@
 //! Common traits and types for network device (NIC) drivers.
 
 #![no_std]
-#![feature(const_mut_refs)]
-#![feature(const_slice_from_raw_parts_mut)]
 #![feature(box_into_inner)]
 
 extern crate alloc;

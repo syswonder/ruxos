@@ -33,6 +33,12 @@ impl BuddyByteAllocator {
     }
 }
 
+impl Default for BuddyByteAllocator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BaseAllocator for BuddyByteAllocator {
     fn init(&mut self, start: usize, size: usize) {
         unsafe { self.inner.init(start, size) };

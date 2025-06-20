@@ -10,7 +10,7 @@
 use crate::io::AxPollState;
 use axerrno::AxResult;
 use core::net::{IpAddr, SocketAddr};
-use ruxnet::{TcpSocket, UdpSocket};
+use ruxnet::{message::MessageFlags, TcpSocket, UdpSocket};
 
 /// A handle to a TCP socket.
 pub struct AxTcpSocketHandle(TcpSocket);
@@ -62,7 +62,7 @@ pub fn ax_tcp_send(socket: &AxTcpSocketHandle, buf: &[u8]) -> AxResult<usize> {
 }
 
 pub fn ax_tcp_recv(socket: &AxTcpSocketHandle, buf: &mut [u8]) -> AxResult<usize> {
-    socket.0.recv(buf, 0)
+    socket.0.recv(buf, MessageFlags::empty())
 }
 
 pub fn ax_tcp_poll(socket: &AxTcpSocketHandle) -> AxResult<AxPollState> {

@@ -15,7 +15,6 @@ use crate::termios::{Termios, CC_C_CHAR};
 use alloc::{format, sync::Arc};
 use axerrno::AxResult;
 use axio::PollState;
-use axlog::ax_print;
 use ringbuffer::RingBuffer;
 use spinlock::SpinNoIrq;
 
@@ -213,8 +212,7 @@ impl Ldisc {
                     echo(core::str::from_utf8(b"\x08 \x08").unwrap());
                 }
                 ch if is_printable_char(ch) => {
-                    // Direct echo for printable
-                    ax_print!("{}", char::from(ch));
+                    echo(core::str::from_utf8(&[ch]).unwrap());
                 }
                 ch if is_ctrl_char(ch) && termios.contain_echo_ctl() => {
                     // Convert control character (0x01-0x1F) to ^X notation:

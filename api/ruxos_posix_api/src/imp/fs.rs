@@ -36,9 +36,9 @@ impl ruxtask::fs::InitFs for InitFsImpl {
     fn add_stdios_to_fd_table(fs: &mut ruxtask::fs::FileSystem) {
         debug!("init initial process's fd_table");
         let fd_table = &mut fs.fd_table;
-        fd_table.add_at(0, Arc::new(Stdin::default()) as _).unwrap(); // stdin
-        fd_table.add_at(1, Arc::new(Stdout {}) as _).unwrap(); // stdout
-        fd_table.add_at(2, Arc::new(Stdout {}) as _).unwrap(); // stderr
+        fd_table.add(Arc::new(Stdin::default()) as _, OpenFlags::empty()); // stdin
+        fd_table.add(Arc::new(Stdout {}) as _, OpenFlags::empty()); // stdout
+        fd_table.add(Arc::new(Stdout {}) as _, OpenFlags::empty()); // stderr
     }
 }
 
@@ -568,9 +568,9 @@ pub unsafe fn sys_getdents64(fd: c_int, dirp: *mut LinuxDirent64, count: ctypes:
             dirent.d_type = entry.entry_type() as u8;
             // set file name
             dirent.d_name[..name_len].copy_from_slice(unsafe {
-                core::slice::from_raw_parts(name.as_ptr() as *const i8, name_len)
+                core::slice::from_raw_parts(name.as_ptr() as *const c_char, name_len)
             });
-            dirent.d_name[name_len] = 0i8;
+            dirent.d_name[name_len] = 0;
 
             written += entry_size;
         }

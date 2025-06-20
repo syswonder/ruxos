@@ -43,7 +43,8 @@ impl ruxhal::trap::TrapHandler for TrapHandlerImpl {
         let binding_task = current();
         let mut binding_mem_map = binding_task.mm.vma_map.lock();
         let vma_map = binding_mem_map.deref_mut();
-        if let Some(vma) = vma_map.upper_bound(Bound::Included(&vaddr)).value() {
+        if let Some((_, vma)) = vma_map.upper_bound(Bound::Included(&vaddr)).peek_prev() {
+            // error!("vaddr=({:#x?}, {:#x?}) {:#x?}", vma.start_addr, vma.end_addr, vaddr);
             let vma_end_aligned = vma.end_addr;
             // Check if page existing in the vma, go to panic if not.
             if vma_end_aligned <= vaddr {

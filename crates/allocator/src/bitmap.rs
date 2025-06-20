@@ -45,6 +45,12 @@ impl<const PAGE_SIZE: usize> BitmapPageAllocator<PAGE_SIZE> {
     }
 }
 
+impl<const PAGE_SIZE: usize> Default for BitmapPageAllocator<PAGE_SIZE> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<const PAGE_SIZE: usize> BaseAllocator for BitmapPageAllocator<PAGE_SIZE> {
     fn init(&mut self, start: usize, size: usize) {
         assert!(PAGE_SIZE.is_power_of_two());

@@ -9,7 +9,7 @@
 
 //! Defines types and probe methods of all supported devices.
 
-#![allow(unused_imports)]
+#![allow(unused_imports, dead_code)]
 
 use crate::AxDeviceEnum;
 use driver_common::DeviceType;

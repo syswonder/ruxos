@@ -94,6 +94,7 @@ typedef struct {{
             "rlimit",
             "aibuf",
             "msghdr",
+            "cmsghdr",
             "pthread_cond_t",
             "pthread_condattr_t",
             "sysinfo",
@@ -134,6 +135,7 @@ typedef struct {{
             "MREMAP_.+",
             "GRND_.*",
             "S_IF.+",
+            "SCM_.*",
         ];
 
         #[derive(Debug)]
@@ -142,7 +144,7 @@ typedef struct {{
         impl bindgen::callbacks::ParseCallbacks for MyCallbacks {
             fn include_file(&self, fname: &str) {
                 if !fname.contains("ax_pthread_mutex.h") {
-                    println!("cargo:rerun-if-changed={}", fname);
+                    println!("cargo:rerun-if-changed={fname}");
                 }
             }
         }

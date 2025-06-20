@@ -1,4 +1,5 @@
 use crate::{
+    message::{MessageFlags, MessageReadInfo},
     net_impl::{driver::lwip_loop_once, ACCEPT_QUEUE_LEN, RECV_QUEUE_LEN},
     IpAddr, SocketAddr,
 };
@@ -9,6 +10,7 @@ use axsync::Mutex;
 use core::cell::UnsafeCell;
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::{ffi::c_void, pin::Pin, ptr::null_mut};
+use iovec::IoVecsOutput;
 use lwip_rust::bindings::{
     err_enum_t_ERR_MEM, err_enum_t_ERR_OK, err_enum_t_ERR_USE, err_enum_t_ERR_VAL, err_t,
     ip_addr_t, pbuf, pbuf_free, tcp_accept, tcp_arg, tcp_bind, tcp_close, tcp_connect,
@@ -330,7 +332,7 @@ impl TcpSocket {
         loop {
             lwip_loop_once();
             let mut accept_queue = self.inner.accept_queue.lock();
-            if accept_queue.len() != 0 {
+            if !accept_queue.is_empty() {
                 return Ok(accept_queue.pop_front().unwrap());
             }
             drop(accept_queue);
@@ -375,14 +377,14 @@ impl TcpSocket {
     }
 
     /// Receives data from the socket, stores it in the given buffer.
-    pub fn recv(&self, buf: &mut [u8], _flags: i32) -> AxResult<usize> {
+    pub fn recv(&self, buf: &mut [u8], _flags: MessageFlags) -> AxResult<usize> {
         loop {
             if self.inner.remote_closed {
                 return Ok(0);
             }
             lwip_loop_once();
             let mut recv_queue = self.inner.recv_queue.lock();
-            let res = if recv_queue.len() == 0 {
+            let res = if recv_queue.is_empty() {
                 Ok(0)
             } else {
                 let (p, offset) = recv_queue.pop_front().unwrap();
@@ -432,6 +434,15 @@ impl TcpSocket {
         }
     }
 
+    /// TODO: receive a message from the socket.
+    pub fn recvmsg(
+        &self,
+        _iovecs: &mut IoVecsOutput,
+        _flags: MessageFlags,
+    ) -> AxResult<MessageReadInfo> {
+        todo!()
+    }
+
     /// Transmits data in the given buffer.
     pub fn send(&self, buf: &[u8]) -> AxResult<usize> {
         trace!("[TcpSocket] send (len = {})", buf.len());
@@ -472,14 +483,14 @@ impl TcpSocket {
         if unsafe { (*self.pcb.get()).state } == tcp_state_LISTEN {
             // listener
             Ok(PollState {
-                readable: self.inner.accept_queue.lock().len() != 0,
+                readable: !self.inner.accept_queue.lock().is_empty(),
                 writable: false,
                 pollhup: false,
             })
         } else {
             // stream
             Ok(PollState {
-                readable: self.inner.recv_queue.lock().len() != 0,
+                readable: !self.inner.accept_queue.lock().is_empty(),
                 writable: true,
                 pollhup: unsafe { (*self.pcb.get()).state } == tcp_state_CLOSE_WAIT,
             })

@@ -137,7 +137,6 @@ pub type LinuxResult<T = ()> = Result<T, LinuxError>;
 ///     ax_err_type!(BadAddress, "the address is {}!", "xxx"),
 ///     AxError::BadAddress,
 /// );
-
 /// ```
 #[macro_export]
 macro_rules! ax_err_type {
@@ -269,7 +268,7 @@ impl TryFrom<i32> for AxError {
     #[inline]
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         if value > 0 && value <= core::mem::variant_count::<AxError>() as i32 {
-            Ok(unsafe { core::mem::transmute(value) })
+            Ok(unsafe { core::mem::transmute::<i32, AxError>(value) })
         } else {
             Err(value)
         }

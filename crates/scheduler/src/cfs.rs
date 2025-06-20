@@ -122,6 +122,12 @@ pub struct CFScheduler<T> {
     id_pool: AtomicIsize,
 }
 
+impl<T> Default for CFScheduler<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T> CFScheduler<T> {
     /// Creates a new empty [`CFScheduler`].
     pub const fn new() -> Self {

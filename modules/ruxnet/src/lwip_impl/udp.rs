@@ -1,4 +1,5 @@
 use crate::{
+    message::{MessageFlags, MessageReadInfo},
     net_impl::{driver::lwip_loop_once, RECV_QUEUE_LEN},
     IpAddr, SocketAddr,
 };
@@ -8,6 +9,7 @@ use axio::PollState;
 use axsync::Mutex;
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::{ffi::c_void, pin::Pin, ptr::null_mut};
+use iovec::IoVecsOutput;
 use lwip_rust::bindings::{
     err_enum_t_ERR_MEM, err_enum_t_ERR_OK, err_enum_t_ERR_RTE, err_enum_t_ERR_USE,
     err_enum_t_ERR_VAL, ip_addr_t, pbuf, pbuf_alloc, pbuf_free, pbuf_layer_PBUF_TRANSPORT,
@@ -225,7 +227,7 @@ impl UdpSocket {
         loop {
             lwip_loop_once();
             let mut recv_queue = self.inner.recv_queue.lock();
-            let res: Result<(usize, SocketAddr), AxError> = if recv_queue.len() == 0 {
+            let res: Result<(usize, SocketAddr), AxError> = if recv_queue.is_empty() {
                 Err(AxError::WouldBlock)
             } else {
                 let (p, offset, caddr) = recv_queue.pop_front().unwrap();
@@ -273,6 +275,14 @@ impl UdpSocket {
                 }
             };
         }
+    }
+    /// TODO: Receive a message from the socket.
+    pub fn recvmsg(
+        &self,
+        _iovecs: &mut IoVecsOutput,
+        _flags: MessageFlags,
+    ) -> AxResult<MessageReadInfo> {
+        todo!()
     }
 
     /// Connects to the given address and port.
@@ -333,7 +343,7 @@ impl UdpSocket {
     pub fn poll(&self) -> AxResult<PollState> {
         lwip_loop_once();
         Ok(PollState {
-            readable: self.inner.recv_queue.lock().len() != 0,
+            readable: !self.inner.recv_queue.lock().is_empty(),
             writable: true,
             pollhup: false,
         })

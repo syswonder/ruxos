@@ -11,7 +11,7 @@ use core::net::{IpAddr, Ipv4Addr, SocketAddr};
 use driver_9p::_9pDriverOps;
 use driver_common::{BaseDriverOps, DeviceType};
 use log::*;
-use ruxnet::TcpSocket;
+use ruxnet::{message::MessageFlags, TcpSocket};
 
 pub struct Net9pDev {
     socket: Mutex<TcpSocket>,
@@ -71,7 +71,7 @@ impl _9pDriverOps for Net9pDev {
                 return Err(0);
             }
         }
-        match self.socket.lock().recv(outputs, 0) {
+        match self.socket.lock().recv(outputs, MessageFlags::empty()) {
             Ok(length) => {
                 debug!("net9p recv successfully,length = {}", length);
                 Ok(length as u32)
