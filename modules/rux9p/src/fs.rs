@@ -13,8 +13,8 @@
 use crate::drv::{self, Drv9pOps};
 use alloc::{string::String, string::ToString, sync::Arc, sync::Weak, vec::Vec};
 use axfs_vfs::{
-    AbsPath, RelPath, VfsDirEntry, VfsError, VfsNodeAttr, VfsNodeOps, VfsNodePerm, VfsNodeRef,
-    VfsNodeType, VfsOps, VfsResult,
+    RelPath, VfsDirEntry, VfsError, VfsNodeAttr, VfsNodeOps, VfsNodePerm, VfsNodeRef, VfsNodeType,
+    VfsOps, VfsResult,
 };
 use log::*;
 use spin::{once::Once, RwLock};
@@ -86,12 +86,8 @@ impl _9pFileSystem {
 }
 
 impl VfsOps for _9pFileSystem {
-    fn mount(&self, _path: &AbsPath, mount_point: VfsNodeRef) -> VfsResult {
-        if let Some(parent) = mount_point.parent() {
-            self.root.set_parent(Some(self.parent.call_once(|| parent)));
-        } else {
-            self.root.set_parent(None);
-        }
+    fn mount(&self, parent: VfsNodeRef) -> VfsResult {
+        self.root.set_parent(Some(self.parent.call_once(|| parent)));
         Ok(())
     }
 

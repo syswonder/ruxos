@@ -20,9 +20,9 @@ default = []
 smp = ["ruxfeat/smp"]
 alloc = ["dep:axalloc", "ruxfeat/alloc"]
 paging = ["alloc", "ruxfeat/paging", "ruxmm"]
-multitask = ["ruxfeat/multitask", "ruxtask/multitask", "dep:ruxfutex"]
+multitask = ["ruxfeat/multitask", "ruxfuse/multitask", "ruxtask/multitask", "dep:ruxfutex"]
 fd = ["alloc"]
-fs = ["dep:ruxfs", "ruxfeat/fs", "fd"]
+fs = ["dep:ruxfs", "ruxfeat/fs", "fd", "ruxfuse"]
 net = ["dep:ruxnet", "ruxfeat/net", "fd"]
 signal = ["ruxruntime/signal", "ruxhal/signal", "ruxtask/signal"]
 pipe = ["fd"]
@@ -50,6 +50,7 @@ ruxtask = { path = "../../modules/ruxtask", features = [
     "notest",
 ], optional = true }
 ruxfs = { path = "../../modules/ruxfs", optional = true }
+ruxfuse = { path = "../../modules/ruxfuse", optional = true }
 ruxnet = { path = "../../modules/ruxnet", optional = true }
 
 # Other crates

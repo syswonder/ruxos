@@ -42,10 +42,12 @@ mod mounts;
 pub mod api;
 #[cfg(feature = "blkfs")]
 pub mod dev;
+pub mod devfuse;
 mod directory;
 pub mod fifo;
 mod file;
 pub mod fops;
+pub mod fuse_st;
 pub mod root;
 
 pub use directory::Directory;
@@ -105,12 +107,13 @@ cfg_if::cfg_if! {
     }
 }
 
-use root::MountPoint;
+use alloc::string::String;
+pub use root::MountPoint;
 
 /// Initialize an empty filesystems by ramfs.
 #[cfg(not(feature = "blkfs"))]
 pub fn init_tempfs() -> MountPoint {
-    MountPoint::new(AbsPath::new("/"), mounts::ramfs())
+    MountPoint::new(String::from("/"), mounts::ramfs())
 }
 
 /// Initializes filesystems by block devices.
@@ -148,46 +151,48 @@ pub fn init_blkfs(mut blk_devs: AxDeviceContainer<AxBlockDevice>) -> MountPoint 
         }
     }
 
-    MountPoint::new(AbsPath::new("/"), blk_fs)
+    MountPoint::new(String::from("/"), blk_fs)
 }
 
 /// Initializes common filesystems.
 pub fn prepare_commonfs(mount_points: &mut Vec<self::root::MountPoint>) {
     #[cfg(feature = "devfs")]
     {
-        let mount_point = MountPoint::new(AbsPath::new("/dev"), mounts::devfs());
+        let mount_point = MountPoint::new(String::from("/dev"), mounts::devfs());
         mount_points.push(mount_point);
     }
 
     #[cfg(feature = "ramfs")]
     {
-        let mount_point = MountPoint::new(AbsPath::new("/tmp"), mounts::ramfs());
+        let mount_point = MountPoint::new(String::from("/tmp"), mounts::ramfs());
         mount_points.push(mount_point);
     }
 
     // Mount another ramfs as procfs
     #[cfg(feature = "procfs")]
     {
-        let mount_point = MountPoint::new(AbsPath::new("/proc"), mounts::procfs().unwrap());
+        let mount_point = MountPoint::new(String::from("/proc"), mounts::procfs().unwrap());
         mount_points.push(mount_point);
     }
 
     // Mount another ramfs as sysfs
     #[cfg(feature = "sysfs")]
     {
-        let mount_point = MountPoint::new(AbsPath::new("/sys"), mounts::sysfs().unwrap());
+        let mount_point = MountPoint::new(String::from("/sys"), mounts::sysfs().unwrap());
         mount_points.push(mount_point);
     }
 
     // Mount another ramfs as etcfs
     #[cfg(feature = "etcfs")]
     {
-        let mount_point = MountPoint::new(AbsPath::new("/etc"), mounts::etcfs().unwrap());
+        let mount_point = MountPoint::new(String::from("/etc"), mounts::etcfs().unwrap());
         mount_points.push(mount_point);
     }
-}
 
-/// Initializes root filesystems.
-pub fn init_filesystems(mount_points: Vec<self::root::MountPoint>) {
-    self::fops::init_rootfs(mount_points);
+    // Mount another ramfs as mntfs
+    #[cfg(feature = "mntfs")]
+    {
+        let mount_point = MountPoint::new(String::from("/mnt"), mounts::mntfs().unwrap());
+        mount_points.push(mount_point);
+    }
 }

@@ -74,7 +74,7 @@ pub type VfsResult<T = ()> = AxResult<T>;
 /// Filesystem operations.
 pub trait VfsOps: Send + Sync {
     /// Do something when the filesystem is mounted.
-    fn mount(&self, _path: &AbsPath, _mount_point: VfsNodeRef) -> VfsResult {
+    fn mount(&self, _parent: VfsNodeRef) -> VfsResult {
         Ok(())
     }
 
@@ -118,6 +118,11 @@ pub trait VfsNodeOps: Send + Sync {
     /// Set the mode of the node.
     fn set_mode(&self, _mode: VfsNodePerm) -> VfsResult {
         ax_err!(Unsupported, "set_attr method is unsupported")
+    }
+
+    /// Get the inode number of the node.
+    fn get_inode(&self) -> Option<u64> {
+        None
     }
 
     // file operations:

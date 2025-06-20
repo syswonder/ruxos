@@ -128,13 +128,11 @@ pub fn init_rootfs(mount_points: Vec<MountPoint>) {
         .expect("No filesystem found")
         .fs
         .clone();
-    let mut root_dir = RootDirectory::new(main_fs);
+    let root_dir = RootDirectory::new(main_fs);
 
     for mp in mount_points.iter().skip(1) {
-        let vfsops = mp.fs.clone();
         let message = format!("failed to mount filesystem at {}", mp.path);
-        info!("mounting {}", mp.path);
-        root_dir.mount(mp.path.clone(), vfsops).expect(&message);
+        root_dir.mount(mp.clone()).expect(&message);
     }
 
     let root_dir_arc = Arc::new(root_dir);
@@ -152,15 +150,6 @@ pub fn init_rootfs(mount_points: Vec<MountPoint>) {
     crate_interface::call_interface!(InitFs::add_stdios_to_fd_table, fs_mutable);
 
     current().fs.lock().replace(fs);
-}
-
-fn parent_node_of(dir: Option<&VfsNodeRef>, path: &str) -> VfsNodeRef {
-    if path.starts_with('/') {
-        current().fs.lock().as_mut().unwrap().root_dir.clone()
-    } else {
-        dir.cloned()
-            .unwrap_or_else(|| current().fs.lock().as_mut().unwrap().current_dir.clone())
-    }
 }
 
 /// Returns the absolute path of the given path.
@@ -222,12 +211,6 @@ struct CurrentWorkingDirectoryImpl;
 
 #[crate_interface::impl_interface]
 impl CurrentWorkingDirectoryOps for CurrentWorkingDirectoryImpl {
-    fn init_rootfs(mount_points: Vec<MountPoint>) {
-        init_rootfs(mount_points)
-    }
-    fn parent_node_of(dir: Option<&VfsNodeRef>, path: &RelPath) -> VfsNodeRef {
-        parent_node_of(dir, path)
-    }
     fn absolute_path(path: &str) -> AxResult<AbsPath<'static>> {
         absolute_path(path)
     }

@@ -12,7 +12,7 @@
 //! Slave: Emulates physical terminal hardware for programs
 use alloc::collections::BinaryHeap;
 use alloc::sync::Arc;
-use axfs_vfs::{AbsPath, VfsNodeRef, VfsOps, VfsResult};
+use axfs_vfs::{VfsNodeRef, VfsOps, VfsResult};
 use core::cmp::Reverse;
 use master::PtyMaster;
 use ptmx::Ptmx;
@@ -127,8 +127,8 @@ impl PtsFileSystem {
 }
 
 impl VfsOps for PtsFileSystem {
-    fn mount(&self, _path: &AbsPath, mount_point: VfsNodeRef) -> VfsResult {
-        self.root.set_parent(&mount_point.parent().unwrap());
+    fn mount(&self, parent: VfsNodeRef) -> VfsResult {
+        self.root.set_parent(&parent);
         Ok(())
     }
 

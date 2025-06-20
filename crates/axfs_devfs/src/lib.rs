@@ -31,7 +31,7 @@ pub use self::random::RandomDev;
 pub use self::zero::ZeroDev;
 
 use alloc::sync::Arc;
-use axfs_vfs::{AbsPath, VfsNodePerm, VfsNodeRef, VfsOps, VfsResult};
+use axfs_vfs::{VfsNodePerm, VfsNodeRef, VfsOps, VfsResult};
 use core::sync::atomic::AtomicU64;
 use spin::once::Once;
 
@@ -87,12 +87,8 @@ impl DeviceFileSystem {
 }
 
 impl VfsOps for DeviceFileSystem {
-    fn mount(&self, _path: &AbsPath, mount_point: VfsNodeRef) -> VfsResult {
-        if let Some(parent) = mount_point.parent() {
-            self.root.set_parent(Some(self.parent.call_once(|| parent)));
-        } else {
-            self.root.set_parent(None);
-        }
+    fn mount(&self, parent: VfsNodeRef) -> VfsResult {
+        self.root.set_parent(Some(self.parent.call_once(|| parent)));
         Ok(())
     }
 
