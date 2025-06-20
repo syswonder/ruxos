@@ -20,6 +20,7 @@ pub(crate) fn devfs() -> Arc<fs::devfs::DeviceFileSystem> {
     let zero = fs::devfs::ZeroDev;
     let random = fs::devfs::RandomDev;
     let urandom = fs::devfs::RandomDev;
+    let fuse = crate::devfuse::FuseDev::new();
     let pts = fs::devfs::init_pts();
     let devfs = fs::devfs::DeviceFileSystem::new();
     devfs.add("null", Arc::new(null));
@@ -27,6 +28,7 @@ pub(crate) fn devfs() -> Arc<fs::devfs::DeviceFileSystem> {
     devfs.add("random", Arc::new(random));
     devfs.add("urandom", Arc::new(urandom));
     devfs.add("pts", pts);
+    devfs.add("fuse", Arc::new(fuse));
     Arc::new(devfs)
 }
 
@@ -136,7 +138,7 @@ pub(crate) fn etcfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
     let etcfs = fs::ramfs::RamFileSystem::new();
     let etc_root = etcfs.root_dir();
 
-    // Create /etc/passwd, and /etc/hosts
+    // Create /etc/passwd
     etc_root.create(
         &RelPath::new("passwd"),
         VfsNodeType::File,
@@ -157,7 +159,7 @@ pub(crate) fn etcfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
         VfsNodePerm::default_file(),
     )?;
     let file_group = etc_root.clone().lookup(&RelPath::new("group"))?;
-    file_group.write_at(0, b"root:x:0:\n")?;
+    file_group.write_at(0, b"root:x:1000:\n")?;
 
     // Create /etc/localtime
     etc_root.create(
@@ -209,4 +211,33 @@ pub(crate) fn etcfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
     )?;
 
     Ok(Arc::new(etcfs))
+}
+
+#[cfg(feature = "sysfs")]
+pub(crate) fn mntfs() -> VfsResult<Arc<fs::ramfs::RamFileSystem>> {
+    use axfs_vfs::VfsNodePerm;
+
+    let mntfs = fs::ramfs::RamFileSystem::new();
+    let mnt_root = mntfs.root_dir();
+
+    // Create /mnt/fuse
+    mnt_root.create(
+        &RelPath::new("fuse"),
+        VfsNodeType::Dir,
+        VfsNodePerm::default_dir(),
+    )?;
+    // Create /mnt/exfat
+    mnt_root.create(
+        &RelPath::new("exfat"),
+        VfsNodeType::Dir,
+        VfsNodePerm::default_dir(),
+    )?;
+    // Create /mnt/ext4
+    mnt_root.create(
+        &RelPath::new("ext4"),
+        VfsNodeType::Dir,
+        VfsNodePerm::default_dir(),
+    )?;
+
+    Ok(Arc::new(mntfs))
 }
