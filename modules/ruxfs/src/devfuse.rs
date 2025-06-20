@@ -10,21 +10,20 @@
 //! /dev/fuse
 
 #![allow(dead_code)]
-use core::sync::atomic::{AtomicI32, Ordering};
 use alloc::sync::Arc;
+use core::sync::atomic::{AtomicI32, Ordering};
 
+use alloc::vec;
+use alloc::vec::Vec;
 use axfs_vfs::{VfsNodeAttr, VfsNodeOps, VfsNodePerm, VfsNodeRef, VfsNodeType, VfsResult};
 use log::*;
 use spin::Mutex;
 use spinlock::SpinNoIrq;
-use alloc::vec::Vec;
-use alloc::vec;
 
 /// A global flag to indicate the state of the FUSE device.
 pub static FUSEFLAG: AtomicI32 = AtomicI32::new(0);
 /// vector to store data for FUSE operations.
 pub static mut FUSE_VEC: Option<Arc<SpinNoIrq<Vec<u8>>>> = None;
-
 
 /// A device behaves like `/dev/fuse`.
 ///
@@ -57,12 +56,15 @@ impl VfsNodeOps for FuseDev {
             VfsNodeType::CharDevice,
             0,
             0,
-            
         ))
     }
 
     fn read_at(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
-        debug!("fuse_dev read buf len: {:?} at pos: {:?}", buf.len(), offset);
+        debug!(
+            "fuse_dev read buf len: {:?} at pos: {:?}",
+            buf.len(),
+            offset
+        );
 
         let mut flag;
         let mut vec_len = 0;
@@ -86,7 +88,7 @@ impl VfsNodeOps for FuseDev {
                     break;
                 }
             }
-    
+
             if let Some(vec_arc) = FUSE_VEC.as_ref() {
                 let mut vec = vec_arc.lock();
                 vec_len = vec.len();
@@ -94,14 +96,18 @@ impl VfsNodeOps for FuseDev {
                 debug!("Fusevec _read_ len: {:?}, vec: {:?}", vec.len(), vec);
                 vec.clear();
             }
-
         }
-        
+
         Ok(vec_len)
     }
 
     fn write_at(&self, offset: u64, buf: &[u8]) -> VfsResult<usize> {
-        debug!("fuse_dev writes buf len: {:?} at pos: {:?}, buf: {:?}", buf.len(), offset, buf);
+        debug!(
+            "fuse_dev writes buf len: {:?} at pos: {:?}, buf: {:?}",
+            buf.len(),
+            offset,
+            buf
+        );
 
         let mut flag;
 
@@ -120,7 +126,7 @@ impl VfsNodeOps for FuseDev {
                 debug!("Fusevec _write_ len: {:?}, vec: {:?}", vec.len(), vec);
             }
 
-            FUSEFLAG.store(flag+100, Ordering::Relaxed);
+            FUSEFLAG.store(flag + 100, Ordering::Relaxed);
         }
 
         Ok(buf.len())
@@ -129,7 +135,6 @@ impl VfsNodeOps for FuseDev {
     fn truncate(&self, _size: u64) -> VfsResult {
         Ok(())
     }
- 
+
     axfs_vfs::impl_vfs_non_dir_default! {}
 }
- 

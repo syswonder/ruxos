@@ -253,7 +253,7 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
 
             #[cfg(not(feature = "blkfs"))]
             mount_points.push(ruxvda::init_vdafs(all_devices.block));
-            
+
             ruxfs::prepare_commonfs(&mut mount_points);
 
             // setup and initialize rootfs

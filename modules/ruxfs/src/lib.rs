@@ -42,13 +42,13 @@ mod mounts;
 pub mod api;
 #[cfg(feature = "blkfs")]
 pub mod dev;
+pub mod devfuse;
 mod directory;
 pub mod fifo;
 mod file;
 pub mod fops;
-pub mod root;
-pub mod devfuse;
 pub mod fuse_st;
+pub mod root;
 
 pub use directory::Directory;
 pub use file::File;
@@ -107,8 +107,8 @@ cfg_if::cfg_if! {
     }
 }
 
-pub use root::MountPoint;
 use alloc::string::String;
+pub use root::MountPoint;
 
 /// Initialize an empty filesystems by ramfs.
 #[cfg(not(feature = "blkfs"))]

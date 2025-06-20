@@ -94,7 +94,10 @@ impl RootDirectory {
                 }
             }
         }
-        fs.mount(&AbsPath::new(&path), self.main_fs.root_dir().lookup(&RelPath::new(&path))?)?;
+        fs.mount(
+            &AbsPath::new(&path),
+            self.main_fs.root_dir().lookup(&RelPath::new(&path))?,
+        )?;
         mounts.push(MountPoint::new(path, fs));
         debug!("mounts_vec last: {:?}", mounts.last().unwrap().path);
         Ok(())
@@ -102,12 +105,17 @@ impl RootDirectory {
 
     /// Unmount the filesystem at the specified path.
     pub fn umount(&self, path: &AbsPath) {
-        self.mounts_lock.lock().retain(|mp| mp.path != path.to_string());
+        self.mounts_lock
+            .lock()
+            .retain(|mp| mp.path != path.to_string());
     }
 
     /// Check if path is a mount point
     pub fn contains(&self, path: &AbsPath) -> bool {
-        self.mounts_lock.lock().iter().any(|mp| mp.path == path.to_string())
+        self.mounts_lock
+            .lock()
+            .iter()
+            .any(|mp| mp.path == path.to_string())
     }
 
     /// Check if path matches a mountpoint, return the index of the matched
@@ -140,10 +148,7 @@ impl RootDirectory {
         let (idx, len) = self.lookup_mounted_fs(path);
         if len > 0 {
             let mounts = self.mounts_lock.lock();
-            f(
-                mounts[idx].fs.clone(),
-                &RelPath::new_trimmed(&path[len..]),
-            )
+            f(mounts[idx].fs.clone(), &RelPath::new_trimmed(&path[len..]))
         } else {
             f(self.main_fs.clone(), path)
         }

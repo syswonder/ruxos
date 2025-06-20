@@ -12,14 +12,14 @@
 #![feature(doc_auto_cfg)]
 
 // #[macro_use]
-extern crate log;
 extern crate alloc;
+extern crate log;
 
 pub mod fs;
 
 // use alloc::vec::Vec;
-use alloc::sync::Arc;
 use alloc::string::String;
+use alloc::sync::Arc;
 use log::*;
 use ruxdriver::{prelude::*, AxDeviceContainer};
 use ruxfs::MountPoint;
