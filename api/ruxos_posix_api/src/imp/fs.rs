@@ -685,6 +685,7 @@ pub fn sys_mount(
     })
 }
 
+/// perform a memory barrier operation.
 pub fn sys_membarrier(cmd: c_int, flags: c_int) -> c_int {
     info!("sys_membarrier <= cmd: {}, flags: {}", cmd, flags);
     syscall_body!(sys_membarrier, Ok(0))
