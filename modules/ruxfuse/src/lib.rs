@@ -7,7 +7,8 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-//! dev fuse
+//! [Ruxos](https://github.com/syswonder/ruxos) fuse filesystem module.
+
 #![cfg_attr(all(not(test), not(doc)), no_std)]
 #![feature(doc_auto_cfg)]
 
