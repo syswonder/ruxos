@@ -13,7 +13,7 @@
 #![feature(doc_auto_cfg)]
 
 // #[macro_use]
-extern crate log;
 extern crate alloc;
+extern crate log;
 
 pub mod fuse;

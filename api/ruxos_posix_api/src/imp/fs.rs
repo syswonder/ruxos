@@ -7,8 +7,8 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use alloc::sync::Arc;
 use alloc::string::String;
+use alloc::sync::Arc;
 use core::{
     ffi::{c_char, c_int, c_long, c_ulong, c_void, CStr},
     str,
@@ -645,7 +645,13 @@ pub fn sys_umount2(target: *const c_char, flags: c_int) -> c_int {
     );
     syscall_body!(sys_umount2, {
         let target = char_ptr_to_str(target)?;
-        let dir = ruxtask::current().fs.lock().as_mut().unwrap().root_dir.clone();
+        let dir = ruxtask::current()
+            .fs
+            .lock()
+            .as_mut()
+            .unwrap()
+            .root_dir
+            .clone();
         dir.umount(&AbsPath::new(target));
         Ok(0)
     })
@@ -670,14 +676,26 @@ pub fn sys_mount(
     syscall_body!(sys_mount, {
         let f1 = MS_NODEV; //ctypes::MS_NODEV;
         let f2 = MS_NOSUID; //ctypes::MS_NOSUID;
-        info!("mount flags: {:#x}, f1: {:#}, f2: {:#}, flag: {:#}", mountflags, f1, f2, f1|f2);
+        info!(
+            "mount flags: {:#x}, f1: {:#}, f2: {:#}, flag: {:#}",
+            mountflags,
+            f1,
+            f2,
+            f1 | f2
+        );
         if mountflags != (f1 | f2).into() {
             warn!("mount flags not supported: {:#x}", mountflags);
         }
 
         let target = char_ptr_to_str(raw_target)?;
         let target = String::from(target);
-        let dir = ruxtask::current().fs.lock().as_mut().unwrap().root_dir.clone();
+        let dir = ruxtask::current()
+            .fs
+            .lock()
+            .as_mut()
+            .unwrap()
+            .root_dir
+            .clone();
         let vfsops = ruxfuse::fuse::fusefs();
         info!("mounting filesystem at {}", target);
         dir.mount(target, vfsops)?;

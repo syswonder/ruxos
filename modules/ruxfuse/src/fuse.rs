@@ -11,24 +11,24 @@
 //!
 //! The implementation is based on [`axfs_vfs`].
 
-use alloc::sync::{Arc, Weak};
 use alloc::string::{String, ToString};
+use alloc::sync::{Arc, Weak};
 use alloc::vec::Vec;
-use ruxtask::{current, WaitQueue};
-use spinlock::SpinNoIrq;
 use core::sync::atomic::{AtomicI32, AtomicU64, Ordering};
 use log::*;
+use ruxtask::{current, WaitQueue};
+use spinlock::SpinNoIrq;
 
-use axfs_vfs::{VfsDirEntry, VfsError, VfsResult, AbsPath, RelPath};
-use axfs_vfs::{VfsNodeAttr, VfsNodeOps, VfsNodeRef, VfsNodePerm, VfsNodeType, VfsOps};
-use spin::{once::Once, RwLock};
+use axfs_vfs::{AbsPath, RelPath, VfsDirEntry, VfsError, VfsResult};
+use axfs_vfs::{VfsNodeAttr, VfsNodeOps, VfsNodePerm, VfsNodeRef, VfsNodeType, VfsOps};
+use ruxfs::devfuse::{FUSEFLAG, FUSE_VEC};
 use ruxfs::fuse_st::{
     FuseAccessIn, FuseAttr, FuseAttrOut, FuseCreateIn, FuseDirent, FuseEntryOut, FuseFlushIn,
     FuseForgetIn, FuseGetattrIn, FuseInHeader, FuseInitIn, FuseInitOut, FuseLseekIn, FuseLseekOut,
     FuseMkdirIn, FuseMknodIn, FuseOpcode, FuseOpenIn, FuseOpenOut, FuseOutHeader, FuseReadIn,
-    FuseReleaseIn, FuseRename2In, FuseRenameIn, FuseStatfsOut, FuseWriteIn, FuseWriteOut
+    FuseReleaseIn, FuseRename2In, FuseRenameIn, FuseStatfsOut, FuseWriteIn, FuseWriteOut,
 };
-use ruxfs::devfuse::{FUSEFLAG, FUSE_VEC};
+use spin::{once::Once, RwLock};
 
 /// Unique id for FUSE operations.
 pub static UNIQUE_ID: AtomicU64 = AtomicU64::new(0);
@@ -90,7 +90,13 @@ pub struct FuseNode {
 }
 
 impl FuseNode {
-    pub(super) fn new(parent: Option<Weak<dyn VfsNodeOps>>, inode: u64, attr: FuseAttr, nlink: u32, fh: u64) -> Arc<Self> {
+    pub(super) fn new(
+        parent: Option<Weak<dyn VfsNodeOps>>,
+        inode: u64,
+        attr: FuseAttr,
+        nlink: u32,
+        fh: u64,
+    ) -> Arc<Self> {
         debug!("fuse_node new inode: {:?}, nlink: {:?}", inode, nlink);
         Arc::new_cyclic(|this| Self {
             this: this.clone(),
@@ -194,7 +200,7 @@ impl FuseNode {
         }
         self.get_final_name(rest.unwrap())
     }
-    
+
     /// Check if the node is a directory.
     pub fn is_dir(&self) -> bool {
         let attr_guard = self.attr.lock();
@@ -214,7 +220,7 @@ impl FuseNode {
         let attr = &*attr_guard;
         let mode = attr.get_mode();
         let flags = match mode & 0x1c0 {
-            0x80 => 0x8001, 
+            0x80 => 0x8001,
             0x100 => 0x8000, // 0x8124
             0x180 => 0x8001, // 0x81a4
             0x1c0 => 0x8002, // 0x81ed?
@@ -255,14 +261,25 @@ impl FuseNode {
 
     /// FuseInit = 26
     pub fn init(&self) {
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node INIT({:?}) here...", FuseOpcode::FuseInit as u32);
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node INIT({:?}) here...",
+            FuseOpcode::FuseInit as u32
+        );
 
         UNIQUE_ID.fetch_add(2, Ordering::Relaxed);
         let unique_id = UNIQUE_ID.load(Ordering::SeqCst);
         let pid = current().id().as_u64();
         let nodeid = self.get_node_inode();
         debug!("pid = {:?}, inode = {:?}", pid, nodeid);
-        let fusein = FuseInHeader::new(104, FuseOpcode::FuseInit as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            104,
+            FuseOpcode::FuseInit as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 104];
         fusein.write_to(&mut fusebuf);
         let initin = FuseInitIn::new(7, 38, 0x00020000, 0x33fffffb, 0, [0; 11]);
@@ -304,10 +321,16 @@ impl FuseNode {
             initout.print();
 
             if initout.get_major() != 7 || initout.get_minor() != 38 {
-                warn!("fuse_node init unsupport version, major = {:?}, minor = {:?}", initout.get_major(), initout.get_minor());
-            }
-            else if initout.get_flags() != 0x40f039 {
-                warn!("fuse_node init unsupport flags = {:#x}", initout.get_flags());
+                warn!(
+                    "fuse_node init unsupport version, major = {:?}, minor = {:?}",
+                    initout.get_major(),
+                    initout.get_minor()
+                );
+            } else if initout.get_flags() != 0x40f039 {
+                warn!(
+                    "fuse_node init unsupport flags = {:#x}",
+                    initout.get_flags()
+                );
             }
 
             FUSEFLAG.store(0, Ordering::Relaxed);
@@ -329,7 +352,11 @@ impl FuseNode {
             return node.lookup(&RelPath::new(rest));
         }
 
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node LOOKUP({:?}) {:?} here...", FuseOpcode::FuseLookup as u32, path);
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node LOOKUP({:?}) {:?} here...",
+            FuseOpcode::FuseLookup as u32,
+            path
+        );
 
         let lookup_error;
         let mut entryout = FuseEntryOut::default();
@@ -340,12 +367,26 @@ impl FuseNode {
         let path_len = path.len();
         let nodeid = self.get_node_inode();
         let fh = self.get_fh();
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}", pid, nodeid, fh, self.is_dir());
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir()
+        );
 
-        let fusein = FuseInHeader::new(41 + path_len as u32, FuseOpcode::FuseLookup as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            41 + path_len as u32,
+            FuseOpcode::FuseLookup as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 180];
         fusein.write_to(&mut fusebuf[0..40]);
-        fusebuf[40..40+path_len].copy_from_slice(path.as_bytes());
+        fusebuf[40..40 + path_len].copy_from_slice(path.as_bytes());
         fusein.print();
 
         unsafe {
@@ -382,8 +423,7 @@ impl FuseNode {
                 entryout = FuseEntryOut::read_from(&outbuf[16..]);
                 entryout.print();
                 lookup_error = 1;
-            }
-            else {
+            } else {
                 lookup_error = fuseout.error();
             }
 
@@ -407,26 +447,46 @@ impl FuseNode {
                 self.set_node_nlink(entryout.get_nlink());
                 let parent = match self.parent() {
                     Some(_) => Some(Arc::downgrade(&self.parent().unwrap())),
-                    None => None
+                    None => None,
                 };
-                let node = FuseNode::new(parent, entryout.get_nodeid(), entryout.get_attr(), entryout.get_nlink(), 0);
+                let node = FuseNode::new(
+                    parent,
+                    entryout.get_nodeid(),
+                    entryout.get_attr(),
+                    entryout.get_nlink(),
+                    0,
+                );
                 Ok(node)
             }
             ".." => {
-                let node = FuseNode::new(None, entryout.get_nodeid(), entryout.get_attr(), entryout.get_nlink(), 0);
+                let node = FuseNode::new(
+                    None,
+                    entryout.get_nodeid(),
+                    entryout.get_attr(),
+                    entryout.get_nlink(),
+                    0,
+                );
                 Ok(node)
             }
             _ => {
-                let node = FuseNode::new(Some(self.this.clone()), entryout.get_nodeid(), entryout.get_attr(), entryout.get_nlink(), 0);
+                let node = FuseNode::new(
+                    Some(self.this.clone()),
+                    entryout.get_nodeid(),
+                    entryout.get_attr(),
+                    entryout.get_nlink(),
+                    0,
+                );
                 Ok(node)
             }
         }
-
     }
 
     /// FuseOpendir = 27
     pub fn open_dir(&self) -> Result<Option<Arc<dyn VfsNodeOps>>, VfsError> {
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node OPENDIR({:?}) here...", FuseOpcode::FuseOpendir as u32);
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node OPENDIR({:?}) here...",
+            FuseOpcode::FuseOpendir as u32
+        );
 
         let opendir_error;
         let mut opendirout = FuseOpenOut::default();
@@ -436,9 +496,23 @@ impl FuseNode {
         let pid = current().id().as_u64();
         let nodeid = self.get_node_inode();
         let fh = self.get_fh();
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}", pid, nodeid, fh, self.is_dir());
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir()
+        );
 
-        let fusein = FuseInHeader::new(48, FuseOpcode::FuseOpendir as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            48,
+            FuseOpcode::FuseOpendir as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 48];
         fusein.write_to(&mut fusebuf);
         let openin = FuseOpenIn::new(0x18800, 0);
@@ -458,7 +532,10 @@ impl FuseNode {
             loop {
                 let flag = FUSEFLAG.load(Ordering::SeqCst);
                 if flag < 0 {
-                    trace!("Fuseflag at open_dir is set to {:?}, exiting loop. !!!", flag);
+                    trace!(
+                        "Fuseflag at open_dir is set to {:?}, exiting loop. !!!",
+                        flag
+                    );
                     break;
                 }
                 ruxtask::yield_now();
@@ -480,8 +557,7 @@ impl FuseNode {
                 opendirout = FuseOpenOut::read_from(&outbuf[16..]);
                 opendirout.print();
                 opendir_error = 1;
-            }
-            else {
+            } else {
                 opendir_error = fuseout.error();
             }
 
@@ -498,7 +574,7 @@ impl FuseNode {
                 _ => return Err(VfsError::PermissionDenied),
             }
         }
-        
+
         let mut fh_guard = self.fh.lock();
         let fh = &mut *fh_guard;
         *fh = opendirout.get_fh();
@@ -511,7 +587,10 @@ impl FuseNode {
 
     /// FuseReleasedir = 28
     pub fn release_dir(&self) -> VfsResult {
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node RELEASEDIR({:?}) here...", FuseOpcode::FuseReleasedir as u32);
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node RELEASEDIR({:?}) here...",
+            FuseOpcode::FuseReleasedir as u32
+        );
 
         let releasedir_error;
 
@@ -520,9 +599,23 @@ impl FuseNode {
         let pid = current().id().as_u64();
         let nodeid = self.get_node_inode();
         let fh = self.get_fh();
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}", pid, nodeid, fh, self.is_dir());
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir()
+        );
 
-        let fusein = FuseInHeader::new(64, FuseOpcode::FuseReleasedir as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            64,
+            FuseOpcode::FuseReleasedir as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 64];
         fusein.write_to(&mut fusebuf);
         let releasein = FuseReleaseIn::new(fh, 0x18800, 0, 0);
@@ -542,7 +635,10 @@ impl FuseNode {
             loop {
                 let flag = FUSEFLAG.load(Ordering::SeqCst);
                 if flag < 0 {
-                    trace!("Fuseflag at release_dir is set to {:?}, exiting loop. !!!", flag);
+                    trace!(
+                        "Fuseflag at release_dir is set to {:?}, exiting loop. !!!",
+                        flag
+                    );
                     break;
                 }
                 ruxtask::yield_now();
@@ -562,8 +658,7 @@ impl FuseNode {
 
             if fuseout.is_ok() {
                 releasedir_error = 1;
-            }
-            else {
+            } else {
                 releasedir_error = fuseout.error();
             }
 
@@ -586,7 +681,10 @@ impl FuseNode {
 
     /// FuseForget = 2
     pub fn forget(&self) -> VfsResult {
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node FORGET({:?}) here...", FuseOpcode::FuseForget as u32);
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node FORGET({:?}) here...",
+            FuseOpcode::FuseForget as u32
+        );
 
         let forget_error;
 
@@ -595,9 +693,23 @@ impl FuseNode {
         let pid = current().id().as_u64();
         let nodeid = self.get_node_inode();
         let fh = self.get_fh();
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}", pid, nodeid, fh, self.is_dir());
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir()
+        );
 
-        let fusein = FuseInHeader::new(48, FuseOpcode::FuseForget as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            48,
+            FuseOpcode::FuseForget as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 48];
         fusein.write_to(&mut fusebuf);
         let forgetin = FuseForgetIn::new(4);
@@ -637,8 +749,7 @@ impl FuseNode {
 
             if fuseout.is_ok() {
                 forget_error = 1;
-            }
-            else {
+            } else {
                 forget_error = fuseout.error();
             }
 
@@ -660,7 +771,10 @@ impl FuseNode {
 
     /// FuseSetattr = 4
     pub fn set_attr(&self, attr: &FuseAttr, to_set: u32) -> VfsResult {
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node SETATTR({:?}) here...", FuseOpcode::FuseSetattr as u32);
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node SETATTR({:?}) here...",
+            FuseOpcode::FuseSetattr as u32
+        );
 
         let setattr_error;
         let mut attrout = FuseAttrOut::default();
@@ -670,9 +784,23 @@ impl FuseNode {
         let pid = current().id().as_u64();
         let nodeid = self.get_node_inode();
         let fh = self.get_fh();
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}", pid, nodeid, fh, self.is_dir());
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir()
+        );
 
-        let fusein = FuseInHeader::new(128, FuseOpcode::FuseSetattr as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            128,
+            FuseOpcode::FuseSetattr as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 128];
         fusein.write_to(&mut fusebuf);
         let mut attrin = FuseAttr::default();
@@ -722,7 +850,10 @@ impl FuseNode {
             loop {
                 let flag = FUSEFLAG.load(Ordering::SeqCst);
                 if flag < 0 {
-                    trace!("Fuseflag at setattr is set to {:?}, exiting loop. !!!", flag);
+                    trace!(
+                        "Fuseflag at setattr is set to {:?}, exiting loop. !!!",
+                        flag
+                    );
                     break;
                 }
                 ruxtask::yield_now();
@@ -744,8 +875,7 @@ impl FuseNode {
                 attrout = FuseAttrOut::read_from(&outbuf[16..]);
                 attrout.print();
                 setattr_error = 1;
-            }
-            else {
+            } else {
                 setattr_error = fuseout.error();
             }
 
@@ -773,7 +903,10 @@ impl FuseNode {
 
     /// FuseReadlink = 5
     pub fn readlink(&self) -> VfsResult<String> {
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node READLINK({:?}) here...", FuseOpcode::FuseReadlink as u32);
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node READLINK({:?}) here...",
+            FuseOpcode::FuseReadlink as u32
+        );
 
         let readlink_error;
         let mut readlinkout = String::new();
@@ -783,9 +916,23 @@ impl FuseNode {
         let pid = current().id().as_u64();
         let nodeid = self.get_node_inode();
         let fh = self.get_fh();
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}", pid, nodeid, fh, self.is_dir());
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir()
+        );
 
-        let fusein = FuseInHeader::new(40, FuseOpcode::FuseReadlink as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            40,
+            FuseOpcode::FuseReadlink as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 40];
         fusein.write_to(&mut fusebuf);
         fusein.print();
@@ -802,7 +949,10 @@ impl FuseNode {
             loop {
                 let flag = FUSEFLAG.load(Ordering::SeqCst);
                 if flag < 0 {
-                    trace!("Fuseflag at readlink is set to {:?}, exiting loop. !!!", flag);
+                    trace!(
+                        "Fuseflag at readlink is set to {:?}, exiting loop. !!!",
+                        flag
+                    );
                     break;
                 }
                 ruxtask::yield_now();
@@ -823,8 +973,7 @@ impl FuseNode {
             if fuseout.is_ok() {
                 readlinkout = String::from_utf8_lossy(&outbuf[16..]).to_string();
                 readlink_error = 1;
-            }
-            else {
+            } else {
                 readlink_error = fuseout.error();
             }
 
@@ -847,7 +996,12 @@ impl FuseNode {
 
     /// FuseSymlink = 6
     pub fn symlink(&self, name: &RelPath, link: &RelPath) -> VfsResult {
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node SYMLINK({:?}) {:?} link to {:?} here...", FuseOpcode::FuseSymlink as u32, name, link);
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node SYMLINK({:?}) {:?} link to {:?} here...",
+            FuseOpcode::FuseSymlink as u32,
+            name,
+            link
+        );
 
         let symlink_error;
         let symlinkout;
@@ -859,9 +1013,23 @@ impl FuseNode {
         let link_len = link.len();
         let nodeid = self.get_node_inode();
         let fh = self.get_fh();
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}", pid, nodeid, fh, self.is_dir());
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir()
+        );
 
-        let fusein = FuseInHeader::new(42 + (name_len + link_len) as u32, FuseOpcode::FuseSymlink as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            42 + (name_len + link_len) as u32,
+            FuseOpcode::FuseSymlink as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 280];
         fusein.write_to(&mut fusebuf);
         fusebuf[40..40 + name_len].copy_from_slice(name.as_bytes());
@@ -880,7 +1048,10 @@ impl FuseNode {
             loop {
                 let flag = FUSEFLAG.load(Ordering::SeqCst);
                 if flag < 0 {
-                    trace!("Fuseflag at symlink is set to {:?}, exiting loop. !!!", flag);
+                    trace!(
+                        "Fuseflag at symlink is set to {:?}, exiting loop. !!!",
+                        flag
+                    );
                     break;
                 }
                 ruxtask::yield_now();
@@ -900,8 +1071,7 @@ impl FuseNode {
                 symlinkout = FuseEntryOut::read_from(&outbuf[16..]);
                 symlinkout.print();
                 symlink_error = 1;
-            }
-            else {
+            } else {
                 symlink_error = fuseout.error();
             }
 
@@ -921,7 +1091,7 @@ impl FuseNode {
             Ok(())
         }
     }
-    
+
     /// FuseMknod = 8
     pub fn mknod(&self, name: &RelPath, ty: VfsNodeType) -> VfsResult {
         let newtype = match ty {
@@ -932,7 +1102,12 @@ impl FuseNode {
             VfsNodeType::Socket => "socket",
             _ => "unknown",
         };
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node MKNOD({:?}) {:?} here, type: {:?}...", FuseOpcode::FuseMknod as u32, name, newtype);
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node MKNOD({:?}) {:?} here, type: {:?}...",
+            FuseOpcode::FuseMknod as u32,
+            name,
+            newtype
+        );
 
         // panic!("fuse_node mknod not implemented yet...");
         let mknod_error;
@@ -944,9 +1119,23 @@ impl FuseNode {
         let name_len = name.len();
         let nodeid = self.get_node_inode();
         let fh = self.get_fh();
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}", pid, nodeid, fh, self.is_dir());
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir()
+        );
 
-        let fusein = FuseInHeader::new(57 + name_len as u32, FuseOpcode::FuseMknod as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            57 + name_len as u32,
+            FuseOpcode::FuseMknod as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 180];
         fusein.write_to(&mut fusebuf);
 
@@ -1002,8 +1191,7 @@ impl FuseNode {
                 mknodout = FuseEntryOut::read_from(&outbuf[16..]);
                 mknodout.print();
                 mknod_error = 1;
-            }
-            else {
+            } else {
                 mknod_error = fuseout.error();
             }
 
@@ -1026,7 +1214,11 @@ impl FuseNode {
 
     /// FuseMkdir = 9
     pub fn mkdir(&self, name: &RelPath) -> VfsResult {
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node MKDIR({:?}) {:?} here...", FuseOpcode::FuseMkdir as u32, name);
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node MKDIR({:?}) {:?} here...",
+            FuseOpcode::FuseMkdir as u32,
+            name
+        );
 
         let mkdir_error;
         let mkdirout;
@@ -1037,9 +1229,23 @@ impl FuseNode {
         let name_len = name.len();
         let nodeid = self.get_node_inode();
         let fh = self.get_fh();
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}", pid, nodeid, fh, self.is_dir());
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir()
+        );
 
-        let fusein = FuseInHeader::new(49 + name_len as u32, FuseOpcode::FuseMkdir as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            49 + name_len as u32,
+            FuseOpcode::FuseMkdir as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 180];
         fusein.write_to(&mut fusebuf);
         let mkdirin = FuseMkdirIn::new(0x1ff, 18); // 0x1ed => 0755
@@ -1082,15 +1288,14 @@ impl FuseNode {
                 mkdirout = FuseEntryOut::read_from(&outbuf[16..]);
                 mkdirout.print();
                 mkdir_error = 1;
-            }
-            else {
+            } else {
                 mkdir_error = fuseout.error();
             }
 
             FUSEFLAG.store(0, Ordering::Relaxed);
         }
 
-        debug!("fuse_node mkdir finish successfully...");        
+        debug!("fuse_node mkdir finish successfully...");
 
         if mkdir_error < 0 {
             match mkdir_error {
@@ -1101,13 +1306,13 @@ impl FuseNode {
                 _ => return Err(VfsError::PermissionDenied),
             }
         }
-        
+
         Ok(())
     }
 
     /// FuseRmdir = 11
     pub fn rmdir(&self, name: &RelPath) -> VfsResult {
-        let mut dirents:[VfsDirEntry; 8] = [VfsDirEntry::new("", VfsNodeType::File); 8];
+        let mut dirents: [VfsDirEntry; 8] = [VfsDirEntry::new("", VfsNodeType::File); 8];
         let mut cur = 0;
         let node = self.try_get(&RelPath::new(name))?;
         node.get_attr()?;
@@ -1131,7 +1336,11 @@ impl FuseNode {
         }
         node.release()?;
 
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node RMDIR({:?}) {:?} here...", FuseOpcode::FuseRmdir as u32, name);
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node RMDIR({:?}) {:?} here...",
+            FuseOpcode::FuseRmdir as u32,
+            name
+        );
 
         let rmdir_error;
 
@@ -1141,9 +1350,23 @@ impl FuseNode {
         let name_len = name.len();
         let nodeid = self.get_node_inode();
         let fh = self.get_fh();
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}", pid, nodeid, fh, self.is_dir());
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir()
+        );
 
-        let fusein = FuseInHeader::new(41 + name_len as u32, FuseOpcode::FuseRmdir as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            41 + name_len as u32,
+            FuseOpcode::FuseRmdir as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 180];
         fusein.write_to(&mut fusebuf);
         fusebuf[40..40 + name_len].copy_from_slice(name.as_bytes());
@@ -1181,8 +1404,7 @@ impl FuseNode {
 
             if fuseout.is_ok() {
                 rmdir_error = 1;
-            }
-            else {
+            } else {
                 rmdir_error = fuseout.error();
             }
 
@@ -1202,13 +1424,16 @@ impl FuseNode {
             }
 
             Ok(())
-
         }
     }
 
     /// FuseUnlink = 10
     pub fn unlink_node(&self, name: &RelPath) -> VfsResult {
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node UNLINK({:?}) {:?} here...", FuseOpcode::FuseUnlink as u32, name);
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node UNLINK({:?}) {:?} here...",
+            FuseOpcode::FuseUnlink as u32,
+            name
+        );
 
         let unlink_error;
 
@@ -1218,9 +1443,23 @@ impl FuseNode {
         let name_len = name.len();
         let nodeid = self.get_node_inode();
         let fh = self.get_fh();
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}", pid, nodeid, fh, self.is_dir());
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir()
+        );
 
-        let fusein = FuseInHeader::new(41 + name_len as u32, FuseOpcode::FuseUnlink as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            41 + name_len as u32,
+            FuseOpcode::FuseUnlink as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 180];
         fusein.write_to(&mut fusebuf);
         fusebuf[40..40 + name_len].copy_from_slice(name.as_bytes());
@@ -1258,8 +1497,7 @@ impl FuseNode {
 
             if fuseout.is_ok() {
                 unlink_error = 1;
-            }
-            else {
+            } else {
                 unlink_error = fuseout.error();
             }
 
@@ -1280,10 +1518,15 @@ impl FuseNode {
             Ok(())
         }
     }
-    
+
     /// FuseRead = 15
     fn read(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node READ({:?}) here, offset: {:?}, buf_len: {:?}...", FuseOpcode::FuseRead as u32, offset, buf.len());
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node READ({:?}) here, offset: {:?}, buf_len: {:?}...",
+            FuseOpcode::FuseRead as u32,
+            offset,
+            buf.len()
+        );
 
         let read_error;
         let mut outlen = 0;
@@ -1294,11 +1537,25 @@ impl FuseNode {
         let nodeid = self.get_node_inode();
         let fh = self.get_fh();
 
-        let fusein = FuseInHeader::new(80, FuseOpcode::FuseRead as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            80,
+            FuseOpcode::FuseRead as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 80];
         fusein.write_to(&mut fusebuf);
 
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}", pid, nodeid, fh, self.is_dir());
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir()
+        );
         let mut flags_guard = self.flags.lock();
         let readflags = &mut *flags_guard;
         *readflags = 0x8002;
@@ -1340,13 +1597,12 @@ impl FuseNode {
             fuseout.print();
 
             if fuseout.is_ok() {
-                let readout = &outbuf[16..outlen+16];
+                let readout = &outbuf[16..outlen + 16];
                 buf[..outlen].copy_from_slice(readout);
                 debug!("readout_len: {:?}", outlen);
                 trace!("readout: {:?}", readout);
                 read_error = 1;
-            }
-            else {
+            } else {
                 read_error = fuseout.error();
             }
 
@@ -1369,7 +1625,10 @@ impl FuseNode {
 
     /// FuseStatfs = 17
     pub fn statfs(&self) -> VfsResult<FuseStatfsOut> {
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node STATFS({:?}) here...", FuseOpcode::FuseStatfs as u32);
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node STATFS({:?}) here...",
+            FuseOpcode::FuseStatfs as u32
+        );
 
         let statfs_error;
         let mut statfsout = FuseStatfsOut::default();
@@ -1379,9 +1638,23 @@ impl FuseNode {
         let pid = current().id().as_u64();
         let nodeid = self.get_node_inode();
         let fh = self.get_fh();
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}", pid, nodeid, fh, self.is_dir());
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir()
+        );
 
-        let fusein = FuseInHeader::new(40, FuseOpcode::FuseStatfs as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            40,
+            FuseOpcode::FuseStatfs as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 40];
         fusein.write_to(&mut fusebuf);
         fusein.print();
@@ -1420,8 +1693,7 @@ impl FuseNode {
                 statfsout = FuseStatfsOut::read_from(&outbuf[16..]);
                 statfsout.print();
                 statfs_error = 1;
-            }
-            else {
+            } else {
                 statfs_error = fuseout.error();
             }
 
@@ -1443,7 +1715,10 @@ impl FuseNode {
 
     /// FuseFlush = 25
     pub fn flush(&self) -> VfsResult {
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node FLUSH({:?}) here...", FuseOpcode::FuseFlush as u32);
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node FLUSH({:?}) here...",
+            FuseOpcode::FuseFlush as u32
+        );
 
         let flush_error;
 
@@ -1452,9 +1727,23 @@ impl FuseNode {
         let pid = current().id().as_u64();
         let nodeid = self.get_node_inode();
         let fh = self.get_fh();
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}", pid, nodeid, fh, self.is_dir());
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir()
+        );
 
-        let fusein = FuseInHeader::new(64, FuseOpcode::FuseFlush as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            64,
+            FuseOpcode::FuseFlush as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 64];
         fusein.write_to(&mut fusebuf);
         let flushin = FuseFlushIn::new(fh, 0, 0, 0);
@@ -1494,8 +1783,7 @@ impl FuseNode {
 
             if fuseout.is_ok() {
                 flush_error = 1;
-            }
-            else {
+            } else {
                 flush_error = fuseout.error();
             }
 
@@ -1517,7 +1805,10 @@ impl FuseNode {
 
     /// FuseAccess = 34
     pub fn access(&self) -> VfsResult {
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node ACCESS({:?}) here...", FuseOpcode::FuseAccess as u32);
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node ACCESS({:?}) here...",
+            FuseOpcode::FuseAccess as u32
+        );
 
         let access_error;
 
@@ -1526,9 +1817,23 @@ impl FuseNode {
         let pid = current().id().as_u64();
         let nodeid = self.get_node_inode();
         let fh = self.get_fh();
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}", pid, nodeid, fh, self.is_dir());
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir()
+        );
 
-        let fusein = FuseInHeader::new(48, FuseOpcode::FuseAccess as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            48,
+            FuseOpcode::FuseAccess as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 48];
         fusein.write_to(&mut fusebuf);
         let accessin = FuseAccessIn::new(1);
@@ -1568,8 +1873,7 @@ impl FuseNode {
 
             if fuseout.is_ok() {
                 access_error = 1;
-            }
-            else {
+            } else {
                 access_error = fuseout.error();
             }
 
@@ -1587,12 +1891,16 @@ impl FuseNode {
 
             Ok(())
         }
-
     }
 
     /// FuseRename2 = 45
     pub fn rename2(&self, old: &RelPath, new: &RelPath) -> VfsResult {
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node RENAME2({:?}) from {:?} to {:?} here...", FuseOpcode::FuseRename2 as u32, old, new);
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node RENAME2({:?}) from {:?} to {:?} here...",
+            FuseOpcode::FuseRename2 as u32,
+            old,
+            new
+        );
 
         let rename_error;
 
@@ -1603,9 +1911,23 @@ impl FuseNode {
         let new_len = new.len();
         let nodeid = self.get_node_inode();
         let fh = self.get_fh();
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}", pid, nodeid, fh, self.is_dir());
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir()
+        );
 
-        let fusein = FuseInHeader::new(58 + (old_len + new_len) as u32, FuseOpcode::FuseRename2 as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            58 + (old_len + new_len) as u32,
+            FuseOpcode::FuseRename2 as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 280];
         fusein.write_to(&mut fusebuf);
         let rename2in = FuseRename2In::new(1, 1);
@@ -1627,7 +1949,10 @@ impl FuseNode {
             loop {
                 let flag = FUSEFLAG.load(Ordering::SeqCst);
                 if flag < 0 {
-                    trace!("Fuseflag at rename2 is set to {:?}, exiting loop. !!!", flag);
+                    trace!(
+                        "Fuseflag at rename2 is set to {:?}, exiting loop. !!!",
+                        flag
+                    );
                     break;
                 }
                 ruxtask::yield_now();
@@ -1647,14 +1972,16 @@ impl FuseNode {
 
             if fuseout.is_ok() {
                 rename_error = 1;
-            }
-            else {
+            } else {
                 rename_error = fuseout.error();
             }
 
             FUSEFLAG.store(0, Ordering::Relaxed);
 
-            debug!("fuse_node rename2 from {:?} to {:?} finish successfully...", old, new);
+            debug!(
+                "fuse_node rename2 from {:?} to {:?} finish successfully...",
+                old, new
+            );
 
             if rename_error < 0 {
                 match rename_error {
@@ -1671,7 +1998,12 @@ impl FuseNode {
 
     /// FuseLseek = 46
     pub fn lseek(&self, offset: u64, whence: u32) -> VfsResult<u64> {
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node LSEEK({:?}) offset: {:?}, whence: {:?} here...", FuseOpcode::FuseLseek as u32, offset, whence);
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node LSEEK({:?}) offset: {:?}, whence: {:?} here...",
+            FuseOpcode::FuseLseek as u32,
+            offset,
+            whence
+        );
 
         let lseek_error;
         let mut lseekout = 0;
@@ -1681,9 +2013,23 @@ impl FuseNode {
         let pid = current().id().as_u64();
         let nodeid = self.get_node_inode();
         let fh = self.get_fh();
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}", pid, nodeid, fh, self.is_dir());
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir()
+        );
 
-        let fusein = FuseInHeader::new(64, FuseOpcode::FuseLseek as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            64,
+            FuseOpcode::FuseLseek as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 64];
         fusein.write_to(&mut fusebuf);
         let lseekin = FuseLseekIn::new(fh, offset, whence);
@@ -1725,8 +2071,7 @@ impl FuseNode {
                 lseekout = FuseLseekOut::read_from(&outbuf[16..]).get_offset();
                 debug!("lseekout = {:?}", lseekout);
                 lseek_error = 1;
-            }
-            else {
+            } else {
                 lseek_error = fuseout.error();
             }
 
@@ -1748,7 +2093,10 @@ impl FuseNode {
 
     /// FuseDestroy = 38
     pub fn destroy(&self) -> VfsResult {
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node DESTROY({:?}) here...", FuseOpcode::FuseDestroy as u32);
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node DESTROY({:?}) here...",
+            FuseOpcode::FuseDestroy as u32
+        );
 
         let destroy_error;
 
@@ -1757,9 +2105,23 @@ impl FuseNode {
         let pid = current().id().as_u64();
         let nodeid = self.get_node_inode();
         let fh = self.get_fh();
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}", pid, nodeid, fh, self.is_dir());
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir()
+        );
 
-        let fusein = FuseInHeader::new(40, FuseOpcode::FuseDestroy as u32, unique_id, 1, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            40,
+            FuseOpcode::FuseDestroy as u32,
+            unique_id,
+            1,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 40];
         fusein.write_to(&mut fusebuf);
         fusein.print();
@@ -1776,7 +2138,10 @@ impl FuseNode {
             loop {
                 let flag = FUSEFLAG.load(Ordering::SeqCst);
                 if flag < 0 {
-                    trace!("Fuseflag at destroy is set to {:?}, exiting loop. !!!", flag);
+                    trace!(
+                        "Fuseflag at destroy is set to {:?}, exiting loop. !!!",
+                        flag
+                    );
                     break;
                 }
                 ruxtask::yield_now();
@@ -1796,13 +2161,11 @@ impl FuseNode {
 
             if fuseout.is_ok() {
                 destroy_error = 1;
-            }
-            else {
+            } else {
                 destroy_error = fuseout.error();
             }
 
             FUSEFLAG.store(0, Ordering::Relaxed);
-
         }
 
         debug!("fuse_node destroy finish successfully...");
@@ -1824,17 +2187,19 @@ impl FuseNode {
 
         Ok(())
     }
-    
 }
 
 impl VfsNodeOps for FuseNode {
     /// FuseOpen = 14
     fn open(&self) -> Result<Option<Arc<dyn VfsNodeOps>>, VfsError> {
         if self.is_dir() {
-            return self.open_dir()
+            return self.open_dir();
         }
-        
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node OPEN({:?}) here...", FuseOpcode::FuseOpen as u32);
+
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node OPEN({:?}) here...",
+            FuseOpcode::FuseOpen as u32
+        );
 
         let open_error;
         let mut openout = FuseOpenOut::default();
@@ -1848,9 +2213,24 @@ impl VfsNodeOps for FuseNode {
         if flags == 0x8001 {
             flags = 0x8002;
         }
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}, flags: {:#x}", pid, nodeid, fh, self.is_dir(), flags);
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}, flags: {:#x}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir(),
+            flags
+        );
 
-        let fusein = FuseInHeader::new(48, FuseOpcode::FuseOpen as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            48,
+            FuseOpcode::FuseOpen as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 48];
         fusein.write_to(&mut fusebuf);
         let openin = FuseOpenIn::new(flags, 0);
@@ -1891,8 +2271,7 @@ impl VfsNodeOps for FuseNode {
                 openout = FuseOpenOut::read_from(&outbuf[16..]);
                 openout.print();
                 open_error = 1;
-            }
-            else {
+            } else {
                 open_error = fuseout.error();
             }
 
@@ -1911,18 +2290,25 @@ impl VfsNodeOps for FuseNode {
         }
 
         self.set_fh(openout.get_fh());
-        debug!("fh = {:#x}, openout.fh = {:#x}", self.get_fh(), openout.get_fh());
-        
+        debug!(
+            "fh = {:#x}, openout.fh = {:#x}",
+            self.get_fh(),
+            openout.get_fh()
+        );
+
         Ok(None)
     }
-    
+
     /// FuseRelease = 18
     fn release(&self) -> VfsResult {
         if self.is_dir() {
-            return self.release_dir()            
+            return self.release_dir();
         }
 
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node RELEASE({:?}) here...", FuseOpcode::FuseRelease as u32);
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node RELEASE({:?}) here...",
+            FuseOpcode::FuseRelease as u32
+        );
 
         let release_error;
 
@@ -1932,9 +2318,24 @@ impl VfsNodeOps for FuseNode {
         let nodeid = self.get_node_inode();
         let fh = self.get_fh();
         let flags = self.get_node_flags();
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}, flags: {:#x}", pid, nodeid, fh, self.is_dir(), flags);
-            
-        let fusein = FuseInHeader::new(64, FuseOpcode::FuseRelease as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}, flags: {:#x}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir(),
+            flags
+        );
+
+        let fusein = FuseInHeader::new(
+            64,
+            FuseOpcode::FuseRelease as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 64];
         fusein.write_to(&mut fusebuf);
         let releasein = FuseReleaseIn::new(fh, flags, 0, 0);
@@ -1954,7 +2355,10 @@ impl VfsNodeOps for FuseNode {
             loop {
                 let flag = FUSEFLAG.load(Ordering::SeqCst);
                 if flag < 0 {
-                    trace!("Fuseflag at release is set to {:?}, exiting loop. !!!", flag);
+                    trace!(
+                        "Fuseflag at release is set to {:?}, exiting loop. !!!",
+                        flag
+                    );
                     break;
                 }
                 ruxtask::yield_now();
@@ -1974,8 +2378,7 @@ impl VfsNodeOps for FuseNode {
 
             if fuseout.is_ok() {
                 release_error = 1;
-            }
-            else {
+            } else {
                 release_error = fuseout.error();
             }
 
@@ -1983,7 +2386,7 @@ impl VfsNodeOps for FuseNode {
         }
 
         debug!("fuse_node release finish successfully...");
-        
+
         if release_error < 0 {
             match release_error {
                 -13 => return Err(VfsError::PermissionDenied),
@@ -1999,8 +2402,11 @@ impl VfsNodeOps for FuseNode {
     /// FuseGetattr = 3
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
         self.check_init();
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node GET_ATTR({:?}) here...", FuseOpcode::FuseGetattr as u32);
-    
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node GET_ATTR({:?}) here...",
+            FuseOpcode::FuseGetattr as u32
+        );
+
         let attr_size;
 
         UNIQUE_ID.fetch_add(2, Ordering::Relaxed);
@@ -2008,9 +2414,23 @@ impl VfsNodeOps for FuseNode {
         let pid = current().id().as_u64();
         let nodeid = self.get_node_inode();
         let fh = self.get_fh();
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}", pid, nodeid, fh, self.is_dir());
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir()
+        );
 
-        let fusein = FuseInHeader::new(56, FuseOpcode::FuseGetattr as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            56,
+            FuseOpcode::FuseGetattr as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 56];
         fusein.write_to(&mut fusebuf);
         let getattrin = FuseGetattrIn::new(0, 0, fh);
@@ -2030,7 +2450,10 @@ impl VfsNodeOps for FuseNode {
             loop {
                 let flag = FUSEFLAG.load(Ordering::SeqCst);
                 if flag < 0 {
-                    trace!("Fuseflag at get_attr is set to {:?}, exiting loop. !!!", flag);
+                    trace!(
+                        "Fuseflag at get_attr is set to {:?}, exiting loop. !!!",
+                        flag
+                    );
                     break;
                 }
                 ruxtask::yield_now();
@@ -2063,7 +2486,6 @@ impl VfsNodeOps for FuseNode {
         } else {
             Ok(VfsNodeAttr::new_file(self.get_node_inode(), attr_size, 0))
         }
-
     }
 
     fn parent(&self) -> Option<VfsNodeRef> {
@@ -2076,13 +2498,17 @@ impl VfsNodeOps for FuseNode {
     }
 
     fn read_at(&self, offset: u64, buf: &mut [u8]) -> VfsResult<usize> {
-        debug!("\nFUSE READ AT here, offset: {:?}, buf_len: {:?}\n", offset, buf.len());
+        debug!(
+            "\nFUSE READ AT here, offset: {:?}, buf_len: {:?}\n",
+            offset,
+            buf.len()
+        );
         let mut remain = buf.len();
         let mut cur_offset = offset;
         let mut start = 0;
         while remain > 0 {
             let cur = remain.min(4096);
-            let read_len = self.read(cur_offset, &mut buf[start..start+cur])?;
+            let read_len = self.read(cur_offset, &mut buf[start..start + cur])?;
             cur_offset += read_len as u64;
             start += read_len;
             remain -= read_len;
@@ -2096,7 +2522,12 @@ impl VfsNodeOps for FuseNode {
 
     /// FuseWrite = 16
     fn write_at(&self, offset: u64, buf: &[u8]) -> VfsResult<usize> {
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node WRITE({:?}) here, offset: {:?}, buf_len: {:?}", FuseOpcode::FuseWrite as u32, offset, buf.len());
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node WRITE({:?}) here, offset: {:?}, buf_len: {:?}",
+            FuseOpcode::FuseWrite as u32,
+            offset,
+            buf.len()
+        );
         trace!("buf: {:?}", buf);
 
         let write_error;
@@ -2113,12 +2544,27 @@ impl VfsNodeOps for FuseNode {
         // let wflags = &mut *flags_guard;
         // *wflags = flags;
         self.set_node_flags(flags);
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}, flags: {:#x}", pid, nodeid, fh, self.is_dir(), flags);
-            
-        let fusein = FuseInHeader::new(80 + buf_len as u32, FuseOpcode::FuseWrite as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}, flags: {:#x}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir(),
+            flags
+        );
+
+        let fusein = FuseInHeader::new(
+            80 + buf_len as u32,
+            FuseOpcode::FuseWrite as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 72000];
         fusein.write_to(&mut fusebuf);
-        let writein = FuseWriteIn::new(fh, offset, (buf_len+1) as u32, 0, 0, flags);
+        let writein = FuseWriteIn::new(fh, offset, (buf_len + 1) as u32, 0, 0, flags);
         writein.write_to(&mut fusebuf[40..]);
         fusebuf[80..80 + buf_len].copy_from_slice(buf);
         fusein.print();
@@ -2132,7 +2578,7 @@ impl VfsNodeOps for FuseNode {
             }
 
             FUSEFLAG.store(FuseOpcode::FuseWrite as i32, Ordering::Relaxed);
-            
+
             loop {
                 let flag = FUSEFLAG.load(Ordering::SeqCst);
                 if flag < 0 {
@@ -2143,7 +2589,7 @@ impl VfsNodeOps for FuseNode {
             }
 
             let mut outbuf = [0; 24];
-            
+
             if let Some(vec_arc) = FUSE_VEC.as_ref() {
                 let mut vec = vec_arc.lock();
                 trace!("Fusevec back to write: {:?}", vec);
@@ -2153,13 +2599,12 @@ impl VfsNodeOps for FuseNode {
 
             let fuseout = FuseOutHeader::read_from(&outbuf);
             fuseout.print();
-            
+
             if fuseout.is_ok() {
                 writeout = FuseWriteOut::read_from(&outbuf[16..]);
                 writeout.print();
                 write_error = 1;
-            }
-            else {
+            } else {
                 write_error = fuseout.error();
             }
 
@@ -2182,10 +2627,12 @@ impl VfsNodeOps for FuseNode {
         }
     }
 
-
     /// FuseFsync = 20
     fn fsync(&self) -> VfsResult {
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node FSYNC({:?}) here...", FuseOpcode::FuseFsync as u32);
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node FSYNC({:?}) here...",
+            FuseOpcode::FuseFsync as u32
+        );
 
         let fsync_error;
 
@@ -2194,9 +2641,23 @@ impl VfsNodeOps for FuseNode {
         let pid = current().id().as_u64();
         let nodeid = self.get_node_inode();
         let fh = self.get_fh();
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}", pid, nodeid, fh, self.is_dir());
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir()
+        );
 
-        let fusein = FuseInHeader::new(40, FuseOpcode::FuseFsync as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            40,
+            FuseOpcode::FuseFsync as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 40];
         fusein.write_to(&mut fusebuf);
         fusein.print();
@@ -2233,8 +2694,7 @@ impl VfsNodeOps for FuseNode {
 
             if fuseout.is_ok() {
                 fsync_error = 1;
-            }
-            else {
+            } else {
                 fsync_error = fuseout.error();
             }
 
@@ -2272,7 +2732,9 @@ impl VfsNodeOps for FuseNode {
             if name == "" || name == "." {
                 return self.create(&RelPath::new(rest), ty, mode);
             }
-            return self.try_get(&RelPath::new(name))?.create(&RelPath::new(rest), ty, mode);
+            return self
+                .try_get(&RelPath::new(name))?
+                .create(&RelPath::new(rest), ty, mode);
         }
 
         if ty == VfsNodeType::Dir {
@@ -2290,7 +2752,12 @@ impl VfsNodeOps for FuseNode {
             VfsNodeType::Socket => "socket",
             _ => "unknown",
         };
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node CREATE({:?}) {:?} here, type: {:?}...", FuseOpcode::FuseCreate as u32, path, newtype);
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node CREATE({:?}) {:?} here, type: {:?}...",
+            FuseOpcode::FuseCreate as u32,
+            path,
+            newtype
+        );
 
         let create_error;
         let createout;
@@ -2302,14 +2769,28 @@ impl VfsNodeOps for FuseNode {
         let path_len = path.len();
         let nodeid = self.get_node_inode();
         let fh = self.get_fh();
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}", pid, nodeid, fh, self.is_dir());
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir()
+        );
 
-        let fusein = FuseInHeader::new(57 + path_len as u32, FuseOpcode::FuseCreate as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            57 + path_len as u32,
+            FuseOpcode::FuseCreate as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 180];
         fusein.write_to(&mut fusebuf);
         let createin = FuseCreateIn::new(0x8241, 0x81a4, 18, 0);
         createin.write_to(&mut fusebuf[40..]);
-        fusebuf[56..56+path_len].copy_from_slice(path.as_bytes());
+        fusebuf[56..56 + path_len].copy_from_slice(path.as_bytes());
         fusein.print();
         createin.print();
 
@@ -2349,8 +2830,7 @@ impl VfsNodeOps for FuseNode {
                 openout = FuseOpenOut::read_from(&outbuf[144..]);
                 openout.print();
                 create_error = 1;
-            }
-            else {
+            } else {
                 create_error = fuseout.error();
             }
 
@@ -2378,12 +2858,14 @@ impl VfsNodeOps for FuseNode {
             if name == "" || name == "." {
                 return self.unlink(&RelPath::new(rest));
             }
-            return self.try_get(&RelPath::new(name))?.unlink(&RelPath::new(rest));
+            return self
+                .try_get(&RelPath::new(name))?
+                .unlink(&RelPath::new(rest));
         }
 
         let node = self.try_get(&RelPath::new(name))?;
         let attr = node.get_attr()?;
-        
+
         if attr.file_type() == VfsNodeType::Dir {
             self.rmdir(&RelPath::new(name))
         } else {
@@ -2393,7 +2875,11 @@ impl VfsNodeOps for FuseNode {
 
     /// FuseReaddir = 28
     fn read_dir(&self, start_idx: usize, dirents: &mut [VfsDirEntry]) -> VfsResult<usize> {
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node READ_DIR({:?}) here, start: {:?}...", FuseOpcode::FuseReaddir as u32, start_idx);
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node READ_DIR({:?}) here, start: {:?}...",
+            FuseOpcode::FuseReaddir as u32,
+            start_idx
+        );
 
         let readdir_error;
         let mut dirs = Vec::<FuseDirent>::new();
@@ -2403,9 +2889,23 @@ impl VfsNodeOps for FuseNode {
         let pid = current().id().as_u64();
         let nodeid = self.get_node_inode();
         let fh = self.get_fh();
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}", pid, nodeid, fh, self.is_dir());
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir()
+        );
 
-        let fusein = FuseInHeader::new(80, FuseOpcode::FuseReaddir as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            80,
+            FuseOpcode::FuseReaddir as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 80];
         fusein.write_to(&mut fusebuf);
         let readin = FuseReadIn::new(fh, 0, 4096, 0, 0, 0x18800);
@@ -2425,7 +2925,10 @@ impl VfsNodeOps for FuseNode {
             loop {
                 let flag = FUSEFLAG.load(Ordering::SeqCst);
                 if flag < 0 {
-                    trace!("Fuseflag at readdir is set to {:?}, exiting loop. !!!", flag);
+                    trace!(
+                        "Fuseflag at readdir is set to {:?}, exiting loop. !!!",
+                        flag
+                    );
                     break;
                 }
                 ruxtask::yield_now();
@@ -2448,8 +2951,7 @@ impl VfsNodeOps for FuseNode {
 
             if fuseout.is_ok() {
                 readdir_error = 1;
-            }
-            else {
+            } else {
                 readdir_error = fuseout.error();
             }
 
@@ -2486,10 +2988,19 @@ impl VfsNodeOps for FuseNode {
                     if let Some(entry) = dirs.get(i + start_idx) {
                         let entry_type = entry.get_type_as_vfsnodetype();
                         *ent = VfsDirEntry::new(&entry.get_name(), entry_type);
-                        trace!("entry: {{ name: {:?}, type: {:?} }}", &entry.get_name(), entry_type);
+                        trace!(
+                            "entry: {{ name: {:?}, type: {:?} }}",
+                            &entry.get_name(),
+                            entry_type
+                        );
                     } else {
                         for j in 0..i {
-                            debug!("entry {:?}: name: {:?}, type: {:?}", j, String::from_utf8(dirents[j].name_as_bytes().to_vec()), &dirents[j].entry_type());
+                            debug!(
+                                "entry {:?}: name: {:?}, type: {:?}",
+                                j,
+                                String::from_utf8(dirents[j].name_as_bytes().to_vec()),
+                                &dirents[j].entry_type()
+                            );
                         }
                         debug!("Ok(i) = {:?}", i);
                         return Ok(i);
@@ -2499,17 +3010,27 @@ impl VfsNodeOps for FuseNode {
         }
 
         for j in 0..dirents.len() {
-            debug!("entry {:?}: name: {:?}, type: {:?}", j, String::from_utf8(dirents[j].name_as_bytes().to_vec()), &dirents[j].entry_type());
+            debug!(
+                "entry {:?}: name: {:?}, type: {:?}",
+                j,
+                String::from_utf8(dirents[j].name_as_bytes().to_vec()),
+                &dirents[j].entry_type()
+            );
         }
-        
+
         debug!("Ok(dirents.len()) = {:?}", dirents.len());
         Ok(dirents.len())
     }
 
     /// FuseRename = 12
     fn rename(&self, src_path: &RelPath, dst_path: &RelPath) -> VfsResult {
-        debug!("fuse_node(inode: {:?}) rename src: {:?}, dst: {:?}", self.get_node_inode(), src_path, dst_path);
-        
+        debug!(
+            "fuse_node(inode: {:?}) rename src: {:?}, dst: {:?}",
+            self.get_node_inode(),
+            src_path,
+            dst_path
+        );
+
         let newid;
 
         if NEWID.load(Ordering::SeqCst) == -1 {
@@ -2522,7 +3043,9 @@ impl VfsNodeOps for FuseNode {
             if src_name == "" || src_name == "." {
                 return self.rename(&RelPath::new(src_rest), dst_path);
             }
-            return self.try_get(&RelPath::new(src_name))?.rename(&RelPath::new(src_rest), dst_path);
+            return self
+                .try_get(&RelPath::new(src_name))?
+                .rename(&RelPath::new(src_rest), dst_path);
         }
 
         // let newid = self.find_inode(dst_path).unwrap();
@@ -2531,7 +3054,12 @@ impl VfsNodeOps for FuseNode {
 
         // self.rename2(src_path, dst_path);
 
-        debug!("\nNEW FUSE REQUEST:\n  fuse_node RENAME({:?}) from {:?} to {:?} here...", FuseOpcode::FuseRename as u32, src_path, dst_path);
+        debug!(
+            "\nNEW FUSE REQUEST:\n  fuse_node RENAME({:?}) from {:?} to {:?} here...",
+            FuseOpcode::FuseRename as u32,
+            src_path,
+            dst_path
+        );
 
         let rename_error;
 
@@ -2542,10 +3070,27 @@ impl VfsNodeOps for FuseNode {
         let dst_len = dst_name.len();
         let nodeid = self.get_node_inode();
         let fh = self.get_fh();
-        debug!("pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}", pid, nodeid, fh, self.is_dir());
-        debug!("src_name = {:?}, dst_name = {:?}, src_len = {:?}, dst_len = {:?}", src_name, dst_name, src_len, dst_len);
+        debug!(
+            "pid = {:?}, inode = {:?}, fh = {:#x}, is_dir: {:?}",
+            pid,
+            nodeid,
+            fh,
+            self.is_dir()
+        );
+        debug!(
+            "src_name = {:?}, dst_name = {:?}, src_len = {:?}, dst_len = {:?}",
+            src_name, dst_name, src_len, dst_len
+        );
 
-        let fusein = FuseInHeader::new(50 + (src_len + dst_len) as u32, FuseOpcode::FuseRename as u32, unique_id, nodeid, 1000, 1000, pid as u32);
+        let fusein = FuseInHeader::new(
+            50 + (src_len + dst_len) as u32,
+            FuseOpcode::FuseRename as u32,
+            unique_id,
+            nodeid,
+            1000,
+            1000,
+            pid as u32,
+        );
         let mut fusebuf = [0; 280];
         fusein.write_to(&mut fusebuf);
         debug!("oldid = {:?}, newid = {:?}", nodeid, newid);
@@ -2589,15 +3134,17 @@ impl VfsNodeOps for FuseNode {
 
             if fuseout.is_ok() {
                 rename_error = 1;
-            }
-            else {
+            } else {
                 rename_error = fuseout.error();
             }
-            
+
             FUSEFLAG.store(0, Ordering::Relaxed);
         }
 
-        debug!("fuse_node rename from {:?} to {:?} finish successfully...", src_path, dst_path);
+        debug!(
+            "fuse_node rename from {:?} to {:?} finish successfully...",
+            src_path, dst_path
+        );
 
         if rename_error < 0 {
             match rename_error {
@@ -2610,7 +3157,6 @@ impl VfsNodeOps for FuseNode {
 
         Ok(())
     }
-
 }
 
 fn split_path(path: &str) -> (&str, Option<&str>) {
