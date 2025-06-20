@@ -7,6 +7,8 @@
  *   See the Mulan PSL v2 for more details.
  */
 
+//! /dev/fuse
+
 #![allow(dead_code)]
 use core::sync::atomic::{AtomicI32, Ordering};
 use alloc::sync::Arc;
@@ -18,7 +20,9 @@ use spinlock::SpinNoIrq;
 use alloc::vec::Vec;
 use alloc::vec;
 
+/// A global flag to indicate the state of the FUSE device.
 pub static FUSEFLAG: AtomicI32 = AtomicI32::new(0);
+/// vector to store data for FUSE operations.
 pub static mut FUSE_VEC: Option<Arc<SpinNoIrq<Vec<u8>>>> = None;
 
 
