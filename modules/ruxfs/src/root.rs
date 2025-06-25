@@ -185,9 +185,13 @@ impl VfsNodeOps for RootDirectory {
         if src_path.len() == src_len {
             return ax_err!(PermissionDenied); // cannot rename mount points
         }
-        self.mounts[src_idx].fs.root_dir().rename(
-            &RelPath::new_trimmed(&src_path[src_len..]),
-            &RelPath::new_trimmed(&dst_path[dst_len..]),
-        )
+        if src_len > 0 {
+            self.mounts[src_idx].fs.root_dir().rename(
+                &RelPath::new_trimmed(&src_path[src_len..]),
+                &RelPath::new_trimmed(&dst_path[dst_len..]),
+            )
+        } else {
+            self.main_fs.root_dir().rename(src_path, dst_path)
+        }
     }
 }
