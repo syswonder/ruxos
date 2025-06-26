@@ -68,10 +68,10 @@ pub fn sys_setpgid(pid: pid_t, pgid: pid_t) -> c_int {
     syscall_body!(sys_setpgid, Ok(0))
 }
 
-/// set process sid (empty implementation)
+/// set process sid and create a new session (return 1000)
 ///
 /// TODO:
-pub fn sys_setsid() -> c_int {
-    warn!("sys_setsid: do nothing",);
-    syscall_body!(sys_setsid, Ok(0))
+pub fn sys_setsid() -> pid_t {
+    info!("sys_setsid: create a new session");
+    syscall_body!(sys_setsid, Ok(1000))
 }

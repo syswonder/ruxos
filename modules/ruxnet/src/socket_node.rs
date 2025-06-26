@@ -7,7 +7,6 @@
 *   See the Mulan PSL v2 for more details.
 */
 //! Unix socket node in vfs
-use core::u64;
 
 use alloc::sync::{Arc, Weak};
 use axerrno::{ax_err, LinuxError, LinuxResult};

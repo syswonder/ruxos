@@ -63,7 +63,7 @@ fn test_ramfs() {
     ruxfs::prepare_commonfs(&mut mount_points);
 
     // setup and initialize rootfs
-    ruxfs::init_filesystems(mount_points);
+    ruxtask::fs::init_rootfs(mount_points);
 
     if let Err(e) = create_init_files() {
         log::warn!("failed to create init files: {:?}", e);

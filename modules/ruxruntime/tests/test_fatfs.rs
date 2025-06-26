@@ -39,7 +39,7 @@ fn test_fatfs() {
     ruxfs::prepare_commonfs(&mut mount_points);
 
     // setup and initialize rootfs
-    ruxfs::init_filesystems(mount_points);
+    ruxtask::fs::init_rootfs(mount_points);
 
     test_common::test_all();
 }

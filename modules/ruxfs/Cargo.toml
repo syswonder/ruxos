@@ -17,6 +17,7 @@ ramfs = ["dep:axfs_ramfs"]
 procfs = ["dep:axfs_ramfs"]
 sysfs = ["dep:axfs_ramfs"]
 etcfs = ["dep:axfs_ramfs"]
+mntfs = ["dep:axfs_ramfs"]
 blkfs = []
 fatfs = ["blkfs", "dep:fatfs"]
 # TODO: wait for CI support for ext4
@@ -28,7 +29,7 @@ use-ramdisk = []
 alloc = ["axalloc"]
 fp_simd = []
 
-default = ["devfs", "ramfs", "procfs", "sysfs", "etcfs"]
+default = ["devfs", "ramfs", "procfs", "sysfs", "etcfs", "mntfs"]
 
 [dependencies]
 log = { workspace = true }
@@ -42,6 +43,7 @@ axerrno = { path = "../../crates/axerrno" }
 axfs_vfs = { path = "../../crates/axfs_vfs" }
 axfs_devfs = { path = "../../crates/axfs_devfs", optional = true }
 axfs_ramfs = { path = "../../crates/axfs_ramfs", optional = true }
+spinlock = { path = "../../crates/spinlock" }
 ruxfifo = { path = "../../crates/ruxfifo" }
 crate_interface = { version = "0.1.1" }
 ruxfdtable = { path = "../ruxfdtable" }
