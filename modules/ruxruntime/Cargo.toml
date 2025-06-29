@@ -31,6 +31,7 @@ fs = ["ruxdriver", "ruxfs", "ruxtask/fs"]
 blkfs = ["fs"]
 virtio-9p = ["fs", "rux9p"]
 net-9p = ["fs", "rux9p"]
+fusefs = ["ruxdriver/virtio-blk"]
 net = ["ruxdriver", "ruxnet"]
 display = ["ruxdriver", "ruxdisplay"]
 signal = ["ruxhal/signal", "ruxtask/signal"]
@@ -50,6 +51,7 @@ axalloc = { path = "../axalloc", optional = true }
 ruxdriver = { path = "../ruxdriver", optional = true }
 ruxfs = { path = "../ruxfs", optional = true }
 rux9p = { path = "../rux9p", optional = true }
+ruxvda = { path = "../ruxvda" }
 ruxnet = { path = "../ruxnet", optional = true }
 ruxdisplay = { path = "../ruxdisplay", optional = true }
 ruxtask = { path = "../ruxtask", optional = true }

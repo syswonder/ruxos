@@ -228,6 +228,7 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
             use alloc::vec::Vec;
             // By default, mount_points[0] will be rootfs
             let mut mount_points: Vec<ruxfs::root::MountPoint> = Vec::new();
+            let mut block_dev = Some(all_devices.block);
 
             //setup ramfs as rootfs if no other filesystem can be mounted
             #[cfg(not(any(feature = "blkfs", feature = "virtio-9p", feature = "net-9p")))]
@@ -235,7 +236,7 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
 
             // setup and initialize blkfs as one mountpoint for rootfs
             #[cfg(feature = "blkfs")]
-            mount_points.push(ruxfs::init_blkfs(all_devices.block));
+            mount_points.push(ruxfs::init_blkfs(block_dev.take().unwrap()));
 
             // setup and initialize 9pfs as mountpoint
             #[cfg(feature = "virtio-9p")]
@@ -250,10 +251,17 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
                 option_env!("RUX_ANAME_9P").unwrap_or(""),
                 option_env!("RUX_PROTOCOL_9P").unwrap_or(""),
             ));
+
+            // setup and initialize fusefs as mountpoint
+            #[cfg(feature = "fusefs")]
+            if let Some(block_dev) = block_dev.take() {
+                mount_points.push(ruxvda::init_vdafs(block_dev));
+            }
+
             ruxfs::prepare_commonfs(&mut mount_points);
 
             // setup and initialize rootfs
-            ruxfs::init_filesystems(mount_points);
+            ruxtask::fs::init_rootfs(mount_points);
         }
 
         #[cfg(feature = "display")]

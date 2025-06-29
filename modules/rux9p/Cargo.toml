@@ -9,7 +9,7 @@ homepage = "https://github.com/syswonder/ruxos"
 repository = "https://github.com/syswonder/ruxos/tree/main/modules/rux9p"
 
 [features]
-virtio-9p = ["ruxdriver/virtio-9p", "ruxdriver/virtio-9p"]
+virtio-9p = ["ruxdriver/virtio-9p"]
 net-9p = ["ruxnet", "driver_common", "ruxdriver/dyn", "ruxdriver/_9p"]
 need_auth = []
 

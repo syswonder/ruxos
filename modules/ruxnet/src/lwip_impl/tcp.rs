@@ -1,4 +1,5 @@
 use crate::{
+    message::{MessageFlags, MessageReadInfo},
     net_impl::{driver::lwip_loop_once, ACCEPT_QUEUE_LEN, RECV_QUEUE_LEN},
     IpAddr, SocketAddr,
 };
@@ -9,6 +10,7 @@ use axsync::Mutex;
 use core::cell::UnsafeCell;
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::{ffi::c_void, pin::Pin, ptr::null_mut};
+use iovec::IoVecsOutput;
 use lwip_rust::bindings::{
     err_enum_t_ERR_MEM, err_enum_t_ERR_OK, err_enum_t_ERR_USE, err_enum_t_ERR_VAL, err_t,
     ip_addr_t, pbuf, pbuf_free, tcp_accept, tcp_arg, tcp_bind, tcp_close, tcp_connect,
@@ -375,7 +377,7 @@ impl TcpSocket {
     }
 
     /// Receives data from the socket, stores it in the given buffer.
-    pub fn recv(&self, buf: &mut [u8], _flags: i32) -> AxResult<usize> {
+    pub fn recv(&self, buf: &mut [u8], _flags: MessageFlags) -> AxResult<usize> {
         loop {
             if self.inner.remote_closed {
                 return Ok(0);
@@ -430,6 +432,15 @@ impl TcpSocket {
                 }
             };
         }
+    }
+
+    /// TODO: receive a message from the socket.
+    pub fn recvmsg(
+        &self,
+        _iovecs: &mut IoVecsOutput,
+        _flags: MessageFlags,
+    ) -> AxResult<MessageReadInfo> {
+        todo!()
     }
 
     /// Transmits data in the given buffer.

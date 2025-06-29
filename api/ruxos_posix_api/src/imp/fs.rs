@@ -7,13 +7,14 @@
  *   See the Mulan PSL v2 for more details.
  */
 
+use alloc::string::String;
 use alloc::sync::Arc;
 use core::{
-    ffi::{c_char, c_int, c_long, c_void, CStr},
+    ffi::{c_char, c_int, c_long, c_ulong, c_void, CStr},
     str,
 };
 
-use ruxfs::{api::FileType, fops::lookup, FilePerm};
+use ruxfs::{api::FileType, fops::lookup, FilePerm, MountPoint};
 
 use axerrno::{LinuxError, LinuxResult};
 use axio::{Error, SeekFrom};
@@ -23,7 +24,7 @@ use ruxfs::{
     AbsPath, DirEntry, Directory, File, RelPath,
 };
 
-use crate::ctypes;
+use crate::{ctypes, utils::char_ptr_to_str};
 use ruxtask::fs::{add_file_like, get_file_like, get_umask};
 
 use super::stdio::{Stdin, Stdout};
@@ -35,9 +36,9 @@ impl ruxtask::fs::InitFs for InitFsImpl {
     fn add_stdios_to_fd_table(fs: &mut ruxtask::fs::FileSystem) {
         debug!("init initial process's fd_table");
         let fd_table = &mut fs.fd_table;
-        fd_table.add_at(0, Arc::new(Stdin::default()) as _).unwrap(); // stdin
-        fd_table.add_at(1, Arc::new(Stdout {}) as _).unwrap(); // stdout
-        fd_table.add_at(2, Arc::new(Stdout {}) as _).unwrap(); // stderr
+        fd_table.add(Arc::new(Stdin::default()) as _, OpenFlags::empty()); // stdin
+        fd_table.add(Arc::new(Stdout {}) as _, OpenFlags::empty()); // stdout
+        fd_table.add(Arc::new(Stdout {}) as _, OpenFlags::empty()); // stderr
     }
 }
 
@@ -547,7 +548,7 @@ pub unsafe fn sys_getdents64(fd: c_int, dirp: *mut LinuxDirent64, count: ctypes:
 
             let name = entry.name_as_bytes();
             let name_len = name.len();
-            let entry_size = DIRENT64_FIXED_SIZE + name_len + 1;
+            let entry_size = (DIRENT64_FIXED_SIZE + name_len + 1 + 7) & !7; // align to 8 bytes
 
             // buf not big enough to hold the entry
             if written + entry_size > count {
@@ -562,7 +563,7 @@ pub unsafe fn sys_getdents64(fd: c_int, dirp: *mut LinuxDirent64, count: ctypes:
                 unsafe { &mut *(buf.as_mut_ptr().add(written) as *mut LinuxDirent64) };
             // set fixed-size fields
             dirent.d_ino = 1;
-            dirent.d_off = offset as i64;
+            dirent.d_off = (offset + 1) as i64;
             dirent.d_reclen = entry_size as u16;
             dirent.d_type = entry.entry_type() as u8;
             // set file name
@@ -630,6 +631,85 @@ pub fn sys_chdir(path: *const c_char) -> c_int {
         fops::set_current_dir(path)?;
         Ok(0)
     })
+}
+
+pub const MS_NODEV: u32 = 2;
+pub const MS_NOSUID: u32 = 4;
+
+/// umount a filesystem at a specific location in the filesystem tree
+pub fn sys_umount2(target: *const c_char, flags: c_int) -> c_int {
+    info!(
+        "sys_umount2 <= target: {:?}, flags: {:#x}",
+        char_ptr_to_str(target),
+        flags
+    );
+    syscall_body!(sys_umount2, {
+        let target = char_ptr_to_str(target)?;
+        let dir = ruxtask::current()
+            .fs
+            .lock()
+            .as_mut()
+            .unwrap()
+            .root_dir
+            .clone();
+        dir.umount(&AbsPath::new(target));
+        Ok(0)
+    })
+}
+
+/// mount a filesystem at a specific location in the filesystem tree
+pub fn sys_mount(
+    source: *const c_char,
+    raw_target: *const c_char,
+    filesystemtype: *const c_char,
+    mountflags: c_ulong,
+    data: *const c_void,
+) -> c_int {
+    info!(
+        "sys_mount <= source: {:?}, target: {:?}, filesystemtype: {:?}, mountflags: {:#x}, data: {:p}",
+        char_ptr_to_str(source),
+        char_ptr_to_str(raw_target),
+        char_ptr_to_str(filesystemtype),
+        mountflags,
+        data
+    );
+    syscall_body!(sys_mount, {
+        let f1 = MS_NODEV; //ctypes::MS_NODEV;
+        let f2 = MS_NOSUID; //ctypes::MS_NOSUID;
+        info!(
+            "mount flags: {:#x}, f1: {:#}, f2: {:#}, flag: {:#}",
+            mountflags,
+            f1,
+            f2,
+            f1 | f2
+        );
+        if mountflags != (f1 | f2).into() {
+            warn!("mount flags not supported: {:#x}", mountflags);
+        }
+
+        let target = char_ptr_to_str(raw_target)?;
+        let target = String::from(target);
+        let dir = ruxtask::current()
+            .fs
+            .lock()
+            .as_mut()
+            .unwrap()
+            .root_dir
+            .clone();
+        let vfsops = ruxfuse::fuse::fusefs();
+        info!("mounting filesystem at {}", target);
+        dir.mount(MountPoint {
+            path: target,
+            fs: vfsops,
+        })?;
+        Ok(0)
+    })
+}
+
+/// perform a memory barrier operation.
+pub fn sys_membarrier(cmd: c_int, flags: c_int) -> c_int {
+    info!("sys_membarrier <= cmd: {}, flags: {}", cmd, flags);
+    syscall_body!(sys_membarrier, Ok(0))
 }
 
 /// from char_ptr get path_str

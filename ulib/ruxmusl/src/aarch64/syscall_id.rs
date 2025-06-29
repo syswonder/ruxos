@@ -30,6 +30,10 @@ pub enum SyscallId {
     #[cfg(feature = "fs")]
     UNLINKAT = 35,
     #[cfg(feature = "fs")]
+    UMOUNT2 = 39,
+    #[cfg(feature = "fs")]
+    MOUNT = 40,
+    #[cfg(feature = "fs")]
     RENAMEAT = 38,
     #[cfg(feature = "fs")]
     FTRUNCATE = 46,
@@ -150,6 +154,8 @@ pub enum SyscallId {
     SHUTDOWN = 210,
     #[cfg(feature = "net")]
     SENDMSG = 211,
+    #[cfg(feature = "net")]
+    RECVMSG = 212,
     #[cfg(feature = "alloc")]
     MUNMAP = 215,
     #[cfg(feature = "alloc")]
@@ -170,4 +176,6 @@ pub enum SyscallId {
     WAIT4 = 260,
     PRLIMIT64 = 261,
     GETRANDOM = 278,
+    #[cfg(feature = "fs")]
+    MEMBARRIER = 283,
 }

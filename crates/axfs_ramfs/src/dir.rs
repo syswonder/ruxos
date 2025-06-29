@@ -173,6 +173,15 @@ impl VfsNodeOps for DirNode {
         }
     }
 
+    fn create_socket_node(&self, name: &RelPath, node: VfsNodeRef) -> VfsResult {
+        if self.exist(name) {
+            log::error!("AlreadyExists {}", name);
+            return Err(VfsError::AlreadyExists);
+        }
+        self.children.write().insert(name.as_str().into(), node);
+        Ok(())
+    }
+
     fn unlink(&self, path: &RelPath) -> VfsResult {
         let (name, rest) = split_path(path);
         if let Some(rest) = rest {

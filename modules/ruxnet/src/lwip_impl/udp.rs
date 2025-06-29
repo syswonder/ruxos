@@ -1,4 +1,5 @@
 use crate::{
+    message::{MessageFlags, MessageReadInfo},
     net_impl::{driver::lwip_loop_once, RECV_QUEUE_LEN},
     IpAddr, SocketAddr,
 };
@@ -8,6 +9,7 @@ use axio::PollState;
 use axsync::Mutex;
 use core::sync::atomic::{AtomicBool, Ordering};
 use core::{ffi::c_void, pin::Pin, ptr::null_mut};
+use iovec::IoVecsOutput;
 use lwip_rust::bindings::{
     err_enum_t_ERR_MEM, err_enum_t_ERR_OK, err_enum_t_ERR_RTE, err_enum_t_ERR_USE,
     err_enum_t_ERR_VAL, ip_addr_t, pbuf, pbuf_alloc, pbuf_free, pbuf_layer_PBUF_TRANSPORT,
@@ -273,6 +275,14 @@ impl UdpSocket {
                 }
             };
         }
+    }
+    /// TODO: Receive a message from the socket.
+    pub fn recvmsg(
+        &self,
+        _iovecs: &mut IoVecsOutput,
+        _flags: MessageFlags,
+    ) -> AxResult<MessageReadInfo> {
+        todo!()
     }
 
     /// Connects to the given address and port.

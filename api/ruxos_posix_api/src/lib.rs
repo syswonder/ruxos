@@ -70,9 +70,10 @@ pub use imp::fd_ops::{sys_close, sys_dup, sys_dup2, sys_fcntl};
 #[cfg(feature = "fs")]
 pub use imp::fs::{
     sys_chdir, sys_faccessat, sys_fchmodat, sys_fchownat, sys_fdatasync, sys_fstat, sys_fsync,
-    sys_ftruncate, sys_getcwd, sys_getdents64, sys_lseek, sys_lstat, sys_mkdir, sys_mkdirat,
-    sys_mknodat, sys_newfstatat, sys_open, sys_openat, sys_pread64, sys_preadv, sys_pwrite64,
-    sys_readlinkat, sys_rename, sys_renameat, sys_rmdir, sys_stat, sys_unlink, sys_unlinkat,
+    sys_ftruncate, sys_getcwd, sys_getdents64, sys_lseek, sys_lstat, sys_membarrier, sys_mkdir,
+    sys_mkdirat, sys_mknodat, sys_mount, sys_newfstatat, sys_open, sys_openat, sys_pread64,
+    sys_preadv, sys_pwrite64, sys_readlinkat, sys_rename, sys_renameat, sys_rmdir, sys_stat,
+    sys_umount2, sys_unlink, sys_unlinkat,
 };
 #[cfg(feature = "epoll")]
 pub use imp::io_mpx::{sys_epoll_create1, sys_epoll_ctl, sys_epoll_pwait, sys_epoll_wait};
@@ -87,8 +88,8 @@ pub use imp::mmap::{sys_madvise, sys_mmap, sys_mprotect, sys_mremap, sys_msync, 
 #[cfg(feature = "net")]
 pub use imp::net::{
     sys_accept, sys_bind, sys_connect, sys_freeaddrinfo, sys_getaddrinfo, sys_getpeername,
-    sys_getsockname, sys_getsockopt, sys_listen, sys_recv, sys_recvfrom, sys_send, sys_sendmsg,
-    sys_sendto, sys_setsockopt, sys_shutdown, sys_socket, sys_socketpair,
+    sys_getsockname, sys_getsockopt, sys_listen, sys_recv, sys_recvfrom, sys_recvmsg, sys_send,
+    sys_sendmsg, sys_sendto, sys_setsockopt, sys_shutdown, sys_socket, sys_socketpair,
 };
 #[cfg(feature = "pipe")]
 pub use imp::pipe::{sys_pipe, sys_pipe2};

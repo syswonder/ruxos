@@ -87,7 +87,7 @@ impl Default for VfsNodeType {
 }
 
 /// Directory entry.
-#[derive(Clone)]
+#[derive(Clone, Copy)]
 pub struct VfsDirEntry {
     d_type: VfsNodeType,
     d_name: [u8; 63],
@@ -245,6 +245,28 @@ impl VfsNodeAttr {
         }
     }
 
+    /// Creates a new `VfsNodeAttr` for a file, with the default file permission.
+    pub const fn new_file(ino: u64, size: u64, blocks: u64) -> Self {
+        Self {
+            ino,
+            mode: VfsNodePerm::default_file(),
+            ty: VfsNodeType::File,
+            size,
+            blocks,
+        }
+    }
+
+    /// Creates a new `VfsNodeAttr` for a directory, with the default directory permission.
+    pub const fn new_dir(ino: u64, size: u64, blocks: u64) -> Self {
+        Self {
+            ino,
+            mode: VfsNodePerm::default_dir(),
+            ty: VfsNodeType::Dir,
+            size,
+            blocks,
+        }
+    }
+
     /// Returns the inode number of the node.
     pub const fn ino(&self) -> u64 {
         self.ino
@@ -289,7 +311,7 @@ impl VfsNodeAttr {
         self.ty.is_fifo()
     }
 
-    ///Whether the node is a socket.
+    /// Whether the node is a socket.
     pub const fn is_socket(&self) -> bool {
         self.ty.is_socket()
     }

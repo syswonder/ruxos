@@ -13,9 +13,9 @@
 //! - Directory: open, read, create, remove
 //!
 //! The interface is designed with low coupling to avoid repetitive error handling.
-use alloc::{sync::Arc, vec::Vec};
+use alloc::sync::Arc;
 use axerrno::{AxError, AxResult, LinuxResult};
-use axfs_vfs::{AbsPath, RelPath, VfsNodeOps, VfsNodePerm, VfsNodeRef, VfsNodeType};
+use axfs_vfs::{AbsPath, VfsNodeOps, VfsNodePerm, VfsNodeRef, VfsNodeType};
 use capability::Cap;
 use ruxfdtable::{FileLike, OpenFlags};
 use ruxfifo::FifoNode;
@@ -24,17 +24,13 @@ use crate::{
     directory::Directory,
     fifo::{FifoReader, FifoWriter},
     file::File,
-    root::{MountPoint, RootDirectory},
+    root::RootDirectory,
     FileAttr, FilePerm,
 };
 
 #[crate_interface::def_interface]
 /// Current working directory operations.
 pub trait CurrentWorkingDirectoryOps {
-    /// Initializes the root filesystem with the specified mount points.
-    fn init_rootfs(mount_points: Vec<MountPoint>);
-    /// Returns the parent node of the specified path.
-    fn parent_node_of(dir: Option<&VfsNodeRef>, path: &RelPath) -> VfsNodeRef;
     /// Returns the absolute path of the specified path.
     fn absolute_path(path: &str) -> AxResult<AbsPath<'static>>;
     /// Returns the current working directory.
@@ -58,10 +54,6 @@ pub fn current_dir() -> AxResult<AbsPath<'static>> {
 /// Set the current working directory.
 pub fn set_current_dir(path: AbsPath<'static>) -> AxResult {
     crate_interface::call_interface!(CurrentWorkingDirectoryOps::set_current_dir, path)
-}
-
-pub(crate) fn init_rootfs(mount_points: Vec<MountPoint>) {
-    crate_interface::call_interface!(CurrentWorkingDirectoryOps::init_rootfs, mount_points)
 }
 
 pub(crate) fn root_dir() -> Arc<RootDirectory> {
