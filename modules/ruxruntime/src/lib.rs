@@ -228,6 +228,7 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
             use alloc::vec::Vec;
             // By default, mount_points[0] will be rootfs
             let mut mount_points: Vec<ruxfs::root::MountPoint> = Vec::new();
+            #[cfg(any(feature = "blkfs", feature = "fusefs"))]
             let mut block_dev = Some(all_devices.block);
 
             //setup ramfs as rootfs if no other filesystem can be mounted

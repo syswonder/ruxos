@@ -20,7 +20,10 @@ use axfs_vfs::{
     VfsResult,
 };
 use log::*;
+
+#[allow(unused_imports)]
 use ruxdriver::prelude::BlockDriverOps;
+
 use ruxdriver::AxBlockDevice;
 use spin::{once::Once, RwLock};
 
@@ -161,7 +164,7 @@ impl VfsNodeOps for VdaNode {
                 cur_offset % 512
             );
             let start = cur_offset as usize % 512;
-            let copy_len = remain.min(BLOCK_SIZE as usize);
+            let copy_len = remain.min(BLOCK_SIZE);
             let end = start + copy_len;
             let ret = dev.read_block(cur_offset / 512, &mut temp_buf);
             if ret.is_err() {
@@ -238,7 +241,7 @@ impl VfsNodeOps for VdaNode {
                 cur_offset % 512
             );
             let start = cur_offset as usize % 512;
-            let copy_len = remain.min(BLOCK_SIZE as usize);
+            let copy_len = remain.min(BLOCK_SIZE);
             let end = start + copy_len;
             temp_buf[start..end].copy_from_slice(&buf[pos..pos + copy_len]);
             let ret = dev.write_block(cur_offset / 512, &temp_buf);

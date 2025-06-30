@@ -36,6 +36,7 @@ log = { workspace = true }
 spin = { workspace = true }
 cfg-if = "1.0"
 lazy_init = { path = "../../crates/lazy_init" }
+lazy_static = { version = "1.4", features = ["spin_no_std"] }
 capability = { path = "../../crates/capability" }
 driver_block = { path = "../../crates/driver_block" }
 axio = { path = "../../crates/axio", features = ["alloc"] }

@@ -44,8 +44,8 @@ pub fn sys_mmap(
     off: ctypes::off_t,
 ) -> *mut c_void {
     debug!(
-        "sys_mmap <= start: {:p}, len: 0x{:x}, prot:0x{:x?}, flags:0x{:x?}, fd: {}",
-        start, len, prot, flags, fd
+        "sys_mmap <= start: {:p}, len: 0x{:x}, prot:0x{:x?}, flags:0x{:x?}, fd: {}, off: 0x{:x}",
+        start, len, prot, flags, fd, off
     );
     syscall_body!(sys_mmap, {
         // transform C-type into rust-type

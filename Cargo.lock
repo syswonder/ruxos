@@ -1715,6 +1715,7 @@ dependencies = [
  "ext4_rs",
  "fatfs",
  "lazy_init",
+ "lazy_static",
  "log",
  "memory_addr",
  "ruxdriver",

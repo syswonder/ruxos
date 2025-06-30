@@ -279,7 +279,7 @@ pub fn sys_getcwd(buf: *mut c_char, size: usize) -> c_int {
         if buf.is_null() {
             return Err(LinuxError::EINVAL);
         }
-        let dst = unsafe { core::slice::from_raw_parts_mut(buf as *mut u8, size as _) };
+        let dst: &mut [u8] = unsafe { core::slice::from_raw_parts_mut(buf as _, size as _) };
         let cwd = fops::current_dir()?;
         let cwd = cwd.as_bytes();
         if cwd.len() < size {

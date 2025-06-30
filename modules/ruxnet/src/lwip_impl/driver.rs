@@ -130,8 +130,8 @@ extern "C" fn pbuf_free_custom(p: *mut pbuf) {
 extern "C" fn ethif_init(netif: *mut netif) -> err_t {
     trace!("ethif_init");
     unsafe {
-        (*netif).name[0] = 'e' as c_char;
-        (*netif).name[1] = 'n' as c_char;
+        (*netif).name[0] = b'e' as c_char;
+        (*netif).name[1] = b'n' as c_char;
         (*netif).num = 0;
 
         (*netif).output = Some(etharp_output);

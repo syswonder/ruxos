@@ -26,7 +26,7 @@ mod fs;
 #[cfg(feature = "net-9p")]
 mod netdev;
 
-use alloc::{borrow::ToOwned, string::String, sync::Arc};
+use alloc::{string::String, sync::Arc};
 use log::*;
 use ruxfs::root::MountPoint;
 use spin::RwLock;
