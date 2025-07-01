@@ -490,6 +490,7 @@ pub struct FuseInitOut {
 
 impl FuseInitOut {
     /// Create a new FuseInitOut structure.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         major: u32,
         minor: u32,
@@ -644,7 +645,7 @@ impl FuseGetattrIn {
 }
 
 /// FUSE file attributes structure
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Default)]
 pub struct FuseAttr {
     // 88 bytes
     ino: u64,
@@ -667,6 +668,7 @@ pub struct FuseAttr {
 
 impl FuseAttr {
     /// Create a new FuseAttr structure.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         ino: u64,
         size: u64,
@@ -919,31 +921,8 @@ impl Debug for FuseAttr {
     }
 }
 
-impl Default for FuseAttr {
-    fn default() -> Self {
-        Self {
-            ino: 0,
-            size: 0,
-            blocks: 0,
-            atime: 0,
-            mtime: 0,
-            ctime: 0,
-            atimensec: 0,
-            mtimensec: 0,
-            ctimensec: 0,
-            mode: 0,
-            nlink: 0,
-            uid: 0,
-            gid: 0,
-            rdev: 0,
-            blksize: 0,
-            flags: 0,
-        }
-    }
-}
-
 /// FUSE file system statistics structure
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct FuseKstatfs {
     // 80 bytes
     blocks: u64,
@@ -960,6 +939,7 @@ pub struct FuseKstatfs {
 
 impl FuseKstatfs {
     /// Create a new FuseKstatfs structure.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         blocks: u64,
         bfree: u64,
@@ -1015,23 +995,6 @@ impl FuseKstatfs {
     }
 }
 
-impl Default for FuseKstatfs {
-    fn default() -> Self {
-        Self {
-            blocks: 0,
-            bfree: 0,
-            bavail: 0,
-            files: 0,
-            ffree: 0,
-            bsize: 0,
-            namelen: 0,
-            frsize: 0,
-            padding: 0,
-            spare: [0; 6],
-        }
-    }
-}
-
 /// FUSE file lock structure
 #[derive(Debug, Clone, Copy)]
 pub struct FuseFileLock {
@@ -1073,7 +1036,7 @@ impl FuseFileLock {
 }
 
 /// FUSE file attributes output structure
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct FuseAttrOut {
     // 104 bytes
     attr_valid: u64,
@@ -1137,19 +1100,8 @@ impl FuseAttrOut {
     }
 }
 
-impl Default for FuseAttrOut {
-    fn default() -> Self {
-        Self {
-            attr_valid: 0,
-            attr_valid_nsec: 0,
-            dummy: 0,
-            attr: FuseAttr::default(),
-        }
-    }
-}
-
 /// FUSE entry output structure
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct FuseEntryOut {
     // 128 bytes
     nodeid: u64, /* Inode ID */
@@ -1248,20 +1200,6 @@ impl FuseEntryOut {
     }
 }
 
-impl Default for FuseEntryOut {
-    fn default() -> Self {
-        Self {
-            nodeid: 0,
-            generation: 0,
-            entry_valid: 0,
-            attr_valid: 0,
-            entry_valid_nsec: 0,
-            attr_valid_nsec: 0,
-            attr: FuseAttr::default(),
-        }
-    }
-}
-
 /// FUSE setattr input structure
 #[derive(Debug, Clone, Copy)]
 pub struct FuseSetattrIn {
@@ -1286,6 +1224,7 @@ pub struct FuseSetattrIn {
 
 impl FuseSetattrIn {
     /// Create a new FuseSetattrIn structure.
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         valid: u32,
         padding: u32,
@@ -1455,7 +1394,7 @@ impl FuseOpenIn {
 }
 
 /// FUSE open output structure
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct FuseOpenOut {
     // 16 bytes
     fh: u64,
@@ -1498,16 +1437,6 @@ impl FuseOpenOut {
             "FuseOpenOut: fh: {:#x}, open_flags: {:#x}, padding: {:?}",
             self.fh, self.open_flags, self.padding
         );
-    }
-}
-
-impl Default for FuseOpenOut {
-    fn default() -> Self {
-        Self {
-            fh: 0,
-            open_flags: 0,
-            padding: 0,
-        }
     }
 }
 
@@ -1877,7 +1806,7 @@ impl FuseFlushIn {
 }
 
 /// FUSE statfs output structure
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct FuseStatfsOut {
     // 80 bytes
     st: FuseKstatfs,
@@ -1904,14 +1833,6 @@ impl FuseStatfsOut {
     /// Print the FuseStatfsOut structure.
     pub fn print(&self) {
         debug!("FuseStatfsOut: st: {:?}", self.st);
-    }
-}
-
-impl Default for FuseStatfsOut {
-    fn default() -> Self {
-        Self {
-            st: FuseKstatfs::default(),
-        }
     }
 }
 

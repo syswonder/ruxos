@@ -22,14 +22,22 @@ use spinlock::SpinNoIrq;
 
 /// A global flag to indicate the state of the FUSE device.
 pub static FUSEFLAG: AtomicI32 = AtomicI32::new(0);
-/// vector to store data for FUSE operations.
-pub static mut FUSE_VEC: Option<Arc<SpinNoIrq<Vec<u8>>>> = None;
+lazy_static::lazy_static! {
+    /// vector to store data for FUSE operations.
+    pub static ref FUSE_VEC: Arc<SpinNoIrq<Vec<u8>>> = Arc::new(SpinNoIrq::new(Vec::new()));
+}
 
 /// A device behaves like `/dev/fuse`.
 ///
 /// It always transmits to the daemon in user space.
 pub struct FuseDev {
     data: Mutex<Vec<u8>>,
+}
+
+impl Default for FuseDev {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl FuseDev {
@@ -67,36 +75,26 @@ impl VfsNodeOps for FuseDev {
         );
 
         let mut flag;
-        let mut vec_len = 0;
 
-        unsafe {
-            if FUSE_VEC.is_none() {
-                debug!("FUSE_VEC is none, create a new one at devfuse.");
-                FUSE_VEC = Some(Arc::new(SpinNoIrq::new(Vec::new())));
-            }
+        flag = FUSEFLAG.load(Ordering::SeqCst);
+        if flag > 100 {
+            debug!("flag in read__ is {:?}, should back to fuse_node.", flag);
+            FUSEFLAG.store(-flag, Ordering::Relaxed);
+        }
 
+        loop {
             flag = FUSEFLAG.load(Ordering::SeqCst);
-            if flag > 100 {
-                debug!("flag in read__ is {:?}, should back to fuse_node.", flag);
-                FUSEFLAG.store(-flag, Ordering::Relaxed);
-            }
-
-            loop {
-                flag = FUSEFLAG.load(Ordering::SeqCst);
-                if flag > 0 {
-                    debug!("flag _read_ is set to {:?},, exiting loop. hhh", flag);
-                    break;
-                }
-            }
-
-            if let Some(vec_arc) = FUSE_VEC.as_ref() {
-                let mut vec = vec_arc.lock();
-                vec_len = vec.len();
-                buf[..vec_len].copy_from_slice(&vec[..vec_len]);
-                debug!("Fusevec _read_ len: {:?}, vec: {:?}", vec.len(), vec);
-                vec.clear();
+            if flag > 0 {
+                debug!("flag _read_ is set to {:?},, exiting loop. hhh", flag);
+                break;
             }
         }
+
+        let mut vec = FUSE_VEC.lock();
+        let vec_len = vec.len();
+        buf[..vec_len].copy_from_slice(&vec[..vec_len]);
+        debug!("Fusevec _read_ len: {:?}, vec: {:?}", vec.len(), vec);
+        vec.clear();
 
         Ok(vec_len)
     }
@@ -111,23 +109,19 @@ impl VfsNodeOps for FuseDev {
 
         let mut flag;
 
-        unsafe {
-            loop {
-                flag = FUSEFLAG.load(Ordering::SeqCst);
-                if flag > 0 {
-                    debug!("Fuseflag _write_ is set to {:?},, exiting loop. yyy", flag);
-                    break;
-                }
+        loop {
+            flag = FUSEFLAG.load(Ordering::SeqCst);
+            if flag > 0 {
+                debug!("Fuseflag _write_ is set to {:?},, exiting loop. yyy", flag);
+                break;
             }
-
-            if let Some(vec_arc) = FUSE_VEC.as_ref() {
-                let mut vec = vec_arc.lock();
-                vec.extend_from_slice(&buf);
-                debug!("Fusevec _write_ len: {:?}, vec: {:?}", vec.len(), vec);
-            }
-
-            FUSEFLAG.store(flag + 100, Ordering::Relaxed);
         }
+
+        let mut vec = FUSE_VEC.lock();
+        vec.extend_from_slice(buf);
+        debug!("Fusevec _write_ len: {:?}, vec: {:?}", vec.len(), vec);
+
+        FUSEFLAG.store(flag + 100, Ordering::Relaxed);
 
         Ok(buf.len())
     }
