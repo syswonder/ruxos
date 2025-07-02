@@ -43,10 +43,11 @@ all_packages := \
   ruxfeat arceos_api axstd ruxmusl
 
 define cargo_doc
-  $(call run_cmd,cargo doc,--no-deps --all-features --workspace --exclude "arceos-*" --exclude "ruxos-*" --exclude "ruxos-*" $(verbose))
+  $(call run_cmd,cargo doc,--no-deps --all-features --workspace --exclude "arceos-*" --exclude "ruxos-*" --exclude "ruxos-*" --exclude "axlog" $(verbose))
   @# run twice to fix broken hyperlinks
   $(foreach p,$(all_packages), \
-    $(call run_cmd,cargo rustdoc,--all-features -p $(p) $(verbose))
+    $(if $(filter axlog,$(p)),,$(call run_cmd,cargo rustdoc,--all-features -p $(p) $(verbose)))
   )
+
   @# for some crates, re-generate without `--all-features`
 endef

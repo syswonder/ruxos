@@ -26,10 +26,10 @@ use ruxhal::virtio::virtio_hal::VirtIoHalImpl;
 
 cfg_if! {
     if #[cfg(bus = "pci")] {
-        use driver_pci::{PciRoot, DeviceFunction, DeviceFunctionInfo};
-        type VirtIoTransport = driver_virtio::PciTransport;
+        use driver_pci::{PciRoot, DeviceFunction, DeviceFunctionInfo, ConfigurationAccess, MmioCam};
+        type VirtIoTransport<'a> = driver_virtio::PciTransport;
     } else if #[cfg(bus =  "mmio")] {
-        type VirtIoTransport = driver_virtio::MmioTransport;
+        type VirtIoTransport<'a> = driver_virtio::MmioTransport<'a>;
     }
 }
 
@@ -37,14 +37,13 @@ cfg_if! {
 pub trait VirtIoDevMeta {
     /// The device type of the VirtIO device.
     const DEVICE_TYPE: DeviceType;
-
     /// The device type of the VirtIO device.
-    type Device: BaseDriverOps;
+    type Device<'a>: BaseDriverOps + 'static;
     /// The driver for the VirtIO device.
     type Driver = VirtIoDriver<Self>;
 
-    /// Try to create a new instance of the VirtIO device.
-    fn try_new(transport: VirtIoTransport) -> DevResult<AxDeviceEnum>;
+    /// Try to create a new instance of the VirtIO device.Z
+    fn try_new(transport: VirtIoTransport<'static>) -> DevResult<AxDeviceEnum>;
 }
 
 cfg_if! {
@@ -54,9 +53,9 @@ cfg_if! {
 
         impl VirtIoDevMeta for VirtIoNet {
             const DEVICE_TYPE: DeviceType = DeviceType::Net;
-            type Device = driver_virtio::VirtIoNetDev<VirtIoHalImpl, VirtIoTransport, 64>;
+            type Device<'a> = driver_virtio::VirtIoNetDev<VirtIoHalImpl, VirtIoTransport<'static>, 64>;
 
-            fn try_new(transport: VirtIoTransport) -> DevResult<AxDeviceEnum> {
+            fn try_new(transport: VirtIoTransport<'static>) -> DevResult<AxDeviceEnum> {
                 Ok(AxDeviceEnum::from_net(Self::Device::try_new(transport)?))
             }
         }
@@ -70,9 +69,9 @@ cfg_if! {
 
         impl VirtIoDevMeta for VirtIoBlk {
             const DEVICE_TYPE: DeviceType = DeviceType::Block;
-            type Device = driver_virtio::VirtIoBlkDev<VirtIoHalImpl, VirtIoTransport>;
+            type Device<'a> = driver_virtio::VirtIoBlkDev<VirtIoHalImpl, VirtIoTransport<'static>>;
 
-            fn try_new(transport: VirtIoTransport) -> DevResult<AxDeviceEnum> {
+            fn try_new(transport: VirtIoTransport<'static>) -> DevResult<AxDeviceEnum> {
                 Ok(AxDeviceEnum::from_block(Self::Device::try_new(transport)?))
             }
         }
@@ -86,9 +85,9 @@ cfg_if! {
 
         impl VirtIoDevMeta for VirtIoGpu {
             const DEVICE_TYPE: DeviceType = DeviceType::Display;
-            type Device = driver_virtio::VirtIoGpuDev<VirtIoHalImpl, VirtIoTransport>;
+            type Device<'a> = driver_virtio::VirtIoGpuDev<VirtIoHalImpl, VirtIoTransport<'static>>;
 
-            fn try_new(transport: VirtIoTransport) -> DevResult<AxDeviceEnum> {
+            fn try_new(transport: VirtIoTransport<'static>) -> DevResult<AxDeviceEnum> {
                 Ok(AxDeviceEnum::from_display(Self::Device::try_new(transport)?))
             }
         }
@@ -102,9 +101,9 @@ cfg_if! {
 
         impl VirtIoDevMeta for VirtIo9p {
             const DEVICE_TYPE: DeviceType = DeviceType::_9P;
-            type Device = driver_virtio::VirtIo9pDev<VirtIoHalImpl, VirtIoTransport>;
+            type Device<'a> = driver_virtio::VirtIo9pDev<VirtIoHalImpl, VirtIoTransport<'static>>;
 
-            fn try_new(transport: VirtIoTransport) -> DevResult<AxDeviceEnum> {
+            fn try_new(transport: VirtIoTransport<'static>) -> DevResult<AxDeviceEnum> {
                 Ok(AxDeviceEnum::from_9p(Self::Device::try_new(transport)?))
             }
         }
@@ -141,7 +140,7 @@ impl<D: VirtIoDevMeta> DriverProbe for VirtIoDriver<D> {
 
     #[cfg(bus = "pci")]
     fn probe_pci(
-        root: &mut PciRoot,
+        root: &mut PciRoot<MmioCam>,
         bdf: DeviceFunction,
         dev_info: &DeviceFunctionInfo,
     ) -> Option<AxDeviceEnum> {
@@ -157,7 +156,7 @@ impl<D: VirtIoDevMeta> DriverProbe for VirtIoDriver<D> {
         }
 
         if let Some((ty, transport)) =
-            driver_virtio::probe_pci_device::<VirtIoHalImpl>(root, bdf, dev_info)
+            driver_virtio::probe_pci_device::<VirtIoHalImpl, MmioCam>(root, bdf, dev_info)
         {
             if ty == D::DEVICE_TYPE {
                 match D::try_new(transport) {

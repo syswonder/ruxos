@@ -72,17 +72,12 @@ driver-ramdisk = ["ruxfeat/driver-ramdisk"]
 driver-ixgbe = ["ruxfeat/driver-ixgbe"]
 driver-bcm2835-sdhci = ["ruxfeat/driver-bcm2835-sdhci"]
 
-# Logging
-log-level-off = ["ruxfeat/log-level-off"]
-log-level-error = ["ruxfeat/log-level-error"]
-log-level-warn = ["ruxfeat/log-level-warn"]
-log-level-info = ["ruxfeat/log-level-info"]
-log-level-debug = ["ruxfeat/log-level-debug"]
-log-level-trace = ["ruxfeat/log-level-trace"]
+
 
 [dependencies]
 ruxfeat = { path = "../../api/ruxfeat" }
 arceos_api = { path = "../../api/arceos_api" }
 axio = { path = "../../crates/axio" }
+axlog = { path = "../../crates/axlog" }
 axerrno = { path = "../../crates/axerrno" }
 spinlock = { path = "../../crates/spinlock" }
