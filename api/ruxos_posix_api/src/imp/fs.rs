@@ -257,6 +257,12 @@ pub unsafe fn sys_newfstatat(
         }
         let node = fops::lookup(&path)?;
         let st = RuxStat::from(node.get_attr()?);
+
+        // TODO: remove this initialization when fields are fully implemented
+        unsafe {
+            core::ptr::write_bytes(kst, 0, 1);
+        }
+
         unsafe {
             (*kst).st_dev = st.st_dev;
             (*kst).st_ino = st.st_ino;

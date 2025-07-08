@@ -21,16 +21,22 @@ typedef unsigned long u_long, ulong;
 
 typedef unsigned mode_t;
 
-#if defined(__aarch64__)
+#if defined(__aarch64__) || defined(__riscv__) || defined(__riscv)
 typedef uint32_t nlink_t;
 #else
 typedef uint64_t nlink_t;
 #endif
 
+// reference: /ulib/ruxmusl/musl-1.2.3/arch/aarch64/bits/alltypes.h.in
+#if defined(__aarch64__) || defined(__riscv__) || defined(__riscv)
+typedef int blksize_t;
+#else
+typedef long blksize_t;
+#endif
+
 typedef int64_t off_t;
 typedef uint64_t ino_t;
 typedef uint64_t dev_t;
-typedef long blksize_t;
 typedef int64_t blkcnt_t;
 
 typedef unsigned id_t;
