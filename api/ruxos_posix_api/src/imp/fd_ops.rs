@@ -26,7 +26,7 @@ impl From<ctypes::timespec> for RuxTimeSpec {
 }
 
 impl From<ctypes::stat> for RuxStat {
-    #[cfg(target_arch = "aarch64")]
+    #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
     fn from(cstat: ctypes::stat) -> Self {
         RuxStat {
             st_dev: cstat.st_dev,
@@ -48,7 +48,7 @@ impl From<ctypes::stat> for RuxStat {
         }
     }
 
-    #[cfg(any(target_arch = "x86_64", target_arch = "riscv64"))]
+    #[cfg(target_arch = "x86_64")]
     fn from(cstat: ctypes::stat) -> Self {
         RuxStat {
             st_dev: cstat.st_dev,
@@ -80,7 +80,7 @@ impl From<RuxTimeSpec> for ctypes::timespec {
 }
 
 impl From<RuxStat> for ctypes::stat {
-    #[cfg(target_arch = "aarch64")]
+    #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
     fn from(rstat: RuxStat) -> Self {
         ctypes::stat {
             st_dev: rstat.st_dev,
@@ -102,7 +102,7 @@ impl From<RuxStat> for ctypes::stat {
         }
     }
 
-    #[cfg(any(target_arch = "x86_64", target_arch = "riscv64"))]
+    #[cfg(target_arch = "x86_64")]
     fn from(rstat: RuxStat) -> Self {
         ctypes::stat {
             st_dev: rstat.st_dev,

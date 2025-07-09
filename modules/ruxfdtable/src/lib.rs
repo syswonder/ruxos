@@ -178,7 +178,7 @@ pub struct RuxTimeSpec {
 }
 
 ///Rust version for struct stat in ctypes. Represents file status information.
-#[cfg(target_arch = "aarch64")]
+#[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
 #[derive(Default)]
 pub struct RuxStat {
     /// Device identifier.
@@ -200,7 +200,7 @@ pub struct RuxStat {
     /// Total size, in bytes.
     pub st_size: i64,
     /// Block size for filesystem I/O.
-    pub st_blksize: core::ffi::c_long,
+    pub st_blksize: core::ffi::c_int,
     /// Padding to maintain alignment.
     pub __pad2: core::ffi::c_int,
     /// Number of 512B blocks allocated.
@@ -216,7 +216,7 @@ pub struct RuxStat {
 }
 
 ///Rust version for struct stat in ctypes. Represents file status information.
-#[cfg(any(target_arch = "x86_64", target_arch = "riscv64"))]
+#[cfg(target_arch = "x86_64")]
 #[derive(Default)]
 pub struct RuxStat {
     /// Device identifier.
@@ -251,7 +251,7 @@ pub struct RuxStat {
     pub __unused: [core::ffi::c_long; 3usize],
 }
 
-#[cfg(target_arch = "aarch64")]
+#[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
 impl From<VfsNodeAttr> for RuxStat {
     fn from(attr: VfsNodeAttr) -> Self {
         Self {
@@ -284,7 +284,7 @@ impl From<VfsNodeAttr> for RuxStat {
     }
 }
 
-#[cfg(any(target_arch = "x86_64", target_arch = "riscv64"))]
+#[cfg(target_arch = "x86_64")]
 impl From<VfsNodeAttr> for RuxStat {
     fn from(attr: VfsNodeAttr) -> Self {
         Self {
