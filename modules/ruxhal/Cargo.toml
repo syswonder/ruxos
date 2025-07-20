@@ -55,7 +55,7 @@ percpu = "0.2"
 driver_console = { path = "../../crates/driver_console", optional = true }
 driver_virtio = { path = "../../crates/driver_virtio", optional = true }
 driver_common = { path = "../../crates/driver_common", optional = true }
-virtio-drivers = { git = "https://github.com/syswonder/virtio-drivers.git", rev = "62dbe5a", optional = true }
+virtio-drivers = { git = "https://github.com/syswonder/virtio-drivers.git", rev = "31f6555", optional = true }
 lazy_static = { version = "1.4", features = ["spin_no_std"] }
 memory_addr = "0.1.0"
 handler_table = "0.1.0"

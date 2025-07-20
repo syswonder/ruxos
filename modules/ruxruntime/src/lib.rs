@@ -176,9 +176,6 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     #[cfg(feature = "alloc")]
     init_allocator();
 
-    #[cfg(feature = "virtio_console")]
-    ruxhal::virtio::virtio_console::directional_probing();
-
     info!("Primary CPU {} started, dtb = {:#x}.", cpu_id, dtb);
 
     info!("Found physcial memory regions:");
@@ -213,6 +210,9 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
         info!("Initialize kernel page table...");
         remap_kernel_memory().expect("remap kernel memoy failed");
     }
+
+    #[cfg(feature = "virtio_console")]
+    ruxhal::virtio::virtio_console::directional_probing();
 
     #[cfg(any(feature = "fs", feature = "net", feature = "display"))]
     {

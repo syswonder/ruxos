@@ -26,6 +26,7 @@ ifeq ($(APP_TYPE),c)
     lib_features += musl
   endif
 endif
+log_feat_prefix := axlog/
 
 override FEATURES := $(shell echo $(FEATURES) | tr ',' ' ')
 # TODO: remove below features when it is possible
@@ -58,9 +59,10 @@ override FEATURES := $(strip $(FEATURES))
 
 ax_feat :=
 lib_feat :=
+log_feat :=
 
 ifneq ($(filter $(LOG),off error warn info debug trace),)
-  ax_feat += log-level-$(LOG)
+  log_feat += log-level-$(LOG)
 else
   $(error "LOG" must be one of "off", "error", "warn", "info", "debug", "trace")
 endif
@@ -79,3 +81,4 @@ lib_feat += $(filter $(lib_features),$(FEATURES))
 RUX_FEAT := $(strip $(addprefix $(ax_feat_prefix),$(ax_feat)))
 LIB_FEAT := $(strip $(addprefix $(lib_feat_prefix),$(lib_feat)))
 APP_FEAT := $(strip $(shell echo $(APP_FEATURES) | tr ',' ' '))
+LOG_FEAT := $(strip $(addprefix $(log_feat_prefix),$(log_feat)))
