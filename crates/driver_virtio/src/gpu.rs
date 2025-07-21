@@ -16,7 +16,7 @@ use virtio_drivers::{device::gpu::VirtIOGpu as InnerDev, transport::Transport, H
 
 /// The VirtIO GPU device driver.
 pub struct VirtIoGpuDev<H: Hal, T: Transport> {
-    inner: InnerDev<H, T>,
+    inner: InnerDev<'static, H, T>,
     info: DisplayInfo,
 }
 

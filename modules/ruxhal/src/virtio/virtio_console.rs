@@ -72,7 +72,7 @@ impl RxRingBuffer {
 
 /// The UART driver
 struct UartDrv {
-    inner: Option<VirtIoConsoleDev<VirtIoHalImpl, VirtIoTransport<'static>>>,
+    inner: Option<VirtIoConsoleDev<VirtIoHalImpl, VirtIoTransport>>,
     buffer: [u8; MEM_SIZE],
     #[cfg(feature = "irq")]
     irq_buffer: RxRingBuffer,
@@ -194,7 +194,7 @@ pub fn is_probe(addr: usize) -> bool {
 fn probe_mmio(
     mmio_base: usize,
     mmio_size: usize,
-) -> Option<VirtIoConsoleDev<VirtIoHalImpl, VirtIoTransport<'static>>> {
+) -> Option<VirtIoConsoleDev<VirtIoHalImpl, VirtIoTransport>> {
     let base_vaddr = phys_to_virt(mmio_base.into());
     if let Some((ty, transport)) =
         driver_virtio::probe_mmio_device(base_vaddr.as_mut_ptr(), mmio_size)
@@ -211,4 +211,4 @@ fn probe_mmio(
 }
 
 /// Virtio transport type
-type VirtIoTransport<'a> = driver_virtio::MmioTransport<'a>;
+type VirtIoTransport = driver_virtio::MmioTransport;

@@ -17,13 +17,11 @@
 
 #![no_std]
 
-pub use virtio_drivers::transport::pci::bus::ConfigurationAccess;
-pub use virtio_drivers::transport::pci::bus::{
-    BarInfo, Cam, HeaderType, MemoryBarType, MmioCam, PciError,
-};
+pub use virtio_drivers::transport::pci::bus::{BarInfo, Cam, HeaderType, MemoryBarType, PciError};
 pub use virtio_drivers::transport::pci::bus::{
     CapabilityInfo, Command, DeviceFunction, DeviceFunctionInfo, PciRoot, Status,
 };
+
 /// Used to allocate MMIO regions for PCI BARs.
 pub struct PciRangeAllocator {
     _start: u64,

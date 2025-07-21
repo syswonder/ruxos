@@ -18,7 +18,7 @@ use driver_common::DeviceType;
 use crate::virtio::{self, VirtIoDevMeta};
 
 #[cfg(feature = "bus-pci")]
-use driver_pci::{ConfigurationAccess, DeviceFunction, DeviceFunctionInfo, MmioCam, PciRoot};
+use driver_pci::{DeviceFunction, DeviceFunctionInfo, PciRoot};
 
 pub use super::dummy::*;
 
@@ -34,7 +34,7 @@ pub trait DriverProbe {
 
     #[cfg(bus = "pci")]
     fn probe_pci(
-        _root: &mut PciRoot<MmioCam>,
+        _root: &mut PciRoot,
         _bdf: DeviceFunction,
         _dev_info: &DeviceFunctionInfo,
     ) -> Option<AxDeviceEnum> {
@@ -68,19 +68,19 @@ register_net_driver!(
 #[cfg(block_dev = "virtio-blk")]
 register_block_driver!(
     <virtio::VirtIoBlk as VirtIoDevMeta>::Driver,
-    <virtio::VirtIoBlk as VirtIoDevMeta>::Device<'static>
+    <virtio::VirtIoBlk as VirtIoDevMeta>::Device
 );
 
 #[cfg(display_dev = "virtio-gpu")]
 register_display_driver!(
     <virtio::VirtIoGpu as VirtIoDevMeta>::Driver,
-    <virtio::VirtIoGpu as VirtIoDevMeta>::Device<'static>
+    <virtio::VirtIoGpu as VirtIoDevMeta>::Device
 );
 
 #[cfg(_9p_dev = "virtio-9p")]
 register_9p_driver!(
     <virtio::VirtIo9p as VirtIoDevMeta>::Driver,
-    <virtio::VirtIo9p as VirtIoDevMeta>::Device<'static>
+    <virtio::VirtIo9p as VirtIoDevMeta>::Device
 );
 
 cfg_if::cfg_if! {
@@ -121,7 +121,7 @@ cfg_if::cfg_if! {
         register_net_driver!(IxgbeDriver, driver_net::ixgbe::IxgbeNic<IxgbeHalImpl, 1024, 1>);
         impl DriverProbe for IxgbeDriver {
             fn probe_pci(
-                    root: &mut driver_pci::PciRoot<MmioCam>,
+                    root: &mut driver_pci::PciRoot,
                     bdf: driver_pci::DeviceFunction,
                     dev_info: &driver_pci::DeviceFunctionInfo,
                 ) -> Option<crate::AxDeviceEnum> {
@@ -136,7 +136,7 @@ cfg_if::cfg_if! {
                         const QN: u16 = 1;
                         const QS: usize = 1024;
                         let bar_info = root.bar_info(bdf, 0).unwrap();
-                        match bar_info.unwrap() {
+                        match bar_info {
                             driver_pci::BarInfo::Memory {
                                 address,
                                 size,

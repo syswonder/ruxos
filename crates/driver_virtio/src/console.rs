@@ -14,7 +14,7 @@ use virtio_drivers::{device::console::VirtIOConsole as InnerDev, transport::Tran
 
 /// VirtIO console device
 pub struct VirtIoConsoleDev<H: Hal, T: Transport> {
-    inner: InnerDev<H, T>,
+    inner: InnerDev<'static, H, T>,
 }
 
 unsafe impl<H: Hal, T: Transport> Send for VirtIoConsoleDev<H, T> {}
