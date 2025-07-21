@@ -23,7 +23,7 @@ impl Net9pDev {
         let ip_addr = match ip.len() {
             4 => IpAddr::V4(Ipv4Addr::new(ip[0], ip[1], ip[2], ip[3])),
             _ => {
-                error!("Unsupport IP address: {:?}, using 0.0.0.0 instead", ip);
+                error!("Unsupport IP address: {ip:?}, using 0.0.0.0 instead");
                 IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0))
             }
         };
@@ -64,7 +64,7 @@ impl _9pDriverOps for Net9pDev {
     fn send_with_recv(&mut self, inputs: &[u8], outputs: &mut [u8]) -> Result<u32, u8> {
         match self.socket.lock().send(inputs) {
             Ok(length) => {
-                debug!("net9p send successfully,length = {}", length);
+                debug!("net9p send successfully,length = {length}");
             }
             Err(_) => {
                 error!("net9p send failed");
@@ -73,7 +73,7 @@ impl _9pDriverOps for Net9pDev {
         }
         match self.socket.lock().recv(outputs, MessageFlags::empty()) {
             Ok(length) => {
-                debug!("net9p recv successfully,length = {}", length);
+                debug!("net9p recv successfully,length = {length}");
                 Ok(length as u32)
             }
             Err(_) => {

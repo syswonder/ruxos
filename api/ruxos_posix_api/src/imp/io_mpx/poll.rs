@@ -62,20 +62,20 @@ pub unsafe fn sys_ppoll(
     } else {
         Duration::from(*timeout).as_millis() as c_int
     };
-    debug!("sys_ppoll <= nfds: {} timeout: {:?}", nfds, to);
+    debug!("sys_ppoll <= nfds: {nfds} timeout: {to:?}");
     sys_poll(fds, nfds, to)
 }
 
 /// Used to monitor multiple file descriptors for events
 pub unsafe fn sys_poll(fds: *mut ctypes::pollfd, nfds: ctypes::nfds_t, timeout: c_int) -> c_int {
-    debug!("sys_poll <= nfds: {} timeout: {} ms", nfds, timeout);
+    debug!("sys_poll <= nfds: {nfds} timeout: {timeout} ms");
 
     syscall_body!(sys_poll, {
         if nfds == 0 {
             return Err(LinuxError::EINVAL);
         }
         let fds = core::slice::from_raw_parts_mut(fds, nfds as usize);
-        debug!("[sys_poll] monitored fds is {:?}", fds);
+        debug!("[sys_poll] monitored fds is {fds:?}");
         let deadline = (!timeout.is_negative())
             .then(|| current_time() + Duration::from_millis(timeout as u64));
         for pollfd_item in fds.iter_mut() {

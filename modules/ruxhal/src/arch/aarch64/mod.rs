@@ -74,7 +74,7 @@ pub fn read_page_table_root0() -> PhysAddr {
 /// This function is unsafe as it changes the virtual memory address space.
 pub unsafe fn write_page_table_root(root_paddr: PhysAddr) {
     let old_root = read_page_table_root();
-    trace!("set page table root: {:#x} => {:#x}", old_root, root_paddr);
+    trace!("set page table root: {old_root:#x} => {root_paddr:#x}");
     if old_root != root_paddr {
         // kernel space page table use TTBR1 (0xffff_0000_0000_0000..0xffff_ffff_ffff_ffff)
         TTBR1_EL1.set(root_paddr.as_usize() as _);

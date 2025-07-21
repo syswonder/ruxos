@@ -148,7 +148,7 @@ pub fn enable_interrupt() {
     #[cfg(target_arch = "aarch64")]
     {
         info!("Initiating VirtIO Console interrupt ...");
-        info!("IRQ ID: {}", VIRTIO_CONSOLE_IRQ_NUM);
+        info!("IRQ ID: {VIRTIO_CONSOLE_IRQ_NUM}");
         crate::irq::register_handler(VIRTIO_CONSOLE_IRQ_NUM, irq_handler);
         crate::irq::set_enable(VIRTIO_CONSOLE_IRQ_NUM, true);
         ack_interrupt();
@@ -200,10 +200,7 @@ fn probe_mmio(
         driver_virtio::probe_mmio_device(base_vaddr.as_mut_ptr(), mmio_size)
     {
         if ty == driver_common::DeviceType::Char {
-            info!(
-                "VirtIO Console found at {:#x} size {:#x}",
-                mmio_base, mmio_size
-            );
+            info!("VirtIO Console found at {mmio_base:#x} size {mmio_size:#x}");
             return VirtIoConsoleDev::try_new(transport).ok();
         }
     }

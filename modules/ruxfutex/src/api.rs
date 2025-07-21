@@ -35,7 +35,7 @@ fn futex_wait_timeout(
     let condition = || {
         // Check the futex value
         let actual_val = futex_key.load_val();
-        trace!("futex_wait: expected {}, found {}", futex_val, actual_val);
+        trace!("futex_wait: expected {futex_val}, found {actual_val}");
         if actual_val != futex_val {
             // it's not actually an error but rather a notice to user,
             // so no `ax_err` and no warning

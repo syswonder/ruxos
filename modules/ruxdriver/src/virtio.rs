@@ -26,7 +26,7 @@ use ruxhal::virtio::virtio_hal::VirtIoHalImpl;
 
 cfg_if! {
     if #[cfg(bus = "pci")] {
-        use driver_pci::{PciRoot, DeviceFunction, DeviceFunctionInfo, ConfigurationAccess, MmioCam};
+        use driver_pci::{PciRoot, DeviceFunction, DeviceFunctionInfo, MmioCam};
         type VirtIoTransport<'a> = driver_virtio::PciTransport;
     } else if #[cfg(bus =  "mmio")] {
         type VirtIoTransport<'a> = driver_virtio::MmioTransport<'a>;
@@ -162,10 +162,7 @@ impl<D: VirtIoDevMeta> DriverProbe for VirtIoDriver<D> {
                 match D::try_new(transport) {
                     Ok(dev) => return Some(dev),
                     Err(e) => {
-                        warn!(
-                            "failed to initialize PCI device at {}({}): {:?}",
-                            bdf, dev_info, e
-                        );
+                        warn!("failed to initialize PCI device at {bdf}({dev_info}): {e:?}");
                         return None;
                     }
                 }

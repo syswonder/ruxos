@@ -90,7 +90,7 @@ pub unsafe fn sys_clock_getres(clk_id: ctypes::clockid_t, ts: *mut ctypes::times
         }
         (*ts).tv_sec = 0;
         (*ts).tv_nsec = 1;
-        debug!("sys_clock_getres: clk_id={}, returning 0s + 1ns", clk_id);
+        debug!("sys_clock_getres: clk_id={clk_id}, returning 0s + 1ns");
         Ok(0)
     })
 }
@@ -177,7 +177,7 @@ pub unsafe fn sys_nanosleep(req: *const ctypes::timespec, rem: *mut ctypes::time
 
 /// Get time of the day, ignore second parameter
 pub unsafe fn sys_gettimeofday(ts: *mut ctypes::timespec, flags: c_int) -> c_int {
-    debug!("sys_gettimeofday <= flags: {}", flags);
+    debug!("sys_gettimeofday <= flags: {flags}");
     unsafe { sys_clock_gettime(0, ts) }
 }
 

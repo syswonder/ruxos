@@ -22,7 +22,7 @@ impl ruxhal::trap::TrapHandler for TrapHandlerImpl {
     fn handle_syscall(syscall_id: usize, args: [usize; 6]) -> isize {
         let id = SyscallId::try_from(syscall_id).unwrap_or(SyscallId::INVALID);
         if id == SyscallId::INVALID {
-            info!("Invalid syscall id: {}", syscall_id);
+            info!("Invalid syscall id: {syscall_id}");
         }
         crate::syscall(id, args)
     }

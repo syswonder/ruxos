@@ -320,7 +320,7 @@ impl TaskInner {
 
     /// Set the stack top and size for the task.
     pub fn set_stack_top(&self, begin: usize, size: usize) {
-        debug!("set_stack_top: begin={:#x}, size={:#x}", begin, size);
+        debug!("set_stack_top: begin={begin:#x}, size={size:#x}");
         *self.stack_map_addr.lock() = VirtAddr::from(begin);
         *self.kstack.lock() = Arc::new(Some(TaskStack {
             ptr: NonNull::new(begin as *mut u8).unwrap(),
@@ -407,10 +407,7 @@ impl TaskInner {
         let current_stack = current_stack_bindings.as_ref().as_ref().unwrap();
         let current_stack_top = current_stack.top();
         let stack_size = current_stack.layout.size();
-        debug!(
-            "fork: current_stack_top={:#x}, stack_size={:#x}",
-            current_stack_top, stack_size
-        );
+        debug!("fork: current_stack_top={current_stack_top:#x}, stack_size={stack_size:#x}");
 
         #[cfg(feature = "paging")]
         // TODO: clone parent page table, and mark all unshared pages to read-only

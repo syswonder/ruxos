@@ -104,7 +104,7 @@ pub fn get_psci() {
         None => dtb::compatible_node("arm,psci-0.2").unwrap(),
     };
     let prop = psci_node.find_prop("method").unwrap().str();
-    info!("prop: {:?}", prop);
+    info!("prop: {prop:?}");
 }
 
 /// Get psci version from dtb

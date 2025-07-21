@@ -95,7 +95,7 @@ pub fn read_page_table_root() -> PhysAddr {
 /// This function is unsafe as it changes the virtual memory address space.
 pub unsafe fn write_page_table_root(root_paddr: PhysAddr) {
     let old_root = read_page_table_root();
-    trace!("set page table root: {:#x} => {:#x}", old_root, root_paddr);
+    trace!("set page table root: {old_root:#x} => {root_paddr:#x}");
     if old_root != root_paddr {
         controlregs::cr3_write(root_paddr.as_usize() as _)
     }
@@ -129,7 +129,7 @@ pub const INVALID_TLB_VECTOR: u8 = 0xff; // SPURIOUS APIC INTERRUPT
 #[inline]
 pub fn flush_tlb(vaddr: Option<VirtAddr>) {
     if let Some(vaddr) = vaddr {
-        trace!("flush TLB entry: {:#x}", vaddr);
+        trace!("flush TLB entry: {vaddr:#x}");
         unsafe {
             tlb::flush(vaddr.into());
         }

@@ -24,11 +24,7 @@ extern "C" fn dns_found_callback(
     ipaddr: *const ip_addr_t,
     callback_arg: *mut c_void,
 ) {
-    trace!(
-        "[dns_found_callback]: name_ptr={:?} ipaddr_ptr={:?}",
-        name,
-        ipaddr
-    );
+    trace!("[dns_found_callback]: name_ptr={name:?} ipaddr_ptr={ipaddr:?}");
     let res = callback_arg as *mut DnsQueryEntry;
     unsafe {
         (*res).finished = true;

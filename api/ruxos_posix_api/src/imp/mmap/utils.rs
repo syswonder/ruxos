@@ -371,9 +371,6 @@ pub(crate) fn preload_page_with_swap(
             _ => panic!("No memory for mmap, check if huge memory leaky exists"),
         },
 
-        Err(ecode) => panic!(
-            "Unexpected error 0x{:x?} happening when page fault occurs!",
-            ecode
-        ),
+        Err(ecode) => panic!("Unexpected error 0x{ecode:x?} happening when page fault occurs!"),
     }
 }

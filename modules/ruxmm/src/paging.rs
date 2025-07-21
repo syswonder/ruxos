@@ -75,7 +75,7 @@ pub fn alloc_page_preload() -> Result<VirtAddr, PagingError> {
 /// address is still on linear mapping region.
 /// use `do_pte_map` to do actually page mapping after call this function.
 pub fn pte_swap_preload(swaped_vaddr: VirtAddr) -> PagingResult<VirtAddr> {
-    trace!("swapping swaped_vaddr: 0x{:x?}", swaped_vaddr,);
+    trace!("swapping swaped_vaddr: 0x{swaped_vaddr:x?}",);
     let binding = ruxtask::current();
     let mut kernel_page_table = binding.pagetable.lock();
     let (paddr, _) = kernel_page_table.unmap(swaped_vaddr)?;
@@ -113,12 +113,7 @@ pub fn pte_update_page(
     paddr: Option<PhysAddr>,
     flags: Option<MappingFlags>,
 ) -> PagingResult {
-    trace!(
-        "updating vaddr:0x{:x?} paddr:0x{:x?} flags:0x{:x?}",
-        vaddr,
-        paddr,
-        flags
-    );
+    trace!("updating vaddr:0x{vaddr:x?} paddr:0x{paddr:x?} flags:0x{flags:x?}");
     ruxtask::current()
         .pagetable
         .lock()
@@ -131,7 +126,7 @@ pub fn pte_update_page(
 ///
 /// release the corresponding memory at the same time
 pub fn pte_unmap_page(vaddr: VirtAddr) -> PagingResult {
-    trace!("unmapping vaddr: 0x{:x?}", vaddr);
+    trace!("unmapping vaddr: 0x{vaddr:x?}");
     ruxtask::current().pagetable.lock().unmap(vaddr)?;
     flush_tlb(Some(vaddr));
     Ok(())

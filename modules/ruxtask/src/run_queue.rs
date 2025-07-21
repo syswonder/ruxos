@@ -247,7 +247,7 @@ impl AxRunQueue {
 
 #[cfg(feature = "fs")]
 fn gc_flush_file(fd: usize) -> LinuxResult {
-    trace!("gc task flush: {}", fd);
+    trace!("gc task flush: {fd}");
     get_file_like(fd as i32)?.flush()
 }
 

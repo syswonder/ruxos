@@ -160,7 +160,7 @@ impl UdpSocket {
     /// [`recv_from`](Self::recv_from).
     pub fn bind(&self, caddr: core::net::SocketAddr) -> AxResult {
         let addr = SocketAddr::from(caddr);
-        debug!("[UdpSocket] bind to {:#?}", addr);
+        debug!("[UdpSocket] bind to {addr:#?}");
         let mut addr = addr;
         if addr.port == 0 {
             addr.port = get_ephemeral_port()?;
@@ -292,7 +292,7 @@ impl UdpSocket {
     /// [`recv`](Self::recv).
     pub fn connect(&self, caddr: core::net::SocketAddr) -> AxResult {
         let addr = SocketAddr::from(caddr);
-        debug!("[UdpSocket] connect to {:#?}", addr);
+        debug!("[UdpSocket] connect to {addr:#?}");
         let ip_addr: ip_addr_t = addr.addr.into();
         let _guard = LWIP_MUTEX.lock();
         unsafe {

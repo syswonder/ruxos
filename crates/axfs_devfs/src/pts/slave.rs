@@ -153,7 +153,7 @@ impl VfsNodeOps for PtySlave {
                 Ok(0)
             }
             _ => {
-                warn!("unimplemented tty ioctl, cmd {:?} {:x}", ioctl_cmd, cmd);
+                warn!("unimplemented tty ioctl, cmd {ioctl_cmd:?} {cmd:x}");
                 Ok(0)
             }
         }

@@ -46,7 +46,7 @@ impl DeviceWrapper {
                 },
                 Err(DevError::Again) => break, // TODO: better method to avoid error type conversion
                 Err(err) => {
-                    warn!("receive failed: {:?}", err);
+                    warn!("receive failed: {err:?}");
                     break;
                 }
             }
@@ -95,7 +95,7 @@ impl InterfaceWrapper {
                 unsafe {
                     let res = netif.0.input.unwrap()(p, &mut netif.0);
                     if (res as i32) != err_enum_t_ERR_OK {
-                        warn!("ethernet_input failed: {:?}", res);
+                        warn!("ethernet_input failed: {res:?}");
                         pbuf_free(p);
                     }
                 }
@@ -107,7 +107,7 @@ impl InterfaceWrapper {
 }
 
 extern "C" fn pbuf_free_custom(p: *mut pbuf) {
-    trace!("pbuf_free_custom: {:x?}", p);
+    trace!("pbuf_free_custom: {p:x?}");
     let p = p as *mut rx_custom_pbuf_t;
     let buf = unsafe { Box::from_raw((*p).buf as *mut NetBuf) };
     let dev = unsafe { Arc::from_raw((*p).dev as *const Mutex<DeviceWrapper>) };
@@ -119,7 +119,7 @@ extern "C" fn pbuf_free_custom(p: *mut pbuf) {
     {
         Ok(_) => (),
         Err(err) => {
-            warn!("recycle_rx_buffer failed: {:?}", err);
+            warn!("recycle_rx_buffer failed: {err:?}");
         }
     };
     unsafe {
@@ -253,7 +253,7 @@ pub fn init_netdev(net_dev: AxNetDevice) {
             );
             let ip = IpAddr::from(ETH0.netif.lock().0.ip_addr);
             let mask = mask_to_prefix(IpAddr::from(ETH0.netif.lock().0.netmask)).unwrap();
-            info!("  ip:       {}/{}", ip, mask);
+            info!("  ip:       {ip}/{mask}");
             info!("  gateway:  {}", IpAddr::from(ETH0.netif.lock().0.gw));
         }
     }

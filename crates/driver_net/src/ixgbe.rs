@@ -43,7 +43,7 @@ impl<H: IxgbeHal, const QS: usize, const QN: u16> IxgbeNic<H, QS, QN> {
         let mem_pool = MemPool::allocate::<H>(MEM_POOL, MEM_POOL_ENTRY_SIZE)
             .map_err(|_| DevError::NoMemory)?;
         let inner = IxgbeDevice::<H, QS>::init(base, len, QN, QN, &mem_pool).map_err(|err| {
-            log::error!("Failed to initialize ixgbe device: {:?}", err);
+            log::error!("Failed to initialize ixgbe device: {err:?}");
             DevError::BadState
         })?;
 

@@ -24,6 +24,8 @@ use self::utils::MemoryPool;
 
 const POOL_SIZE: usize = 1024 * 1024 * 128;
 
+// below code is a benchmark, so it shouldn't be created without push.
+#[allow(clippy::same_item_push)]
 fn vec_push(n: usize, alloc: &(impl Allocator + Clone)) {
     let mut v: Vec<u32, _> = Vec::new_in(alloc.clone());
     for _ in 0..n {

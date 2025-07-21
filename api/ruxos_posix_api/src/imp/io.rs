@@ -68,7 +68,7 @@ pub fn sys_write(fd: c_int, buf: *const c_void, count: usize) -> ctypes::ssize_t
 /// Writes `iocnt` buffers of data described by `iov` to the file associated with the file
 /// descriptor `fd`
 pub unsafe fn sys_writev(fd: c_int, iov: *const ctypes::iovec, iocnt: c_int) -> ctypes::ssize_t {
-    debug!("sys_writev <= fd: {}, iocnt: {}", fd, iocnt);
+    debug!("sys_writev <= fd: {fd}, iocnt: {iocnt}");
     syscall_body!(sys_writev, {
         if !(0..=1024).contains(&iocnt) {
             return Err(LinuxError::EINVAL);
@@ -89,7 +89,7 @@ pub unsafe fn sys_writev(fd: c_int, iov: *const ctypes::iovec, iocnt: c_int) -> 
 /// Reads `iocnt` buffers from the file associated with the file descriptor `fd` into the
 /// buffers described by `iov`
 pub unsafe fn sys_readv(fd: c_int, iov: *const ctypes::iovec, iocnt: c_int) -> ctypes::ssize_t {
-    debug!("sys_readv <= fd: {}, iocnt: {}", fd, iocnt);
+    debug!("sys_readv <= fd: {fd}, iocnt: {iocnt}");
     syscall_body!(sys_readv, {
         if !(0..=1024).contains(&iocnt) {
             return Err(LinuxError::EINVAL);

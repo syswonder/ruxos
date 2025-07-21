@@ -126,13 +126,13 @@ impl From<RuxStat> for ctypes::stat {
 
 /// Close a file by `fd`.
 pub fn sys_close(fd: c_int) -> c_int {
-    debug!("sys_close <= {}", fd);
+    debug!("sys_close <= {fd}");
     syscall_body!(sys_close, close_file_like(fd).map(|_| 0))
 }
 
 /// Duplicate a file descriptor.
 pub fn sys_dup(old_fd: c_int) -> c_int {
-    debug!("sys_dup <= {}", old_fd);
+    debug!("sys_dup <= {old_fd}");
     syscall_body!(sys_dup, {
         let binding_task = current();
         let mut binding_fs = binding_task.fs.lock();
@@ -145,7 +145,7 @@ pub fn sys_dup(old_fd: c_int) -> c_int {
 ///
 /// The close-on-exec flag for the duplicate descriptor is off.
 pub fn sys_dup2(old_fd: c_int, new_fd: c_int) -> c_int {
-    debug!("sys_dup2 <= old_fd: {}, new_fd: {}", old_fd, new_fd);
+    debug!("sys_dup2 <= old_fd: {old_fd}, new_fd: {new_fd}");
     syscall_body!(sys_dup2, {
         if old_fd == new_fd {
             // check if `oldfd` isn't an open file descriptor. If it not, return `EBADF`
@@ -172,10 +172,7 @@ pub fn sys_dup2(old_fd: c_int, new_fd: c_int) -> c_int {
 /// `dup3` used by A64 for MUSL
 #[cfg(feature = "musl")]
 pub fn sys_dup3(old_fd: c_int, new_fd: c_int, flags: c_int) -> c_int {
-    debug!(
-        "sys_dup3 <= old_fd: {}, new_fd: {}, flags: {:x}",
-        old_fd, new_fd, flags
-    );
+    debug!("sys_dup3 <= old_fd: {old_fd}, new_fd: {new_fd}, flags: {flags:x}");
     syscall_body!(sys_dup3, {
         if old_fd == new_fd {
             return Err(LinuxError::EINVAL);
@@ -197,7 +194,7 @@ pub fn sys_dup3(old_fd: c_int, new_fd: c_int, flags: c_int) -> c_int {
 ///
 /// TODO: `SET/GET` command is ignored, hard-code stdin/stdout
 pub fn sys_fcntl(fd: c_int, cmd: c_int, arg: usize) -> c_int {
-    debug!("sys_fcntl <= fd: {} cmd: {} arg: {}", fd, cmd, arg);
+    debug!("sys_fcntl <= fd: {fd} cmd: {cmd} arg: {arg}");
     syscall_body!(sys_fcntl, {
         match cmd as u32 {
             ctypes::F_DUPFD => {
@@ -260,7 +257,7 @@ pub fn sys_fcntl(fd: c_int, cmd: c_int, arg: usize) -> c_int {
                 Ok(0)
             }
             _ => {
-                warn!("unsupported fcntl parameters: cmd {}", cmd);
+                warn!("unsupported fcntl parameters: cmd {cmd}");
                 Ok(0)
             }
         }

@@ -177,7 +177,7 @@ pub fn sys_socket(domain: c_int, socktype: c_int, protocol: c_int) -> c_int {
         }
         let socktype = SocketType::try_from(socktype & 0xf)?;
         let domain = SocketDomain::try_from(domain as u16)?;
-        debug!("sys_socket <= {:?} {:?} {}", domain, socktype, protocol);
+        debug!("sys_socket <= {domain:?} {socktype:?} {protocol}");
         debug!("nonblock: {nonblock}, cloexec: {flags:?}");
         let f = match domain {
             SocketDomain::Inet => match socktype {
@@ -202,8 +202,7 @@ pub fn sys_setsockopt(
     optlen: ctypes::socklen_t,
 ) -> c_int {
     debug!(
-        "sys_setsockopt <= fd: {}, level: {}, optname: {}, optlen: {}, IGNORED",
-        fd, level, optname, optlen
+        "sys_setsockopt <= fd: {fd}, level: {level}, optname: {optname}, optlen: {optlen}, IGNORED"
     );
     syscall_body!(sys_setsockopt, Ok(0))
 }
@@ -357,7 +356,7 @@ pub fn sys_recv(
 ///
 /// Return 0 if success.
 pub fn sys_listen(socket_fd: c_int, backlog: c_int) -> c_int {
-    debug!("sys_listen <= {} {}", socket_fd, backlog);
+    debug!("sys_listen <= {socket_fd} {backlog}");
     syscall_body!(sys_listen, {
         socket_from_fd(socket_fd)?.listen(backlog)?;
         Ok(0)
@@ -394,7 +393,7 @@ pub unsafe fn sys_accept(
 pub fn sys_shutdown(socket_fd: c_int, how: c_int) -> c_int {
     syscall_body!(sys_shutdown, {
         let flags = ShutdownFlags::try_from(how)?;
-        debug!("sys_shutdown <= {} {:?}", socket_fd, flags);
+        debug!("sys_shutdown <= {socket_fd} {flags:?}");
         socket_from_fd(socket_fd)?.shutdown(flags)?;
         Ok(0)
     })
@@ -414,7 +413,7 @@ pub unsafe fn sys_getaddrinfo(
 ) -> c_int {
     let name = char_ptr_to_str(nodename);
     let port = char_ptr_to_str(servname);
-    debug!("sys_getaddrinfo <= {:?} {:?}", name, port);
+    debug!("sys_getaddrinfo <= {name:?} {port:?}");
     syscall_body!(sys_getaddrinfo, {
         if nodename.is_null() && servname.is_null() {
             return Ok(0);

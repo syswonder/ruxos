@@ -65,7 +65,7 @@ impl DirNode {
     /// Creates a new node with the given name and type in this directory.
     pub fn create_node(&self, name: &str, ty: VfsNodeType, mode: VfsNodePerm) -> VfsResult {
         if self.exist(name) {
-            log::error!("AlreadyExists {}", name);
+            log::error!("AlreadyExists {name}");
             return Err(VfsError::AlreadyExists);
         }
         let ino = self.ialloc.upgrade().unwrap().alloc();
@@ -175,7 +175,7 @@ impl VfsNodeOps for DirNode {
 
     fn create_socket_node(&self, name: &RelPath, node: VfsNodeRef) -> VfsResult {
         if self.exist(name) {
-            log::error!("AlreadyExists {}", name);
+            log::error!("AlreadyExists {name}");
             return Err(VfsError::AlreadyExists);
         }
         self.children.write().insert(name.as_str().into(), node);

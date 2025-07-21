@@ -53,7 +53,7 @@ pub struct TcpSocket {
 }
 
 extern "C" fn connect_callback(arg: *mut c_void, _tpcb: *mut tcp_pcb, err: err_t) -> err_t {
-    debug!("[TcpSocket] connect_callback: {:#?}", err);
+    debug!("[TcpSocket] connect_callback: {err:#?}");
     let socket_inner = unsafe { &mut *(arg as *mut TcpSocketInner) };
     socket_inner.connect_result = err.into();
     err
@@ -65,9 +65,9 @@ extern "C" fn recv_callback(
     p: *mut pbuf,
     err: err_t,
 ) -> err_t {
-    debug!("[TcpSocket] recv_callback: {:#?}", err);
+    debug!("[TcpSocket] recv_callback: {err:#?}");
     if err != 0 {
-        error!("[TcpSocket][recv_callback] err: {:#?}", err);
+        error!("[TcpSocket][recv_callback] err: {err:#?}");
         return err;
     }
     let socket_inner = unsafe { &mut *(arg as *mut TcpSocketInner) };
@@ -94,7 +94,7 @@ extern "C" fn recv_callback(
 
 extern "C" fn accept_callback(arg: *mut c_void, newpcb: *mut tcp_pcb, err: err_t) -> err_t {
     if err != 0 {
-        debug!("[TcpSocket][accept_callback] err: {:#?}", err);
+        debug!("[TcpSocket][accept_callback] err: {err:#?}");
         return err;
     }
     let socket_inner = unsafe { &mut *(arg as *mut TcpSocketInner) };
@@ -222,7 +222,7 @@ impl TcpSocket {
     /// The local port is generated automatically.
     pub fn connect(&self, caddr: core::net::SocketAddr) -> AxResult {
         let addr = SocketAddr::from(caddr);
-        debug!("[TcpSocket] connect to {:#?}", addr);
+        debug!("[TcpSocket] connect to {addr:#?}");
         let ip_addr: ip_addr_t = addr.addr.into();
         unsafe {
             self.inner.connect_result.get().write(1);
@@ -275,7 +275,7 @@ impl TcpSocket {
     /// [`accept`](Self::accept).
     pub fn bind(&self, caddr: core::net::SocketAddr) -> AxResult {
         let addr = SocketAddr::from(caddr);
-        debug!("[TcpSocket] bind to {:#?}", addr);
+        debug!("[TcpSocket] bind to {addr:#?}");
         let guard = LWIP_MUTEX.lock();
         unsafe {
             #[allow(non_upper_case_globals)]
@@ -361,7 +361,7 @@ impl TcpSocket {
                 match tcp_close(self.pcb.get()) as i32 {
                     err_enum_t_ERR_OK => {}
                     e => {
-                        error!("LWIP tcp_close failed: {}", e);
+                        error!("LWIP tcp_close failed: {e}");
                         return ax_err!(Unsupported, "LWIP [tcp_close] failed");
                     }
                 }
@@ -470,7 +470,7 @@ impl TcpSocket {
             }
         };
         lwip_loop_once();
-        trace!("[TcpSocket] send done (len: {})", copy_len);
+        trace!("[TcpSocket] send done (len: {copy_len})");
         Ok(copy_len)
     }
 

@@ -104,7 +104,7 @@ impl Tty {
                 Ok(0)
             }
             ioctl_cmd => {
-                warn!("unimplemented tty ioctl, cmd {:?} {:x}", ioctl_cmd, cmd);
+                warn!("unimplemented tty ioctl, cmd {ioctl_cmd:?} {cmd:x}");
                 Ok(0)
             }
         }

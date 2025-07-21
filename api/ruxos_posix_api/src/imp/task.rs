@@ -87,10 +87,7 @@ pub unsafe fn sys_wait4(
 ) -> c_int {
     const WNOHANG: c_int = 0x00000001;
 
-    debug!(
-        "sys_wait4 <= pid: {}, wstatus: {:?}, options: {}, rusage: {:?}",
-        pid, wstatus, options, rusage
-    );
+    debug!("sys_wait4 <= pid: {pid}, wstatus: {wstatus:?}, options: {options}, rusage: {rusage:?}");
 
     if pid > 0 {
         loop {
@@ -164,7 +161,7 @@ pub unsafe fn sys_wait4(
 
 /// Exit current task
 pub fn sys_exit(exit_code: c_int) -> ! {
-    debug!("sys_exit <= {}", exit_code);
+    debug!("sys_exit <= {exit_code}");
     #[cfg(feature = "multitask")]
     ruxtask::exit(exit_code);
     #[cfg(not(feature = "multitask"))]

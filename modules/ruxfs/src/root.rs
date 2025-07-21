@@ -122,7 +122,7 @@ impl RootDirectory {
     /// Check if path matches a mountpoint, return the index of the matched
     /// mountpoint and the matched length.
     fn lookup_mounted_fs(&self, path: &RelPath) -> (usize, usize) {
-        debug!("lookup at root: {}", path);
+        debug!("lookup at root: {path}");
         let mut idx = 0;
         let mut max_len = 0;
 
