@@ -16,7 +16,7 @@ pub const FIOCLEX: usize = 0x5451;
 
 /// ioctl implementation
 pub fn sys_ioctl(fd: c_int, request: usize, data: usize) -> c_int {
-    debug!("sys_ioctl <= fd: {}, request: {}", fd, request);
+    debug!("sys_ioctl <= fd: {fd}, request: {request}");
     syscall_body!(sys_ioctl, {
         match request {
             FIONBIO => {

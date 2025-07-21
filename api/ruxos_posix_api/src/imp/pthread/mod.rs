@@ -151,7 +151,7 @@ impl Pthread {
         let thread = { TID_TO_PTHREAD.read().get(&tid).unwrap().0 };
         let thread = unsafe { Box::from_raw(thread as *mut Pthread) };
         TID_TO_PTHREAD.write().remove(&tid);
-        debug!("Exit_musl, tid: {}", tid);
+        debug!("Exit_musl, tid: {tid}");
         drop(thread);
         ruxtask::exit(0)
     }
@@ -228,7 +228,7 @@ pub fn sys_pthread_exit(retval: *mut c_void) -> ! {
 
 /// Exits the current thread. The value `retval` will be returned to the joiner.
 pub fn sys_exit_group(status: c_int) -> ! {
-    debug!("sys_exit_group <= status: {:#?}", status);
+    debug!("sys_exit_group <= status: {status:#?}");
 
     // TODO: exit all threads, send signal to all threads
 
@@ -320,7 +320,7 @@ pub unsafe fn sys_clone(
                 TID_TO_PTHREAD.write().insert(tid, ForceSendSync(ptr));
                 0
             };
-            debug!("will sys_clone <= pid: {}", pid);
+            debug!("will sys_clone <= pid: {pid}");
             return Ok(pid);
         } else {
             debug!("ONLY support CLONE_THREAD and SIGCHLD");
@@ -390,7 +390,7 @@ pub unsafe fn sys_clone(
                 TID_TO_PTHREAD.write().insert(tid, ForceSendSync(ptr));
                 0
             };
-            debug!("will sys_clone <= pid: {}", pid);
+            debug!("will sys_clone <= pid: {pid}");
             return Ok(pid);
         } else {
             debug!("ONLY support CLONE_THREAD and SIGCHLD");
@@ -457,7 +457,7 @@ pub unsafe fn sys_clone(
 #[cfg(feature = "musl")]
 pub fn sys_set_tid_address(tid: usize) -> c_int {
     syscall_body!(sys_set_tid_address, {
-        debug!("set_tid_address <= addr: {:#x}", tid);
+        debug!("set_tid_address <= addr: {tid:#x}");
         let id = ruxtask::current().id().as_u64() as c_int;
         ruxtask::current().as_task_ref().set_child_tid(tid);
         Ok(id)

@@ -176,7 +176,7 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     #[cfg(feature = "alloc")]
     init_allocator();
 
-    info!("Primary CPU {} started, dtb = {:#x}.", cpu_id, dtb);
+    info!("Primary CPU {cpu_id} started, dtb = {dtb:#x}.");
 
     info!("Found physcial memory regions:");
     for r in ruxhal::mem::memory_regions() {
@@ -284,7 +284,7 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
         init_tls();
     }
 
-    info!("Primary CPU {} init OK.", cpu_id);
+    info!("Primary CPU {cpu_id} init OK.");
     INITED_CPUS.fetch_add(1, Ordering::Relaxed);
 
     while !is_init_ok() {
@@ -299,10 +299,7 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
         #[cfg(feature = "alloc")]
         {
             let (mem_base, mem_size) = ruxdtb::get_memory_info();
-            info!(
-                "memory base: 0x{:x}, memory size: 0x{:x}",
-                mem_base, mem_size
-            );
+            info!("memory base: 0x{mem_base:x}, memory size: 0x{mem_size:x}");
         }
         #[cfg(not(feature = "musl"))]
         main(argc, argv);

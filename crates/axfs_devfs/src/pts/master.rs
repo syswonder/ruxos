@@ -115,7 +115,7 @@ impl VfsNodeOps for PtyMaster {
 
     fn ioctl(&self, cmd: usize, arg: usize) -> VfsResult<usize> {
         let ioctl_cmd = IoctlCommand::from_primitive(cmd as u32);
-        log::debug!("Pty ioctl cmd: {:?}", ioctl_cmd);
+        log::debug!("Pty ioctl cmd: {ioctl_cmd:?}");
         match ioctl_cmd {
             IoctlCommand::TCGETS | IoctlCommand::TCGETA => {
                 let termios = self.output.termios();
@@ -167,7 +167,7 @@ impl VfsNodeOps for PtyMaster {
                 Ok(0)
             }
             _ => {
-                warn!("unimplemented tty ioctl, cmd {:?} {:x}", ioctl_cmd, cmd);
+                warn!("unimplemented tty ioctl, cmd {ioctl_cmd:?} {cmd:x}");
                 Ok(0)
             }
         }

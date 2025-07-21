@@ -129,7 +129,7 @@ cfg_if::cfg_if! {
                     use driver_net::ixgbe::{INTEL_82599, INTEL_VEND, IxgbeNic};
                     if dev_info.vendor_id == INTEL_VEND && dev_info.device_id == INTEL_82599 {
                         // Intel 10Gb Network
-                        info!("ixgbe PCI device found at {:?}", bdf);
+                        info!("ixgbe PCI device found at {bdf:?}");
 
                         // Initialize the device
                         // These can be changed according to the requirments specified in the ixgbe init function.

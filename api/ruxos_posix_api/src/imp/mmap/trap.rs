@@ -54,10 +54,7 @@ impl ruxhal::trap::TrapHandler for TrapHandlerImpl {
             let vma_end_aligned = vma.end_addr;
             // Check if page existing in the vma, go to panic if not.
             if vma_end_aligned <= vaddr {
-                error!(
-                    "Page Fault not match: vaddr=0x{:x?}, cause={:?}",
-                    vaddr, cause
-                );
+                error!("Page Fault not match: vaddr=0x{vaddr:x?}, cause={cause:?}");
                 return false;
             }
 
@@ -66,18 +63,12 @@ impl ruxhal::trap::TrapHandler for TrapHandlerImpl {
             let map_flag = get_mflags_from_usize(vma.prot);
 
             trace!(
-                "Page Fault Happening, vaddr:0x{:x?}, casue:{:?}, map_flags:0x{:x?}",
-                vaddr,
-                cause,
-                map_flag
+                "Page Fault Happening, vaddr:0x{vaddr:x?}, casue:{cause:?}, map_flags:0x{map_flag:x?}"
             );
 
             // Check if the access meet the prot
             if !map_flag.contains(cause.into()) {
-                error!(
-                    "Page Fault: Access violation, vaddr:0x{:x?}, cause:{:?}",
-                    vaddr, cause
-                );
+                error!("Page Fault: Access violation, vaddr:0x{vaddr:x?}, cause:{cause:?}");
                 return false;
             }
 
@@ -231,7 +222,7 @@ impl ruxhal::trap::TrapHandler for TrapHandlerImpl {
                 }
             }
         } else {
-            warn!("vaddr={:#x?},cause={:#x?}", vaddr, cause);
+            warn!("vaddr={vaddr:#x?},cause={cause:#x?}");
             false
         }
     }

@@ -87,7 +87,7 @@ impl VfsNodeOps for VdaNode {
     }
 
     fn lookup(self: Arc<Self>, path: &RelPath) -> VfsResult<VfsNodeRef> {
-        debug!("Lookup VDA node {:?}", path);
+        debug!("Lookup VDA node {path:?}");
         Ok(self)
     }
 
@@ -128,8 +128,7 @@ impl VfsNodeOps for VdaNode {
             }
             buf[pos..pos + copy_len].copy_from_slice(&temp_buf[start..end]);
             debug!(
-                "copy_len: {:?}, cur_offset: {:?}, pos: {:?}, remain: {:?}",
-                copy_len, cur_offset, pos, remain
+                "copy_len: {copy_len:?}, cur_offset: {cur_offset:?}, pos: {pos:?}, remain: {remain:?}"
             );
             cur_offset += copy_len as u64;
             remain -= copy_len;
@@ -148,8 +147,7 @@ impl VfsNodeOps for VdaNode {
                 return Err(VfsError::PermissionDenied);
             }
             debug!(
-                "copy_len: {:?}, cur_offset: {:?}, pos: {:?}, remain: {:?}",
-                BLOCK_SIZE, cur_offset, pos, remain
+                "copy_len: {BLOCK_SIZE:?}, cur_offset: {cur_offset:?}, pos: {pos:?}, remain: {remain:?}"
             );
             cur_offset += BLOCK_SIZE as u64;
             remain -= BLOCK_SIZE;
@@ -172,8 +170,7 @@ impl VfsNodeOps for VdaNode {
             }
             buf[pos..pos + copy_len].copy_from_slice(&temp_buf[start..end]);
             debug!(
-                "copy_len: {:?}, cur_offset: {:?}, pos: {:?}, remain: {:?}",
-                copy_len, cur_offset, pos, remain
+                "copy_len: {copy_len:?}, cur_offset: {cur_offset:?}, pos: {pos:?}, remain: {remain:?}"
             );
             cur_offset += copy_len as u64;
             remain -= copy_len;
@@ -205,8 +202,7 @@ impl VfsNodeOps for VdaNode {
                 return Err(VfsError::PermissionDenied);
             }
             debug!(
-                "copy_len: {:?}, cur_offset: {:?}, pos: {:?}, remain: {:?}",
-                copy_len, cur_offset, pos, remain
+                "copy_len: {copy_len:?}, cur_offset: {cur_offset:?}, pos: {pos:?}, remain: {remain:?}"
             );
             cur_offset += copy_len as u64;
             remain -= copy_len;
@@ -225,8 +221,7 @@ impl VfsNodeOps for VdaNode {
                 return Err(VfsError::PermissionDenied);
             }
             debug!(
-                "copy_len: {:?}, cur_offset: {:?}, pos: {:?}, remain: {:?}",
-                BLOCK_SIZE, cur_offset, pos, remain
+                "copy_len: {BLOCK_SIZE:?}, cur_offset: {cur_offset:?}, pos: {pos:?}, remain: {remain:?}"
             );
             cur_offset += BLOCK_SIZE as u64;
             remain -= BLOCK_SIZE;
@@ -249,8 +244,7 @@ impl VfsNodeOps for VdaNode {
                 return Err(VfsError::PermissionDenied);
             }
             debug!(
-                "copy_len: {:?}, cur_offset: {:?}, pos: {:?}, remain: {:?}",
-                copy_len, cur_offset, pos, remain
+                "copy_len: {copy_len:?}, cur_offset: {cur_offset:?}, pos: {pos:?}, remain: {remain:?}"
             );
             cur_offset += copy_len as u64;
             remain -= copy_len;

@@ -579,9 +579,9 @@ mod tests {
         }
     }
 
+    #[allow(clippy::vec_box)]
     fn build_vector(size: usize) -> Vec<Box<Example>> {
-        let mut v = Vec::new();
-        v.reserve(size);
+        let mut v = Vec::with_capacity(size);
         for _ in 0..size {
             v.push(Box::new(Example {
                 links: super::Links::new(),
@@ -626,10 +626,10 @@ mod tests {
                 let mut list = super::List::<Example>::new();
 
                 // Build list.
-                for j in 0..n {
+                for vi in v.iter().take(n) {
                     // SAFETY: The entry was allocated above, it's not in any lists yet, is never
                     // moved, and outlives the list.
-                    unsafe { list.push_back(&v[j]) };
+                    unsafe { list.push_back(vi) };
                 }
 
                 // Call the test case.

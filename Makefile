@@ -245,6 +245,14 @@ else
 	$(call cargo_clippy)
 endif
 
+clippy_fix:
+	$(call run_prebuild)
+ifeq ($(origin ARCH), command line) 
+	$(call cargo_clippy,--target $(TARGET) --fix)
+else
+	$(call cargo_clippy,--fix)
+endif
+
 doc:
 	$(call cargo_doc)
 

@@ -88,10 +88,7 @@ impl ElfProg {
                 .unwrap()
                 .unwrap()
                 .sh_offset as usize;
-        debug!(
-            "sys_execve: loaded ELF in 0x{:x}, .text is 0x{:x}",
-            base, text_section_addr
-        );
+        debug!("sys_execve: loaded ELF in 0x{base:x}, .text is 0x{text_section_addr:x}");
 
         // create retval
         Self {

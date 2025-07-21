@@ -3,7 +3,7 @@ mod load_elf;
 mod stack;
 
 use alloc::vec;
-use core::{ffi::c_char, ptr::null};
+use core::ffi::c_char;
 use ruxtask::current;
 
 use crate::{
@@ -15,14 +15,11 @@ use crate::{
 
 /// int execve(const char *pathname, char *const argv[], char *const envp[] );
 pub fn sys_execve(pathname: *const c_char, argv: usize, envp: usize) -> ! {
-    debug!(
-        "execve: pathname {:?}, argv {:?}, envp {:?}",
-        pathname, argv, envp
-    );
+    debug!("execve: pathname {pathname:?}, argv {argv:?}, envp {envp:?}");
     use auxv::*;
 
     let path = char_ptr_to_str(pathname).unwrap();
-    debug!("sys_execve: path is {}", path);
+    debug!("sys_execve: path is {path}");
     let prog = load_elf::ElfProg::new(path);
 
     // get entry
@@ -35,7 +32,7 @@ pub fn sys_execve(pathname: *const c_char, argv: usize, envp: usize) -> ! {
         let interp_prog = load_elf::ElfProg::new(interp_path);
         entry = interp_prog.entry;
         at_base = interp_prog.base;
-        debug!("sys_execve: INTERP base is {:x}", at_base);
+        debug!("sys_execve: INTERP base is {at_base:x}");
     };
 
     // create stack

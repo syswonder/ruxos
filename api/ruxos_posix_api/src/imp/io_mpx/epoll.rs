@@ -170,7 +170,7 @@ impl FileLike for EpollInstance {
 ///
 /// It returns a file descriptor referring to the new epoll instance.
 pub fn sys_epoll_create1(flags: c_int) -> c_int {
-    debug!("sys_epoll_create <= {}", flags);
+    debug!("sys_epoll_create <= {flags}");
     syscall_body!(sys_epoll_create, {
         if flags < 0 {
             return Err(LinuxError::EINVAL);
@@ -189,7 +189,7 @@ pub unsafe fn sys_epoll_ctl(
     fd: c_int,
     event: *mut ctypes::epoll_event,
 ) -> c_int {
-    debug!("sys_epoll_ctl <= epfd: {} op: {} fd: {}", epfd, op, fd);
+    debug!("sys_epoll_ctl <= epfd: {epfd} op: {op} fd: {fd}");
     syscall_body!(sys_epoll_ctl, {
         let ret = unsafe {
             EpollInstance::from_fd(epfd)?.control(op as usize, fd as usize, &(*event))? as c_int
@@ -207,10 +207,7 @@ pub unsafe fn sys_epoll_pwait(
     _sigs: *const ctypes::sigset_t,
     _sig_num: *const ctypes::size_t,
 ) -> c_int {
-    debug!(
-        "sys_epoll_pwait <= epfd: {}, maxevents: {}, timeout: {}",
-        epfd, maxevents, timeout
-    );
+    debug!("sys_epoll_pwait <= epfd: {epfd}, maxevents: {maxevents}, timeout: {timeout}");
     sys_epoll_wait(epfd, events, maxevents, timeout)
 }
 
@@ -221,10 +218,7 @@ pub unsafe fn sys_epoll_wait(
     maxevents: c_int,
     timeout: c_int,
 ) -> c_int {
-    debug!(
-        "sys_epoll_wait <= epfd: {}, maxevents: {}, timeout: {}",
-        epfd, maxevents, timeout
-    );
+    debug!("sys_epoll_wait <= epfd: {epfd}, maxevents: {maxevents}, timeout: {timeout}");
 
     syscall_body!(sys_epoll_wait, {
         if maxevents <= 0 {

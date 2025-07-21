@@ -98,7 +98,7 @@ impl FuseNode {
         nlink: u32,
         fh: u64,
     ) -> Arc<Self> {
-        debug!("fuse_node new inode: {:?}, nlink: {:?}", inode, nlink);
+        debug!("fuse_node new inode: {inode:?}, nlink: {nlink:?}");
         Arc::new_cyclic(|this| Self {
             this: this.clone(),
             parent: RwLock::new(parent.unwrap_or_else(|| Weak::<Self>::new())),
@@ -264,7 +264,7 @@ impl FuseNode {
         let unique_id = UNIQUE_ID.load(Ordering::SeqCst);
         let pid = current().id().as_u64();
         let nodeid = self.get_node_inode();
-        debug!("pid = {:?}, inode = {:?}", pid, nodeid);
+        debug!("pid = {pid:?}, inode = {nodeid:?}");
         let fusein = FuseInHeader::new(
             104,
             FuseOpcode::FuseInit as u32,
@@ -283,14 +283,14 @@ impl FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at init in devfuse: {:?}", vec);
+        trace!("Fusevec at init in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseInit as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!("Fuseflag at init is set to {:?}, exiting loop. !!!", flag);
+                trace!("Fuseflag at init is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -299,7 +299,7 @@ impl FuseNode {
         let mut outbuf = [0; 80];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to init: {:?}", vec);
+        trace!("Fusevec back to init: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -379,14 +379,14 @@ impl FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at lookup in devfuse: {:?}", vec);
+        trace!("Fusevec at lookup in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseLookup as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!("Fuseflag at lookup is set to {:?}, exiting loop. !!!", flag);
+                trace!("Fuseflag at lookup is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -395,7 +395,7 @@ impl FuseNode {
         let mut outbuf = [0; 144];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to lookup: {:?}", vec);
+        trace!("Fusevec back to lookup: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -504,17 +504,14 @@ impl FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at open_dir in devfuse: {:?}", vec);
+        trace!("Fusevec at open_dir in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseOpendir as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!(
-                    "Fuseflag at open_dir is set to {:?}, exiting loop. !!!",
-                    flag
-                );
+                trace!("Fuseflag at open_dir is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -523,7 +520,7 @@ impl FuseNode {
         let mut outbuf = [0; 32];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to open_dir: {:?}", vec);
+        trace!("Fusevec back to open_dir: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -555,7 +552,7 @@ impl FuseNode {
         let fh = &mut *fh_guard;
         *fh = opendirout.get_fh();
 
-        debug!("fh = {:#x}", fh);
+        debug!("fh = {fh:#x}");
         debug!("opendirout.fh = {:#x}", opendirout.get_fh());
 
         Ok(None)
@@ -599,17 +596,14 @@ impl FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at release_dir in devfuse: {:?}", vec);
+        trace!("Fusevec at release_dir in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseReleasedir as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!(
-                    "Fuseflag at release_dir is set to {:?}, exiting loop. !!!",
-                    flag
-                );
+                trace!("Fuseflag at release_dir is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -618,7 +612,7 @@ impl FuseNode {
         let mut outbuf = [0; 16];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to release_dir: {:?}", vec);
+        trace!("Fusevec back to release_dir: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -681,14 +675,14 @@ impl FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at forget in devfuse: {:?}", vec);
+        trace!("Fusevec at forget in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseForget as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!("Fuseflag at forget is set to {:?}, exiting loop. !!!", flag);
+                trace!("Fuseflag at forget is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -697,7 +691,7 @@ impl FuseNode {
         let mut outbuf = [0; 16];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to forget: {:?}", vec);
+        trace!("Fusevec back to forget: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -792,17 +786,14 @@ impl FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at setattr in devfuse: {:?}", vec);
+        trace!("Fusevec at setattr in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseSetattr as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!(
-                    "Fuseflag at setattr is set to {:?}, exiting loop. !!!",
-                    flag
-                );
+                trace!("Fuseflag at setattr is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -811,7 +802,7 @@ impl FuseNode {
         let mut outbuf = [0; 120];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to setattr: {:?}", vec);
+        trace!("Fusevec back to setattr: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -885,17 +876,14 @@ impl FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at readlink in devfuse: {:?}", vec);
+        trace!("Fusevec at readlink in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseReadlink as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!(
-                    "Fuseflag at readlink is set to {:?}, exiting loop. !!!",
-                    flag
-                );
+                trace!("Fuseflag at readlink is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -904,7 +892,7 @@ impl FuseNode {
         let mut outbuf = [0; 144];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to readlink: {:?}", vec);
+        trace!("Fusevec back to readlink: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -978,17 +966,14 @@ impl FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at symlink in devfuse: {:?}", vec);
+        trace!("Fusevec at symlink in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseSymlink as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!(
-                    "Fuseflag at symlink is set to {:?}, exiting loop. !!!",
-                    flag
-                );
+                trace!("Fuseflag at symlink is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -996,7 +981,7 @@ impl FuseNode {
 
         let mut outbuf = [0; 144];
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to symlink: {:?}", vec);
+        trace!("Fusevec back to symlink: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -1094,14 +1079,14 @@ impl FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at mknod in devfuse: {:?}", vec);
+        trace!("Fusevec at mknod in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseMknod as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!("Fuseflag at mknod is set to {:?}, exiting loop. !!!", flag);
+                trace!("Fuseflag at mknod is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -1110,7 +1095,7 @@ impl FuseNode {
         let mut outbuf = [0; 144];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to mknod: {:?}", vec);
+        trace!("Fusevec back to mknod: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -1184,14 +1169,14 @@ impl FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at mkdir in devfuse: {:?}", vec);
+        trace!("Fusevec at mkdir in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseMkdir as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!("Fuseflag at mkdir is set to {:?}, exiting loop. !!!", flag);
+                trace!("Fuseflag at mkdir is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -1200,7 +1185,7 @@ impl FuseNode {
         let mut outbuf = [0; 144];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to mkdir: {:?}", vec);
+        trace!("Fusevec back to mkdir: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -1249,7 +1234,7 @@ impl FuseNode {
                 if name.starts_with(".") {
                     continue;
                 }
-                debug!("dirent name = {:?}", name);
+                debug!("dirent name = {name:?}");
                 let node_name = name.as_str();
                 node.unlink(&RelPath::new(node_name))?;
             }
@@ -1294,14 +1279,14 @@ impl FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at rmdir in devfuse: {:?}", vec);
+        trace!("Fusevec at rmdir in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseRmdir as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!("Fuseflag at rmdir is set to {:?}, exiting loop. !!!", flag);
+                trace!("Fuseflag at rmdir is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -1310,7 +1295,7 @@ impl FuseNode {
         let mut outbuf = [0; 16];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to rmdir: {:?}", vec);
+        trace!("Fusevec back to rmdir: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -1375,14 +1360,14 @@ impl FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at unlink in devfuse: {:?}", vec);
+        trace!("Fusevec at unlink in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseUnlink as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!("Fuseflag at unlink is set to {:?}, exiting loop. !!!", flag);
+                trace!("Fuseflag at unlink is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -1391,7 +1376,7 @@ impl FuseNode {
         let mut outbuf = [0; 16];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to unlink: {:?}", vec);
+        trace!("Fusevec back to unlink: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -1462,14 +1447,14 @@ impl FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at read in devfuse: {:?}", vec);
+        trace!("Fusevec at read in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseRead as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!("Fuseflag at read is set to {:?}, exiting loop. !!!", flag);
+                trace!("Fuseflag at read is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -1478,7 +1463,7 @@ impl FuseNode {
         let mut outbuf = [0; 70000];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to read: {:?}", vec);
+        trace!("Fusevec back to read: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         let outlen = vec.len() - 16;
         vec.clear();
@@ -1489,8 +1474,8 @@ impl FuseNode {
         let read_error = if fuseout.is_ok() {
             let readout = &outbuf[16..outlen + 16];
             buf[..outlen].copy_from_slice(readout);
-            debug!("readout_len: {:?}", outlen);
-            trace!("readout: {:?}", readout);
+            debug!("readout_len: {outlen:?}");
+            trace!("readout: {readout:?}");
             1
         } else {
             fuseout.error()
@@ -1498,7 +1483,7 @@ impl FuseNode {
 
         FUSEFLAG.store(0, Ordering::Relaxed);
 
-        debug!("fuse_node read len: {:?} finish successfully...", outlen);
+        debug!("fuse_node read len: {outlen:?} finish successfully...");
 
         if read_error < 0 {
             match read_error {
@@ -1550,14 +1535,14 @@ impl FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at statfs in devfuse: {:?}", vec);
+        trace!("Fusevec at statfs in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseStatfs as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!("Fuseflag at statfs is set to {:?}, exiting loop. !!!", flag);
+                trace!("Fuseflag at statfs is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -1566,7 +1551,7 @@ impl FuseNode {
         let mut outbuf = [0; 96];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to statfs: {:?}", vec);
+        trace!("Fusevec back to statfs: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -1634,14 +1619,14 @@ impl FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at flush in devfuse: {:?}", vec);
+        trace!("Fusevec at flush in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseFlush as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!("Fuseflag at flush is set to {:?}, exiting loop. !!!", flag);
+                trace!("Fuseflag at flush is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -1650,7 +1635,7 @@ impl FuseNode {
         let mut outbuf = [0; 16];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to flush: {:?}", vec);
+        trace!("Fusevec back to flush: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -1712,14 +1697,14 @@ impl FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at access in devfuse: {:?}", vec);
+        trace!("Fusevec at access in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseAccess as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!("Fuseflag at access is set to {:?}, exiting loop. !!!", flag);
+                trace!("Fuseflag at access is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -1728,7 +1713,7 @@ impl FuseNode {
         let mut outbuf = [0; 16];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to access: {:?}", vec);
+        trace!("Fusevec back to access: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -1796,17 +1781,14 @@ impl FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at rename2 in devfuse: {:?}", vec);
+        trace!("Fusevec at rename2 in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseRename2 as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!(
-                    "Fuseflag at rename2 is set to {:?}, exiting loop. !!!",
-                    flag
-                );
+                trace!("Fuseflag at rename2 is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -1815,7 +1797,7 @@ impl FuseNode {
         let mut outbuf = [0; 16];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to rename2: {:?}", vec);
+        trace!("Fusevec back to rename2: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -1826,10 +1808,7 @@ impl FuseNode {
 
         FUSEFLAG.store(0, Ordering::Relaxed);
 
-        debug!(
-            "fuse_node rename2 from {:?} to {:?} finish successfully...",
-            old, new
-        );
+        debug!("fuse_node rename2 from {old:?} to {new:?} finish successfully...");
 
         if rename_error < 0 {
             match rename_error {
@@ -1886,14 +1865,14 @@ impl FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at lseek in devfuse: {:?}", vec);
+        trace!("Fusevec at lseek in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseLseek as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!("Fuseflag at lseek is set to {:?}, exiting loop. !!!", flag);
+                trace!("Fuseflag at lseek is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -1902,7 +1881,7 @@ impl FuseNode {
         let mut outbuf = [0; 24];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to lseek: {:?}", vec);
+        trace!("Fusevec back to lseek: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -1911,7 +1890,7 @@ impl FuseNode {
 
         if fuseout.is_ok() {
             lseekout = FuseLseekOut::read_from(&outbuf[16..]).get_offset();
-            debug!("lseekout = {:?}", lseekout);
+            debug!("lseekout = {lseekout:?}");
             lseek_error = 1;
         } else {
             lseek_error = fuseout.error();
@@ -1967,17 +1946,14 @@ impl FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at destroy in devfuse: {:?}", vec);
+        trace!("Fusevec at destroy in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseDestroy as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!(
-                    "Fuseflag at destroy is set to {:?}, exiting loop. !!!",
-                    flag
-                );
+                trace!("Fuseflag at destroy is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -1986,7 +1962,7 @@ impl FuseNode {
         let mut outbuf = [0; 16];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to destroy: {:?}", vec);
+        trace!("Fusevec back to destroy: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -2067,14 +2043,14 @@ impl VfsNodeOps for FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at open in devfuse: {:?}", vec);
+        trace!("Fusevec at open in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseOpen as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!("Fuseflag at open is set to {:?}, exiting loop. !!!", flag);
+                trace!("Fuseflag at open is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -2083,7 +2059,7 @@ impl VfsNodeOps for FuseNode {
         let mut outbuf = [0; 32];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to open: {:?}", vec);
+        trace!("Fusevec back to open: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -2164,17 +2140,14 @@ impl VfsNodeOps for FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at release in devfuse: {:?}", vec);
+        trace!("Fusevec at release in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseRelease as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!(
-                    "Fuseflag at release is set to {:?}, exiting loop. !!!",
-                    flag
-                );
+                trace!("Fuseflag at release is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -2183,7 +2156,7 @@ impl VfsNodeOps for FuseNode {
         let mut outbuf = [0; 16];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to release: {:?}", vec);
+        trace!("Fusevec back to release: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -2247,17 +2220,14 @@ impl VfsNodeOps for FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at get_attr in devfuse: {:?}", vec);
+        trace!("Fusevec at get_attr in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseGetattr as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!(
-                    "Fuseflag at get_attr is set to {:?}, exiting loop. !!!",
-                    flag
-                );
+                trace!("Fuseflag at get_attr is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -2266,7 +2236,7 @@ impl VfsNodeOps for FuseNode {
         let mut outbuf = [0; 120];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to get_attr: {:?}", vec);
+        trace!("Fusevec back to get_attr: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -2329,7 +2299,7 @@ impl VfsNodeOps for FuseNode {
             offset,
             buf.len()
         );
-        trace!("buf: {:?}", buf);
+        trace!("buf: {buf:?}");
 
         let write_error;
         let writeout;
@@ -2373,14 +2343,14 @@ impl VfsNodeOps for FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at write in devfuse: {:?}", vec);
+        trace!("Fusevec at write in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseWrite as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!("Fuseflag at write is set to {:?}, exiting loop. !!!", flag);
+                trace!("Fuseflag at write is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -2389,7 +2359,7 @@ impl VfsNodeOps for FuseNode {
         let mut outbuf = [0; 24];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to write: {:?}", vec);
+        trace!("Fusevec back to write: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -2457,14 +2427,14 @@ impl VfsNodeOps for FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at fsync in devfuse: {:?}", vec);
+        trace!("Fusevec at fsync in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseFsync as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!("Fuseflag at fsync is set to {:?}, exiting loop. !!!", flag);
+                trace!("Fuseflag at fsync is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -2473,7 +2443,7 @@ impl VfsNodeOps for FuseNode {
         let mut outbuf = [0; 16];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to fsync: {:?}", vec);
+        trace!("Fusevec back to fsync: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -2497,7 +2467,7 @@ impl VfsNodeOps for FuseNode {
     }
 
     fn truncate(&self, size: u64) -> VfsResult {
-        warn!("fuse_node truncate is not implemented, size: {:?}...", size);
+        warn!("fuse_node truncate is not implemented, size: {size:?}...");
         Ok(())
     }
 
@@ -2579,14 +2549,14 @@ impl VfsNodeOps for FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at create in devfuse: {:?}", vec);
+        trace!("Fusevec at create in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseCreate as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!("Fuseflag at create is set to {:?}, exiting loop. !!!", flag);
+                trace!("Fuseflag at create is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -2595,7 +2565,7 @@ impl VfsNodeOps for FuseNode {
         let mut outbuf = [0; 160];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to create: {:?}", vec);
+        trace!("Fusevec back to create: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -2691,17 +2661,14 @@ impl VfsNodeOps for FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at readdir in devfuse: {:?}", vec);
+        trace!("Fusevec at readdir in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseReaddir as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!(
-                    "Fuseflag at readdir is set to {:?}, exiting loop. !!!",
-                    flag
-                );
+                trace!("Fuseflag at readdir is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -2711,7 +2678,7 @@ impl VfsNodeOps for FuseNode {
         let mut outbuf = [0; 12000];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to readdir: {:?}", vec);
+        trace!("Fusevec back to readdir: {vec:?}");
         let buf_len = vec.len();
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
@@ -2727,7 +2694,7 @@ impl VfsNodeOps for FuseNode {
             direntry.print();
             offset += direntry.get_len();
             dirs.push(direntry);
-            debug!("offset = {:?}", offset);
+            debug!("offset = {offset:?}");
         }
 
         FUSEFLAG.store(0, Ordering::Relaxed);
@@ -2767,7 +2734,7 @@ impl VfsNodeOps for FuseNode {
                                 &dirents[j].entry_type()
                             );
                         }
-                        debug!("Ok(i) = {:?}", i);
+                        debug!("Ok(i) = {i:?}");
                         return Ok(i);
                     }
                 }
@@ -2839,8 +2806,7 @@ impl VfsNodeOps for FuseNode {
             self.is_dir()
         );
         debug!(
-            "src_name = {:?}, dst_name = {:?}, src_len = {:?}, dst_len = {:?}",
-            src_name, dst_name, src_len, dst_len
+            "src_name = {src_name:?}, dst_name = {dst_name:?}, src_len = {src_len:?}, dst_len = {dst_len:?}"
         );
 
         let fusein = FuseInHeader::new(
@@ -2854,7 +2820,7 @@ impl VfsNodeOps for FuseNode {
         );
         let mut fusebuf = [0; 280];
         fusein.write_to(&mut fusebuf);
-        debug!("oldid = {:?}, newid = {:?}", nodeid, newid);
+        debug!("oldid = {nodeid:?}, newid = {newid:?}");
         let renamein = FuseRenameIn::new(newid as u64);
         renamein.write_to(&mut fusebuf[40..]);
         fusebuf[48..48 + src_len].copy_from_slice(src_name.as_bytes());
@@ -2865,14 +2831,14 @@ impl VfsNodeOps for FuseNode {
 
         let mut vec = FUSE_VEC.lock();
         vec.extend_from_slice(&fusebuf);
-        trace!("Fusevec at rename in devfuse: {:?}", vec);
+        trace!("Fusevec at rename in devfuse: {vec:?}");
 
         FUSEFLAG.store(FuseOpcode::FuseRename as i32, Ordering::Relaxed);
 
         loop {
             let flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag < 0 {
-                trace!("Fuseflag at rename is set to {:?}, exiting loop. !!!", flag);
+                trace!("Fuseflag at rename is set to {flag:?}, exiting loop. !!!");
                 break;
             }
             ruxtask::yield_now();
@@ -2881,7 +2847,7 @@ impl VfsNodeOps for FuseNode {
         let mut outbuf = [0; 16];
 
         let mut vec = FUSE_VEC.lock();
-        trace!("Fusevec back to rename: {:?}", vec);
+        trace!("Fusevec back to rename: {vec:?}");
         outbuf[0..vec.len()].copy_from_slice(&vec);
         vec.clear();
 
@@ -2892,10 +2858,7 @@ impl VfsNodeOps for FuseNode {
 
         FUSEFLAG.store(0, Ordering::Relaxed);
 
-        debug!(
-            "fuse_node rename from {:?} to {:?} finish successfully...",
-            src_path, dst_path
-        );
+        debug!("fuse_node rename from {src_path:?} to {dst_path:?} finish successfully...");
 
         if rename_error < 0 {
             match rename_error {

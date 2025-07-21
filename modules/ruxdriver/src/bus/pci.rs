@@ -66,7 +66,7 @@ fn config_pci_device(
                         "  BAR {}: MEM [{:#x}, {:#x}){}{}",
                         bar,
                         address,
-                        address + size as u64,
+                        address + size,
                         if address_type == MemoryBarType::Width64 {
                             " 64bit"
                         } else {
@@ -106,7 +106,7 @@ impl AllDevices {
 
         for bus in 0..=ruxconfig::PCI_BUS_END as u8 {
             for (bdf, dev_info) in root.enumerate_bus(bus) {
-                debug!("PCI {}: {}", bdf, dev_info);
+                debug!("PCI {bdf}: {dev_info}");
                 if dev_info.header_type != HeaderType::Standard {
                     continue;
                 }
@@ -123,10 +123,7 @@ impl AllDevices {
                             continue; // skip to the next device
                         }
                     }),
-                    Err(e) => warn!(
-                        "failed to enable PCI device at {}({}): {:?}",
-                        bdf, dev_info, e
-                    ),
+                    Err(e) => warn!("failed to enable PCI device at {bdf}({dev_info}): {e:?}"),
                 }
             }
         }

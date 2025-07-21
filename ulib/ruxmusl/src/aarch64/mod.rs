@@ -7,7 +7,7 @@ use ruxos_posix_api::ctypes::{self, gid_t, pid_t, uid_t};
 use syscall_id::SyscallId;
 
 pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
-    debug!("syscall <= syscall_name: {:?}", syscall_id);
+    debug!("syscall <= syscall_name: {syscall_id:?}");
 
     unsafe {
         match syscall_id {

@@ -149,10 +149,7 @@ pub unsafe extern "C" fn sys_random() -> c_long {
 
 /// Fills the buffer pointed to by buf with up to buflen random bytes.
 pub unsafe extern "C" fn sys_getrandom(buf: *mut c_void, buflen: size_t, flags: c_int) -> ssize_t {
-    debug!(
-        "sys_getrandom <= buf: {:?}, buflen: {}, flags: {}",
-        buf, buflen, flags
-    );
+    debug!("sys_getrandom <= buf: {buf:?}, buflen: {buflen}, flags: {flags}");
     syscall_body!(sys_getrandom, {
         if buf.is_null() {
             return Err(LinuxError::EFAULT);
@@ -160,7 +157,7 @@ pub unsafe extern "C" fn sys_getrandom(buf: *mut c_void, buflen: size_t, flags: 
 
         // BUG: flags are implemented wrongly, flags should be checks bit by bit
         if flags != 0 {
-            warn!("flags are not implemented yet, flags: {}, ignored", flags);
+            warn!("flags are not implemented yet, flags: {flags}, ignored");
         }
         // fill the buffer 8 bytes at a time first, then fill the remaining bytes
         let buflen_mod = buflen % (core::mem::size_of::<i64>() / core::mem::size_of::<u8>());

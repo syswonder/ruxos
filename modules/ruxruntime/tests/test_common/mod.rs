@@ -29,21 +29,21 @@ macro_rules! assert_err {
 
 fn test_read_write_file() -> Result<()> {
     let fname = fs::absolute_path("///very/long//.././long//./path/./test.txt")?;
-    println!("read and write file {:?}:", fname);
+    println!("read and write file {fname:?}:");
 
     // read and write
     let mut file = fs::open_file(&fname, OpenFlags::O_RDWR)?;
     let file_size = file.get_attr()?.size();
     let mut contents = String::new();
     file.read_to_string(&mut contents)?;
-    print!("{}", contents);
+    print!("{contents}");
     assert_eq!(contents.len(), file_size as usize);
     assert_eq!(file.write(b"Hello, world!\n")?, 14); // append
     drop(file);
 
     // read again and check
     let new_contents = fs::read_to_string(&fname)?;
-    print!("{}", new_contents);
+    print!("{new_contents}");
     assert_eq!(new_contents, contents + "Hello, world!\n");
 
     // append and check
@@ -52,7 +52,7 @@ fn test_read_write_file() -> Result<()> {
     drop(file);
 
     let new_contents2 = fs::read_to_string(&fname)?;
-    print!("{}", new_contents2);
+    print!("{new_contents2}");
     assert_eq!(new_contents2, new_contents + "new line\n");
 
     // open a non-exist file
@@ -67,7 +67,7 @@ fn test_read_write_file() -> Result<()> {
 
 fn test_read_dir() -> Result<()> {
     let dir = fs::absolute_path("/././//./")?;
-    println!("list directory {:?}:", dir);
+    println!("list directory {dir:?}:");
     for entry in fs::open_dir(&dir, OpenFlags::empty())? {
         let entry = entry?;
         println!("   {}", entry.name_as_string());
@@ -78,7 +78,7 @@ fn test_read_dir() -> Result<()> {
 
 fn test_file_permission() -> Result<()> {
     let fname = fs::absolute_path("./short.txt")?;
-    println!("test permission {:?}:", fname);
+    println!("test permission {fname:?}:");
 
     // write a file that open with read-only mode
     let mut buf = [0; 256];
@@ -110,7 +110,7 @@ fn test_file_permission() -> Result<()> {
 fn test_create_file_dir() -> Result<()> {
     // create a file and test existence
     let fname = fs::absolute_path("././/very-long-dir-name/..///new-file.txt")?;
-    println!("test create file {:?}:", fname);
+    println!("test create file {fname:?}:");
     assert_err!(fs::get_attr(&fname), NotFound);
     let contents = "create a new file!\n";
     fs::write(&fname, contents)?;
@@ -118,21 +118,21 @@ fn test_create_file_dir() -> Result<()> {
     let dirents = fs::open_dir(&fs::absolute_path(".")?, OpenFlags::empty())?
         .map(|e| e.unwrap().name_as_string())
         .collect::<Vec<_>>();
-    println!("dirents = {:?}", dirents);
+    println!("dirents = {dirents:?}");
     assert!(dirents.contains(&"new-file.txt".into()));
     assert_eq!(fs::read_to_string(&fname)?, contents);
     assert_err!(open_file_create_new(&fname), AlreadyExists);
 
     // create a directory and test existence
     let dirname = fs::absolute_path("///././/very//.//long/./new-dir")?;
-    println!("test create dir {:?}:", dirname);
+    println!("test create dir {dirname:?}:");
     assert_err!(fs::get_attr(&dirname), NotFound);
     fs::create_dir(&dirname)?;
 
     let dirents = fs::open_dir(&fs::absolute_path("./very/long")?, OpenFlags::empty())?
         .map(|e| e.unwrap().name_as_string())
         .collect::<Vec<_>>();
-    println!("dirents = {:?}", dirents);
+    println!("dirents = {dirents:?}");
     assert!(dirents.contains(&"new-dir".into()));
     assert!(fs::get_attr(&dirname)?.is_dir());
     assert_err!(fs::create_dir(&dirname), AlreadyExists);
@@ -144,7 +144,7 @@ fn test_create_file_dir() -> Result<()> {
 fn test_remove_file_dir() -> Result<()> {
     // remove a file and test existence
     let fname = fs::absolute_path("//very-long-dir-name/..///new-file.txt")?;
-    println!("test remove file {:?}:", fname);
+    println!("test remove file {fname:?}:");
     assert_err!(fs::remove_dir(&fname), NotADirectory);
     assert!(fs::remove_file(&fname).is_ok());
     assert_err!(fs::get_attr(&fname), NotFound);
@@ -152,7 +152,7 @@ fn test_remove_file_dir() -> Result<()> {
 
     // remove a directory and test existence
     let dirname = fs::absolute_path("very//.//long/../long/.//./new-dir////")?;
-    println!("test remove dir {:?}:", dirname);
+    println!("test remove dir {dirname:?}:");
     assert_err!(fs::remove_file(&dirname), IsADirectory);
     assert!(fs::remove_dir(&dirname).is_ok());
     assert_err!(fs::get_attr(&dirname), NotFound);
@@ -210,7 +210,7 @@ fn test_devfs_ramfs() -> Result<()> {
     let dname = &fs::absolute_path("/dev")?;
     let dir = fs::open_dir(dname, OpenFlags::empty())?;
     let md = dir.get_attr()?;
-    println!("metadata of {:?}: {:?}", dname, md);
+    println!("metadata of {dname:?}: {md:?}");
     assert_eq!(md.file_type(), FileType::Dir);
     assert!(!md.is_file());
     assert!(md.is_dir());

@@ -61,6 +61,6 @@ impl Stack {
 
 impl Drop for Stack {
     fn drop(&mut self) {
-        error!("execve's stack dropped. {:#?}", self);
+        error!("execve's stack dropped. {self:#?}");
     }
 }

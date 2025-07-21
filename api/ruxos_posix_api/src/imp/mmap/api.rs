@@ -44,18 +44,14 @@ pub fn sys_mmap(
     off: ctypes::off_t,
 ) -> *mut c_void {
     debug!(
-        "sys_mmap <= start: {:p}, len: 0x{:x}, prot:0x{:x?}, flags:0x{:x?}, fd: {}, off: 0x{:x}",
-        start, len, prot, flags, fd, off
+        "sys_mmap <= start: {start:p}, len: 0x{len:x}, prot:0x{prot:x?}, flags:0x{flags:x?}, fd: {fd}, off: 0x{off:x}"
     );
     syscall_body!(sys_mmap, {
         // transform C-type into rust-type
         let start = start as usize;
         let mapping_len = VirtAddr::from(len).align_up_4k().as_usize();
         if !VirtAddr::from(start).is_aligned(PAGE_SIZE_4K) || len == 0 {
-            error!(
-                "mmap failed because start:0x{:x} is not aligned or len:0x{:x} == 0",
-                start, len
-            );
+            error!("mmap failed because start:0x{start:x} is not aligned or len:0x{len:x} == 0");
             return Err(LinuxError::EINVAL);
         }
         let prot = prot as u32;
@@ -105,17 +101,14 @@ pub fn sys_mmap(
 
 /// Deletes the mappings for the specified address range
 pub fn sys_munmap(start: *mut c_void, len: ctypes::size_t) -> c_int {
-    debug!("sys_munmap <= start: {:p}, len: 0x{:x}", start, len);
+    debug!("sys_munmap <= start: {start:p}, len: 0x{len:x}");
     syscall_body!(sys_munmap, {
         // transform C-type into rust-type
         let start = start as usize;
         let end = VirtAddr::from(start + len).align_up_4k().as_usize();
 
         if !VirtAddr::from(start).is_aligned(PAGE_SIZE_4K) || len == 0 {
-            error!(
-                "sys_munmap start_address=0x{:x}, len 0x{:x?} not aligned",
-                start, len
-            );
+            error!("sys_munmap start_address=0x{start:x}, len 0x{len:x?} not aligned");
             return Err(LinuxError::EINVAL);
         }
 
@@ -193,10 +186,7 @@ pub fn sys_munmap(start: *mut c_void, len: ctypes::size_t) -> c_int {
 /// containing any part of the address range in the interval [addr, addr+len).  
 /// addr must be aligned to a page boundary.
 pub fn sys_mprotect(start: *mut c_void, len: ctypes::size_t, prot: c_int) -> c_int {
-    debug!(
-        "sys_mprotect <= addr: {:p}, len: 0x{:x}, prot: {}",
-        start, len, prot
-    );
+    debug!("sys_mprotect <= addr: {start:p}, len: 0x{len:x}, prot: {prot}");
 
     syscall_body!(sys_mprotect, {
         // transform C-type into rust-type
@@ -270,8 +260,7 @@ pub fn sys_mprotect(start: *mut c_void, len: ctypes::size_t, prot: c_int) -> c_i
             .is_err()
             {
                 error!(
-                    "Updating page prot failed when mprotecting the page: vaddr=0x{:x?}, prot={:?}",
-                    vaddr, prot
+                    "Updating page prot failed when mprotecting the page: vaddr=0x{vaddr:x?}, prot={prot:?}"
                 );
             }
         }
@@ -298,10 +287,7 @@ pub fn sys_mprotect(start: *mut c_void, len: ctypes::size_t, prot: c_int) -> c_i
 ///
 /// Note: support flags `MS_SYNC` only.
 pub fn sys_msync(start: *mut c_void, len: ctypes::size_t, flags: c_int) -> c_int {
-    debug!(
-        "sys_msync <= addr: {:p}, len: {}, flags: {}",
-        start, len, flags
-    );
+    debug!("sys_msync <= addr: {start:p}, len: {len}, flags: {flags}");
     syscall_body!(sys_msync, {
         #[cfg(feature = "fs")]
         {
@@ -330,8 +316,7 @@ pub fn sys_mremap(
     new_addr: *mut c_void,
 ) -> *mut c_void {
     debug!(
-        "sys_mremap <= old_addr: {:p}, old_size: {}, new_size: {}, flags: {}, new_addr: {:p}",
-        old_addr, old_size, new_size, flags, new_addr
+        "sys_mremap <= old_addr: {old_addr:p}, old_size: {old_size}, new_size: {new_size}, flags: {flags}, new_addr: {new_addr:p}"
     );
     syscall_body!(sys_mremap, {
         let old_vaddr = VirtAddr::from(old_addr as usize);
@@ -551,9 +536,6 @@ pub fn sys_mremap(
 ///
 /// TODO: implement this to improve performance.
 pub fn sys_madvise(addr: *mut c_void, len: ctypes::size_t, advice: c_int) -> c_int {
-    debug!(
-        "sys_madvise <= addr: {:p}, len: {}, advice: {}",
-        addr, len, advice
-    );
+    debug!("sys_madvise <= addr: {addr:p}, len: {len}, advice: {advice}");
     syscall_body!(sys_madvise, Ok(0))
 }

@@ -196,10 +196,7 @@ impl<M: PagingMetaData, PTE: GenericPTE, IF: PagingIf> PageTable64<M, PTE, IF> {
                 PageSize::Size4K
             };
             self.map(vaddr, paddr, page_size, flags).inspect_err(|e| {
-                error!(
-                    "failed to map page: {:#x?}({:?}) -> {:#x?}, {:?}",
-                    vaddr, page_size, paddr, e
-                )
+                error!("failed to map page: {vaddr:#x?}({page_size:?}) -> {paddr:#x?}, {e:?}")
             })?;
             vaddr += page_size as usize;
             paddr += page_size as usize;
@@ -224,7 +221,7 @@ impl<M: PagingMetaData, PTE: GenericPTE, IF: PagingIf> PageTable64<M, PTE, IF> {
         while size > 0 {
             let (_, page_size) = self
                 .unmap(vaddr)
-                .inspect_err(|e| error!("failed to unmap page: {:#x?}, {:?}", vaddr, e))?;
+                .inspect_err(|e| error!("failed to unmap page: {vaddr:#x?}, {e:?}"))?;
             assert!(vaddr.is_aligned(page_size));
             assert!(page_size as usize <= size);
             vaddr += page_size as usize;

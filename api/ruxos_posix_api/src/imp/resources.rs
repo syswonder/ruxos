@@ -106,7 +106,7 @@ pub unsafe fn sys_prlimit64(
     new_limit: *const ctypes::rlimit,
     old_limit: *mut ctypes::rlimit,
 ) -> c_int {
-    debug!("sys_prlimit64 <= resource: {}", resource);
+    debug!("sys_prlimit64 <= resource: {resource}");
     if !new_limit.is_null() {
         return sys_setrlimit(resource, new_limit);
     }

@@ -41,7 +41,7 @@ static GICR: LazyInit<SpinNoIrq<GicRedistributor>> = LazyInit::new();
 
 /// Enables or disables the given IRQ.
 pub fn set_enable(irq_num: usize, enabled: bool) {
-    trace!("set enable: {} {}", irq_num, enabled);
+    trace!("set enable: {irq_num} {enabled}");
     if irq_num < 32 {
         GICR.lock().set_enable(irq_num as _, enabled);
     } else {
@@ -54,7 +54,7 @@ pub fn set_enable(irq_num: usize, enabled: bool) {
 /// It also enables the IRQ if the registration succeeds. It returns `false` if
 /// the registration failed.
 pub fn register_handler(irq_num: usize, handler: IrqHandler) -> bool {
-    trace!("register handler irq {}", irq_num);
+    trace!("register handler irq {irq_num}");
     crate::irq::register_handler_common(irq_num, handler)
 }
 

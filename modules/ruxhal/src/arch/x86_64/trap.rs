@@ -88,9 +88,8 @@ fn x86_syscall_handler(
     arg6: usize,
 ) -> isize {
     debug!(
-        "syscall_id: {}, 
-        arg1: {:#x}, arg2: {:#x}, arg3:{:#x}, arg4: {:#x}, arg5:{:#x}, arg6: {:#x}",
-        syscall_id, arg1, arg2, arg3, arg4, arg5, arg6
+        "syscall_id: {syscall_id}, 
+        arg1: {arg1:#x}, arg2: {arg2:#x}, arg3:{arg3:#x}, arg4: {arg4:#x}, arg5:{arg5:#x}, arg6: {arg6:#x}"
     );
     crate::trap::handle_syscall(syscall_id, [arg1, arg2, arg3, arg4, arg5, arg6])
 }

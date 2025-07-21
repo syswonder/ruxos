@@ -45,7 +45,7 @@ impl Drv9pOps {
                 info!("9p dev init success");
             }
             Err(ecode) => {
-                error!("9p dev init fail! error code:{}", ecode);
+                error!("9p dev init fail! error code:{ecode}");
             }
         }
         Self {
@@ -90,7 +90,7 @@ impl Drv9pOps {
     pub fn recycle_fid(&mut self, id: u32) {
         let mut fid_gen = self.fid_gen.write();
         if fid_gen.contains(&id) {
-            warn!("fid {} already exist", id);
+            warn!("fid {id} already exist");
         } else {
             fid_gen.push(id);
         }

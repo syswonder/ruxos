@@ -71,7 +71,7 @@ pub fn sys_pread64(
     pos: ctypes::off_t,
 ) -> ctypes::ssize_t {
     syscall_body!(sys_pread64, {
-        debug!("sys_pread64 <= {} {} {}", fd, count, pos);
+        debug!("sys_pread64 <= {fd} {count} {pos}");
         if buf.is_null() {
             return Err(LinuxError::EFAULT);
         }
@@ -92,7 +92,7 @@ pub fn sys_pwrite64(
     pos: ctypes::off_t,
 ) -> ctypes::ssize_t {
     syscall_body!(sys_pwrite64, {
-        debug!("sys_pwrite64 <= {} {} {}", fd, count, pos);
+        debug!("sys_pwrite64 <= {fd} {count} {pos}");
         if buf.is_null() {
             return Err(LinuxError::EFAULT);
         }
@@ -107,7 +107,7 @@ pub fn sys_pwrite64(
 /// Return its position after seek.
 pub fn sys_lseek(fd: c_int, offset: ctypes::off_t, whence: c_int) -> ctypes::off_t {
     syscall_body!(sys_lseek, {
-        debug!("sys_lseek <= {} {} {}", fd, offset, whence);
+        debug!("sys_lseek <= {fd} {offset} {whence}");
         let pos = match whence {
             0 => SeekFrom::Start(offset as _),
             1 => SeekFrom::Current(offset as _),
@@ -122,7 +122,7 @@ pub fn sys_lseek(fd: c_int, offset: ctypes::off_t, whence: c_int) -> ctypes::off
 /// Truncate a file to a specified length.
 pub unsafe fn sys_ftruncate(fd: c_int, length: ctypes::off_t) -> c_int {
     syscall_body!(sys_ftruncate, {
-        debug!("sys_ftruncate <= {} {}", fd, length);
+        debug!("sys_ftruncate <= {fd} {length}");
         let file = file_from_fd(fd)?;
         file.truncate(length as u64)?;
         Ok(0)
@@ -133,7 +133,7 @@ pub unsafe fn sys_ftruncate(fd: c_int, length: ctypes::off_t) -> c_int {
 ///
 /// TODO
 pub unsafe fn sys_fsync(fd: c_int) -> c_int {
-    debug!("sys_fsync <= fd: {}", fd);
+    debug!("sys_fsync <= fd: {fd}");
     syscall_body!(sys_fsync, Ok(0))
 }
 
@@ -141,7 +141,7 @@ pub unsafe fn sys_fsync(fd: c_int) -> c_int {
 ///
 /// TODO
 pub unsafe fn sys_fdatasync(fd: c_int) -> c_int {
-    debug!("sys_fdatasync <= fd: {}", fd);
+    debug!("sys_fdatasync <= fd: {fd}");
     syscall_body!(sys_fdatasync, Ok(0))
 }
 
@@ -248,10 +248,7 @@ pub unsafe fn sys_newfstatat(
 ) -> c_int {
     syscall_body!(sys_newfstatat, {
         let path = parse_path_at(fd, path)?;
-        debug!(
-            "sys_newfstatat <= fd: {}, path: {:?}, flag: {:x}",
-            fd, path, flag
-        );
+        debug!("sys_newfstatat <= fd: {fd}, path: {path:?}, flag: {flag:x}");
         if kst.is_null() {
             return Err(LinuxError::EFAULT);
         }
@@ -306,7 +303,7 @@ pub fn sys_rename(old: *const c_char, new: *const c_char) -> c_int {
     syscall_body!(sys_rename, {
         let old = parse_path(old)?;
         let new = parse_path(new)?;
-        debug!("sys_rename <= old: {:?}, new: {:?}", old, new);
+        debug!("sys_rename <= old: {old:?}, new: {new:?}");
         if old == new {
             return Ok(0);
         }
@@ -330,8 +327,7 @@ pub fn sys_renameat(oldfd: c_int, old: *const c_char, newfd: c_int, new: *const 
         let old_path = parse_path_at(oldfd, old)?;
         let new_path = parse_path_at(newfd, new)?;
         debug!(
-            "sys_renameat <= oldfd: {}, old: {:?}, newfd: {}, new: {:?}",
-            oldfd, old_path, newfd, new_path
+            "sys_renameat <= oldfd: {oldfd}, old: {old_path:?}, newfd: {newfd}, new: {new_path:?}"
         );
         fops::rename(&old_path, &new_path)?;
         Ok(0)
@@ -342,7 +338,7 @@ pub fn sys_renameat(oldfd: c_int, old: *const c_char, newfd: c_int, new: *const 
 pub fn sys_rmdir(pathname: *const c_char) -> c_int {
     syscall_body!(sys_rmdir, {
         let path = parse_path(pathname)?;
-        debug!("sys_rmdir <= path: {:?}", path);
+        debug!("sys_rmdir <= path: {path:?}");
         match fops::lookup(&path) {
             Ok(node) => {
                 let attr = node.get_attr()?;
@@ -370,7 +366,7 @@ pub fn sys_rmdir(pathname: *const c_char) -> c_int {
 pub fn sys_unlink(pathname: *const c_char) -> c_int {
     syscall_body!(sys_unlink, {
         let path = parse_path(pathname)?;
-        debug!("sys_unlink <= path: {:?}", path);
+        debug!("sys_unlink <= path: {path:?}");
         match fops::lookup(&path) {
             Ok(node) => {
                 let attr = node.get_attr()?;
@@ -393,10 +389,7 @@ pub fn sys_unlinkat(fd: c_int, pathname: *const c_char, flags: c_int) -> c_int {
     syscall_body!(sys_unlinkat, {
         let path = parse_path_at(fd, pathname)?;
         let rmdir = flags as u32 & ctypes::AT_REMOVEDIR != 0;
-        debug!(
-            "sys_unlinkat <= fd: {}, pathname: {:?}, flags: {}",
-            fd, path, flags
-        );
+        debug!("sys_unlinkat <= fd: {fd}, pathname: {path:?}, flags: {flags}");
         match fops::lookup(&path) {
             Ok(node) => {
                 let attr = node.get_attr()?;
@@ -493,10 +486,7 @@ pub fn sys_fchownat(
 ) -> c_int {
     syscall_body!(sys_fchownat, {
         let path = parse_path_at(fd, path)?;
-        debug!(
-            "sys_fchownat <= fd: {}, path: {:?}, uid: {}, gid: {}, flag: {}",
-            fd, path, uid, gid, flag
-        );
+        debug!("sys_fchownat <= fd: {fd}, path: {path:?}, uid: {uid}, gid: {gid}, flag: {flag}");
         Ok(0)
     })
 }
@@ -512,8 +502,7 @@ pub fn sys_readlinkat(
     syscall_body!(sys_readlinkat, {
         let path = parse_path_at(fd, pathname)?;
         debug!(
-            "sys_readlinkat <= path = {:?}, fd = {:}, buf = {:p}, bufsize = {:}",
-            path, fd, buf, bufsize
+            "sys_readlinkat <= path = {path:?}, fd = {fd:}, buf = {buf:p}, bufsize = {bufsize:}"
         );
         Err::<usize, LinuxError>(LinuxError::EINVAL)
     })
@@ -525,10 +514,7 @@ const DIRENT64_FIXED_SIZE: usize = 19;
 
 /// Read directory entries from a directory file descriptor.
 pub unsafe fn sys_getdents64(fd: c_int, dirp: *mut LinuxDirent64, count: ctypes::size_t) -> c_long {
-    debug!(
-        "sys_getdents64 <= fd: {}, dirp: {:p}, count: {}",
-        fd, dirp, count
-    );
+    debug!("sys_getdents64 <= fd: {fd}, dirp: {dirp:p}, count: {count}");
     syscall_body!(sys_getdents64, {
         if count < DIRENT64_FIXED_SIZE {
             return Err(LinuxError::EINVAL);
@@ -593,10 +579,7 @@ pub unsafe fn sys_preadv(
     iocnt: c_int,
     offset: ctypes::off_t,
 ) -> ctypes::ssize_t {
-    debug!(
-        "sys_preadv <= fd: {}, iocnt: {}, offset: {}",
-        fd, iocnt, offset
-    );
+    debug!("sys_preadv <= fd: {fd}, iocnt: {iocnt}, offset: {offset}");
     syscall_body!(sys_preadv, {
         if !(0..=1024).contains(&iocnt) {
             return Err(LinuxError::EINVAL);
@@ -621,10 +604,7 @@ pub unsafe fn sys_preadv(
 pub fn sys_faccessat(dirfd: c_int, pathname: *const c_char, mode: c_int, flags: c_int) -> c_int {
     syscall_body!(sys_faccessat, {
         let path = parse_path_at(dirfd, pathname)?;
-        debug!(
-            "sys_faccessat <= dirfd {} path {} mode {} flags {}",
-            dirfd, path, mode, flags
-        );
+        debug!("sys_faccessat <= dirfd {dirfd} path {path} mode {mode} flags {flags}");
         Ok(0)
     })
 }
@@ -633,7 +613,7 @@ pub fn sys_faccessat(dirfd: c_int, pathname: *const c_char, mode: c_int, flags: 
 pub fn sys_chdir(path: *const c_char) -> c_int {
     syscall_body!(sys_chdir, {
         let path = parse_path(path)?;
-        debug!("sys_chdir <= path: {:?}", path);
+        debug!("sys_chdir <= path: {path:?}");
         fops::set_current_dir(path)?;
         Ok(0)
     })
@@ -690,7 +670,7 @@ pub fn sys_mount(
             f1 | f2
         );
         if mountflags != (f1 | f2).into() {
-            warn!("mount flags not supported: {:#x}", mountflags);
+            warn!("mount flags not supported: {mountflags:#x}");
         }
 
         let target = char_ptr_to_str(raw_target)?;
@@ -703,7 +683,7 @@ pub fn sys_mount(
             .root_dir
             .clone();
         let vfsops = ruxfuse::fuse::fusefs();
-        info!("mounting filesystem at {}", target);
+        info!("mounting filesystem at {target}");
         dir.mount(MountPoint {
             path: target,
             fs: vfsops,
@@ -714,7 +694,7 @@ pub fn sys_mount(
 
 /// perform a memory barrier operation.
 pub fn sys_membarrier(cmd: c_int, flags: c_int) -> c_int {
-    info!("sys_membarrier <= cmd: {}, flags: {}", cmd, flags);
+    info!("sys_membarrier <= cmd: {cmd}, flags: {flags}");
     syscall_body!(sys_membarrier, Ok(0))
 }
 

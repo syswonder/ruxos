@@ -56,7 +56,7 @@ pub struct Signal {
 }
 
 unsafe extern "C" fn default_handler(signum: c_int) {
-    warn!("default_handler, signum: {}", signum);
+    warn!("default_handler, signum: {signum}");
 }
 
 #[cfg(feature = "signal")]

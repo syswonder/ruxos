@@ -8,6 +8,7 @@
  */
 
 #![cfg(feature = "myfs")]
+#![cfg(not(feature = "blkfs"))]
 
 mod test_common;
 
@@ -59,6 +60,7 @@ fn test_ramfs() {
 
     let mut mount_points: Vec<ruxfs::root::MountPoint> = Vec::new();
     // setup and initialize blkfs as one mountpoint for rootfs
+    #[cfg(not(feature = "blkfs"))]
     mount_points.push(ruxfs::init_tempfs());
     ruxfs::prepare_commonfs(&mut mount_points);
 
@@ -66,7 +68,7 @@ fn test_ramfs() {
     ruxtask::fs::init_rootfs(mount_points);
 
     if let Err(e) = create_init_files() {
-        log::warn!("failed to create init files: {:?}", e);
+        log::warn!("failed to create init files: {e:?}");
     }
 
     test_common::test_all();

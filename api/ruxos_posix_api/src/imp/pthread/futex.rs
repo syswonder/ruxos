@@ -111,10 +111,7 @@ pub fn sys_futex(
         } else {
             None
         };
-        debug!(
-            "sys_futex <= addr: {:#x}, op: {:?}, val: {}, to: {:?}",
-            uaddr, op, val, timeout,
-        );
+        debug!("sys_futex <= addr: {uaddr:#x}, op: {op:?}, val: {val}, to: {timeout:?}",);
 
         let ret = match op {
             FutexOp::FUTEX_WAIT => futex_wait(futex_addr, futex_val, timeout).map(|_| 0),

@@ -44,7 +44,7 @@ pub mod signal;
 
 /// Invalid syscall
 pub fn sys_invalid(id: core::ffi::c_int) -> core::ffi::c_int {
-    debug!("sys_invalid <= id: {}", id);
+    debug!("sys_invalid <= id: {id}");
     syscall_body!(
         sys_invalid,
         Err::<core::ffi::c_int, axerrno::LinuxError>(axerrno::LinuxError::ENOSYS)

@@ -19,7 +19,7 @@ core::arch::global_asm!(
 );
 
 fn handle_breakpoint(sepc: &mut usize) {
-    debug!("Exception(Breakpoint) @ {:#x} ", sepc);
+    debug!("Exception(Breakpoint) @ {sepc:#x} ");
     *sepc += 2
 }
 

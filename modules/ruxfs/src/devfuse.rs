@@ -78,14 +78,14 @@ impl VfsNodeOps for FuseDev {
 
         flag = FUSEFLAG.load(Ordering::SeqCst);
         if flag > 100 {
-            debug!("flag in read__ is {:?}, should back to fuse_node.", flag);
+            debug!("flag in read__ is {flag:?}, should back to fuse_node.");
             FUSEFLAG.store(-flag, Ordering::Relaxed);
         }
 
         loop {
             flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag > 0 {
-                debug!("flag _read_ is set to {:?},, exiting loop. hhh", flag);
+                debug!("flag _read_ is set to {flag:?},, exiting loop. hhh");
                 break;
             }
         }
@@ -112,7 +112,7 @@ impl VfsNodeOps for FuseDev {
         loop {
             flag = FUSEFLAG.load(Ordering::SeqCst);
             if flag > 0 {
-                debug!("Fuseflag _write_ is set to {:?},, exiting loop. yyy", flag);
+                debug!("Fuseflag _write_ is set to {flag:?},, exiting loop. yyy");
                 break;
             }
         }

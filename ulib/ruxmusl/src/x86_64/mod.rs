@@ -7,7 +7,7 @@ use syscall_id::SyscallId;
 
 #[allow(dead_code)]
 pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
-    debug!("x86 syscall <= syscall_name: {:?}", syscall_id);
+    debug!("x86 syscall <= syscall_name: {syscall_id:?}",);
 
     unsafe {
         match syscall_id {

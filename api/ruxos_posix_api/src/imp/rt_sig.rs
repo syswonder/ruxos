@@ -58,10 +58,7 @@ pub fn sys_rt_sigprocmask(
     _old_mask: *mut usize,
     sigsetsize: usize,
 ) -> c_int {
-    debug!(
-        "sys_rt_sigprocmask <= flag: {}, sigsetsize: {}",
-        how, sigsetsize
-    );
+    debug!("sys_rt_sigprocmask <= flag: {how}, sigsetsize: {sigsetsize}");
 
     syscall_body!(sys_rt_sigprocmask, {
         if !_old_mask.is_null() {
