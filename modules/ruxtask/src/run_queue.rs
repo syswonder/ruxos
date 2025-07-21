@@ -178,11 +178,10 @@ impl AxRunQueue {
             // Safety: IRQs must be disabled at this time.
             IDLE_TASK.current_ref_raw().get_unchecked().clone()
         });
-
         self.switch_to(prev, next);
     }
 
-    #[cfg(target_arch = "aarch64")]
+    #[cfg(any(target_arch = "aarch64", target_arch = "riscv64"))]
     fn switch_to(&mut self, prev_task: CurrentTask, next_task: AxTaskRef) {
         trace!(
             "context switch: {} -> {}",
@@ -217,7 +216,7 @@ impl AxRunQueue {
         }
     }
 
-    #[cfg(not(target_arch = "aarch64"))]
+    #[cfg(target_arch = "x86_64")]
     fn switch_to(&mut self, prev_task: CurrentTask, next_task: AxTaskRef) {
         trace!(
             "context switch: {} -> {}",

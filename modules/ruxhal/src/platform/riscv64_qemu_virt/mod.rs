@@ -27,12 +27,16 @@ extern "C" {
     fn rust_main_secondary(cpu_id: usize);
 }
 
+#[no_mangle]
 unsafe extern "C" fn rust_entry(cpu_id: usize, dtb: usize) {
     crate::mem::clear_bss();
     crate::cpu::init_primary(cpu_id);
     crate::arch::set_trap_vector_base(trap_vector_base as usize);
     unsafe {
         dtb::init(crate::mem::phys_to_virt(dtb.into()).as_ptr());
+    }
+    core::arch::asm! {
+        "csrw  sscratch,gp"
     }
     rust_main(cpu_id, dtb);
 }
@@ -41,6 +45,9 @@ unsafe extern "C" fn rust_entry(cpu_id: usize, dtb: usize) {
 unsafe extern "C" fn rust_entry_secondary(cpu_id: usize) {
     crate::arch::set_trap_vector_base(trap_vector_base as usize);
     crate::cpu::init_secondary(cpu_id);
+    core::arch::asm! {
+        "csrw  sscratch, gp"
+    }
     rust_main_secondary(cpu_id);
 }
 

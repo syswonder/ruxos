@@ -374,6 +374,24 @@ pub unsafe fn sys_clone(
             ruxtask::put_task(task_inner);
 
             return Ok(tid);
+        } else if (flags as u32 & ctypes::SIGCHLD) != 0 {
+            let pid = if let Some(task_ref) = ruxtask::fork_task() {
+                task_ref.id().as_u64()
+            } else {
+                let children_ref = ruxtask::current();
+                let tid = children_ref.id().as_u64();
+                let thread = Pthread {
+                    inner: children_ref.clone_as_taskref(),
+                    retval: Arc::new(Packet {
+                        result: UnsafeCell::new(core::ptr::null_mut()),
+                    }),
+                };
+                let ptr = Box::into_raw(Box::new(thread)) as *mut c_void;
+                TID_TO_PTHREAD.write().insert(tid, ForceSendSync(ptr));
+                0
+            };
+            debug!("will sys_clone <= pid: {}", pid);
+            return Ok(pid);
         } else {
             debug!("ONLY support CLONE_THREAD and SIGCHLD");
             return Err(LinuxError::EINVAL);

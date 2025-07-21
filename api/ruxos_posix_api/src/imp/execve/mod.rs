@@ -3,7 +3,7 @@ mod load_elf;
 mod stack;
 
 use alloc::vec;
-use core::ffi::c_char;
+use core::{ffi::c_char, ptr::null};
 use ruxtask::current;
 
 use crate::{
@@ -107,11 +107,13 @@ pub fn sys_execve(pathname: *const c_char, argv: usize, envp: usize) -> ! {
 
     let mut argv = argv as *const usize;
     unsafe {
-        while *argv != 0 {
-            arg_vec.push(*argv);
-            argv = argv.add(1);
+        if !argv.is_null() {
+            while *argv != 0 {
+                arg_vec.push(*argv);
+                argv = argv.add(1);
+            }
+            arg_vec.push(0);
         }
-        arg_vec.push(0);
     }
 
     // push
@@ -165,6 +167,17 @@ fn set_sp_and_jmp(sp: usize, entry: usize) -> ! {
      ",
         in(reg)sp,
         in(reg)entry,
+        );
+    }
+    #[cfg(target_arch = "riscv64")]
+    unsafe {
+        core::arch::asm!(
+            "
+             mv sp, {0}
+             jalr {1}
+            ",
+            in(reg) sp,
+            in(reg) entry,
         );
     }
     unreachable!("sys_execve: unknown arch, sp 0x{sp:x}, entry 0x{entry:x}");

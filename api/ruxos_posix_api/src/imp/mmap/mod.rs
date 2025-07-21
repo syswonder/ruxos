@@ -9,7 +9,7 @@
 
 cfg_if::cfg_if! {
     // for X86_64 with SMP, it must flush TLB via IPI
-    if #[cfg( all(feature = "paging", any(target_arch = "aarch64", any( all(target_arch = "x86_64", feature = "irq", feature = "smp"), all(target_arch = "x86_64", not(feature = "smp")) ) ) ))] {
+    if #[cfg( all(feature = "paging", any(target_arch = "aarch64",target_arch="riscv64",any( all(target_arch = "x86_64", feature = "irq", feature = "smp"), all(target_arch = "x86_64", not(feature = "smp")) ) ) ))] {
         #[macro_use]
         mod utils;
         mod api;
