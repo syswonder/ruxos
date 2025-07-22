@@ -2,103 +2,121 @@ name: Custom Commit Message Validator
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize] # Triggers on PR open, reopen, or new commits pushed to the PR branch
+    types: [opened, reopened, synchronize]
 
 jobs:
   validate_commit_messages:
-    runs-on: ubuntu-latest # Specifies the runner environment
+    runs-on: ubuntu-latest
 
     permissions:
-      contents: read # Needed for checkout
-      pull-requests: read # Needed to fetch PR details and commit SHAs
+      contents: read
+      pull-requests: read
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v4 # Action to checkout your repository
+        uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Fetches the entire history for git log operations. Crucial for retrieving full commit messages.
+          fetch-depth: 0
 
       - name: Get PR Commits SHAs
         id: get_pr_commits
         run: |
-          # Use GitHub CLI to get all commit SHAs associated with the current Pull Request.
-          # This robustly gets the commits that are part of the PR's changes.
-          # The jq filter extracts the 'oid' (Object ID, which is the SHA) of each commit.
+          # Fetch all commit SHAs associated with the current Pull Request
           PR_COMMIT_SHAS=$(gh pr view ${{ github.event.pull_request.number }} --json commits --jq '[.commits[].oid] | join(" ")')
-
-          # Output the SHAs as a space-separated string.
-          # This variable will be accessible via steps.get_pr_commits.outputs.PR_COMMITS_LIST
           echo "PR_COMMITS_LIST=${PR_COMMIT_SHAS}" >> "$GITHUB_OUTPUT"
         env:
-          # GITHUB_TOKEN is automatically provided by GitHub Actions with sufficient permissions.
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Validate Each Commit Message
+        env:
+          TARGET_DATE: "2025-07-22"  # Only check commits after this date
+          SKIP_KEYWORDS: "Merge,Revert,Release"  # Comma-separated keywords to skip validation
         run: |
-          # Read the space-separated list of commit SHAs into a Bash array.
-          # IFS (Internal Field Separator) is set to space to split the string correctly.
+          # Read commit SHAs into array
           IFS=' ' read -r -a commit_shas <<< "${{ steps.get_pr_commits.outputs.PR_COMMITS_LIST }}"
-
-          # Initialize a flag to track if any commit fails validation.
           has_validation_failed=false
 
-          # Loop through each commit SHA.
+          # Convert skip keywords to array
+          IFS=',' read -r -a skip_keywords <<< "$SKIP_KEYWORDS"
+          
           for commit_sha in "${commit_shas[@]}"; do
             echo "--- Checking commit: ${commit_sha} ---"
+            
+            # Get commit timestamps for date filtering
+            commit_date_unix=$(git log -n 1 --format=%at "${commit_sha}")
+            TARGET_DATE_UNIX=$(date -d "${TARGET_DATE}" +"%s")
+            commit_date_human=$(git log -n 1 --format=%ad --date=iso-strict "${commit_sha}")
 
-            # Get the full commit message (subject + body).
-            # --format=%B gets the raw body (subject and body).
-            # -n 1 limits to the latest commit for the given SHA.
+            # Skip older commits
+            if (( COMMIT_DATE_UNIX < TARGET_DATE_UNIX )); then
+              echo "Skipping commit ${commit_sha} (Date: ${commit_date_human}) as it is older than ${TARGET_DATE}."
+              continue
+            fi
+
+            echo "Processing commit ${commit_sha} (Date: ${commit_date_human}) as it is on or after ${TARGET_DATE}."
             commit_message=$(git log --format=%B -n 1 "${commit_sha}")
             echo "Message content:"
             echo "${commit_message}"
-            echo "" # Add a newline for readability
+            echo ""
 
-            # --- Validation Logic ---
-
-            # 1. Check for Conventional Commit format (type(scope)!: subject)
-            # This regex allows for an optional scope and an optional breaking change marker (!).
-            # Common types: feat, fix, docs, chore, style, refactor, perf, test, build, ci, revert
-            if [[ ! "${commit_message}" =~ ^(feat|fix|docs|chore|style|refactor|perf|test|build|ci|revert)(\([a-zA-Z0-9_-]+\))?(!?): ]]; then
-              echo "::error file=COMMIT_MESSAGE::Commit ${commit_sha} does not start with a conventional commit type (e.g., 'feat:', 'fix:'). Message: '${commit_message}'"
-              has_validation_failed=true
-              continue # Move to the next commit
+            # Check for skip keywords
+            skip_this_commit=false
+            for keyword in "${skip_keywords[@]}"; do
+              # Trim whitespace from keyword
+              trimmed_keyword=$(echo "$keyword" | xargs)
+              
+              if [[ -n "$trimmed_keyword" ]] && 
+                 [[ "${commit_message}" == *"$trimmed_keyword"* ]]; then
+                echo "Skipping validation for commit ${commit_sha} due to skip keyword: ${trimmed_keyword}"
+                skip_this_commit=true
+                break
+              fi
+            done
+            
+            if [ "$skip_this_commit" = true ]; then
+              continue
             fi
 
-            # Extract the first line (subject) for further checks.
+            # --- Validation Logic Start ---
+            
+            # 1. Check Conventional Commit format
+            if [[ ! "${commit_message}" =~ ^(feat|fix|docs|chore|style|refactor|perf|test|build|ci|revert)(\([a-zA-Z0-9_-]+\))?(!?): ]]; then
+              echo "::error file=COMMIT_MESSAGE::Commit ${commit_sha} does not start with a conventional commit type. Message: '${commit_message}'"
+              has_validation_failed=true
+              continue
+            fi
+
+            # Extract commit subject (first line)
             commit_subject=$(echo "${commit_message}" | head -n 1)
 
-            # 2. Check subject line length (e.g., max 72 characters)
-            if [[ ${#commit_subject} -gt 72 ]]; then
-              echo "::warning file=COMMIT_MESSAGE::Commit ${commit_sha} subject line exceeds 72 characters. Length: ${#commit_subject}. Subject: '${commit_subject}'"
-              # This is a warning, not a failure, adjust as needed.
+            # 2. NEW: Check minimum subject length (15 characters)
+            if [[ ${#commit_subject} -lt 15 ]]; then
+              echo "::error file=COMMIT_MESSAGE::Commit ${commit_sha} subject is too short (min 15 characters). Length: ${#commit_subject}. Subject: '${commit_subject}'"
+              has_validation_failed=true
+              continue
             fi
 
-            # 3. Check for empty line between subject and body (if body exists)
-            # Check if there's more than just the subject line.
+            # 3. Check maximum subject length (72 characters)
+            if [[ ${#commit_subject} -gt 72 ]]; then
+              echo "::warning file=COMMIT_MESSAGE::Commit ${commit_sha} subject line exceeds 72 characters. Length: ${#commit_subject}. Subject: '${commit_subject}'"
+            fi
+
+            # 4. Check empty line between subject and body
             if [[ $(echo "${commit_message}" | wc -l) -gt 1 ]]; then
-              # Check if the second line is empty.
-              # Use awk to get the second line and trim whitespace.
               second_line=$(echo "${commit_message}" | awk 'NR==2 {print}' | xargs)
-              if [[ -n "${second_line}" ]]; then # If the second line is NOT empty
-                echo "::error file=COMMIT_MESSAGE::Commit ${commit_sha} is missing an empty line between the subject and body. Message: '${commit_message}'"
+              if [[ -n "${second_line}" ]]; then
+                echo "::error file=COMMIT_MESSAGE::Commit ${commit_sha} is missing an empty line between subject and body. Message: '${commit_message}'"
                 has_validation_failed=true
                 continue
               fi
             fi
 
-            # Add more custom validation rules here as needed:
-            # - Subject capitalization (e.g., must be lowercase)
-            # - Subject must not end with a period
-            # - Body line length limits
-            # - Required body content for certain types (e.g., 'fix:' requires a 'Fixes #ISSUE' line)
+          done
 
-          done # End of commit loop
-
-          # If any commit failed validation, exit with a non-zero status to fail the job.
+          # Fail job if any validation errors occurred
           if [ "$has_validation_failed" = true ]; then
             echo "::error::One or more commit messages failed validation. Please review the errors above."
             exit 1
           fi
 
-          echo "All commit messages in the PR passed validation."
+          echo "All relevant commit messages in the PR passed validation."
