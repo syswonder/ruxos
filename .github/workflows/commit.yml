@@ -24,8 +24,7 @@ jobs:
           # Use GitHub CLI to get all commit SHAs associated with the current Pull Request.
           # This robustly gets the commits that are part of the PR's changes.
           # The jq filter extracts the 'oid' (Object ID, which is the SHA) of each commit.
-          PR_COMMIT_SHAS=$(gh pr view ${{ github.event.pull_request.number }} --json commits --jq '.commits[].oid')
-
+          PR_COMMIT_SHAS=$(gh pr view ${{ github.event.pull_request.number }} --json commits --jq '[.commits[].oid] | join(" ")')
           # Output the SHAs as a space-separated string.
           # This variable will be accessible via steps.get_pr_commits.outputs.PR_COMMITS_LIST
           echo "PR_COMMITS_LIST=${PR_COMMIT_SHAS}" >> "$GITHUB_OUTPUT"
@@ -38,14 +37,11 @@ jobs:
           # Read the space-separated list of commit SHAs into a Bash array.
           # IFS (Internal Field Separator) is set to space to split the string correctly.
           IFS=' ' read -r -a commit_shas <<< "${{ steps.get_pr_commits.outputs.PR_COMMITS_LIST }}"
-
           # Initialize a flag to track if any commit fails validation.
           has_validation_failed=false
-
           # Loop through each commit SHA.
           for commit_sha in "${commit_shas[@]}"; do
             echo "--- Checking commit: ${commit_sha} ---"
-
             # Get the full commit message (subject + body).
             # --format=%B gets the raw body (subject and body).
             # -n 1 limits to the latest commit for the given SHA.
@@ -53,9 +49,7 @@ jobs:
             echo "Message content:"
             echo "${commit_message}"
             echo "" # Add a newline for readability
-
             # --- Validation Logic ---
-
             # 1. Check for Conventional Commit format (type(scope)!: subject)
             # This regex allows for an optional scope and an optional breaking change marker (!).
             # Common types: feat, fix, docs, chore, style, refactor, perf, test, build, ci, revert
@@ -64,16 +58,13 @@ jobs:
               has_validation_failed=true
               continue # Move to the next commit
             fi
-
             # Extract the first line (subject) for further checks.
             commit_subject=$(echo "${commit_message}" | head -n 1)
-
             # 2. Check subject line length (e.g., max 72 characters)
             if [[ ${#commit_subject} -gt 72 ]]; then
               echo "::warning file=COMMIT_MESSAGE::Commit ${commit_sha} subject line exceeds 72 characters. Length: ${#commit_subject}. Subject: '${commit_subject}'"
               # This is a warning, not a failure, adjust as needed.
             fi
-
             # 3. Check for empty line between subject and body (if body exists)
             # Check if there's more than just the subject line.
             if [[ $(echo "${commit_message}" | wc -l) -gt 1 ]]; then
@@ -86,19 +77,15 @@ jobs:
                 continue
               fi
             fi
-
             # Add more custom validation rules here as needed:
             # - Subject capitalization (e.g., must be lowercase)
             # - Subject must not end with a period
             # - Body line length limits
             # - Required body content for certain types (e.g., 'fix:' requires a 'Fixes #ISSUE' line)
-
           done # End of commit loop
-
           # If any commit failed validation, exit with a non-zero status to fail the job.
           if [ "$has_validation_failed" = true ]; then
             echo "::error::One or more commit messages failed validation. Please review the errors above."
             exit 1
           fi
-
           echo "All commit messages in the PR passed validation."
