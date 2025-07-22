@@ -1,0 +1,25 @@
+name: License Header Check
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize] # Triggers on PR open, reopen, or new commits pushed to the PR branch
+
+jobs:
+  check_license_headers:
+    runs-on: ubuntu-latest # Specifies the runner environment
+
+    permissions:
+      contents: read # Needed for checkout
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4 # Action to checkout your repository
+        # with:
+          # fetch-depth: 0 is not strictly necessary for license check unless your script
+          # needs to read historical commits, which a basic license checker usually doesn't.
+          # Default fetch-depth is 1, which is usually sufficient.
+          # If your license checker needs to diff against a base branch, you might need fetch-depth: 0
+          # or a specific fetch-depth. For a simple "check all files" script, default is fine.
+
+      - name: Run License Checker Script
+        run: bash scripts/test/license_checker.sh # Path to your license checking script
