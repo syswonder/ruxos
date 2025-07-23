@@ -6,7 +6,8 @@
 #### Architecture Support
 - **RISC-V64** (#196)
   - mmap & process fork implementation
-  - Toolchain compatibility fixes
+  - toolchain compatibility fixes
+  - handle `GP` register to make `execv` work
 - **ARM Enhancements** (#183)
   - GICv3 interrupt controller
   - Device Tree Blob (DTB) parsing
@@ -20,14 +21,15 @@
   - FIFO/named pipes (#185) & PTY support (#189)
 - **Networking & IPC**
   - UNIX socket enhancements (#195)
-  - DGRAM support (#164) & `socketpair` (#171)
+  - DGRAM support (#164) & `socketpair` (#171), `getsockname` (#182)
   - Static routing with loopback support (#179)
 - **Device Drivers**
   - Virtio subsystem updates (#205)
   - Virtio-console support (#143)
   - TTY/Termios improvements (#181)
 - **Process Management**
-  - Signal handling (#178) & `rt_sigaction` (#131)
+  - Support of fork/clone in single address space (#142)
+  - Signal handling (#178) & `rt_sigaction`, `kill` and `tkill` (#131)
   - CLOEXEC flag support (#162)
 
 ### 🐛 Bug Fixes
@@ -36,6 +38,7 @@
 - Fixed network buffer memory leaks (#173)
 - Corrected page fault handling during nested forks (#151)
 - Fixed `wait4` null pointer dereference (#166)
+- Fixed problems within `poll`, `clock_nanosleep` and `getsockopt` (#139)
 - Resolved file close scheduling deadlock (#175)
 - Corrected `getsockopt` implementation (#170)
 - Fixed percpu crate alignment (#184)
@@ -44,7 +47,7 @@
 - Toolchain upgraded to `nightly-2025-05-07` (#197)
 
 ### 📦 Applications
-- Support for sshd after PR #202
+- Support of sshd after PR #202
 
 ---
 
