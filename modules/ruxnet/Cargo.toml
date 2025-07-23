@@ -2,7 +2,11 @@
 name = "ruxnet"
 version = "0.1.0"
 edition = "2021"
-authors = ["Yuekai Jia <equation618@gmail.com>", "ChengXiang Qi <kuangjux@outlook.com>", "HaoWen Liu <lhw2002426@stu.pku.edu.cn>"]
+authors = [
+  "Yuekai Jia <equation618@gmail.com>",
+  "ChengXiang Qi <kuangjux@outlook.com>",
+  "HaoWen Liu <lhw2002426@stu.pku.edu.cn>",
+]
 description = "ArceOS network module"
 license = "GPL-3.0-or-later OR Apache-2.0"
 homepage = "https://github.com/rcore-os/arceos"
@@ -11,35 +15,49 @@ documentation = "https://rcore-os.github.io/arceos/ruxnet/index.html"
 
 [features]
 lwip = ["dep:lwip_rust"]
+loopback = ["ruxdriver/loopback"]
 smoltcp = []
-default = ["smoltcp"]
+default = ["smoltcp", "loopback"]
+irq = []
 
 [dependencies]
-log = "0.4"
+hashbrown = "0.14.5"
+log = { workspace = true }
 cfg-if = "1.0"
-spin = "0.9"
+spin = { workspace = true }
 driver_net = { path = "../../crates/driver_net" }
+flatten_objects = { path = "../../crates/flatten_objects" }
 lazy_init = { path = "../../crates/lazy_init" }
+lazy_static = { version = "1.4", features = ["spin_no_std"] }
 lwip_rust = { path = "../../crates/lwip_rust", optional = true }
 printf-compat = { version = "0.1", default-features = false, optional = true }
 axerrno = { path = "../../crates/axerrno" }
+axfs_vfs = { path = "../../crates/axfs_vfs" }
+iovec = { path = "../../crates/iovec" }
 ruxhal = { path = "../ruxhal" }
 axsync = { path = "../axsync" }
-axlog = { path = "../axlog" }
-ruxtask = { path = "../ruxtask" }
+ruxtask = { path = "../ruxtask", features = ["multitask"] }
+ruxfs = { path = "../ruxfs" }
 ruxdriver = { path = "../ruxdriver", features = ["net"] }
 cty = { version = "0.2.2", optional = true }
 axio = { path = "../../crates/axio" }
+bitflags = { workspace = true }
+ruxfdtable = { path = "../ruxfdtable" }
 
 [dependencies.smoltcp]
 git = "https://github.com/rcore-os/smoltcp.git"
 rev = "2ade274"
 default-features = false
 features = [
-  "alloc", "log",   # no std
+  "alloc",
+  "log",             # no std
   "medium-ethernet",
   "proto-ipv4",
-  "socket-raw", "socket-icmp", "socket-udp", "socket-tcp", "socket-dns",
+  "socket-raw",
+  "socket-icmp",
+  "socket-udp",
+  "socket-tcp",
+  "socket-dns",
   # "fragmentation-buffer-size-65536", "proto-ipv4-fragmentation",
   # "reassembly-buffer-size-65536", "reassembly-buffer-count-32",
   # "assembler-max-segment-count-32",

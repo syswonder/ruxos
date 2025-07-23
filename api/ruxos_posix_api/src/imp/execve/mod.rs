@@ -1,9 +1,19 @@
+/* Copyright (c) [2023] [Syswonder Community]
+ *   [Ruxos] is licensed under Mulan PSL v2.
+ *   You can use this software according to the terms and conditions of the Mulan PSL v2.
+ *   You may obtain a copy of Mulan PSL v2 at:
+ *               http://license.coscl.org.cn/MulanPSL2
+ *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ *   See the Mulan PSL v2 for more details.
+ */
+
 mod auxv;
 mod load_elf;
 mod stack;
 
 use alloc::vec;
 use core::ffi::c_char;
+use ruxtask::current;
 
 use crate::{
     config,
@@ -14,9 +24,11 @@ use crate::{
 
 /// int execve(const char *pathname, char *const argv[], char *const envp[] );
 pub fn sys_execve(pathname: *const c_char, argv: usize, envp: usize) -> ! {
+    debug!("execve: pathname {pathname:?}, argv {argv:?}, envp {envp:?}");
     use auxv::*;
 
     let path = char_ptr_to_str(pathname).unwrap();
+    debug!("sys_execve: path is {path}");
     let prog = load_elf::ElfProg::new(path);
 
     // get entry
@@ -29,10 +41,11 @@ pub fn sys_execve(pathname: *const c_char, argv: usize, envp: usize) -> ! {
         let interp_prog = load_elf::ElfProg::new(interp_path);
         entry = interp_prog.entry;
         at_base = interp_prog.base;
-        debug!("sys_execve: INTERP base is {:x}", at_base);
+        debug!("sys_execve: INTERP base is {at_base:x}");
     };
 
     // create stack
+    // memory broken, use stack alloc to store args and envs
     let mut stack = stack::Stack::new();
 
     // non 8B info
@@ -100,11 +113,13 @@ pub fn sys_execve(pathname: *const c_char, argv: usize, envp: usize) -> ! {
 
     let mut argv = argv as *const usize;
     unsafe {
-        while *argv != 0 {
-            arg_vec.push(*argv);
-            argv = argv.add(1);
+        if !argv.is_null() {
+            while *argv != 0 {
+                arg_vec.push(*argv);
+                argv = argv.add(1);
+            }
+            arg_vec.push(0);
         }
-        arg_vec.push(0);
     }
 
     // push
@@ -118,6 +133,23 @@ pub fn sys_execve(pathname: *const c_char, argv: usize, envp: usize) -> ! {
         "sys_execve: sp is 0x{sp:x}, run at 0x{entry:x}, then jump to 0x{:x} ",
         prog.entry
     );
+
+    // TODO: may lead to memory leaky, release stack after the change of stack
+    current().set_stack_top(stack.stack_top() - stack.stack_size(), stack.stack_size());
+    warn!(
+        "sys_execve: current_id_name {:?}, stack top 0x{:x}, size 0x{:x}",
+        current().id_name(),
+        current().stack_top(),
+        stack.stack_size()
+    );
+
+    current()
+        .fs
+        .lock()
+        .as_mut()
+        .unwrap()
+        .fd_table
+        .do_close_on_exec();
 
     set_sp_and_jmp(sp, entry);
 }
@@ -141,6 +173,17 @@ fn set_sp_and_jmp(sp: usize, entry: usize) -> ! {
      ",
         in(reg)sp,
         in(reg)entry,
+        );
+    }
+    #[cfg(target_arch = "riscv64")]
+    unsafe {
+        core::arch::asm!(
+            "
+             mv sp, {0}
+             jalr {1}
+            ",
+            in(reg) sp,
+            in(reg) entry,
         );
     }
     unreachable!("sys_execve: unknown arch, sp 0x{sp:x}, entry 0x{entry:x}");

@@ -7,66 +7,76 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-//! Init
-//!
-//! firstly, a driver registers itself to get its index.
-//! next, the driver registers all devices it found to get their indices.
-//!
-//! Read
-//!
-//! when a device receives data, it will cause a irq.
-//! then the driver sends the data to tty layer using their indices.
-//! finally, kernel will get the data using the device's name.  
-//!
-//! Write
-//!
-//! kernel writes data to a device using its name.
+//! Portions of this code are inspired by the design of Asterinas OS
 
 #![no_std]
-
 extern crate alloc;
 
-mod buffer;
-mod constant;
 mod driver;
-mod ldisc;
+pub mod ioctl;
+pub mod ldisc;
+pub mod termios;
 mod tty;
 
-use driver::get_driver_by_index;
+use alloc::{ffi::CString, sync::Arc};
+use axerrno::AxResult;
+use axio::PollState;
+use axlog::{ax_print, ax_println};
+use driver::TtyDriver;
+use lazy_init::LazyInit;
 
-pub use driver::{register_device, register_driver, TtyDriverOps};
-pub use tty::{get_all_device_names, get_device_by_name};
+use spin::once::Once;
+use tty::Tty;
+/// Global singleton instance for the default TTY device
+static N_TTY: Once<Arc<Tty>> = Once::new();
 
-/// called by driver when irq, to send data from hardware.
-pub fn tty_receive_buf(driver_index: usize, device_index: usize, buf: &[u8]) {
-    // check the validation of index
-    if let Some(driver) = get_driver_by_index(driver_index) {
-        if let Some(tty) = driver.get_device_by_index(device_index) {
-            tty.ldisc().receive_buf(tty.clone(), buf);
-        }
-    }
+/// all tty drivers.
+/// only be written when registering a driver.
+///
+/// Current now there is only ttyS device
+static TTY_DRIVER: LazyInit<Arc<TtyDriver>> = LazyInit::new();
+
+/// Initializes the TTY subsystem, creates a new TTY device and registers it
+pub fn init_tty() {
+    let tty = Tty::new(CString::new("ttyS").unwrap());
+    N_TTY.call_once(|| tty.clone());
+    let driver = TtyDriver::new();
+    driver.add_tty(tty);
+    TTY_DRIVER.init_by(driver);
 }
 
-/// called by kernel to read a tty device.
-pub fn tty_read(buf: &mut [u8], dev_name: &str) -> usize {
-    if let Some(tty) = get_device_by_name(dev_name) {
-        tty.ldisc().read(buf)
+/// Pushes received data into the TTY driver's input buffer
+/// # Note: This implementation is ​**only enabled for `aarch64` architecture** since others haven't implement irq
+pub fn tty_receive_buf(buf: &[u8]) {
+    TTY_DRIVER.try_get().unwrap().push_slice(buf);
+}
+
+/// Pushes received char into the TTY driver's input buffer
+pub fn tty_receive_char(ch: u8) {
+    TTY_DRIVER.try_get().unwrap().push_char(ch);
+}
+
+/// Reads data from TTY line discipline into the destination buffer
+pub fn tty_read(dst: &mut [u8]) -> AxResult<usize> {
+    N_TTY.get().unwrap().ldisc.read(dst)
+}
+
+/// Checks if TTY has data available for reading
+pub fn tty_poll() -> PollState {
+    N_TTY.get().unwrap().ldisc.poll()
+}
+
+/// Writes data to TTY output, handles UTF-8 and binary content
+pub fn tty_write(src: &[u8]) -> AxResult<usize> {
+    if let Ok(content) = alloc::str::from_utf8(src) {
+        ax_print!("{}", content);
     } else {
-        0
+        ax_println!("Not utf-8 content: {:?}", src);
     }
+    Ok(src.len())
 }
 
-/// called by kernel to write a tty device.
-pub fn tty_write(buf: &[u8], dev_name: &str) -> usize {
-    if let Some(tty) = get_device_by_name(dev_name) {
-        tty.ldisc().write(tty.clone(), buf)
-    } else {
-        0
-    }
-}
-
-/// init
-pub fn init() {
-    driver::init();
-    tty::init();
+/// Handles TTY-specific ioctl commands
+pub fn tty_ioctl(cmd: usize, arg: usize) -> AxResult<usize> {
+    N_TTY.get().unwrap().ioctl(cmd, arg)
 }

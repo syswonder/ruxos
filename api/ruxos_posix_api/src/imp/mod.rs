@@ -14,7 +14,6 @@ pub mod getrandom;
 pub mod io;
 pub mod prctl;
 pub mod resources;
-pub mod rt_sig;
 pub mod stat;
 pub mod sys;
 pub mod task;
@@ -39,11 +38,13 @@ pub mod pipe;
 #[cfg(feature = "multitask")]
 pub mod pthread;
 #[cfg(feature = "signal")]
+pub mod rt_sig;
+#[cfg(feature = "signal")]
 pub mod signal;
 
 /// Invalid syscall
 pub fn sys_invalid(id: core::ffi::c_int) -> core::ffi::c_int {
-    debug!("sys_invalid <= id: {}", id);
+    debug!("sys_invalid <= id: {id}");
     syscall_body!(
         sys_invalid,
         Err::<core::ffi::c_int, axerrno::LinuxError>(axerrno::LinuxError::ENOSYS)

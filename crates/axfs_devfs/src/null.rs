@@ -17,13 +17,16 @@ pub struct NullDev;
 impl VfsNodeOps for NullDev {
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
         Ok(VfsNodeAttr::new(
+            3,
             VfsNodePerm::default_file(),
             VfsNodeType::CharDevice,
             0,
             0,
         ))
     }
-
+    fn set_mode(&self, _mode: VfsNodePerm) -> VfsResult {
+        Ok(())
+    }
     fn read_at(&self, _offset: u64, _buf: &mut [u8]) -> VfsResult<usize> {
         Ok(0)
     }

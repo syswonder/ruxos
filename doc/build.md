@@ -40,7 +40,7 @@ What happens when "make A=apps/net/httpserver ARCH=aarch64 LOG=info NET=y SMP=1 
     - Following this, it was found that the `qemu.mk` file would call run_qemu. Similar to the build process, the execution process would also use conditional selection and run.
     - At runtime, Ruxos first performs some boot operations, such as executing in the riscv64 environment:
     ```rust
-    #[naked]
+    #[unsafe(naked)]
     #[no_mangle]
     #[link_section = ".text.boot"]
     unsafe extern "C" fn _start() -> ! {
@@ -50,7 +50,7 @@ What happens when "make A=apps/net/httpserver ARCH=aarch64 LOG=info NET=y SMP=1 
         // PC = 0x8020_0000
         // a0 = hartid
         // a1 = dtb
-        core::arch::asm!("
+        core::arch::naked_asm!("
             mv      s0, a0                  // save hartid
             mv      s1, a1                  // save DTB pointer
             la      sp, {boot_stack}
@@ -82,7 +82,7 @@ What happens when "make A=apps/net/httpserver ARCH=aarch64 LOG=info NET=y SMP=1 
             init_mmu = sym init_mmu,
             platform_init = sym super::platform_init,
             rust_main = sym rust_main,
-            options(noreturn),
+            
         )
     }
     ```

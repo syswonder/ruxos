@@ -15,7 +15,6 @@
 
 #![cfg_attr(all(not(test), not(doc)), no_std)]
 #![feature(doc_auto_cfg)]
-#![feature(ip_in_core)]
 #![cfg(any(feature = "virtio-9p", feature = "net-9p"))]
 
 #[doc(no_inline)]
@@ -27,9 +26,9 @@ mod fs;
 #[cfg(feature = "net-9p")]
 mod netdev;
 
-use alloc::sync::Arc;
+use alloc::{string::String, sync::Arc};
 use log::*;
-use ruxfs::MountPoint;
+use ruxfs::root::MountPoint;
 use spin::RwLock;
 
 #[cfg(feature = "virtio-9p")]
@@ -56,7 +55,7 @@ pub fn init_virtio_9pfs(
     let v9p_driver = self::drv::Drv9pOps::new(v9p);
     let v9p_fs = self::fs::_9pFileSystem::new(Arc::new(RwLock::new(v9p_driver)), aname, protocol);
 
-    MountPoint::new("/v9fs", Arc::new(v9p_fs))
+    MountPoint::new(String::from("/v9fs"), Arc::new(v9p_fs))
 }
 
 #[cfg(feature = "net-9p")]
@@ -75,7 +74,7 @@ pub fn init_net_9pfs(ip_port: &str, aname: &str, protocol: &str) -> MountPoint {
     let net9p_driver = self::drv::Drv9pOps::new(Box::new(net9p));
     let n9p_fs = self::fs::_9pFileSystem::new(Arc::new(RwLock::new(net9p_driver)), aname, protocol);
 
-    MountPoint::new("/n9fs", Arc::new(n9p_fs))
+    MountPoint::new(String::from("/n9fs"), Arc::new(n9p_fs))
 }
 
 #[cfg(feature = "net-9p")]

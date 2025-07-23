@@ -51,14 +51,17 @@ FEATURES ?=
 APP_FEATURES ?=
 
 # QEMU options
+CONSOLE ?= n
 BLK ?= n
 NET ?= n
 GRAPHIC ?= n
 V9P ?= n
 BUS ?= mmio
 RISCV_BIOS ?= default
+GICV3 ?= n
 
 DISK_IMG ?= disk.img
+FS ?= fat32
 QEMU_LOG ?= n
 NET_DUMP ?= n
 NET_DEV ?= user
@@ -78,7 +81,7 @@ ARGS ?=
 ENVS ?= 
 
 # Libc options
-MUSL ?= n
+MUSL ?= y
 
 # App type
 ifeq ($(wildcard $(APP)),)
@@ -135,7 +138,7 @@ else ifeq ($(ARCH), riscv64)
 else ifeq ($(ARCH), aarch64)
   ACCEL ?= n
   PLATFORM_NAME ?= aarch64-qemu-virt
-  TARGET := aarch64-unknown-none-softfloat
+  TARGET := aarch64-unknown-none
   ifeq ($(findstring fp_simd,$(FEATURES)),)
     TARGET_CFLAGS := -mgeneral-regs-only
   endif
@@ -183,6 +186,7 @@ all: build
 
 # prebuild option to be overriden in `$(PREBUILD)`
 define run_prebuild
+	git submodule update --init
 endef
 
 # prebuild makefile might override some variables by their own
@@ -202,7 +206,7 @@ endif
 
 _force: ;
 
-# prebuild scripts must track their dependencies by themselves
+# # prebuild scripts must track their dependencies by themselves
 prebuild: _force
 	$(call run_prebuild)
 
@@ -234,10 +238,19 @@ debug_no_attach: build
 	$(call run_qemu_debug)
 
 clippy:
+	$(call run_prebuild)
 ifeq ($(origin ARCH), command line)
 	$(call cargo_clippy,--target $(TARGET))
 else
 	$(call cargo_clippy)
+endif
+
+clippy_fix:
+	$(call run_prebuild)
+ifeq ($(origin ARCH), command line) 
+	$(call cargo_clippy,--target $(TARGET) --fix)
+else
+	$(call cargo_clippy,--fix)
 endif
 
 doc:
@@ -248,9 +261,6 @@ doc_check_missing:
 
 fmt:
 	cargo fmt --all
-
-fmt_c:
-	@clang-format --style=file -i $(shell find ulib/ruxlibc -iname '*.c' -o -iname '*.h')
 
 test:
 	$(call app_test)
@@ -264,8 +274,14 @@ unittest_no_fail_fast:
 disk_img:
 ifneq ($(wildcard $(DISK_IMG)),)
 	@printf "$(YELLOW_C)warning$(END_C): disk image \"$(DISK_IMG)\" already exists!\n"
-else
+else ifeq ($(FS), fat32)
 	$(call make_disk_image,fat32,$(DISK_IMG))
+else ifeq ($(FS), ext4)
+	$(call make_disk_image,ext4,$(DISK_IMG))
+else ifeq ($(FS), exfat)
+	$(call make_disk_image,exfat,$(DISK_IMG))
+else
+	$(error "FS" must be one of "fat32" or "ext4" or "exfat")
 endif
 
 clean: clean_c clean_musl
@@ -273,12 +289,11 @@ clean: clean_c clean_musl
 	cargo clean
 
 clean_c::
-	rm -rf ulib/ruxlibc/build_*
 	rm -rf $(app-objs)
 
 clean_musl:
 	rm -rf ulib/ruxmusl/build_*
 	rm -rf ulib/ruxmusl/install
 
-.PHONY: all build disasm run justrun debug clippy fmt fmt_c test test_no_fail_fast clean clean_c\
+.PHONY: all build disasm run justrun debug clippy fmt fmt_c test test_no_fail_fast clean \
         clean_musl doc disk_image debug_no_attach prebuild _force

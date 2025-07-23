@@ -1,4 +1,11 @@
-use std::path::PathBuf;
+/* Copyright (c) [2023] [Syswonder Community]
+ *   [Ruxos] is licensed under Mulan PSL v2.
+ *   You can use this software according to the terms and conditions of the Mulan PSL v2.
+ *   You may obtain a copy of Mulan PSL v2 at:
+ *               http://license.coscl.org.cn/MulanPSL2
+ *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ *   See the Mulan PSL v2 for more details.
+ */
 
 fn main() {
     println!("cargo:rustc-link-lib=lwip");
@@ -28,9 +35,8 @@ fn generate_lwip_bindings() {
         .generate()
         .expect("Unable to generate bindings");
 
-    let out_path = PathBuf::from("src");
     bindings
-        .write_to_file(out_path.join("bindings.rs"))
+        .write_to_file("src/bindings.rs")
         .expect("Couldn't write bindings!");
 }
 

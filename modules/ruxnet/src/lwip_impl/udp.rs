@@ -1,4 +1,14 @@
+/* Copyright (c) [2023] [Syswonder Community]
+ *   [Ruxos] is licensed under Mulan PSL v2.
+ *   You can use this software according to the terms and conditions of the Mulan PSL v2.
+ *   You may obtain a copy of Mulan PSL v2 at:
+ *               http://license.coscl.org.cn/MulanPSL2
+ *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ *   See the Mulan PSL v2 for more details.
+ */
+
 use crate::{
+    message::{MessageFlags, MessageReadInfo},
     net_impl::{driver::lwip_loop_once, RECV_QUEUE_LEN},
     IpAddr, SocketAddr,
 };
@@ -6,8 +16,9 @@ use alloc::{boxed::Box, collections::VecDeque};
 use axerrno::{ax_err, AxError, AxResult};
 use axio::PollState;
 use axsync::Mutex;
-use core::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use core::sync::atomic::{AtomicBool, Ordering};
 use core::{ffi::c_void, pin::Pin, ptr::null_mut};
+use iovec::IoVecsOutput;
 use lwip_rust::bindings::{
     err_enum_t_ERR_MEM, err_enum_t_ERR_OK, err_enum_t_ERR_RTE, err_enum_t_ERR_USE,
     err_enum_t_ERR_VAL, ip_addr_t, pbuf, pbuf_alloc, pbuf_free, pbuf_layer_PBUF_TRANSPORT,
@@ -158,7 +169,7 @@ impl UdpSocket {
     /// [`recv_from`](Self::recv_from).
     pub fn bind(&self, caddr: core::net::SocketAddr) -> AxResult {
         let addr = SocketAddr::from(caddr);
-        debug!("[UdpSocket] bind to {:#?}", addr);
+        debug!("[UdpSocket] bind to {addr:#?}");
         let mut addr = addr;
         if addr.port == 0 {
             addr.port = get_ephemeral_port()?;
@@ -225,7 +236,7 @@ impl UdpSocket {
         loop {
             lwip_loop_once();
             let mut recv_queue = self.inner.recv_queue.lock();
-            let res: Result<(usize, SocketAddr), AxError> = if recv_queue.len() == 0 {
+            let res: Result<(usize, SocketAddr), AxError> = if recv_queue.is_empty() {
                 Err(AxError::WouldBlock)
             } else {
                 let (p, offset, caddr) = recv_queue.pop_front().unwrap();
@@ -253,7 +264,7 @@ impl UdpSocket {
                     drop(guard);
                 }
 
-                Ok((copy_len, addr.into()))
+                Ok((copy_len, addr))
             };
             drop(recv_queue);
             match res {
@@ -274,6 +285,14 @@ impl UdpSocket {
             };
         }
     }
+    /// TODO: Receive a message from the socket.
+    pub fn recvmsg(
+        &self,
+        _iovecs: &mut IoVecsOutput,
+        _flags: MessageFlags,
+    ) -> AxResult<MessageReadInfo> {
+        todo!()
+    }
 
     /// Connects to the given address and port.
     ///
@@ -282,7 +301,7 @@ impl UdpSocket {
     /// [`recv`](Self::recv).
     pub fn connect(&self, caddr: core::net::SocketAddr) -> AxResult {
         let addr = SocketAddr::from(caddr);
-        debug!("[UdpSocket] connect to {:#?}", addr);
+        debug!("[UdpSocket] connect to {addr:#?}");
         let ip_addr: ip_addr_t = addr.addr.into();
         let _guard = LWIP_MUTEX.lock();
         unsafe {
@@ -333,8 +352,9 @@ impl UdpSocket {
     pub fn poll(&self) -> AxResult<PollState> {
         lwip_loop_once();
         Ok(PollState {
-            readable: self.inner.recv_queue.lock().len() != 0,
+            readable: !self.inner.recv_queue.lock().is_empty(),
             writable: true,
+            pollhup: false,
         })
     }
 }

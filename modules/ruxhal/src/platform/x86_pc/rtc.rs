@@ -13,6 +13,7 @@ use core::marker::PhantomData;
 use core::ops::{BitAnd, BitOr, Not};
 use lazy_init::LazyInit;
 
+#[allow(dead_code)]
 pub trait Io {
     type Value: Copy
         + PartialEq
@@ -139,6 +140,12 @@ pub struct Rtc {
     addr: Pio<u8>,
     data: Pio<u8>,
     nmi: bool,
+}
+
+impl Default for Rtc {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl Rtc {

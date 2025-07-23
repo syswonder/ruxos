@@ -8,19 +8,25 @@
  */
 
 use alloc::vec::Vec;
-use axfs_vfs::{impl_vfs_non_dir_default, VfsNodeAttr, VfsNodeOps, VfsResult};
-use spin::RwLock;
+use axfs_vfs::{
+    impl_vfs_non_dir_default, VfsNodeAttr, VfsNodeOps, VfsNodePerm, VfsNodeType, VfsResult,
+};
+use spin::rwlock::RwLock;
 
 /// The file node in the RAM filesystem.
 ///
 /// It implements [`axfs_vfs::VfsNodeOps`].
 pub struct FileNode {
+    ino: u64,
+    mode: RwLock<VfsNodePerm>,
     content: RwLock<Vec<u8>>,
 }
 
 impl FileNode {
-    pub(super) const fn new() -> Self {
+    pub(super) const fn new(ino: u64, mode: VfsNodePerm) -> Self {
         Self {
+            ino,
+            mode: RwLock::new(mode),
             content: RwLock::new(Vec::new()),
         }
     }
@@ -28,7 +34,18 @@ impl FileNode {
 
 impl VfsNodeOps for FileNode {
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
-        Ok(VfsNodeAttr::new_file(self.content.read().len() as _, 0))
+        Ok(VfsNodeAttr::new(
+            self.ino,
+            *self.mode.read(),
+            VfsNodeType::File,
+            self.content.read().len() as _,
+            0,
+        ))
+    }
+
+    fn set_mode(&self, mode: VfsNodePerm) -> VfsResult {
+        *self.mode.write() = mode;
+        Ok(())
     }
 
     fn truncate(&self, size: u64) -> VfsResult {

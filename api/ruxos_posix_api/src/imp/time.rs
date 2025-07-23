@@ -14,6 +14,9 @@ use crate::ctypes;
 
 use axerrno::LinuxError;
 
+// nanoseconds per a second
+const NANO_PER_SECOND: i64 = 1000000000;
+
 impl From<ctypes::timespec> for Duration {
     fn from(ts: ctypes::timespec) -> Self {
         Duration::new(ts.tv_sec as u64, ts.tv_nsec as u32)
@@ -74,13 +77,75 @@ pub unsafe fn sys_clock_settime(_clk: ctypes::clockid_t, ts: *const ctypes::time
     })
 }
 
+/// Return the resolution (precision) of a specified clock `clk_id`.
+/// TODO: Currently we only have one simple clock source in the OS.
+/// We ignore `clk_id` and always return a fixed resolution of 1ns.
+/// In the future, we may:
+///  - Distinguish different clock IDs (e.g., REALTIME vs MONOTONIC).
+///  - Return a more realistic resolution based on hardware capabilities.
+pub unsafe fn sys_clock_getres(clk_id: ctypes::clockid_t, ts: *mut ctypes::timespec) -> c_int {
+    syscall_body!(sys_clock_getres, {
+        if ts.is_null() {
+            return Err(LinuxError::EFAULT);
+        }
+        (*ts).tv_sec = 0;
+        (*ts).tv_nsec = 1;
+        debug!("sys_clock_getres: clk_id={clk_id}, returning 0s + 1ns");
+        Ok(0)
+    })
+}
+
+/// Sleep until some nanoseconds
+///
+/// TODO: should be woken by signals, and set errno
+/// TODO: deal with flags
+pub unsafe fn sys_clock_nanosleep(
+    _which_clock: ctypes::clockid_t,
+    _flags: c_int,
+    req: *const ctypes::timespec,
+    rem: *mut ctypes::timespec,
+) -> c_int {
+    syscall_body!(sys_clock_nanosleep, {
+        unsafe {
+            if req.is_null() || (*req).tv_nsec < 0 || (*req).tv_nsec >= NANO_PER_SECOND {
+                return Err(LinuxError::EINVAL);
+            }
+        }
+
+        let deadline = unsafe { Duration::from(*req) };
+
+        let now = ruxhal::time::current_time();
+
+        if now >= deadline {
+            return Ok(0);
+        }
+
+        #[cfg(feature = "multitask")]
+        ruxtask::sleep_until(deadline);
+        #[cfg(not(feature = "multitask"))]
+        ruxhal::time::busy_wait_until(deadline);
+
+        let after = ruxhal::time::current_time();
+        let actual = after - now;
+        let due = deadline - now;
+
+        if let Some(diff) = due.checked_sub(actual) {
+            if !rem.is_null() {
+                unsafe { (*rem) = diff.into() };
+            }
+            return Err(LinuxError::EINTR);
+        }
+        Ok(0)
+    })
+}
+
 /// Sleep some nanoseconds
 ///
 /// TODO: should be woken by signals, and set errno
 pub unsafe fn sys_nanosleep(req: *const ctypes::timespec, rem: *mut ctypes::timespec) -> c_int {
     syscall_body!(sys_nanosleep, {
         unsafe {
-            if req.is_null() || (*req).tv_nsec < 0 || (*req).tv_nsec > 999999999 {
+            if req.is_null() || (*req).tv_nsec < 0 || (*req).tv_nsec >= NANO_PER_SECOND {
                 return Err(LinuxError::EINVAL);
             }
         }
@@ -112,7 +177,7 @@ pub unsafe fn sys_nanosleep(req: *const ctypes::timespec, rem: *mut ctypes::time
 
 /// Get time of the day, ignore second parameter
 pub unsafe fn sys_gettimeofday(ts: *mut ctypes::timespec, flags: c_int) -> c_int {
-    debug!("sys_gettimeofday <= flags: {}", flags);
+    debug!("sys_gettimeofday <= flags: {flags}");
     unsafe { sys_clock_gettime(0, ts) }
 }
 

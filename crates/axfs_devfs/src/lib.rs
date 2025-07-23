@@ -20,36 +20,62 @@ mod null;
 mod random;
 mod zero;
 
+mod pts;
 #[cfg(test)]
 mod tests;
 
 pub use self::dir::DirNode;
 pub use self::null::NullDev;
+pub use self::pts::{init_pts, PtsFileSystem};
 pub use self::random::RandomDev;
 pub use self::zero::ZeroDev;
 
 use alloc::sync::Arc;
-use axfs_vfs::{VfsNodeRef, VfsOps, VfsResult};
+use axfs_vfs::{VfsNodePerm, VfsNodeRef, VfsOps, VfsResult};
+use core::sync::atomic::AtomicU64;
 use spin::once::Once;
+
+/// An auto-increasing inode number allocator.
+pub struct InoAllocator {
+    current: AtomicU64,
+}
+
+impl InoAllocator {
+    /// Create a new allocator instance.
+    pub fn new(start: u64) -> Self {
+        Self {
+            current: AtomicU64::new(start),
+        }
+    }
+
+    /// Allocate a new inode number.
+    pub fn alloc(&self) -> u64 {
+        self.current
+            .fetch_add(1, core::sync::atomic::Ordering::SeqCst)
+    }
+}
 
 /// A device filesystem that implements [`axfs_vfs::VfsOps`].
 pub struct DeviceFileSystem {
     parent: Once<VfsNodeRef>,
     root: Arc<DirNode>,
+    _ialloc: Arc<InoAllocator>,
 }
 
 impl DeviceFileSystem {
     /// Create a new instance.
     pub fn new() -> Self {
+        let ialloc = Arc::new(InoAllocator::new(10));
         Self {
             parent: Once::new(),
-            root: DirNode::new(None),
+            root: DirNode::new(2, VfsNodePerm::default_dir(), None, Arc::downgrade(&ialloc)),
+            _ialloc: ialloc,
         }
     }
 
     /// Create a subdirectory at the root directory.
-    pub fn mkdir(&self, name: &'static str) -> Arc<DirNode> {
-        self.root.mkdir(name)
+    pub fn mkdir(&self, name: &'static str, mode: VfsNodePerm) -> Arc<DirNode> {
+        self.root.mkdir(name, mode)
     }
 
     /// Add a node to the root directory.
@@ -61,12 +87,8 @@ impl DeviceFileSystem {
 }
 
 impl VfsOps for DeviceFileSystem {
-    fn mount(&self, _path: &str, mount_point: VfsNodeRef) -> VfsResult {
-        if let Some(parent) = mount_point.parent() {
-            self.root.set_parent(Some(self.parent.call_once(|| parent)));
-        } else {
-            self.root.set_parent(None);
-        }
+    fn mount(&self, parent: VfsNodeRef) -> VfsResult {
+        self.root.set_parent(Some(self.parent.call_once(|| parent)));
         Ok(())
     }
 

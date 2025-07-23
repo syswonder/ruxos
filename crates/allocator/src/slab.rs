@@ -38,6 +38,12 @@ impl SlabByteAllocator {
     }
 }
 
+impl Default for SlabByteAllocator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BaseAllocator for SlabByteAllocator {
     fn init(&mut self, start: usize, size: usize) {
         self.inner = unsafe { Some(Heap::new(start, size)) };

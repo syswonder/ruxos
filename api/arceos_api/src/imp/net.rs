@@ -9,8 +9,8 @@
 
 use crate::io::AxPollState;
 use axerrno::AxResult;
-use ruxnet::{UdpSocket, TcpSocket};
 use core::net::{IpAddr, SocketAddr};
+use ruxnet::{message::MessageFlags, TcpSocket, UdpSocket};
 
 /// A handle to a TCP socket.
 pub struct AxTcpSocketHandle(TcpSocket);
@@ -23,7 +23,7 @@ pub struct AxUdpSocketHandle(UdpSocket);
 ////////////////////////////////////////////////////////////////////////////////
 
 pub fn ax_tcp_socket() -> AxTcpSocketHandle {
-    AxTcpSocketHandle(TcpSocket::new())
+    AxTcpSocketHandle(TcpSocket::new(false))
 }
 
 pub fn ax_tcp_socket_addr(socket: &AxTcpSocketHandle) -> AxResult<SocketAddr> {
@@ -62,7 +62,7 @@ pub fn ax_tcp_send(socket: &AxTcpSocketHandle, buf: &[u8]) -> AxResult<usize> {
 }
 
 pub fn ax_tcp_recv(socket: &AxTcpSocketHandle, buf: &mut [u8]) -> AxResult<usize> {
-    socket.0.recv(buf, 0)
+    socket.0.recv(buf, MessageFlags::empty())
 }
 
 pub fn ax_tcp_poll(socket: &AxTcpSocketHandle) -> AxResult<AxPollState> {
@@ -98,11 +98,17 @@ pub fn ax_udp_bind(socket: &AxUdpSocketHandle, addr: SocketAddr) -> AxResult {
     socket.0.bind(addr)
 }
 
-pub fn ax_udp_recv_from(socket: &AxUdpSocketHandle, buf: &mut [u8]) -> AxResult<(usize, SocketAddr)> {
+pub fn ax_udp_recv_from(
+    socket: &AxUdpSocketHandle,
+    buf: &mut [u8],
+) -> AxResult<(usize, SocketAddr)> {
     socket.0.recv_from(buf)
 }
 
-pub fn ax_udp_peek_from(socket: &AxUdpSocketHandle, buf: &mut [u8]) -> AxResult<(usize, SocketAddr)> {
+pub fn ax_udp_peek_from(
+    socket: &AxUdpSocketHandle,
+    buf: &mut [u8],
+) -> AxResult<(usize, SocketAddr)> {
     socket.0.peek_from(buf)
 }
 

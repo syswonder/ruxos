@@ -33,14 +33,13 @@
 
 #![cfg_attr(not(test), no_std)]
 #![feature(doc_auto_cfg)]
+#![allow(static_mut_refs)]
 
 #[macro_use]
 extern crate axlog;
 
 #[cfg(all(target_os = "none", not(test)))]
 mod lang_items;
-#[cfg(feature = "signal")]
-mod signal;
 
 #[cfg(not(feature = "musl"))]
 mod trap;
@@ -52,7 +51,7 @@ mod mp;
 pub use self::mp::rust_main_secondary;
 
 #[cfg(feature = "signal")]
-pub use self::signal::{rx_sigaction, Signal};
+use ruxtask::signal::Signal;
 
 #[cfg(feature = "alloc")]
 extern crate alloc;
@@ -65,14 +64,14 @@ use self::env::{boot_add_environ, init_argv};
 use core::ffi::{c_char, c_int};
 
 const LOGO: &str = r#"
-8888888b.                     .d88888b.   .d8888b.  
-888   Y88b                   d88P" "Y88b d88P  Y88b 
-888    888                   888     888 Y88b.      
-888   d88P 888  888 888  888 888     888  "Y888b.   
-8888888P"  888  888 `Y8bd8P' 888     888     "Y88b. 
-888 T88b   888  888   X88K   888     888       "888 
-888  T88b  Y88b 888 .d8""8b. Y88b. .d88P Y88b  d88P 
-888   T88b  "Y88888 888  888  "Y88888P"   "Y8888P" 
+8888888b.                     .d88888b.   .d8888b.
+888   Y88b                   d88P" "Y88b d88P  Y88b
+888    888                   888     888 Y88b.
+888   d88P 888  888 888  888 888     888  "Y888b.
+8888888P"  888  888 `Y8bd8P' 888     888     "Y88b.
+888 T88b   888  888   X88K   888     888       "888
+888  T88b  Y88b 888 .d8""8b. Y88b. .d88P Y88b  d88P
+888   T88b  "Y88888 888  888  "Y88888P"   "Y8888P"
 "#;
 
 #[no_mangle]
@@ -173,7 +172,11 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     axlog::init();
     axlog::set_max_level(option_env!("RUX_LOG").unwrap_or("")); // no effect if set `log-level-*` features
     info!("Logging is enabled.");
-    info!("Primary CPU {} started, dtb = {:#x}.", cpu_id, dtb);
+
+    #[cfg(feature = "alloc")]
+    init_allocator();
+
+    info!("Primary CPU {cpu_id} started, dtb = {dtb:#x}.");
 
     info!("Found physcial memory regions:");
     for r in ruxhal::mem::memory_regions() {
@@ -186,20 +189,14 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
         );
     }
 
-    #[cfg(feature = "alloc")]
-    init_allocator();
-
-    #[cfg(feature = "paging")]
-    {
-        info!("Initialize kernel page table...");
-        remap_kernel_memory().expect("remap kernel memoy failed");
-    }
-
-    #[cfg(feature = "tty")]
-    tty::init();
+    tty::init_tty();
 
     info!("Initialize platform devices...");
-    ruxhal::platform_init();
+
+    ruxhal::platform_init(cpu_id);
+
+    #[cfg(feature = "rand")]
+    ruxrand::init(cpu_id);
 
     #[cfg(feature = "multitask")]
     {
@@ -207,6 +204,15 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
         #[cfg(feature = "musl")]
         ruxfutex::init_futex();
     }
+
+    #[cfg(feature = "paging")]
+    {
+        info!("Initialize kernel page table...");
+        remap_kernel_memory().expect("remap kernel memoy failed");
+    }
+
+    #[cfg(feature = "virtio_console")]
+    ruxhal::virtio::virtio_console::directional_probing();
 
     #[cfg(any(feature = "fs", feature = "net", feature = "display"))]
     {
@@ -221,7 +227,9 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
             extern crate alloc;
             use alloc::vec::Vec;
             // By default, mount_points[0] will be rootfs
-            let mut mount_points: Vec<ruxfs::MountPoint> = Vec::new();
+            let mut mount_points: Vec<ruxfs::root::MountPoint> = Vec::new();
+            #[cfg(any(feature = "blkfs", feature = "fusefs"))]
+            let mut block_dev = Some(all_devices.block);
 
             //setup ramfs as rootfs if no other filesystem can be mounted
             #[cfg(not(any(feature = "blkfs", feature = "virtio-9p", feature = "net-9p")))]
@@ -229,7 +237,7 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
 
             // setup and initialize blkfs as one mountpoint for rootfs
             #[cfg(feature = "blkfs")]
-            mount_points.push(ruxfs::init_blkfs(all_devices.block));
+            mount_points.push(ruxfs::init_blkfs(block_dev.take().unwrap()));
 
             // setup and initialize 9pfs as mountpoint
             #[cfg(feature = "virtio-9p")]
@@ -244,10 +252,17 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
                 option_env!("RUX_ANAME_9P").unwrap_or(""),
                 option_env!("RUX_PROTOCOL_9P").unwrap_or(""),
             ));
+
+            // setup and initialize fusefs as mountpoint
+            #[cfg(feature = "fusefs")]
+            if let Some(block_dev) = block_dev.take() {
+                mount_points.push(ruxvda::init_vdafs(block_dev));
+            }
+
             ruxfs::prepare_commonfs(&mut mount_points);
 
             // setup and initialize rootfs
-            ruxfs::init_filesystems(mount_points);
+            ruxtask::fs::init_rootfs(mount_points);
         }
 
         #[cfg(feature = "display")]
@@ -269,7 +284,7 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
         init_tls();
     }
 
-    info!("Primary CPU {} init OK.", cpu_id);
+    info!("Primary CPU {cpu_id} init OK.");
     INITED_CPUS.fetch_add(1, Ordering::Relaxed);
 
     while !is_init_ok() {
@@ -281,6 +296,11 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     unsafe {
         let mut argc: c_int = 0;
         init_cmdline(&mut argc);
+        #[cfg(feature = "alloc")]
+        {
+            let (mem_base, mem_size) = ruxdtb::get_memory_info();
+            info!("memory base: 0x{mem_base:x}, memory size: 0x{mem_size:x}");
+        }
         #[cfg(not(feature = "musl"))]
         main(argc, argv);
         #[cfg(feature = "musl")]
@@ -391,7 +411,7 @@ fn init_allocator() {
 }
 
 #[cfg(feature = "paging")]
-use ruxhal::paging::remap_kernel_memory;
+use ruxmm::paging::remap_kernel_memory;
 
 #[cfg(feature = "irq")]
 fn init_interrupt() {
@@ -419,7 +439,7 @@ fn init_interrupt() {
     fn do_signal() {
         let now_ns = ruxhal::time::current_time_nanos();
         // timer signal num
-        let timers = [14, 26, 27];
+        let timers = [14, 26, 27]; // what is the number?
         for (which, timer) in timers.iter().enumerate() {
             let mut ddl = Signal::timer_deadline(which, None).unwrap();
             let interval = Signal::timer_interval(which, None).unwrap();
@@ -438,8 +458,9 @@ fn init_interrupt() {
             if signal & (1 << signum) != 0
             /* TODO: && support mask */
             {
-                Signal::sigaction(signum as u8, None, None);
                 Signal::signal(signum as i8, false);
+                Signal::sigaction(signum as u8, None, None);
+                Signal::signal_handle(signum as u8);
             }
         }
     }

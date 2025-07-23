@@ -45,6 +45,12 @@ pub struct WaitQueueWithMetadata<Meta> {
 /// A wait queue with no metadata.
 pub type WaitQueue = WaitQueueWithMetadata<()>;
 
+impl<Meta> Default for WaitQueueWithMetadata<Meta> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<Meta> WaitQueueWithMetadata<Meta> {
     /// Creates an empty wait queue.
     pub const fn new() -> Self {
@@ -145,7 +151,7 @@ impl<Meta> WaitQueueWithMetadata<Meta> {
             deadline
         );
         #[cfg(feature = "irq")]
-        crate::timers::set_alarm_wakeup(deadline, curr.clone());
+        crate::timers::set_alarm_wakeup(deadline, curr.clone_as_taskref());
 
         RUN_QUEUE.lock().block_current(|task| {
             task.set_in_wait_queue(true);
@@ -178,7 +184,7 @@ impl<Meta> WaitQueueWithMetadata<Meta> {
             deadline
         );
         #[cfg(feature = "irq")]
-        crate::timers::set_alarm_wakeup(deadline, curr.clone());
+        crate::timers::set_alarm_wakeup(deadline, curr.clone_as_taskref());
 
         rq.block_current(|task| {
             task.set_in_wait_queue(true);
@@ -380,7 +386,7 @@ impl<Meta: Clone> WaitQueueWithMetadata<Meta> {
             curr.id_name(),
             deadline
         );
-        crate::timers::set_alarm_wakeup(deadline, curr.clone());
+        crate::timers::set_alarm_wakeup(deadline, curr.clone_as_taskref());
 
         let mut timeout = true;
         while ruxhal::time::current_time() < deadline {

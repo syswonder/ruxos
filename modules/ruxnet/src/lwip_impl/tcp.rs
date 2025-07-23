@@ -1,4 +1,14 @@
+/* Copyright (c) [2023] [Syswonder Community]
+ *   [Ruxos] is licensed under Mulan PSL v2.
+ *   You can use this software according to the terms and conditions of the Mulan PSL v2.
+ *   You may obtain a copy of Mulan PSL v2 at:
+ *               http://license.coscl.org.cn/MulanPSL2
+ *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ *   See the Mulan PSL v2 for more details.
+ */
+
 use crate::{
+    message::{MessageFlags, MessageReadInfo},
     net_impl::{driver::lwip_loop_once, ACCEPT_QUEUE_LEN, RECV_QUEUE_LEN},
     IpAddr, SocketAddr,
 };
@@ -7,13 +17,14 @@ use axerrno::{ax_err, AxError, AxResult};
 use axio::PollState;
 use axsync::Mutex;
 use core::cell::UnsafeCell;
-use core::sync::atomic::{AtomicBool, AtomicU8, Ordering};
+use core::sync::atomic::{AtomicBool, Ordering};
 use core::{ffi::c_void, pin::Pin, ptr::null_mut};
+use iovec::IoVecsOutput;
 use lwip_rust::bindings::{
     err_enum_t_ERR_MEM, err_enum_t_ERR_OK, err_enum_t_ERR_USE, err_enum_t_ERR_VAL, err_t,
     ip_addr_t, pbuf, pbuf_free, tcp_accept, tcp_arg, tcp_bind, tcp_close, tcp_connect,
     tcp_listen_with_backlog, tcp_new, tcp_output, tcp_pcb, tcp_recv, tcp_recved, tcp_state_CLOSED,
-    tcp_state_LISTEN, tcp_write, TCP_DEFAULT_LISTEN_BACKLOG, TCP_MSS,
+    tcp_state_CLOSE_WAIT, tcp_state_LISTEN, tcp_write, TCP_DEFAULT_LISTEN_BACKLOG, TCP_MSS,
 };
 use ruxtask::yield_now;
 
@@ -51,7 +62,7 @@ pub struct TcpSocket {
 }
 
 extern "C" fn connect_callback(arg: *mut c_void, _tpcb: *mut tcp_pcb, err: err_t) -> err_t {
-    debug!("[TcpSocket] connect_callback: {:#?}", err);
+    debug!("[TcpSocket] connect_callback: {err:#?}");
     let socket_inner = unsafe { &mut *(arg as *mut TcpSocketInner) };
     socket_inner.connect_result = err.into();
     err
@@ -63,9 +74,9 @@ extern "C" fn recv_callback(
     p: *mut pbuf,
     err: err_t,
 ) -> err_t {
-    debug!("[TcpSocket] recv_callback: {:#?}", err);
+    debug!("[TcpSocket] recv_callback: {err:#?}");
     if err != 0 {
-        error!("[TcpSocket][recv_callback] err: {:#?}", err);
+        error!("[TcpSocket][recv_callback] err: {err:#?}");
         return err;
     }
     let socket_inner = unsafe { &mut *(arg as *mut TcpSocketInner) };
@@ -92,7 +103,7 @@ extern "C" fn recv_callback(
 
 extern "C" fn accept_callback(arg: *mut c_void, newpcb: *mut tcp_pcb, err: err_t) -> err_t {
     if err != 0 {
-        debug!("[TcpSocket][accept_callback] err: {:#?}", err);
+        debug!("[TcpSocket][accept_callback] err: {err:#?}");
         return err;
     }
     let socket_inner = unsafe { &mut *(arg as *mut TcpSocketInner) };
@@ -123,12 +134,12 @@ extern "C" fn accept_callback(arg: *mut c_void, newpcb: *mut tcp_pcb, err: err_t
 
 impl TcpSocket {
     /// Creates a new TCP socket.
-    pub fn new() -> Self {
+    pub fn new(nonblock: bool) -> Self {
         let guard = LWIP_MUTEX.lock();
         let mut socket = Self {
             pcb: TcpPcbPointer(Mutex::new(unsafe { tcp_new() })),
             inner: Box::pin(TcpSocketInner {
-                nonblock: AtomicBool::new(false),
+                nonblock: AtomicBool::new(nonblock),
                 remote_closed: false,
                 connect_result: 0.into(),
                 recv_queue: Mutex::new(VecDeque::new()),
@@ -191,6 +202,12 @@ impl TcpSocket {
         }
     }
 
+    /// Returens if this socket is listening
+    #[inline]
+    pub fn is_listening(&self) -> bool {
+        unsafe { (*self.pcb.get()).state == tcp_state_LISTEN }
+    }
+
     /// Returns whether this socket is in nonblocking mode.
     #[inline]
     pub fn is_nonblocking(&self) -> bool {
@@ -214,7 +231,7 @@ impl TcpSocket {
     /// The local port is generated automatically.
     pub fn connect(&self, caddr: core::net::SocketAddr) -> AxResult {
         let addr = SocketAddr::from(caddr);
-        debug!("[TcpSocket] connect to {:#?}", addr);
+        debug!("[TcpSocket] connect to {addr:#?}");
         let ip_addr: ip_addr_t = addr.addr.into();
         unsafe {
             self.inner.connect_result.get().write(1);
@@ -267,7 +284,7 @@ impl TcpSocket {
     /// [`accept`](Self::accept).
     pub fn bind(&self, caddr: core::net::SocketAddr) -> AxResult {
         let addr = SocketAddr::from(caddr);
-        debug!("[TcpSocket] bind to {:#?}", addr);
+        debug!("[TcpSocket] bind to {addr:#?}");
         let guard = LWIP_MUTEX.lock();
         unsafe {
             #[allow(non_upper_case_globals)]
@@ -324,7 +341,7 @@ impl TcpSocket {
         loop {
             lwip_loop_once();
             let mut accept_queue = self.inner.accept_queue.lock();
-            if accept_queue.len() != 0 {
+            if !accept_queue.is_empty() {
                 return Ok(accept_queue.pop_front().unwrap());
             }
             drop(accept_queue);
@@ -353,7 +370,7 @@ impl TcpSocket {
                 match tcp_close(self.pcb.get()) as i32 {
                     err_enum_t_ERR_OK => {}
                     e => {
-                        error!("LWIP tcp_close failed: {}", e);
+                        error!("LWIP tcp_close failed: {e}");
                         return ax_err!(Unsupported, "LWIP [tcp_close] failed");
                     }
                 }
@@ -369,14 +386,14 @@ impl TcpSocket {
     }
 
     /// Receives data from the socket, stores it in the given buffer.
-    pub fn recv(&self, buf: &mut [u8], flags: i32) -> AxResult<usize> {
+    pub fn recv(&self, buf: &mut [u8], _flags: MessageFlags) -> AxResult<usize> {
         loop {
             if self.inner.remote_closed {
                 return Ok(0);
             }
             lwip_loop_once();
             let mut recv_queue = self.inner.recv_queue.lock();
-            let res = if recv_queue.len() == 0 {
+            let res = if recv_queue.is_empty() {
                 Ok(0)
             } else {
                 let (p, offset) = recv_queue.pop_front().unwrap();
@@ -426,6 +443,15 @@ impl TcpSocket {
         }
     }
 
+    /// TODO: receive a message from the socket.
+    pub fn recvmsg(
+        &self,
+        _iovecs: &mut IoVecsOutput,
+        _flags: MessageFlags,
+    ) -> AxResult<MessageReadInfo> {
+        todo!()
+    }
+
     /// Transmits data in the given buffer.
     pub fn send(&self, buf: &[u8]) -> AxResult<usize> {
         trace!("[TcpSocket] send (len = {})", buf.len());
@@ -453,7 +479,7 @@ impl TcpSocket {
             }
         };
         lwip_loop_once();
-        trace!("[TcpSocket] send done (len: {})", copy_len);
+        trace!("[TcpSocket] send done (len: {copy_len})");
         Ok(copy_len)
     }
 
@@ -464,18 +490,18 @@ impl TcpSocket {
         trace!("poll pcbstate: {:?}", unsafe { (*self.pcb.get()).state });
         lwip_loop_once();
         if unsafe { (*self.pcb.get()).state } == tcp_state_LISTEN {
-            let test = self.inner.accept_queue.lock().len();
             // listener
             Ok(PollState {
-                readable: self.inner.accept_queue.lock().len() != 0,
+                readable: !self.inner.accept_queue.lock().is_empty(),
                 writable: false,
+                pollhup: false,
             })
         } else {
-            let test = self.inner.recv_queue.lock().len();
             // stream
             Ok(PollState {
-                readable: self.inner.recv_queue.lock().len() != 0,
+                readable: !self.inner.accept_queue.lock().is_empty(),
                 writable: true,
+                pollhup: unsafe { (*self.pcb.get()).state } == tcp_state_CLOSE_WAIT,
             })
         }
     }
@@ -490,6 +516,6 @@ impl Drop for TcpSocket {
 
 impl Default for TcpSocket {
     fn default() -> Self {
-        Self::new()
+        Self::new(false)
     }
 }

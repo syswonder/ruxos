@@ -15,17 +15,21 @@ use core::{
     ops::Bound,
 };
 use memory_addr::PAGE_SIZE_4K;
-use ruxhal::{mem::VirtAddr, paging::pte_update_page};
+use ruxhal::mem::VirtAddr;
+use ruxmm::paging::pte_update_page;
 
 use super::utils::{
-    find_free_region, get_mflags_from_usize, get_overlap, release_pages_mapped, shift_mapped_page,
-    snatch_fixed_region, Vma, MEM_MAP, VMA_END, VMA_MAP,
+    find_free_region, get_mflags_from_usize, get_overlap, release_pages_mapped,
+    release_pages_mapped_without_wb, shift_mapped_page, snatch_fixed_region, VMA_END,
 };
+use ruxtask::current;
+use ruxtask::vma::Vma;
 
 #[cfg(feature = "fs")]
 use {
     super::utils::{release_pages_swaped, write_into},
     alloc::sync::Arc,
+    ruxtask::vma::FileInfo,
 };
 
 /// Creates a new mapping in the virtual address space of the calling process.
@@ -40,12 +44,16 @@ pub fn sys_mmap(
     off: ctypes::off_t,
 ) -> *mut c_void {
     debug!(
-        "sys_mmap <= start: {:p}, len: 0x{:x}, prot:0x{:x?}, flags:0x{:x?}, fd: {}",
-        start, len, prot, flags, fd
+        "sys_mmap <= start: {start:p}, len: 0x{len:x}, prot:0x{prot:x?}, flags:0x{flags:x?}, fd: {fd}, off: 0x{off:x}"
     );
     syscall_body!(sys_mmap, {
         // transform C-type into rust-type
         let start = start as usize;
+        let mapping_len = VirtAddr::from(len).align_up_4k().as_usize();
+        if !VirtAddr::from(start).is_aligned(PAGE_SIZE_4K) || len == 0 {
+            error!("mmap failed because start:0x{start:x} is not aligned or len:0x{len:x} == 0");
+            return Err(LinuxError::EINVAL);
+        }
         let prot = prot as u32;
         let flags = flags as u32;
         let fid = fd;
@@ -67,36 +75,22 @@ pub fn sys_mmap(
             fid
         };
 
-        // align len to PAGE_SIZE_4K depending on `MAP_ANONYMOUS` or not.
-        let len = if fid < 0 {
-            VirtAddr::from(len).align_up_4k().as_usize()
-        } else {
-            VirtAddr::from(len).as_usize()
-        };
-
-        // check if `start` is aligned to `PAGE_SIZE_4K`or len is large than 0.
-        if !VirtAddr::from(start).is_aligned(PAGE_SIZE_4K) || len == 0 {
-            error!(
-                "mmap failed because start:0x{:x} is not aligned or len:0x{:x} == 0",
-                start, len
-            );
-            return Err(LinuxError::EINVAL);
-        }
-
         let mut new = Vma::new(fid, offset, prot, flags);
-        let mut vma_map = VMA_MAP.lock();
+        let binding_task = current();
+        let mut vma_map = binding_task.mm.vma_map.lock();
         let addr_condition = if start == 0 { None } else { Some(start) };
 
         let try_addr = if flags & ctypes::MAP_FIXED != 0 {
-            snatch_fixed_region(&mut vma_map, start, len)
+            snatch_fixed_region(&mut vma_map, start, mapping_len)
         } else {
-            find_free_region(&vma_map, addr_condition, len)
+            find_free_region(&vma_map, addr_condition, mapping_len)
         };
 
         match try_addr {
             Some(vaddr) => {
                 new.start_addr = vaddr;
-                new.end_addr = vaddr + len;
+                new.end_addr = vaddr + mapping_len;
+                new.size = len;
                 vma_map.insert(vaddr, new);
                 Ok(vaddr as *mut c_void)
             }
@@ -107,21 +101,19 @@ pub fn sys_mmap(
 
 /// Deletes the mappings for the specified address range
 pub fn sys_munmap(start: *mut c_void, len: ctypes::size_t) -> c_int {
-    debug!("sys_munmap <= start: {:p}, len: 0x{:x}", start, len);
+    debug!("sys_munmap <= start: {start:p}, len: 0x{len:x}");
     syscall_body!(sys_munmap, {
         // transform C-type into rust-type
         let start = start as usize;
-        let end = VirtAddr::from(start + len).as_usize();
+        let end = VirtAddr::from(start + len).align_up_4k().as_usize();
 
         if !VirtAddr::from(start).is_aligned(PAGE_SIZE_4K) || len == 0 {
-            error!(
-                "sys_munmap start_address=0x{:x}, len 0x{:x?} not aligned",
-                start, len
-            );
+            error!("sys_munmap start_address=0x{start:x}, len 0x{len:x?} not aligned");
             return Err(LinuxError::EINVAL);
         }
 
-        let mut vma_map = VMA_MAP.lock();
+        let binding = current();
+        let mut vma_map = binding.mm.vma_map.lock();
 
         // In order to ensure that munmap can exit directly if it fails, it must
         // ensure that munmap semantics are correct before taking action.
@@ -131,7 +123,7 @@ pub fn sys_munmap(start: *mut c_void, len: ctypes::size_t) -> c_int {
 
         let mut node = vma_map.upper_bound_mut(Bound::Included(&start));
         let mut counter = 0; // counter to check if all address in [start, start+len) is mapped.
-        while let Some(vma) = node.value_mut() {
+        while let Some((_, vma)) = node.peek_prev() {
             if vma.start_addr >= end {
                 break;
             }
@@ -153,7 +145,10 @@ pub fn sys_munmap(start: *mut c_void, len: ctypes::size_t) -> c_int {
                     post_remove.push(vma.start_addr);
                 }
             }
-            node.move_next();
+
+            if node.next().is_none() {
+                break;
+            }
         }
 
         // check if any address in [start, end) not mayed.
@@ -179,7 +174,7 @@ pub fn sys_munmap(start: *mut c_void, len: ctypes::size_t) -> c_int {
         }
 
         // delete the mapped and swapped page.
-        release_pages_mapped(start, end, true);
+        release_pages_mapped(start, end);
         #[cfg(feature = "fs")]
         release_pages_swaped(start, end);
 
@@ -191,15 +186,12 @@ pub fn sys_munmap(start: *mut c_void, len: ctypes::size_t) -> c_int {
 /// containing any part of the address range in the interval [addr, addr+len).  
 /// addr must be aligned to a page boundary.
 pub fn sys_mprotect(start: *mut c_void, len: ctypes::size_t, prot: c_int) -> c_int {
-    debug!(
-        "sys_mprotect <= addr: {:p}, len: 0x{:x}, prot: {}",
-        start, len, prot
-    );
+    debug!("sys_mprotect <= addr: {start:p}, len: 0x{len:x}, prot: {prot}");
 
     syscall_body!(sys_mprotect, {
         // transform C-type into rust-type
         let start = start as usize;
-        let end = VirtAddr::from(start + len).as_usize();
+        let end = VirtAddr::from(start + len).align_up_4k().as_usize();
         if !VirtAddr::from(start).is_aligned(PAGE_SIZE_4K) || len == 0 {
             return Err(LinuxError::EINVAL);
         }
@@ -211,10 +203,11 @@ pub fn sys_mprotect(start: *mut c_void, len: ctypes::size_t, prot: c_int) -> c_i
         let mut post_shrink: Vec<(usize, usize)> = Vec::new();
         let mut post_align_changed: Vec<(usize, usize)> = Vec::new();
 
-        let mut vma_map = VMA_MAP.lock();
+        let binding_task = current();
+        let mut vma_map = binding_task.mm.vma_map.lock();
         let mut node = vma_map.upper_bound_mut(Bound::Included(&start));
         let mut counter = 0; // counter to check if all address in [start, start+len) is mapped.
-        while let Some(vma) = node.value_mut() {
+        while let Some((_, vma)) = node.peek_prev() {
             if vma.start_addr >= end {
                 break;
             }
@@ -243,7 +236,9 @@ pub fn sys_mprotect(start: *mut c_void, len: ctypes::size_t, prot: c_int) -> c_i
                     post_align_changed.push((vma.start_addr, overlapped_end));
                 }
             }
-            node.move_next();
+            if node.next().is_none() {
+                break;
+            }
         }
         // check if any address in [start, end) not mayed.
         if counter != end - start {
@@ -256,7 +251,7 @@ pub fn sys_mprotect(start: *mut c_void, len: ctypes::size_t, prot: c_int) -> c_i
         }
 
         // upate PTEs if mprotect is successful.
-        for (&vaddr, _) in MEM_MAP.lock().range(start..end) {
+        for (&vaddr, _) in current().mm.mem_map.lock().range(start..end) {
             if pte_update_page(
                 VirtAddr::from(vaddr),
                 None,
@@ -265,8 +260,7 @@ pub fn sys_mprotect(start: *mut c_void, len: ctypes::size_t, prot: c_int) -> c_i
             .is_err()
             {
                 error!(
-                    "Updating page prot failed when mprotecting the page: vaddr=0x{:x?}, prot={:?}",
-                    vaddr, prot
+                    "Updating page prot failed when mprotecting the page: vaddr=0x{vaddr:x?}, prot={prot:?}"
                 );
             }
         }
@@ -293,20 +287,17 @@ pub fn sys_mprotect(start: *mut c_void, len: ctypes::size_t, prot: c_int) -> c_i
 ///
 /// Note: support flags `MS_SYNC` only.
 pub fn sys_msync(start: *mut c_void, len: ctypes::size_t, flags: c_int) -> c_int {
-    debug!(
-        "sys_msync <= addr: {:p}, len: {}, flags: {}",
-        start, len, flags
-    );
+    debug!("sys_msync <= addr: {start:p}, len: {len}, flags: {flags}");
     syscall_body!(sys_msync, {
         #[cfg(feature = "fs")]
         {
             let start = start as usize;
-            let end = VirtAddr::from(start + len).as_usize();
+            let end = VirtAddr::from(start + len).align_up_4k().as_usize();
             if !VirtAddr::from(start).is_aligned(PAGE_SIZE_4K) || len == 0 {
                 return Err(LinuxError::EINVAL);
             }
-            for (&vaddr, page_info) in MEM_MAP.lock().range(start..end) {
-                if let Some((file, offset, size)) = page_info {
+            for (&vaddr, page_info) in current().mm.mem_map.lock().range(start..end) {
+                if let Some(FileInfo { file, offset, size }) = &page_info.mapping_file {
                     let src = vaddr as *mut u8;
                     write_into(file, src, *offset as u64, *size);
                 }
@@ -325,8 +316,7 @@ pub fn sys_mremap(
     new_addr: *mut c_void,
 ) -> *mut c_void {
     debug!(
-        "sys_mremap <= old_addr: {:p}, old_size: {}, new_size: {}, flags: {}, new_addr: {:p}",
-        old_addr, old_size, new_size, flags, new_addr
+        "sys_mremap <= old_addr: {old_addr:p}, old_size: {old_size}, new_size: {new_size}, flags: {flags}, new_addr: {new_addr:p}"
     );
     syscall_body!(sys_mremap, {
         let old_vaddr = VirtAddr::from(old_addr as usize);
@@ -351,10 +341,11 @@ pub fn sys_mremap(
         let mut consistent_vma: Option<Vma> = None; // structure to verify the consistent in the range of [old_start, old_end)
         let mut post_remove: Vec<usize> = Vec::new(); // vma should be removed if success.
 
-        let mut vma_map = VMA_MAP.lock();
+        let binding_task = current();
+        let mut vma_map = binding_task.mm.vma_map.lock();
         // collect and check vma alongside the range of [old_start, old_end).
         let mut node = vma_map.upper_bound_mut(Bound::Included(&old_start));
-        while let Some(vma) = node.value_mut() {
+        while let Some((_, vma)) = node.peek_prev() {
             if vma.start_addr > old_end {
                 break;
             }
@@ -388,7 +379,9 @@ pub fn sys_mremap(
             }
 
             post_remove.push(vma.start_addr);
-            node.move_next();
+            if node.next().is_none() {
+                break;
+            }
         }
 
         // check if consistent_vma full match the remapping memory.
@@ -449,14 +442,15 @@ pub fn sys_mremap(
                     Vma::clone_from(&old_vma, old_end, old_vma.end_addr),
                 );
             }
-            old_vma.end_addr = new_end;
+            old_vma.end_addr = VirtAddr::from(new_end).align_up_4k().as_usize();
+            old_vma.size = new_size;
+            vma_map.insert(old_vma.start_addr, old_vma);
 
-            // delete the mapped and swapped page outside of new vma.
-            release_pages_mapped(new_end, old_end, false);
+            // for the shrink region, it should be removed without write-back
+            release_pages_mapped_without_wb(new_end, old_end);
             #[cfg(feature = "fs")]
             release_pages_swaped(new_end, old_end);
 
-            // vma_map.insert(old_vma.start_addr, old_vma);
             return Ok(ret as *mut c_void);
         }
         // expanding the original address does not require changing the mapped page.
@@ -466,10 +460,10 @@ pub fn sys_mremap(
                 return Err(LinuxError::ENOMEM);
             }
             // find the right region to expand them in orignal addr.
-            let upper = vma_map
+            let (upper, _) = vma_map
                 .lower_bound(Bound::Included(&old_end))
-                .key()
-                .unwrap_or(&VMA_END);
+                .peek_next()
+                .unwrap_or((&VMA_END, &Vma::new(-1, 0, 0, 0)));
             if upper - old_end >= new_size - old_size {
                 let ret = old_vma.start_addr;
                 let new_end = old_start + new_size;
@@ -542,9 +536,6 @@ pub fn sys_mremap(
 ///
 /// TODO: implement this to improve performance.
 pub fn sys_madvise(addr: *mut c_void, len: ctypes::size_t, advice: c_int) -> c_int {
-    debug!(
-        "sys_madvise <= addr: {:p}, len: {}, advice: {}",
-        addr, len, advice
-    );
+    debug!("sys_madvise <= addr: {addr:p}, len: {len}, advice: {advice}");
     syscall_body!(sys_madvise, Ok(0))
 }

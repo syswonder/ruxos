@@ -1,0 +1,16 @@
+[package]
+name = "ruxfifo"
+version = "0.1.0"
+edition = "2021"
+authors = ["FeiYang Li <3200105712@zju.edu.cn>", "Quan Shi <749990226@qq.com>"]
+description = "Fifo(named pipe) used by RuxOS"
+license = "Mulan PSL v2"
+homepage = "https://github.com/syswonder/ruxos"
+repository = "https://github.com/syswonder/ruxos/tree/dev/crates/ruxfifo"
+
+[dependencies]
+axfs_vfs = { path = "../axfs_vfs" }
+spin = { workspace = true }
+axerrno = { path = "../axerrno" }
+ringbuffer = { path = "../ringbuffer" }
+axio = { path = "../axio" }

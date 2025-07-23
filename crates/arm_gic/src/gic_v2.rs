@@ -277,7 +277,7 @@ impl GicCpuInterface {
     /// This function should be called only once.
     pub fn init(&self) {
         // enable GIC0
-        self.regs().CTLR.set(1);
+        self.regs().CTLR.set(0x1);
         // unmask interrupts at all priority levels
         self.regs().PMR.set(0xff);
     }

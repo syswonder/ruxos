@@ -11,11 +11,13 @@
 //! operations.
 
 #![no_std]
-#![feature(const_ptr_as_ref)]
-#![feature(const_option)]
-#![feature(const_nonnull_new)]
 
+#[cfg(target_arch = "aarch64")]
+#[cfg(not(feature = "gic-v3"))]
 pub mod gic_v2;
+#[cfg(target_arch = "aarch64")]
+#[cfg(feature = "gic-v3")]
+pub mod gic_v3;
 
 use core::ops::Range;
 

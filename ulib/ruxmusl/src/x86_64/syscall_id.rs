@@ -1,3 +1,12 @@
+/* Copyright (c) [2023] [Syswonder Community]
+ *   [Ruxos] is licensed under Mulan PSL v2.
+ *   You can use this software according to the terms and conditions of the Mulan PSL v2.
+ *   You may obtain a copy of Mulan PSL v2 at:
+ *               http://license.coscl.org.cn/MulanPSL2
+ *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ *   See the Mulan PSL v2 for more details.
+ */
+
 use num_enum::TryFromPrimitive;
 
 // TODO: syscall id are architecture-dependent
@@ -124,7 +133,13 @@ pub enum SyscallId {
     GETPEERNAME = 52,
 
     #[cfg(feature = "net")]
+    SOCKETPAIR = 53,
+
+    #[cfg(feature = "net")]
     SETSOCKOPT = 54,
+
+    #[cfg(feature = "net")]
+    GETSOCKOPT = 55,
 
     // TODO: check clone
     #[cfg(feature = "multitask")]
@@ -222,6 +237,8 @@ pub enum SyscallId {
     CLOCK_SETTIME = 227,
 
     CLOCK_GETTIME = 228,
+
+    CLOCK_NANOSLEEP = 230,
 
     #[cfg(feature = "epoll")]
     EPOLL_WAIT = 232,

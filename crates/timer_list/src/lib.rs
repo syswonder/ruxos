@@ -229,7 +229,7 @@ mod tests {
         for ddl in deadlines {
             timer_list.set(
                 ddl,
-                TimerEventFn::new(|now| println!("timer fn expired at {:?}", now)),
+                TimerEventFn::new(|now| println!("timer fn expired at {now:?}")),
             );
         }
 

@@ -86,7 +86,7 @@ unsafe extern "C" fn rust_entry_secondary(magic: usize) {
 }
 
 /// Initializes the platform devices for the primary CPU.
-pub fn platform_init() {
+pub fn platform_init(_cpu_id: usize) {
     self::apic::init_primary();
     self::time::init_primary();
 }

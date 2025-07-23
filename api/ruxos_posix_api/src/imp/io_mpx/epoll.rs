@@ -22,7 +22,8 @@ use ruxfdtable::{FileLike, RuxStat};
 use ruxhal::time::current_time;
 
 use crate::ctypes;
-use crate::imp::fd_ops::{add_file_like, get_file_like};
+use ruxfs::{AbsPath, OpenFlags};
+use ruxtask::fs::{add_file_like, get_file_like};
 
 pub struct EpollInstance {
     events: Mutex<BTreeMap<usize, ctypes::epoll_event>>,
@@ -108,6 +109,12 @@ impl EpollInstance {
                         events[events_num].data = ev.data;
                         events_num += 1;
                     }
+
+                    if state.pollhup {
+                        events[events_num].events = ctypes::EPOLLHUP;
+                        events[events_num].data = ev.data;
+                        events_num += 1;
+                    }
                 }
             }
         }
@@ -116,6 +123,10 @@ impl EpollInstance {
 }
 
 impl FileLike for EpollInstance {
+    fn path(&self) -> AbsPath {
+        AbsPath::new("/epoll")
+    }
+
     fn read(&self, _buf: &mut [u8]) -> LinuxResult<usize> {
         Err(LinuxError::ENOSYS)
     }
@@ -146,22 +157,28 @@ impl FileLike for EpollInstance {
         Err(LinuxError::ENOSYS)
     }
 
-    fn set_nonblocking(&self, _nonblocking: bool) -> LinuxResult {
+    fn set_flags(&self, _flags: ruxfs::OpenFlags) -> LinuxResult {
         Ok(())
+    }
+
+    fn flags(&self) -> OpenFlags {
+        OpenFlags::O_RDWR
     }
 }
 
 /// Creates a new epoll instance.
 ///
 /// It returns a file descriptor referring to the new epoll instance.
-pub fn sys_epoll_create(size: c_int) -> c_int {
-    debug!("sys_epoll_create <= {}", size);
+pub fn sys_epoll_create1(flags: c_int) -> c_int {
+    debug!("sys_epoll_create <= {flags}");
     syscall_body!(sys_epoll_create, {
-        if size < 0 {
+        if flags < 0 {
             return Err(LinuxError::EINVAL);
         }
-        let epoll_instance = EpollInstance::new(0);
-        add_file_like(Arc::new(epoll_instance))
+        add_file_like(
+            Arc::new(EpollInstance::new(0)),
+            OpenFlags::from_bits_truncate(flags),
+        )
     })
 }
 
@@ -172,7 +189,7 @@ pub unsafe fn sys_epoll_ctl(
     fd: c_int,
     event: *mut ctypes::epoll_event,
 ) -> c_int {
-    debug!("sys_epoll_ctl <= epfd: {} op: {} fd: {}", epfd, op, fd);
+    debug!("sys_epoll_ctl <= epfd: {epfd} op: {op} fd: {fd}");
     syscall_body!(sys_epoll_ctl, {
         let ret = unsafe {
             EpollInstance::from_fd(epfd)?.control(op as usize, fd as usize, &(*event))? as c_int
@@ -190,10 +207,7 @@ pub unsafe fn sys_epoll_pwait(
     _sigs: *const ctypes::sigset_t,
     _sig_num: *const ctypes::size_t,
 ) -> c_int {
-    debug!(
-        "sys_epoll_pwait <= epfd: {}, maxevents: {}, timeout: {}",
-        epfd, maxevents, timeout
-    );
+    debug!("sys_epoll_pwait <= epfd: {epfd}, maxevents: {maxevents}, timeout: {timeout}");
     sys_epoll_wait(epfd, events, maxevents, timeout)
 }
 
@@ -204,10 +218,7 @@ pub unsafe fn sys_epoll_wait(
     maxevents: c_int,
     timeout: c_int,
 ) -> c_int {
-    debug!(
-        "sys_epoll_wait <= epfd: {}, maxevents: {}, timeout: {}",
-        epfd, maxevents, timeout
-    );
+    debug!("sys_epoll_wait <= epfd: {epfd}, maxevents: {maxevents}, timeout: {timeout}");
 
     syscall_body!(sys_epoll_wait, {
         if maxevents <= 0 {
@@ -245,7 +256,7 @@ pub unsafe fn sys_epoll_wait(
                 return Ok(events_num as c_int);
             }
 
-            if deadline.map_or(false, |ddl| current_time() >= ddl) {
+            if deadline.is_some_and(|ddl| current_time() >= ddl) {
                 debug!("    timeout!");
                 return Ok(0);
             }

@@ -12,7 +12,8 @@ use core::ffi::{c_int, c_void};
 use axerrno::{LinuxError, LinuxResult};
 use ruxhal::time::current_time;
 
-use crate::{ctypes, imp::fd_ops::get_file_like};
+use crate::ctypes;
+use ruxtask::fs::get_file_like;
 
 const FD_SETSIZE: usize = 1024;
 const BITS_PER_USIZE: usize = usize::BITS as usize;
@@ -33,7 +34,8 @@ impl FdSets {
         let nfds = nfds.min(FD_SETSIZE);
         let nfds_usizes = nfds.div_ceil(BITS_PER_USIZE);
         let mut bits = core::mem::MaybeUninit::<[usize; FD_SETSIZE_USIZES * 3]>::uninit();
-        let bits_ptr = unsafe { core::mem::transmute(bits.as_mut_ptr()) };
+        let bits_ptr =
+            unsafe { core::mem::transmute::<*mut [usize; 48], *mut usize>(bits.as_mut_ptr()) };
 
         let copy_from_fd_set = |bits_ptr: *mut usize, fds: *const ctypes::fd_set| unsafe {
             let dst = core::slice::from_raw_parts_mut(bits_ptr, nfds_usizes);
@@ -99,9 +101,13 @@ impl FdSets {
                             unsafe { set_fd_set(res_write_fds, fd) };
                             res_num += 1;
                         }
+                        if state.pollhup {
+                            unsafe { set_fd_set(res_except_fds, fd) };
+                            res_num += 1;
+                        }
                     }
                     Err(e) => {
-                        debug!("    except: {} {:?}", fd, e);
+                        debug!("    except: {fd} {e:?}");
                         if except_bits & bit != 0 {
                             unsafe { set_fd_set(res_except_fds, fd) };
                             res_num += 1;
@@ -150,7 +156,7 @@ pub unsafe fn sys_select(
                 return Ok(res);
             }
 
-            if deadline.map_or(false, |ddl| current_time() >= ddl) {
+            if deadline.is_some_and(|ddl| current_time() >= ddl) {
                 debug!("    timeout!");
                 return Ok(0);
             }
@@ -177,7 +183,7 @@ pub unsafe fn sys_pselect6(
 unsafe fn zero_fd_set(fds: *mut ctypes::fd_set, nfds: usize) {
     if !fds.is_null() {
         let nfds_usizes = nfds.div_ceil(BITS_PER_USIZE);
-        let dst = &mut (*fds).fds_bits[..nfds_usizes];
+        let dst = &mut (&mut (*fds).fds_bits)[..nfds_usizes];
         dst.fill(0);
     }
 }

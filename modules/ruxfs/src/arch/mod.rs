@@ -39,8 +39,8 @@ pub fn get_meminfo() -> String {
         let totalram = freeram + allocator.used_bytes() as c_ulong;
 
         let mut meminfo = String::new();
-        meminfo.push_str(format!("MemTotal:       {:8}\n", totalram).as_ref());
-        meminfo.push_str(format!("MemFree:        {:8}\n", freeram).as_ref());
+        meminfo.push_str(format!("MemTotal:       {totalram:8}\n").as_ref());
+        meminfo.push_str(format!("MemFree:        {freeram:8}\n").as_ref());
 
         meminfo
     }

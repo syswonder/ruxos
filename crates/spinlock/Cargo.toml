@@ -2,7 +2,10 @@
 name = "spinlock"
 version = "0.1.0"
 edition = "2021"
-authors = ["Yuekai Jia <equation618@gmail.com>"]
+authors = [
+    "Yuekai Jia <equation618@gmail.com>",
+    "Igna <Sssssaltyfish@gmail.com>",
+]
 description = "`no_std` spin lock implementation that can disable kernel local IRQs or preemption while locking"
 license = "GPL-3.0-or-later OR Apache-2.0"
 homepage = "https://github.com/rcore-os/arceos"

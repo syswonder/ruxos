@@ -8,7 +8,6 @@
  */
 
 //! Task APIs for multi-task configuration.
-
 use alloc::{string::String, sync::Arc};
 
 pub(crate) use crate::run_queue::{AxRunQueue, RUN_QUEUE};
@@ -68,6 +67,7 @@ pub fn current_may_uninit() -> Option<CurrentTask> {
 /// # Panics
 ///
 /// Panics if the current task is not initialized.
+#[inline(never)]
 pub fn current() -> CurrentTask {
     CurrentTask::get()
 }
@@ -128,6 +128,39 @@ where
     TaskInner::new_musl(f, name, stack_size, tls, set_tid, tl)
 }
 
+// temporarily only support aarch64
+#[cfg(all(
+    any(target_arch = "aarch64", target_arch = "riscv64"),
+    feature = "paging",
+    feature = "fs"
+))]
+pub fn fork_task() -> Option<AxTaskRef> {
+    use core::mem::ManuallyDrop;
+
+    let current_id = current().id().as_u64();
+    let children_process = TaskInner::fork();
+
+    // Judge whether the parent process is blocked, if yes, add it to the blocking queue of the child process
+    if current().id().as_u64() == current_id {
+        RUN_QUEUE.lock().add_task(children_process.clone());
+
+        return Some(children_process);
+    }
+
+    unsafe {
+        RUN_QUEUE.force_unlock();
+    }
+
+    // should not drop the children_process here, because it will be taken in the parent process
+    // and dropped in the parent process
+    let _ = ManuallyDrop::new(children_process);
+
+    #[cfg(feature = "irq")]
+    ruxhal::arch::enable_irqs();
+
+    None
+}
+
 /// Spawns a new task with the default parameters.
 ///
 /// The default task name is an empty string. The default task stack size is
@@ -179,6 +212,17 @@ pub fn set_priority(prio: isize) -> bool {
 /// ready task.
 pub fn yield_now() {
     RUN_QUEUE.lock().yield_current();
+}
+
+#[cfg(feature = "fs")]
+struct SchedYieldIfImpl;
+
+#[cfg(feature = "fs")]
+#[crate_interface::impl_interface]
+impl ruxfs::fifo::SchedYieldIf for SchedYieldIfImpl {
+    fn yield_now() {
+        yield_now();
+    }
 }
 
 /// Current task is going to sleep for the given duration.

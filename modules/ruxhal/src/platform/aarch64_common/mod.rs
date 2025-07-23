@@ -6,6 +6,7 @@
  *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
  *   See the Mulan PSL v2 for more details.
  */
+// TODO: remove this line after fixing the code style
 
 mod boot;
 
@@ -14,9 +15,14 @@ pub mod generic_timer;
 pub mod psci;
 
 #[cfg(feature = "irq")]
-pub mod gic;
+#[cfg(not(feature = "gic-v3"))]
+pub mod gicv2;
 
-#[cfg(not(platform_family = "aarch64-bsta1000b"))]
+#[cfg(feature = "irq")]
+#[cfg(feature = "gic-v3")]
+pub mod gicv3;
+
+#[cfg(not(any(platform_family = "aarch64-bsta1000b", feature = "virtio_console")))]
 pub mod pl011;
 
 #[cfg(feature = "rtc")]

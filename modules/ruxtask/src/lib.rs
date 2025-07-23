@@ -19,8 +19,8 @@
 //!   management and scheduling is used, as well as more task-related APIs.
 //!   Otherwise, only a few APIs with naive implementation is available.
 //! - `irq`: Interrupts are enabled. If this feature is enabled, timer-based
-//!    APIs can be used, such as [`sleep`], [`sleep_until`], and
-//!    [`WaitQueue::wait_timeout`].
+//!   APIs can be used, such as [`sleep`], [`sleep_until`], and
+//!   [`WaitQueue::wait_timeout`].
 //! - `preempt`: Enable preemptive scheduling.
 //! - `sched_fifo`: Use the [FIFO cooperative scheduler][1]. It also enables the
 //!   `multitask` feature if it is enabled. This feature is enabled by default,
@@ -37,17 +37,27 @@
 #![cfg_attr(not(test), no_std)]
 #![feature(doc_cfg)]
 #![feature(doc_auto_cfg)]
+// TODO: remove this once we have a better way to handle
+#![allow(clippy::arc_with_non_send_sync)]
+#![allow(static_mut_refs)]
 
 cfg_if::cfg_if! {
     if #[cfg(feature = "multitask")] {
-        #[macro_use]
+        #[macro_use(info, debug, trace)]
         extern crate log;
         extern crate alloc;
 
         mod run_queue;
-        mod task;
+        pub mod task;
         mod api;
         mod wait_queue;
+        #[cfg(feature = "signal")]
+        pub mod signal;
+        #[cfg(feature = "paging")]
+        pub mod vma;
+        // TODO: make fs module optional
+        // #[cfg(feature = "fs")]
+        pub mod fs;
         #[cfg(feature = "irq")]
         /// load average
         pub mod loadavg;
@@ -75,8 +85,14 @@ cfg_if::cfg_if! {
         pub use self::api::*;
         pub use self::api::{sleep, sleep_until, yield_now};
         pub use task::TaskState;
+        #[cfg(feature = "signal")]
+        pub use self::signal::{rx_sigaction, Signal};
     } else {
         mod api_s;
+        #[cfg(feature = "signal")]
+        pub mod signal;
         pub use self::api_s::{sleep, sleep_until, yield_now};
+        #[cfg(feature = "signal")]
+        pub use self::signal::{rx_sigaction, Signal};
     }
 }

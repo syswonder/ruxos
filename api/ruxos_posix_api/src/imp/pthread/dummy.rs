@@ -21,7 +21,7 @@ pub unsafe fn sys_pthread_key_create(
 
 /// Destroy a specific key for a process.
 pub fn sys_pthread_key_delete(key: ctypes::pthread_key_t) -> c_int {
-    debug!("sys_pthread_key_delete <= {}", key);
+    debug!("sys_pthread_key_delete <= {key}");
     syscall_body!(sys_pthread_key_delete, Ok(0))
 }
 
@@ -33,7 +33,7 @@ pub fn sys_pthread_setspecific(key: ctypes::pthread_key_t, value: *const c_void)
 
 /// Get the value of a specific key for a thread.
 pub fn sys_pthread_getspecific(key: ctypes::pthread_key_t) -> *mut c_void {
-    debug!("sys_pthread_getspecific <= {}", key);
+    debug!("sys_pthread_getspecific <= {key}");
     syscall_body!(
         sys_pthread_getspecific,
         Ok::<*mut c_void, axerrno::LinuxError>(core::ptr::null_mut() as _)

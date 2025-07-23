@@ -37,6 +37,8 @@
 
 #![no_std]
 
+use axfs_vfs::VfsNodePerm;
+
 bitflags::bitflags! {
     /// Capabilities (access rights).
     #[derive(Default, Debug, Clone, Copy)]
@@ -141,8 +143,29 @@ impl<T> WithCap<T> {
 }
 
 impl From<CapError> for axerrno::AxError {
-    #[inline]
     fn from(_: CapError) -> Self {
         Self::PermissionDenied
+    }
+}
+
+impl From<CapError> for axerrno::LinuxError {
+    fn from(_: CapError) -> Self {
+        Self::EPERM
+    }
+}
+
+impl From<VfsNodePerm> for Cap {
+    fn from(perm: VfsNodePerm) -> Self {
+        let mut cap = Cap::empty();
+        if perm.owner_readable() {
+            cap |= Cap::READ;
+        }
+        if perm.owner_writable() {
+            cap |= Cap::WRITE;
+        }
+        if perm.owner_executable() {
+            cap |= Cap::EXECUTE;
+        }
+        cap
     }
 }

@@ -39,8 +39,6 @@
 //! ```
 
 #![no_std]
-#![feature(maybe_uninit_uninit_array)]
-#![feature(const_maybe_uninit_uninit_array)]
 
 use bitmaps::Bitmap;
 use core::mem::MaybeUninit;
@@ -58,12 +56,18 @@ pub struct FlattenObjects<T, const CAP: usize> {
     count: usize,
 }
 
+impl<T, const CAP: usize> Default for FlattenObjects<T, CAP> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T, const CAP: usize> FlattenObjects<T, CAP> {
     /// Creates a new empty `FlattenObjects`.
     pub const fn new() -> Self {
         assert!(CAP <= 1024);
         Self {
-            objects: MaybeUninit::uninit_array(),
+            objects: [const { MaybeUninit::uninit() }; CAP],
             // SAFETY: zero initialization is OK for `id_bitmap` (an array of integers).
             id_bitmap: unsafe { MaybeUninit::zeroed().assume_init() },
             count: 0,
@@ -142,6 +146,25 @@ impl<T, const CAP: usize> FlattenObjects<T, CAP> {
         self.id_bitmap.set(id, true);
         self.objects[id].write(value);
         Some(id)
+    }
+
+    /// Add an object and assign it a unique ID, but only search for IDs starting from `low_bound`.
+    ///
+    /// Returns the assigned ID if an available slot is found; otherwise, returns `None`.
+    pub fn add_with_low_bound(&mut self, value: T, low_bound: usize) -> Option<usize> {
+        let id = if low_bound == 0 {
+            self.id_bitmap.first_false_index()
+        } else {
+            self.id_bitmap.next_false_index(low_bound - 1)
+        }?;
+        if id < CAP {
+            self.count += 1;
+            self.id_bitmap.set(id, true);
+            self.objects[id].write(value);
+            Some(id)
+        } else {
+            None
+        }
     }
 
     /// Removes the object with the given ID.

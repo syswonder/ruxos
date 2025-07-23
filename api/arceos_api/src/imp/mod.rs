@@ -9,6 +9,8 @@
 
 mod mem;
 mod task;
+#[cfg(feature = "paging")]
+mod trap;
 
 cfg_fs! {
     mod fs;

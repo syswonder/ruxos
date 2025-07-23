@@ -8,179 +8,144 @@
  */
 
 use alloc::{sync::Arc, vec, vec::Vec};
+use axsync::Mutex;
 use core::ffi::{c_char, c_int, c_void};
 use core::mem::size_of;
-use core::net::{IpAddr, Ipv4Addr, SocketAddr, SocketAddrV4};
+use core::net::{IpAddr, Ipv4Addr, SocketAddrV4};
+use iovec::{read_iovecs_ptr, IoVecsInput, IoVecsOutput};
+use ruxnet::address::{SocketAddress, UnixSocketAddr};
+use ruxnet::message::{ControlMessageData, MessageFlags};
+use ruxnet::socket::{Socket, SocketDomain, SocketType};
+use ruxnet::unix::UnixSocket;
+use ruxtask::fs::{add_file_like, get_file_like};
 
 use axerrno::{LinuxError, LinuxResult};
-use axio::PollState;
-use axsync::Mutex;
-use ruxfdtable::{FileLike, RuxStat};
-use ruxnet::{TcpSocket, UdpSocket};
+use ruxfdtable::OpenFlags;
+use ruxnet::{ShutdownFlags, TcpSocket, UdpSocket};
 
-use crate::ctypes;
+use crate::ctypes::{self};
+use crate::imp::fs::parse_path;
 use crate::utils::char_ptr_to_str;
 
-pub enum Socket {
-    Udp(Mutex<UdpSocket>),
-    Tcp(Mutex<TcpSocket>),
-}
+const SA_FAMILY_SIZE: usize = size_of::<ctypes::sa_family_t>();
 
-impl Socket {
-    fn add_to_fd_table(self) -> LinuxResult<c_int> {
-        super::fd_ops::add_file_like(Arc::new(self))
-    }
-
-    fn from_fd(fd: c_int) -> LinuxResult<Arc<Self>> {
-        let f = super::fd_ops::get_file_like(fd)?;
-        f.into_any()
-            .downcast::<Self>()
-            .map_err(|_| LinuxError::EINVAL)
-    }
-
-    fn send(&self, buf: &[u8]) -> LinuxResult<usize> {
-        match self {
-            Socket::Udp(udpsocket) => Ok(udpsocket.lock().send(buf)?),
-            Socket::Tcp(tcpsocket) => Ok(tcpsocket.lock().send(buf)?),
-        }
-    }
-
-    fn recv(&self, buf: &mut [u8], flags: i32) -> LinuxResult<usize> {
-        match self {
-            Socket::Udp(udpsocket) => Ok(udpsocket.lock().recv_from(buf).map(|e| e.0)?),
-            Socket::Tcp(tcpsocket) => Ok(tcpsocket.lock().recv(buf, flags)?),
-        }
-    }
-
-    pub fn poll(&self) -> LinuxResult<PollState> {
-        match self {
-            Socket::Udp(udpsocket) => Ok(udpsocket.lock().poll()?),
-            Socket::Tcp(tcpsocket) => Ok(tcpsocket.lock().poll()?),
-        }
-    }
-
-    fn local_addr(&self) -> LinuxResult<SocketAddr> {
-        match self {
-            Socket::Udp(udpsocket) => Ok(udpsocket.lock().local_addr()?),
-            Socket::Tcp(tcpsocket) => Ok(tcpsocket.lock().local_addr()?),
-        }
-    }
-
-    fn peer_addr(&self) -> LinuxResult<SocketAddr> {
-        match self {
-            Socket::Udp(udpsocket) => Ok(udpsocket.lock().peer_addr()?),
-            Socket::Tcp(tcpsocket) => Ok(tcpsocket.lock().peer_addr()?),
-        }
-    }
-
-    fn bind(&self, addr: SocketAddr) -> LinuxResult {
-        match self {
-            Socket::Udp(udpsocket) => Ok(udpsocket.lock().bind(addr)?),
-            Socket::Tcp(tcpsocket) => Ok(tcpsocket.lock().bind(addr)?),
-        }
-    }
-
-    fn connect(&self, addr: SocketAddr) -> LinuxResult {
-        match self {
-            Socket::Udp(udpsocket) => Ok(udpsocket.lock().connect(addr)?),
-            Socket::Tcp(tcpsocket) => Ok(tcpsocket.lock().connect(addr)?),
-        }
-    }
-
-    fn sendto(&self, buf: &[u8], addr: SocketAddr) -> LinuxResult<usize> {
-        match self {
-            // diff: must bind before sendto
-            Socket::Udp(udpsocket) => Ok(udpsocket.lock().send_to(buf, addr)?),
-            Socket::Tcp(_) => Err(LinuxError::EISCONN),
-        }
-    }
-
-    fn recvfrom(&self, buf: &mut [u8]) -> LinuxResult<(usize, Option<SocketAddr>)> {
-        match self {
-            // diff: must bind before recvfrom
-            Socket::Udp(udpsocket) => Ok(udpsocket
-                .lock()
-                .recv_from(buf)
-                .map(|res| (res.0, Some(res.1)))?),
-            Socket::Tcp(tcpsocket) => Ok(tcpsocket.lock().recv(buf, 0).map(|res| (res, None))?),
-        }
-    }
-
-    fn listen(&self) -> LinuxResult {
-        match self {
-            Socket::Udp(_) => Err(LinuxError::EOPNOTSUPP),
-            Socket::Tcp(tcpsocket) => Ok(tcpsocket.lock().listen()?),
-        }
-    }
-
-    fn accept(&self) -> LinuxResult<TcpSocket> {
-        match self {
-            Socket::Udp(_) => Err(LinuxError::EOPNOTSUPP),
-            Socket::Tcp(tcpsocket) => Ok(tcpsocket.lock().accept()?),
-        }
-    }
-
-    fn shutdown(&self) -> LinuxResult {
-        match self {
-            Socket::Udp(udpsocket) => {
-                let udpsocket = udpsocket.lock();
-                udpsocket.peer_addr()?;
-                udpsocket.shutdown()?;
-                Ok(())
+fn parse_socket_address(
+    addr: *const ctypes::sockaddr,
+    addrlen: ctypes::socklen_t,
+) -> LinuxResult<SocketAddress> {
+    let domain = SocketDomain::try_from(unsafe { *(addr as *const u16) })?;
+    match domain {
+        SocketDomain::Inet => {
+            if addrlen < (size_of::<ctypes::sockaddr_in>() as u32) {
+                return Err(LinuxError::EINVAL);
             }
-
-            Socket::Tcp(tcpsocket) => {
-                let tcpsocket = tcpsocket.lock();
-                tcpsocket.peer_addr()?;
-                tcpsocket.shutdown()?;
-                Ok(())
+            let addr = unsafe { *(addr as *const ctypes::sockaddr_in) };
+            Ok(SocketAddress::Inet(SocketAddrV4::new(
+                Ipv4Addr::from(addr.sin_addr.s_addr.to_ne_bytes()),
+                u16::from_be(addr.sin_port),
+            )))
+        }
+        SocketDomain::Unix => {
+            const UNIX_PATH_MAX: u32 = 108;
+            if addrlen < 2 || addrlen > UNIX_PATH_MAX + SA_FAMILY_SIZE as u32 {
+                return Err(LinuxError::EINVAL);
+            }
+            let len = (addrlen - 2).min(UNIX_PATH_MAX);
+            let sun_path = unsafe {
+                core::slice::from_raw_parts((addr as *const u8).add(SA_FAMILY_SIZE), len as usize)
+            };
+            if sun_path[0] == b'\0' {
+                let path = sun_path[1..]
+                    .iter()
+                    .take_while(|&&c| c != 0)
+                    .cloned()
+                    .collect::<Vec<_>>();
+                Ok(SocketAddress::Unix(UnixSocketAddr::Abstract(Arc::from(
+                    path,
+                ))))
+            } else {
+                let abs_path = parse_path(sun_path.as_ptr() as *const c_char)?;
+                Ok(SocketAddress::Unix(UnixSocketAddr::PathName(abs_path)))
             }
         }
+        SocketDomain::Inet6 => Err(LinuxError::EAFNOSUPPORT),
     }
 }
 
-impl FileLike for Socket {
-    fn read(&self, buf: &mut [u8]) -> LinuxResult<usize> {
-        self.recv(buf, 0)
+fn write_sockaddr_with_max_len(
+    address: SocketAddress,
+    addr_ptr: *mut ::core::ffi::c_void,
+    max_len: u32,
+) -> LinuxResult<u32> {
+    if addr_ptr.is_null() {
+        warn!("write_sockaddr_with_max_len with null pointer");
+        return Err(LinuxError::EFAULT);
     }
-
-    fn write(&self, buf: &[u8]) -> LinuxResult<usize> {
-        self.send(buf)
-    }
-
-    ///TODO
-    fn flush(&self) -> LinuxResult {
-        Ok(())
-    }
-
-    fn stat(&self) -> LinuxResult<RuxStat> {
-        // not really implemented
-        let st_mode = 0o140000 | 0o777u32; // S_IFSOCK | rwxrwxrwx
-        Ok(RuxStat::from(ctypes::stat {
-            st_ino: 1,
-            st_nlink: 1,
-            st_mode,
-            st_uid: 1000,
-            st_gid: 1000,
-            st_blksize: 4096,
-            ..Default::default()
-        }))
-    }
-
-    fn into_any(self: Arc<Self>) -> Arc<dyn core::any::Any + Send + Sync> {
-        self
-    }
-
-    fn poll(&self) -> LinuxResult<PollState> {
-        self.poll()
-    }
-
-    fn set_nonblocking(&self, nonblock: bool) -> LinuxResult {
-        match self {
-            Socket::Udp(udpsocket) => udpsocket.lock().set_nonblocking(nonblock),
-            Socket::Tcp(tcpsocket) => tcpsocket.lock().set_nonblocking(nonblock),
+    let actual_len = match address {
+        SocketAddress::Unix(unix_addr) => match unix_addr {
+            UnixSocketAddr::PathName(abs_path) => {
+                let actual_len = SA_FAMILY_SIZE + abs_path.len() + 1;
+                let write_len = core::cmp::min(actual_len, max_len as usize);
+                unsafe { *(addr_ptr as *mut u16) = ctypes::AF_UNIX as u16 };
+                let sun_path_ptr = unsafe { addr_ptr.add(SA_FAMILY_SIZE) };
+                unsafe {
+                    core::ptr::copy_nonoverlapping(
+                        abs_path.as_ptr(),
+                        sun_path_ptr as *mut u8,
+                        write_len,
+                    )
+                };
+                unsafe { *(addr_ptr as *mut u8).add(write_len - 1) = b'\0' }; // Null-terminate the path
+                actual_len
+            }
+            UnixSocketAddr::Unamed => {
+                warn!("write unamed unix addr");
+                let actual_len = SA_FAMILY_SIZE + 1;
+                unsafe { *(addr_ptr as *mut u16) = ctypes::AF_UNIX as u16 };
+                let sun_path_ptr = unsafe { addr_ptr.add(SA_FAMILY_SIZE) };
+                unsafe { *(sun_path_ptr as *mut u8) = b'\0' };
+                actual_len
+            }
+            UnixSocketAddr::Abstract(_) => todo!(),
+        },
+        SocketAddress::Inet(ipv4_addr) => {
+            let actual_len = size_of::<ctypes::sockaddr_in>();
+            let write_len = core::cmp::min(actual_len, max_len as usize);
+            let sockaddr_in = ctypes::sockaddr_in::from(ipv4_addr);
+            unsafe {
+                core::ptr::copy_nonoverlapping(
+                    &sockaddr_in as *const ctypes::sockaddr_in as *const u8,
+                    addr_ptr as *mut u8,
+                    write_len,
+                );
+            }
+            actual_len
         }
-        Ok(())
+        SocketAddress::Inet6(_) => todo!(),
+    };
+    Ok(actual_len as u32)
+}
+
+fn write_sockaddr_with_max_len_ptr(
+    address: SocketAddress,
+    addr_ptr: *mut ::core::ffi::c_void,
+    max_len_ptr: *mut ctypes::socklen_t,
+) -> LinuxResult {
+    if addr_ptr.is_null() || max_len_ptr.is_null() {
+        warn!("write_sockaddr_with_max_len_ptr with null pointer");
+        return Err(LinuxError::EFAULT);
+    }
+    let actual_len = write_sockaddr_with_max_len(address, addr_ptr, unsafe { *max_len_ptr })?;
+    unsafe { *max_len_ptr = actual_len as ctypes::socklen_t };
+    Ok(())
+}
+
+impl From<ctypes::sockaddr_in> for SocketAddrV4 {
+    fn from(addr: ctypes::sockaddr_in) -> SocketAddrV4 {
+        SocketAddrV4::new(
+            Ipv4Addr::from(addr.sin_addr.s_addr.to_ne_bytes()),
+            u16::from_be(addr.sin_port),
+        )
     }
 }
 
@@ -199,71 +164,30 @@ impl From<SocketAddrV4> for ctypes::sockaddr_in {
     }
 }
 
-impl From<ctypes::sockaddr_in> for SocketAddrV4 {
-    fn from(addr: ctypes::sockaddr_in) -> SocketAddrV4 {
-        SocketAddrV4::new(
-            Ipv4Addr::from(addr.sin_addr.s_addr.to_ne_bytes()),
-            u16::from_be(addr.sin_port),
-        )
-    }
-}
-
-fn into_sockaddr(addr: SocketAddr) -> (ctypes::sockaddr, ctypes::socklen_t) {
-    debug!("    Sockaddr: {}", addr);
-    match addr {
-        SocketAddr::V4(addr) => (
-            unsafe { *(&ctypes::sockaddr_in::from(addr) as *const _ as *const ctypes::sockaddr) },
-            size_of::<ctypes::sockaddr>() as _,
-        ),
-        SocketAddr::V6(_) => panic!("IPv6 is not supported"),
-    }
-}
-
-fn from_sockaddr(
-    addr: *const ctypes::sockaddr,
-    addrlen: ctypes::socklen_t,
-) -> LinuxResult<SocketAddr> {
-    if addr.is_null() {
-        return Err(LinuxError::EFAULT);
-    }
-    if addrlen != size_of::<ctypes::sockaddr>() as _ {
-        return Err(LinuxError::EINVAL);
-    }
-
-    let mid = unsafe { *(addr as *const ctypes::sockaddr_in) };
-    if mid.sin_family != ctypes::AF_INET as u16 {
-        return Err(LinuxError::EINVAL);
-    }
-
-    let res = SocketAddr::V4(mid.into());
-    debug!("    load sockaddr:{:#x} => {:?}", addr as usize, res);
-    Ok(res)
-}
-
 /// Create an socket for communication.
 ///
 /// Return the socket file descriptor.
 pub fn sys_socket(domain: c_int, socktype: c_int, protocol: c_int) -> c_int {
-    debug!("sys_socket <= {} {} {}", domain, socktype, protocol);
-    let (domain, socktype, protocol) = (domain as u32, socktype as u32, protocol as u32);
-    pub const _SOCK_STREAM_NONBLOCK: u32 = ctypes::SOCK_STREAM | ctypes::SOCK_NONBLOCK;
     syscall_body!(sys_socket, {
-        match (domain, socktype, protocol) {
-            (ctypes::AF_INET, ctypes::SOCK_STREAM, ctypes::IPPROTO_TCP)
-            | (ctypes::AF_INET, ctypes::SOCK_STREAM, 0) => {
-                Socket::Tcp(Mutex::new(TcpSocket::new())).add_to_fd_table()
-            }
-            (ctypes::AF_INET, ctypes::SOCK_DGRAM, ctypes::IPPROTO_UDP)
-            | (ctypes::AF_INET, ctypes::SOCK_DGRAM, 0) => {
-                Socket::Udp(Mutex::new(UdpSocket::new())).add_to_fd_table()
-            }
-            (ctypes::AF_INET, _SOCK_STREAM_NONBLOCK, ctypes::IPPROTO_TCP) => {
-                let tcp_socket = TcpSocket::new();
-                tcp_socket.set_nonblocking(true);
-                Socket::Tcp(Mutex::new(tcp_socket)).add_to_fd_table()
-            }
-            _ => Err(LinuxError::EINVAL),
+        let socktype = socktype as u32;
+        let mut flags = OpenFlags::empty();
+        let nonblock = socktype & ctypes::SOCK_NONBLOCK != 0;
+        if socktype & ctypes::SOCK_CLOEXEC != 0 {
+            flags |= OpenFlags::O_CLOEXEC;
         }
+        let socktype = SocketType::try_from(socktype & 0xf)?;
+        let domain = SocketDomain::try_from(domain as u16)?;
+        debug!("sys_socket <= {domain:?} {socktype:?} {protocol}");
+        debug!("nonblock: {nonblock}, cloexec: {flags:?}");
+        let f = match domain {
+            SocketDomain::Inet => match socktype {
+                SocketType::Stream => Arc::new(Socket::Tcp(Mutex::new(TcpSocket::new(nonblock)))),
+                SocketType::Datagram => Arc::new(Socket::Udp(Mutex::new(UdpSocket::new()))),
+            },
+            SocketDomain::Unix => UnixSocket::create_socket(socktype, nonblock),
+            SocketDomain::Inet6 => return Err(LinuxError::EAFNOSUPPORT),
+        };
+        add_file_like(f, flags)
     })
 }
 
@@ -278,8 +202,7 @@ pub fn sys_setsockopt(
     optlen: ctypes::socklen_t,
 ) -> c_int {
     debug!(
-        "sys_setsockopt <= fd: {}, level: {}, optname: {}, optlen: {}, IGNORED",
-        fd, level, optname, optlen
+        "sys_setsockopt <= fd: {fd}, level: {level}, optname: {optname}, optlen: {optlen}, IGNORED"
     );
     syscall_body!(sys_setsockopt, Ok(0))
 }
@@ -292,13 +215,10 @@ pub fn sys_bind(
     socket_addr: *const ctypes::sockaddr,
     addrlen: ctypes::socklen_t,
 ) -> c_int {
-    debug!(
-        "sys_bind <= {} {:#x} {}",
-        socket_fd, socket_addr as usize, addrlen
-    );
     syscall_body!(sys_bind, {
-        let addr = from_sockaddr(socket_addr, addrlen)?;
-        Socket::from_fd(socket_fd)?.bind(addr)?;
+        let address = parse_socket_address(socket_addr, addrlen)?;
+        debug!("sys_bind <= {socket_fd} {address:?}");
+        socket_from_fd(socket_fd)?.bind(address)?;
         Ok(0)
     })
 }
@@ -316,8 +236,8 @@ pub fn sys_connect(
         socket_fd, socket_addr as usize, addrlen
     );
     syscall_body!(sys_connect, {
-        let addr = from_sockaddr(socket_addr, addrlen)?;
-        Socket::from_fd(socket_fd)?.connect(addr)?;
+        let address = parse_socket_address(socket_addr, addrlen)?;
+        socket_from_fd(socket_fd)?.connect(address)?;
         Ok(0)
     })
 }
@@ -329,25 +249,26 @@ pub fn sys_sendto(
     socket_fd: c_int,
     buf_ptr: *const c_void,
     len: ctypes::size_t,
-    flag: c_int, // currently not used
+    flags: c_int,
     socket_addr: *const ctypes::sockaddr,
     addrlen: ctypes::socklen_t,
 ) -> ctypes::ssize_t {
-    debug!(
-        "sys_sendto <= {} {:#x} {} {} {:#x} {}",
-        socket_fd, buf_ptr as usize, len, flag, socket_addr as usize, addrlen
-    );
     if socket_addr.is_null() {
-        return sys_send(socket_fd, buf_ptr, len, flag);
+        debug!("sendto without address, use send instead");
+        return sys_send(socket_fd, buf_ptr, len, flags);
     }
-
     syscall_body!(sys_sendto, {
+        let address = parse_socket_address(socket_addr, addrlen)?;
+        let flags = MessageFlags::from_bits_truncate(flags);
+        debug!(
+            "sys_sendto <= {socket_fd} {:#x} {len} {flags:?} {address:?}",
+            buf_ptr as usize
+        );
         if buf_ptr.is_null() {
             return Err(LinuxError::EFAULT);
         }
-        let addr = from_sockaddr(socket_addr, addrlen)?;
         let buf = unsafe { core::slice::from_raw_parts(buf_ptr as *const u8, len) };
-        Socket::from_fd(socket_fd)?.sendto(buf, addr)
+        socket_from_fd(socket_fd)?.sendto(buf, address, flags)
     })
 }
 
@@ -358,18 +279,16 @@ pub fn sys_send(
     socket_fd: c_int,
     buf_ptr: *const c_void,
     len: ctypes::size_t,
-    flag: c_int, // currently not used
+    flag: c_int,
 ) -> ctypes::ssize_t {
-    debug!(
-        "sys_sendto <= {} {:#x} {} {}",
-        socket_fd, buf_ptr as usize, len, flag
-    );
     syscall_body!(sys_send, {
-        if buf_ptr.is_null() {
-            return Err(LinuxError::EFAULT);
-        }
+        let flags = MessageFlags::from_bits_truncate(flag);
+        debug!(
+            "sys_send <= {socket_fd} {:#x} {len} {flags:?}",
+            buf_ptr as usize
+        );
         let buf = unsafe { core::slice::from_raw_parts(buf_ptr as *const u8, len) };
-        Socket::from_fd(socket_fd)?.send(buf)
+        socket_from_fd(socket_fd)?.send(buf, flags)
     })
 }
 
@@ -380,30 +299,31 @@ pub unsafe fn sys_recvfrom(
     socket_fd: c_int,
     buf_ptr: *mut c_void,
     len: ctypes::size_t,
-    flag: c_int, // currently not used
+    flags: c_int,
     socket_addr: *mut ctypes::sockaddr,
     addrlen: *mut ctypes::socklen_t,
 ) -> ctypes::ssize_t {
-    debug!(
-        "sys_recvfrom <= {} {:#x} {} {} {:#x} {:#x}",
-        socket_fd, buf_ptr as usize, len, flag, socket_addr as usize, addrlen as usize
-    );
     if socket_addr.is_null() {
-        return sys_recv(socket_fd, buf_ptr, len, flag);
+        debug!("recvfrom without address, use recv instead");
+        return sys_recv(socket_fd, buf_ptr, len, flags);
     }
 
     syscall_body!(sys_recvfrom, {
+        let flags = MessageFlags::from_bits_truncate(flags);
+        debug!(
+            "sys_recvfrom <= {socket_fd} {:#x} {len} {flags:?} {:#x} {:#x}",
+            buf_ptr as usize, socket_addr as usize, addrlen as usize
+        );
         if buf_ptr.is_null() || addrlen.is_null() {
+            warn!("recvfrom with null buffer or addrlen");
             return Err(LinuxError::EFAULT);
         }
-        let socket = Socket::from_fd(socket_fd)?;
+        let socket = socket_from_fd(socket_fd)?;
         let buf = unsafe { core::slice::from_raw_parts_mut(buf_ptr as *mut u8, len) };
 
-        let res = socket.recvfrom(buf)?;
+        let res = socket.recvfrom(buf, flags)?;
         if let Some(addr) = res.1 {
-            unsafe {
-                (*socket_addr, *addrlen) = into_sockaddr(addr);
-            }
+            write_sockaddr_with_max_len_ptr(addr, socket_addr as _, addrlen)?;
         }
         Ok(res.0)
     })
@@ -416,31 +336,29 @@ pub fn sys_recv(
     socket_fd: c_int,
     buf_ptr: *mut c_void,
     len: ctypes::size_t,
-    flag: c_int, // currently not used
+    flags: c_int,
 ) -> ctypes::ssize_t {
-    debug!(
-        "sys_recv <= {} {:#x} {} {}",
-        socket_fd, buf_ptr as usize, len, flag
-    );
     syscall_body!(sys_recv, {
         if buf_ptr.is_null() {
             return Err(LinuxError::EFAULT);
         }
         let buf = unsafe { core::slice::from_raw_parts_mut(buf_ptr as *mut u8, len) };
-        Socket::from_fd(socket_fd)?.recv(buf, flag)
+        let flags = MessageFlags::from_bits_truncate(flags);
+        debug!(
+            "sys_recv <= {} {:#x} {} {:?}",
+            socket_fd, buf_ptr as usize, len, flags
+        );
+        socket_from_fd(socket_fd)?.recv(buf, flags)
     })
 }
 
 /// Listen for connections on a socket
 ///
 /// Return 0 if success.
-pub fn sys_listen(
-    socket_fd: c_int,
-    backlog: c_int, // currently not used
-) -> c_int {
-    debug!("sys_listen <= {} {}", socket_fd, backlog);
+pub fn sys_listen(socket_fd: c_int, backlog: c_int) -> c_int {
+    debug!("sys_listen <= {socket_fd} {backlog}");
     syscall_body!(sys_listen, {
-        Socket::from_fd(socket_fd)?.listen()?;
+        socket_from_fd(socket_fd)?.listen(backlog)?;
         Ok(0)
     })
 }
@@ -458,16 +376,13 @@ pub unsafe fn sys_accept(
         socket_fd, socket_addr as usize, socket_len as usize
     );
     syscall_body!(sys_accept, {
-        if socket_addr.is_null() || socket_len.is_null() {
-            return Err(LinuxError::EFAULT);
-        }
-        let socket = Socket::from_fd(socket_fd)?;
+        let socket = socket_from_fd(socket_fd)?;
         let new_socket = socket.accept()?;
-        let addr = new_socket.peer_addr()?;
-        let new_fd = Socket::add_to_fd_table(Socket::Tcp(Mutex::new(new_socket)))?;
-        unsafe {
-            (*socket_addr, *socket_len) = into_sockaddr(addr);
+        if !socket_addr.is_null() {
+            let peer_addr = new_socket.peer_addr()?;
+            write_sockaddr_with_max_len_ptr(peer_addr, socket_addr as _, socket_len)?;
         }
+        let new_fd = add_file_like(new_socket, OpenFlags::empty())?;
         Ok(new_fd)
     })
 }
@@ -475,13 +390,11 @@ pub unsafe fn sys_accept(
 /// Shut down a full-duplex connection.
 ///
 /// Return 0 if success.
-pub fn sys_shutdown(
-    socket_fd: c_int,
-    flag: c_int, // currently not used
-) -> c_int {
-    debug!("sys_shutdown <= {} {}", socket_fd, flag);
+pub fn sys_shutdown(socket_fd: c_int, how: c_int) -> c_int {
     syscall_body!(sys_shutdown, {
-        Socket::from_fd(socket_fd)?.shutdown()?;
+        let flags = ShutdownFlags::try_from(how)?;
+        debug!("sys_shutdown <= {socket_fd} {flags:?}");
+        socket_from_fd(socket_fd)?.shutdown(flags)?;
         Ok(0)
     })
 }
@@ -500,7 +413,7 @@ pub unsafe fn sys_getaddrinfo(
 ) -> c_int {
     let name = char_ptr_to_str(nodename);
     let port = char_ptr_to_str(servname);
-    debug!("sys_getaddrinfo <= {:?} {:?}", name, port);
+    debug!("sys_getaddrinfo <= {name:?} {port:?}");
     syscall_body!(sys_getaddrinfo, {
         if nodename.is_null() && servname.is_null() {
             return Ok(0);
@@ -588,39 +501,91 @@ pub unsafe fn sys_getsockname(
         sock_fd, addr as usize, addrlen as usize
     );
     syscall_body!(sys_getsockname, {
-        if addr.is_null() || addrlen.is_null() {
-            return Err(LinuxError::EFAULT);
-        }
-        if unsafe { *addrlen } < size_of::<ctypes::sockaddr>() as u32 {
-            return Err(LinuxError::EINVAL);
-        }
-        unsafe {
-            (*addr, *addrlen) = into_sockaddr(Socket::from_fd(sock_fd)?.local_addr()?);
-        }
+        let local_addr = socket_from_fd(sock_fd)?.local_addr()?;
+        debug!("socket {sock_fd} local address: {local_addr:?}");
+        write_sockaddr_with_max_len_ptr(local_addr, addr as _, addrlen)?;
         Ok(0)
     })
 }
 
+/// get socket option
+///
+/// TODO: some options not impl, just return 0, like SO_RCVBUF SO_SNDBUF
+pub fn sys_getsockopt(
+    socket_fd: c_int,
+    level: c_int,
+    optname: c_int,
+    optval: *mut c_void,
+    optlen: *mut ctypes::socklen_t,
+) -> c_int {
+    unsafe {
+        info!(
+            "sys_getsockopt <= fd: {}, level: {}, optname: {}, optlen: {}, IGNORED",
+            socket_fd,
+            level,
+            optname,
+            core::ptr::read(optlen as *mut usize)
+        );
+    }
+    syscall_body!(sys_getsockopt, {
+        if optval.is_null() {
+            return Err(LinuxError::EFAULT);
+        }
+        let socket = socket_from_fd(socket_fd)?;
+        match level as u32 {
+            ctypes::SOL_SOCKET => {
+                let val = match optname as u32 {
+                    ctypes::SO_ACCEPTCONN => match &*socket {
+                        Socket::Udp(_) => 0,
+                        Socket::Tcp(tcpsocket) => tcpsocket.lock().is_listening() as u32,
+                        Socket::Unix(unixsocket) => unixsocket.is_listening() as u32,
+                    },
+                    ctypes::SO_TYPE => match &*socket {
+                        Socket::Udp(_) => ctypes::SOCK_DGRAM,
+                        Socket::Tcp(_) => ctypes::SOCK_STREAM,
+                        Socket::Unix(unixsocket) => unixsocket.socket_type().into(),
+                    },
+                    ctypes::SO_RCVLOWAT | ctypes::SO_SNDLOWAT | ctypes::SO_BROADCAST => 1,
+                    ctypes::SO_ERROR
+                    | ctypes::SO_DONTROUTE
+                    | ctypes::SO_KEEPALIVE
+                    | ctypes::SO_LINGER
+                    | ctypes::SO_OOBINLINE
+                    | ctypes::SO_RCVBUF
+                    | ctypes::SO_RCVTIMEO
+                    | ctypes::SO_REUSEADDR
+                    | ctypes::SO_SNDBUF
+                    | ctypes::SO_SNDTIMEO
+                    | ctypes::SO_BINDTODEVICE => 0,
+                    _ => return Err(LinuxError::ENOPROTOOPT),
+                };
+
+                unsafe {
+                    core::ptr::write(optlen as *mut usize, core::mem::size_of::<i32>());
+                    core::ptr::write(optval as *mut i32, val as i32);
+                }
+
+                Ok(0)
+            }
+            _ => Err(LinuxError::ENOSYS),
+        }
+    })
+}
+
 /// Get peer address to which the socket sockfd is connected.
-pub unsafe fn sys_getpeername(
+pub fn sys_getpeername(
     sock_fd: c_int,
-    addr: *mut ctypes::sockaddr,
-    addrlen: *mut ctypes::socklen_t,
+    socket_addr: *mut ctypes::sockaddr,
+    socket_len: *mut ctypes::socklen_t,
 ) -> c_int {
     debug!(
         "sys_getpeername <= {} {:#x} {:#x}",
-        sock_fd, addr as usize, addrlen as usize
+        sock_fd, socket_addr as usize, socket_len as usize
     );
     syscall_body!(sys_getpeername, {
-        if addr.is_null() || addrlen.is_null() {
-            return Err(LinuxError::EFAULT);
-        }
-        if unsafe { *addrlen } < size_of::<ctypes::sockaddr>() as u32 {
-            return Err(LinuxError::EINVAL);
-        }
-        unsafe {
-            (*addr, *addrlen) = into_sockaddr(Socket::from_fd(sock_fd)?.peer_addr()?);
-        }
+        let peer_addr = socket_from_fd(sock_fd)?.peer_addr()?;
+        debug!("socket {sock_fd} peer address: {peer_addr:?}");
+        write_sockaddr_with_max_len_ptr(peer_addr, socket_addr as _, socket_len)?;
         Ok(0)
     })
 }
@@ -639,27 +604,222 @@ pub unsafe fn sys_sendmsg(
         if msg.is_null() {
             return Err(LinuxError::EFAULT);
         }
-        let msg = *msg;
-        if msg.msg_iov.is_null() {
+        let msghdr = unsafe { *msg };
+        if msghdr.msg_iov.is_null() {
             return Err(LinuxError::EFAULT);
         }
-        let iovs = core::slice::from_raw_parts(msg.msg_iov, msg.msg_iovlen as usize);
-        let socket = Socket::from_fd(socket_fd)?;
-        let mut ret = 0;
+        let dst_address = if msghdr.msg_name.is_null() {
+            None
+        } else {
+            Some(parse_socket_address(
+                msghdr.msg_name as _,
+                msghdr.msg_namelen,
+            )?)
+        };
 
-        for iov in iovs.iter() {
-            if iov.iov_base.is_null() {
-                return Err(LinuxError::EFAULT);
+        let flags = MessageFlags::from_bits_truncate(flags);
+        let socket = socket_from_fd(socket_fd)?;
+        debug!("send msg to {dst_address:?} with flags {flags:?}");
+
+        let mut ancillary_data = Vec::new();
+        let cmsg_header_size = size_of::<ctypes::cmsghdr>();
+        let mut cmsg_header_ptr = msghdr.msg_control as *const u8;
+        let cmsg_header_ptr_end = unsafe { cmsg_header_ptr.add(msghdr.msg_controllen as usize) };
+        if !msghdr.msg_control.is_null() {
+            loop {
+                if cmsg_header_ptr >= cmsg_header_ptr_end {
+                    break;
+                }
+                let cmsg_header = unsafe { *(cmsg_header_ptr as *const ctypes::cmsghdr) };
+                if (cmsg_header.cmsg_len as usize) < cmsg_header_size {
+                    return Err(LinuxError::EINVAL);
+                }
+                let cmsg_data_ptr = unsafe { cmsg_header_ptr.add(cmsg_header_size) };
+                let cmsg_data_size = (cmsg_header.cmsg_len) as usize - cmsg_header_size;
+                let cmsg_data =
+                    unsafe { core::slice::from_raw_parts(cmsg_data_ptr, cmsg_data_size).to_vec() };
+                ancillary_data.push(ControlMessageData::try_new(
+                    cmsg_header.cmsg_level,
+                    cmsg_header.cmsg_type,
+                    cmsg_data,
+                )?);
+                cmsg_header_ptr = unsafe { cmsg_header_ptr.add(cmsg_header.cmsg_len as usize) };
+                cmsg_header_ptr = cmsg_align(cmsg_header_ptr as _) as *const u8;
             }
-            let buf = core::slice::from_raw_parts(iov.iov_base as *const u8, iov.iov_len);
-            ret += match &socket as &Socket {
-                Socket::Udp(udpsocket) => udpsocket.lock().send_to(
-                    buf,
-                    from_sockaddr(msg.msg_name as *const ctypes::sockaddr, msg.msg_namelen)?,
-                )?,
-                Socket::Tcp(tcpsocket) => tcpsocket.lock().send(buf)?,
-            };
         }
-        Ok(ret)
+        let iovecs =
+            IoVecsInput::from_iovecs(read_iovecs_ptr(msghdr.msg_iov as _, msghdr.msg_iovlen as _));
+        let bytes_send = socket.sendmsg(&iovecs, dst_address, &mut ancillary_data, flags)?;
+        Ok(bytes_send)
     })
+}
+
+/// Receives a message from a socket, supporting scatter/gather I/O and ancillary data.
+pub unsafe fn sys_recvmsg(
+    socket_fd: c_int,
+    msg: *mut ctypes::msghdr,
+    flags: c_int,
+) -> ctypes::ssize_t {
+    debug!("sys_recvmsg <= {} {:#x} {}", socket_fd, msg as usize, flags);
+    syscall_body!(sys_recvmsg, {
+        if msg.is_null() {
+            return Err(LinuxError::EFAULT);
+        }
+        let mut msghdr = unsafe { *msg };
+        if msghdr.msg_iov.is_null() {
+            return Err(LinuxError::EFAULT);
+        }
+        let flags = MessageFlags::from_bits_truncate(flags);
+        let socket = socket_from_fd(socket_fd)?;
+        let mut iovecs =
+            IoVecsOutput::from_iovecs(read_iovecs_ptr(msghdr.msg_iov as _, msghdr.msg_iovlen as _));
+        let info = socket.recvmsg(&mut iovecs, flags)?;
+
+        // Handle source address return (if requested)
+        if !msghdr.msg_name.is_null() {
+            // The `msg_name` field points to a caller-allocated buffer that is used to return the source address if the socket is unconnected.
+            // The caller should set msg_namelen to the size of this buffer before this call; upon return from a successful call, msg_namelen
+            // will contain the size of the returned address.
+            if let Some(address) = info.address {
+                msghdr.msg_namelen =
+                    write_sockaddr_with_max_len(address, msghdr.msg_name, msghdr.msg_namelen)?;
+            }
+        }
+
+        // Initialize flags output field
+        msghdr.msg_flags = 0;
+        // Set `MSG_TRUNC` if received more data than buffer space
+        if info.bytes_read != info.bytes_total {
+            msghdr.msg_flags |= MessageFlags::MSG_TRUNC.bits();
+        }
+
+        // Ancillary data processing setup
+        let cmsg_header_size = size_of::<ctypes::cmsghdr>();
+        let ancillary_data_buffer_size = msghdr.msg_controllen as usize;
+        let msg_control_ptr = msghdr.msg_control as *const u8;
+        let mut ancillary_data_bytes_writen = 0;
+        // Process each ancillary data item
+        for cmsg_data in info.ancillary_data {
+            let cmsg_data_size = cmsg_data.size();
+            let expect_size = cmsg_header_size + cmsg_data_size;
+            let minium_size = cmsg_data.minium_size();
+            let space_available = ancillary_data_buffer_size - ancillary_data_bytes_writen;
+            // cmsg_bytes = cmsg_header + cmsg_data
+            let cmsg_bytes = if space_available < cmsg_header_size + minium_size {
+                // Not enough space even for minimal data
+                Vec::new()
+            } else {
+                let (cmsg_level, cmsg_type, mut cmsg_data_bytes) = cmsg_data.parse(flags)?;
+                // If the space allocated for receiving incoming ancillary data is
+                // too small then the ancillary data is truncated to the number of
+                // headers that will fit in the supplied buffer (see unix.7)
+                cmsg_data_bytes.truncate(space_available - cmsg_header_size);
+
+                pack_cmsg(cmsg_level, cmsg_type, cmsg_data_bytes)
+            };
+
+            // Handle truncation flags
+            let truncated = cmsg_bytes.len() < expect_size;
+            if truncated {
+                msghdr.msg_flags |= MessageFlags::MSG_CTRUNC.bits();
+            }
+
+            if cmsg_bytes.len() < cmsg_header_size {
+                // Can't fit the header, so stop trying to write
+                break;
+            }
+
+            // Copy to user-space buffer if valid
+            if !cmsg_bytes.is_empty() {
+                unsafe {
+                    core::ptr::copy_nonoverlapping(
+                        cmsg_bytes.as_ptr(),
+                        (msg_control_ptr.add(ancillary_data_bytes_writen)) as *mut u8,
+                        cmsg_bytes.len(),
+                    )
+                };
+                ancillary_data_bytes_writen += cmsg_bytes.len();
+                // Align for next CMsg
+                if !truncated {
+                    ancillary_data_bytes_writen = cmsg_align(ancillary_data_bytes_writen);
+                }
+            }
+        }
+
+        // Update user-space `msghdr` structure
+        unsafe { *msg = msghdr };
+
+        match flags.contains(MessageFlags::MSG_TRUNC) {
+            true => Ok(info.bytes_total), // Return actual packet size
+            false => Ok(info.bytes_read), // Return received bytes
+        }
+    })
+}
+
+/// Creates a pair of Unix domain sockets and stores the file descriptors in `sv`
+///
+/// This system call only works for UNIX domain sockets (AF_UNIX), which are used for communication
+/// between processes on the same machine. It cannot be used for communication over the network (e.g.,
+/// using AF_INET or AF_INET6). The created socket pair is anonymous, meaning it does not require
+/// a pathname, and is typically used for communication between related processes (e.g., parent-child processes)
+pub fn sys_socketpair(domain: c_int, socktype: c_int, protocol: c_int, sv: &mut [c_int]) -> c_int {
+    syscall_body!(sys_socketpair, {
+        let domain = SocketDomain::try_from(domain as u16)?;
+        if domain != SocketDomain::Unix {
+            return Err(LinuxError::EAFNOSUPPORT);
+        }
+        let mut flags = OpenFlags::empty();
+        let socktype = socktype as u32;
+        let nonblock = (socktype & ctypes::SOCK_NONBLOCK) != 0;
+        if socktype & ctypes::SOCK_CLOEXEC != 0 {
+            flags |= OpenFlags::O_CLOEXEC;
+        }
+        let socktype = socktype & !ctypes::SOCK_CLOEXEC & !ctypes::SOCK_NONBLOCK;
+        let socktype = SocketType::try_from(socktype)?;
+        info!("sys_socketpair <= domain: {domain:?}, socktype: {socktype:?}, protocol: {protocol}, sv pointer: {:#x}", sv.as_ptr() as usize);
+        info!("nonblock: {nonblock}, cloexec: {flags:?}");
+        let (sk1, sk2) = UnixSocket::create_socket_pair(socktype, nonblock);
+        sv[0] = add_file_like(sk1, flags)?;
+        sv[1] = add_file_like(sk2, flags)?;
+        info!("create sv[0] {}, sv[1] {}", sv[0], sv[1]);
+        Ok(0)
+    })
+}
+
+fn socket_from_fd(fd: i32) -> LinuxResult<Arc<Socket>> {
+    get_file_like(fd)?
+        .into_any()
+        .downcast::<Socket>()
+        .map_err(|_| LinuxError::ENOTSOCK)
+}
+
+/*
+* the following functions refers to macros in musl
+* see https://www.man7.org/linux/man-pages/man3/cmsg.3.html
+*/
+
+/// ```c
+/// #define CMSG_ALIGN(len) (((len) + sizeof (size_t) - 1) & (size_t) ~(sizeof (size_t) - 1))
+/// ```
+fn cmsg_align(len: usize) -> usize {
+    const ALIGNMENT: usize = core::mem::size_of::<usize>();
+    (len + ALIGNMENT - 1) & !(ALIGNMENT - 1)
+}
+
+fn pack_cmsg(cmsg_level: i32, cmsg_type: i32, cmsg_data_bytes: Vec<u8>) -> Vec<u8> {
+    let cmsg_header_size = size_of::<ctypes::cmsghdr>();
+    let cmsg_len = cmsg_header_size + cmsg_data_bytes.len();
+    let cmsghdr = ctypes::cmsghdr {
+        cmsg_len: cmsg_len as _,
+        __pad1: 0,
+        cmsg_level,
+        cmsg_type,
+    };
+    let mut buffer = Vec::with_capacity(cmsg_len);
+    unsafe {
+        let hdr_ptr = &cmsghdr as *const _ as *const u8;
+        buffer.extend_from_slice(core::slice::from_raw_parts(hdr_ptr, cmsg_header_size));
+    }
+    buffer.extend(cmsg_data_bytes);
+    buffer
 }

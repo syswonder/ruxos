@@ -60,6 +60,12 @@ pub struct Builder {
     stack_size: Option<usize>,
 }
 
+impl Default for Builder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Builder {
     /// Generates the base configuration for spawning a thread, from which
     /// configuration methods can be chained.

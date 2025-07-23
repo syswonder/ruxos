@@ -13,8 +13,8 @@
 use crate::drv::{self, Drv9pOps};
 use alloc::{string::String, string::ToString, sync::Arc, sync::Weak, vec::Vec};
 use axfs_vfs::{
-    VfsDirEntry, VfsError, VfsNodeAttr, VfsNodeOps, VfsNodePerm, VfsNodeRef, VfsNodeType, VfsOps,
-    VfsResult,
+    RelPath, VfsDirEntry, VfsError, VfsNodeAttr, VfsNodeOps, VfsNodePerm, VfsNodeRef, VfsNodeType,
+    VfsOps, VfsResult,
 };
 use log::*;
 use spin::{once::Once, RwLock};
@@ -46,13 +46,13 @@ impl _9pFileSystem {
         let mut protocol = protocol.to_string();
         match dev.write().tversion(&protocol) {
             Ok(protocol_server) => {
-                info!("9pfs server's protocol: {}", protocol_server);
+                info!("9pfs server's protocol: {protocol_server}");
                 if protocol != protocol_server {
                     protocol = protocol_server;
                 }
             }
             Err(errcode) => {
-                error!("9pfs tversion failed! error code: {}", errcode);
+                error!("9pfs tversion failed! error code: {errcode}");
             }
         }
 
@@ -86,12 +86,8 @@ impl _9pFileSystem {
 }
 
 impl VfsOps for _9pFileSystem {
-    fn mount(&self, _path: &str, mount_point: VfsNodeRef) -> VfsResult {
-        if let Some(parent) = mount_point.parent() {
-            self.root.set_parent(Some(self.parent.call_once(|| parent)));
-        } else {
-            self.root.set_parent(None);
-        }
+    fn mount(&self, parent: VfsNodeRef) -> VfsResult {
+        self.root.set_parent(Some(self.parent.call_once(|| parent)));
         Ok(())
     }
 
@@ -144,7 +140,7 @@ impl CommonNode {
             Err(ELOOP) if *protocol == "9P2000.L" => {
                 let try_readlink = dev.write().treadlink(fid);
                 if let Ok(path) = try_readlink {
-                    debug!("read link path ==> {:}", path);
+                    debug!("read link path ==> {path:}");
                     let mut splited: Vec<&str> = path
                         .split('/')
                         .filter(|&x| !x.is_empty() && (x != "."))
@@ -153,13 +149,13 @@ impl CommonNode {
                     let try_walk = dev.write().twalk(fid, fid, splited.len() as u16, &splited);
                     match try_walk {
                         Ok(_) => return Self::new(fid, parent, dev, protocol),
-                        Err(ecode) => error!("9pfs twalk failed! error code: {}", ecode),
+                        Err(ecode) => error!("9pfs twalk failed! error code: {ecode}"),
                     }
                 } else {
-                    error!("9pfs treadlink failed! error code: {:?}", try_readlink);
+                    error!("9pfs treadlink failed! error code: {try_readlink:?}");
                 }
             }
-            Err(ecode) => error!("9pfs topen failed! error code: {}", ecode),
+            Err(ecode) => error!("9pfs topen failed! error code: {ecode}"),
             _ => {}
         };
 
@@ -177,14 +173,14 @@ impl CommonNode {
     }
 
     /// Checks whether a node with the given name exists in this directory.
-    fn exist(&self, path: &str) -> bool {
+    fn exist(&self, path: &RelPath) -> bool {
         self.try_get(path).is_ok()
     }
 
-    /// Creates a new node with the given name and type in this directory.
-    fn create_node(&self, name: &str, ty: VfsNodeType) -> VfsResult {
+    /// Creates a new node with the given name, type and mode in this directory.
+    fn create_node(&self, name: &RelPath, ty: VfsNodeType, mode: VfsNodePerm) -> VfsResult {
         if self.exist(name) {
-            error!("AlreadyExists {}", name);
+            error!("AlreadyExists {name}");
             return Err(VfsError::AlreadyExists);
         }
         let fid = match self.inner.write().get_fid() {
@@ -201,12 +197,24 @@ impl CommonNode {
                 );
                 if *self.protocol == "9P2000.L" {
                     handle_result!(
-                        self.inner.write().l_tcreate(fid, name, 0x02, 0o100644, 500),
+                        self.inner.write().l_tcreate(
+                            fid,
+                            name,
+                            0x02,
+                            ((0o100000 + mode.bits()) & 0o777) as _,
+                            500
+                        ),
                         "9pfs l_create failed! error code: {}"
                     );
                 } else if *self.protocol == "9P2000.u" {
                     handle_result!(
-                        self.inner.write().u_tcreate(fid, name, 0o777, 0o02, ""),
+                        self.inner.write().u_tcreate(
+                            fid,
+                            name,
+                            (mode.bits() & 0o777) as _,
+                            0o02,
+                            ""
+                        ),
                         "9pfs create failed! error code: {}"
                     );
                 } else {
@@ -219,7 +227,7 @@ impl CommonNode {
                     "9pfs mkdir failed! error code: {}"
                 );
                 handle_result!(
-                    self.inner.write().twalk(*self.fid, fid, 1, &[&name]),
+                    self.inner.write().twalk(*self.fid, fid, 1, &[name]),
                     "9pfs twalk failed! error code: {}"
                 );
             }
@@ -235,18 +243,18 @@ impl CommonNode {
         Ok(())
     }
 
-    fn try_get(&self, path: &str) -> VfsResult<VfsNodeRef> {
+    fn try_get(&self, path: &RelPath) -> VfsResult<VfsNodeRef> {
         let (name, rest) = split_path(path);
         if name == ".." {
             match self.parent() {
-                Some(parent) => return parent.lookup(rest.unwrap_or("")),
+                Some(parent) => return parent.lookup(&rest.unwrap_or(RelPath::new(""))),
                 None => {
                     error!("9pfs: try_get a directory out of 9pfs boundary");
                     return Err(VfsError::BadState);
                 }
             }
         } else if name == "." {
-            return self.try_get(rest.unwrap_or(""));
+            return self.try_get(&rest.unwrap_or(RelPath::new("")));
         }
 
         let fid = match self.inner.write().get_fid() {
@@ -273,19 +281,19 @@ impl CommonNode {
                     self.protocol.clone(),
                 );
                 match rest {
-                    Some(rpath) => node.try_get(rpath),
+                    Some(rpath) => node.try_get(&rpath),
                     None => Ok(node),
                 }
             }
             // No such file or directory
             Err(ENOENT) => {
                 self.inner.write().recycle_fid(fid);
-                debug!("try_get failed {:?}=={}+{:?}", path, name, rest);
+                debug!("try_get failed {path:?}=={name}+{rest:?}");
                 Err(VfsError::NotFound)
             }
             Err(ecode) => {
                 self.inner.write().recycle_fid(fid);
-                error!("Failed when getting node in 9pfs, ecode:{}", ecode);
+                error!("Failed when getting node in 9pfs, ecode:{ecode}");
                 Err(VfsError::BadState)
             }
         }
@@ -344,22 +352,21 @@ impl Drop for CommonNode {
 
 impl VfsNodeOps for CommonNode {
     /// Renames or moves existing file or directory.
-    fn rename(&self, src_path: &str, dst_path: &str) -> VfsResult {
+    fn rename(&self, src_path: &RelPath, dst_path: &RelPath) -> VfsResult {
         let (src_prefixs, old_name) = if let Some(src_sindex) = src_path.rfind('/') {
             (&src_path[..src_sindex], &src_path[src_sindex + 1..])
         } else {
-            ("", src_path)
+            ("", src_path.as_str())
         };
 
         let (dst_prefixs, new_name) = if let Some(dst_sindex) = dst_path.rfind('/') {
             (&dst_path[..dst_sindex], &dst_path[dst_sindex + 1..])
         } else {
-            ("", dst_path)
+            ("", dst_path.as_str())
         };
 
         debug!(
-            "9pfs src_path:{} dst_path:{}, src_prefixs:{:?}, dst_prefixs:{:?}",
-            src_path, dst_path, src_prefixs, dst_prefixs
+            "9pfs src_path:{src_path} dst_path:{dst_path}, src_prefixs:{src_prefixs:?}, dst_prefixs:{dst_prefixs:?}"
         );
 
         let src_result = self.get_in_9pfs(src_prefixs);
@@ -377,7 +384,8 @@ impl VfsNodeOps for CommonNode {
         } else {
             //create a new file and write content from original file.
             let src_fnode = self.try_get(src_path)?;
-            let _ = self.create(dst_path, src_fnode.get_attr()?.file_type());
+            let src_attr = src_fnode.get_attr()?;
+            let _ = self.create(dst_path, src_attr.file_type(), src_attr.perm());
             let dst_fnode = self.try_get(dst_path)?;
 
             let mut buffer = [0_u8; 1024]; // a length for one turn to read and write
@@ -390,50 +398,81 @@ impl VfsNodeOps for CommonNode {
                 dst_fnode.write_at(offset, &buffer[..length])?;
                 offset += length as u64;
             }
-            src_fnode.remove("")?;
+            src_fnode.unlink(&RelPath::new(""))?;
         }
         Ok(())
     }
 
     fn get_attr(&self) -> VfsResult<VfsNodeAttr> {
-        if *self.protocol == "9P2000.L" {
-            let resp = self.inner.write().tgetattr(*self.fid, 0x3fff_u64);
-            debug!("get_attr {:?}", resp);
-            match resp {
-                Ok(stat) if stat.get_ftype() == 0o4 => {
-                    let mut attr = VfsNodeAttr::new_dir(stat.get_size(), stat.get_blk_num());
-                    let mode = stat.get_perm() as u16 & 0o777_u16;
-                    attr.set_perm(VfsNodePerm::from_bits(mode).unwrap());
-                    Ok(attr)
+        match self.protocol.as_str() {
+            "9P2000.L" => {
+                let resp = self.inner.write().tgetattr(*self.fid, 0x3fff_u64);
+                debug!("get_attr {resp:?}");
+                if let Ok(stat) = resp {
+                    let ty = match stat.get_ftype() {
+                        0o4 => VfsNodeType::Dir,
+                        0o10 => VfsNodeType::File,
+                        _ => return Err(VfsError::BadState),
+                    };
+                    Ok(VfsNodeAttr::new(
+                        stat.get_qid().path(),
+                        VfsNodePerm::from_bits_truncate(stat.get_perm() as u16 & 0o777),
+                        ty,
+                        stat.get_size(),
+                        stat.get_blk_num(),
+                    ))
+                } else {
+                    Err(VfsError::BadState)
                 }
-                Ok(stat) if stat.get_ftype() == 0o10 => {
-                    let mut attr = VfsNodeAttr::new_file(stat.get_size(), stat.get_blk_num());
-                    let mode = stat.get_perm() as u16 & 0o777_u16;
-                    attr.set_perm(VfsNodePerm::from_bits(mode).unwrap());
-                    Ok(attr)
-                }
-                _ => Err(VfsError::BadState),
             }
-        } else if *self.protocol == "9P2000.u" {
-            let resp = self.inner.write().tstat(*self.fid);
-            match resp {
-                Ok(stat) if stat.get_ftype() == 0o4 => {
-                    let mut attr = VfsNodeAttr::new_dir(stat.get_length(), stat.get_blk_num());
-                    let mode = stat.get_perm() as u16 & 0o777_u16;
-                    attr.set_perm(VfsNodePerm::from_bits(mode).unwrap());
-                    Ok(attr)
+            "9P2000.u" => {
+                let resp = self.inner.write().tstat(*self.fid);
+                if let Ok(stat) = resp {
+                    let ty = match stat.get_ftype() {
+                        0o4 => VfsNodeType::Dir,
+                        0o10 => VfsNodeType::File,
+                        _ => return Err(VfsError::BadState),
+                    };
+                    Ok(VfsNodeAttr::new(
+                        stat.get_qid().path(),
+                        VfsNodePerm::from_bits_truncate(stat.get_perm() as u16 & 0o777),
+                        ty,
+                        stat.get_length(),
+                        stat.get_blk_num(),
+                    ))
+                } else {
+                    Err(VfsError::BadState)
                 }
-                Ok(stat) if stat.get_ftype() == 0o10 => {
-                    let mut attr = VfsNodeAttr::new_file(stat.get_length(), stat.get_blk_num());
-                    let mode = stat.get_perm() as u16 & 0o777_u16;
-                    attr.set_perm(VfsNodePerm::from_bits(mode).unwrap());
-                    Ok(attr)
-                }
-                _ => Err(VfsError::BadState),
             }
-        } else {
-            Err(VfsError::Unsupported)
+            _ => Err(VfsError::Unsupported),
         }
+    }
+
+    fn set_mode(&self, mode: VfsNodePerm) -> VfsResult {
+        let perm = mode.bits() as u32 & 0o777;
+        debug!("9pfs set mode, mode:{mode:?}");
+        let mut dev = self.inner.write();
+        match self.protocol.as_str() {
+            "9P2000.L" => {
+                let mut attr = dev
+                    .tgetattr(*self.fid, 0x3fff_u64)
+                    .map_err(|_| VfsError::BadState)?;
+                attr.set_perm(perm);
+                dev.tsetattr(*self.fid, attr)
+                    .map_err(|_| VfsError::BadState)?;
+            }
+            "9P2000.u" => {
+                let mut attr = dev.tstat(*self.fid).map_err(|_| VfsError::BadState)?;
+                attr.set_mode(perm);
+                dev.twstat(*self.fid, attr)
+                    .map_err(|_| VfsError::BadState)?;
+            }
+            _ => {
+                error!("{} is not supported", self.protocol);
+                return Err(VfsError::Unsupported);
+            }
+        }
+        Ok(())
     }
 
     fn parent(&self) -> Option<VfsNodeRef> {
@@ -441,25 +480,25 @@ impl VfsNodeOps for CommonNode {
     }
 
     /// for 9p filesystem's directory, lookup() will return node in 9p if path existing in both 9p and mounted_map.
-    fn lookup(self: Arc<Self>, path: &str) -> VfsResult<VfsNodeRef> {
-        debug!("lookup 9pfs: {}", path);
+    fn lookup(self: Arc<Self>, path: &RelPath) -> VfsResult<VfsNodeRef> {
+        debug!("lookup 9pfs: {path}");
         self.try_get(path)
     }
 
     fn read_dir(&self, start_idx: usize, vfs_dirents: &mut [VfsDirEntry]) -> VfsResult<usize> {
-        debug!("9pfs reading dirents: start_idx = {:x?}", start_idx);
+        debug!("9pfs reading dirents: start_idx = {start_idx:x?}");
         let dirents = match self.protocol.as_str() {
             "9P2000.L" => match self.inner.write().treaddir(*self.fid) {
                 Ok(contents) => contents,
                 Err(errcode) => {
-                    error!("9pfs treaddir failed! error code: {}", errcode);
+                    error!("9pfs treaddir failed! error code: {errcode}");
                     return Err(VfsError::BadState);
                 }
             },
             "9P2000.u" => match self.inner.write().u_treaddir(*self.fid) {
                 Ok(contents) => contents,
                 Err(errcode) => {
-                    error!("9pfs u_treaddir failed! error code: {}", errcode);
+                    error!("9pfs u_treaddir failed! error code: {errcode}");
                     return Err(VfsError::BadState);
                 }
             },
@@ -491,42 +530,42 @@ impl VfsNodeOps for CommonNode {
                         };
                         *ent = VfsDirEntry::new(entry.get_name(), file_type);
                     } else {
-                        debug!("9pfs read dirents finished: start_idx = {:x?}", start_idx);
+                        debug!("9pfs read dirents finished: start_idx = {start_idx:x?}");
                         return Ok(i);
                     }
                 }
             }
         }
-        debug!("9pfs read dirents finished: start_idx = {:x?}", start_idx);
+        debug!("9pfs read dirents finished: start_idx = {start_idx:x?}");
         Ok(vfs_dirents.len())
     }
 
-    fn create(&self, path: &str, ty: VfsNodeType) -> VfsResult {
-        debug!("create {:?} at 9pfs: {}", ty, path);
+    fn create(&self, path: &RelPath, ty: VfsNodeType, mode: VfsNodePerm) -> VfsResult {
+        debug!("create {ty:?} at 9pfs: {path}");
 
         let (name, rest) = split_path(path);
         if let Some(rpath) = rest {
-            self.try_get(name)?.create(rpath, ty)
+            self.try_get(&RelPath::new(name))?.create(&rpath, ty, mode)
         } else {
-            self.create_node(name, ty)
+            self.create_node(&RelPath::new(name), ty, mode)
         }
     }
 
-    fn remove(&self, path: &str) -> VfsResult {
-        debug!("remove at 9pfs: {}", path);
+    fn unlink(&self, path: &RelPath) -> VfsResult {
+        debug!("unlink at 9pfs: {path}");
         match split_path(path) {
             ("", None) | (".", None) => match self.inner.write().tremove(*self.fid) {
                 Ok(_) => Ok(()),
                 Err(_) => Err(VfsError::BadState),
             },
-            _ => self.try_get(path)?.remove(""),
+            _ => self.try_get(path)?.unlink(&RelPath::new("")),
         }
     }
 
     // Operation only for file usually
     /// Truncate the file to the given size.
     fn truncate(&self, size: u64) -> VfsResult {
-        debug!("9pfs truncating, size:{}", size);
+        debug!("9pfs truncating, size:{size}");
         if *self.protocol == "9P2000.L" {
             let mut attr = drv::FileAttr::new();
             attr.set_size(size);
@@ -608,9 +647,8 @@ impl VfsNodeOps for CommonNode {
     }
 }
 
-fn split_path(path: &str) -> (&str, Option<&str>) {
-    let trimmed_path = path.trim_start_matches('/');
-    trimmed_path.find('/').map_or((trimmed_path, None), |n| {
-        (&trimmed_path[..n], Some(&trimmed_path[n + 1..]))
+fn split_path<'a>(path: &'a RelPath) -> (&'a str, Option<RelPath<'a>>) {
+    path.find('/').map_or((path, None), |n| {
+        (&path[..n], Some(RelPath::new(&path[n + 1..])))
     })
 }

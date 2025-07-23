@@ -11,8 +11,6 @@
 
 use core::fmt;
 
-#[cfg(feature = "paging")]
-use crate::paging::pte_query;
 #[doc(no_inline)]
 pub use memory_addr::{PhysAddr, VirtAddr, PAGE_SIZE_4K};
 
@@ -55,6 +53,20 @@ pub struct MemRegion {
     pub name: &'static str,
 }
 
+/// A trait for address translation.
+#[crate_interface::def_interface]
+pub trait AddressTranslate {
+    /// Translates a virtual address to a physical address.
+    fn virt_to_phys(vaddr: VirtAddr) -> Option<usize> {
+        Some(direct_virt_to_phys(vaddr).into())
+    }
+}
+
+/// translates a virtual address to a physical address.
+pub fn address_translate(vaddr: VirtAddr) -> Option<usize> {
+    crate_interface::call_interface!(AddressTranslate::virt_to_phys, vaddr)
+}
+
 /// Converts a virtual address to a physical address.
 ///
 /// It assumes that there is a linear mapping with the offset
@@ -67,20 +79,6 @@ pub struct MemRegion {
 #[inline]
 pub const fn direct_virt_to_phys(vaddr: VirtAddr) -> PhysAddr {
     PhysAddr::from(vaddr.as_usize() - ruxconfig::PHYS_VIRT_OFFSET)
-}
-
-/// Converts a virtual address to a physical address.
-///
-/// When paging is enabled, query physical address from the page table
-#[inline]
-pub fn virt_to_phys(vaddr: VirtAddr) -> PhysAddr {
-    #[cfg(feature = "paging")]
-    match pte_query(vaddr) {
-        Ok((paddr, _, _)) => paddr,
-        Err(_) => PhysAddr::from(0_usize), // for address unmapped
-    }
-    #[cfg(not(feature = "paging"))]
-    direct_virt_to_phys(vaddr)
 }
 
 /// Converts a physical address to a virtual address.
@@ -152,20 +150,36 @@ pub(crate) fn default_mmio_regions() -> impl Iterator<Item = MemRegion> {
     })
 }
 
+/// Returns the default MMIO memory regions (from [`ruxconfig::DTB_ADDR`]).
+#[allow(dead_code)]
+pub(crate) fn default_dtb_regions() -> impl Iterator<Item = MemRegion> {
+    let dtb_addr = PhysAddr::from(ruxconfig::DTB_ADDR).align_up_4k();
+    let dtb_resgion = MemRegion {
+        paddr: dtb_addr,
+        size: 0x80000,
+        flags: MemRegionFlags::READ | MemRegionFlags::WRITE | MemRegionFlags::EXECUTE,
+        name: "dtb region",
+    };
+    core::iter::once(dtb_resgion)
+}
+
 /// Returns the default free memory regions (kernel image end to physical memory end).
 #[allow(dead_code)]
 pub(crate) fn default_free_regions() -> impl Iterator<Item = MemRegion> {
-    let start = direct_virt_to_phys((_ekernel as usize).into()).align_up_4k();
+    let start_free = direct_virt_to_phys((_ekernel as usize).into()).align_up_4k();
     let end = PhysAddr::from(ruxconfig::PHYS_MEMORY_END).align_down_4k();
-    core::iter::once(MemRegion {
-        paddr: start,
-        size: end.as_usize() - start.as_usize(),
+
+    let region_free = MemRegion {
+        paddr: start_free,
+        size: end.as_usize() - start_free.as_usize(),
         flags: MemRegionFlags::FREE
             | MemRegionFlags::READ
             | MemRegionFlags::WRITE
             | MemRegionFlags::EXECUTE,
         name: "free memory",
-    })
+    };
+
+    core::iter::once(region_free)
 }
 
 /// Fills the `.bss` section with zeros.
@@ -178,6 +192,7 @@ pub(crate) fn clear_bss() {
 }
 
 extern "C" {
+    fn _skernel();
     fn _stext();
     fn _etext();
     fn _srodata();

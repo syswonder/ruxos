@@ -7,7 +7,7 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-const NET_DEV_FEATURES: &[&str] = &["ixgbe", "virtio-net"];
+const NET_DEV_FEATURES: &[&str] = &["ixgbe", "virtio-net", "loopback"];
 const BLOCK_DEV_FEATURES: &[&str] = &["ramdisk", "bcm2835-sdhci", "virtio-blk"];
 const DISPLAY_DEV_FEATURES: &[&str] = &["virtio-gpu"];
 const _9P_DEV_FEATURES: &[&str] = &["virtio-9p"];
@@ -64,4 +64,33 @@ fn main() {
             enable_cfg(&format!("{dev_kind}_dev"), "dummy");
         }
     }
+
+    println!(
+        "cargo::rustc-check-cfg=cfg(bus, values({}))",
+        make_cfg_values(&["pci", "mmio"])
+    );
+    println!(
+        "cargo::rustc-check-cfg=cfg(net_dev, values({}, \"dummy\"))",
+        make_cfg_values(NET_DEV_FEATURES)
+    );
+    println!(
+        "cargo::rustc-check-cfg=cfg(block_dev, values({}, \"dummy\"))",
+        make_cfg_values(BLOCK_DEV_FEATURES)
+    );
+    println!(
+        "cargo::rustc-check-cfg=cfg(display_dev, values({}, \"dummy\"))",
+        make_cfg_values(DISPLAY_DEV_FEATURES)
+    );
+    println!(
+        "cargo::rustc-check-cfg=cfg(_9p_dev, values({}, \"dummy\"))",
+        make_cfg_values(_9P_DEV_FEATURES)
+    );
+}
+
+fn make_cfg_values(str_list: &[&str]) -> String {
+    str_list
+        .iter()
+        .map(|s| format!("{s:?}"))
+        .collect::<Vec<_>>()
+        .join(", ")
 }

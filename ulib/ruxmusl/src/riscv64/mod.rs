@@ -1,11 +1,20 @@
+/* Copyright (c) [2023] [Syswonder Community]
+ *   [Ruxos] is licensed under Mulan PSL v2.
+ *   You can use this software according to the terms and conditions of the Mulan PSL v2.
+ *   You may obtain a copy of Mulan PSL v2 at:
+ *               http://license.coscl.org.cn/MulanPSL2
+ *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ *   See the Mulan PSL v2 for more details.
+ */
+
 pub mod syscall_id;
 
-use core::ffi::c_int;
-use ruxos_posix_api::ctypes;
+use core::ffi::{c_char, c_int};
+use ruxos_posix_api::ctypes::{self, pid_t};
 use syscall_id::SyscallId;
 
 pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
-    debug!("syscall <= syscall_name: {:?}", syscall_id);
+    debug!("syscall <= syscall_name: {syscall_id:?}");
 
     unsafe {
         match syscall_id {
@@ -15,7 +24,7 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 ruxos_posix_api::sys_getcwd(args[0] as *mut core::ffi::c_char, args[1]) as _
             }
             #[cfg(feature = "epoll")]
-            SyscallId::EPOLL_CREATE1 => ruxos_posix_api::sys_epoll_create(args[0] as c_int) as _,
+            SyscallId::EPOLL_CREATE1 => ruxos_posix_api::sys_epoll_create1(args[0] as c_int) as _,
             #[cfg(feature = "epoll")]
             SyscallId::EPOLL_CTL => ruxos_posix_api::sys_epoll_ctl(
                 args[0] as c_int,
@@ -73,7 +82,7 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
             ) as _,
             #[cfg(feature = "fs")]
             SyscallId::OPENAT => ruxos_posix_api::sys_openat(
-                args[0],
+                args[0] as c_int,
                 args[1] as *const core::ffi::c_char,
                 args[2] as c_int,
                 args[3] as ctypes::mode_t,
@@ -113,6 +122,12 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[1] as *const ctypes::iovec,
                 args[2] as c_int,
             ) as _,
+            #[cfg(feature = "fs")]
+            #[allow(unreachable_code)]
+            SyscallId::EXECVE => {
+                use core::ffi::c_char;
+                ruxos_posix_api::sys_execve(args[0] as *const c_char, args[1], args[2]) as _
+            }
             #[cfg(feature = "fd")]
             SyscallId::WRITEV => ruxos_posix_api::sys_writev(
                 args[0] as c_int,
@@ -191,6 +206,12 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[0] as ctypes::clockid_t,
                 args[1] as *mut ctypes::timespec,
             ) as _,
+            SyscallId::CLOCK_NANOSLEEP => ruxos_posix_api::sys_clock_nanosleep(
+                args[0] as ctypes::clockid_t,
+                args[1] as c_int,
+                args[2] as *const ctypes::timespec,
+                args[3] as *mut ctypes::timespec,
+            ) as _,
             SyscallId::SCHED_YIELD => ruxos_posix_api::sys_sched_yield() as _,
             #[cfg(feature = "signal")]
             SyscallId::SIGALTSTACK => ruxos_posix_api::sys_sigaltstack(
@@ -231,6 +252,13 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 ruxos_posix_api::sys_socket(args[0] as c_int, args[1] as c_int, args[2] as c_int)
                     as _
             }
+            #[cfg(feature = "net")]
+            SyscallId::SOCKETPAIR => ruxos_posix_api::sys_socketpair(
+                args[0] as _,
+                args[1] as _,
+                args[2] as _,
+                core::slice::from_raw_parts_mut(args[3] as *mut c_int, 2),
+            ) as _,
             #[cfg(feature = "net")]
             SyscallId::BIND => ruxos_posix_api::sys_bind(
                 args[0] as c_int,
@@ -283,6 +311,10 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[4] as *mut ctypes::sockaddr,
                 args[5] as *mut ctypes::socklen_t,
             ) as _,
+            SyscallId::GETTID => ruxos_posix_api::sys_gettid() as _,
+            SyscallId::GETPPID => ruxos_posix_api::sys_getppid() as _,
+            #[cfg(feature = "multitask")]
+            SyscallId::EXIT_GROUP => ruxos_posix_api::sys_exit_group(args[0] as c_int),
             #[cfg(feature = "net")]
             SyscallId::SETSOCKOPT => ruxos_posix_api::sys_setsockopt(
                 args[0] as c_int,
@@ -290,6 +322,14 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[2] as c_int,
                 args[3] as *const core::ffi::c_void,
                 args[4] as ctypes::socklen_t,
+            ) as _,
+            #[cfg(feature = "net")]
+            SyscallId::GETSOCKOPT => ruxos_posix_api::sys_getsockopt(
+                args[0] as c_int,
+                args[1] as c_int,
+                args[2] as c_int,
+                args[3] as *mut core::ffi::c_void,
+                args[4] as *mut ctypes::socklen_t,
             ) as _,
             #[cfg(feature = "net")]
             SyscallId::SHUTDOWN => {
@@ -343,12 +383,31 @@ pub fn syscall(syscall_id: SyscallId, args: [usize; 6]) -> isize {
                 args[1] as ctypes::size_t,
                 args[2] as c_int,
             ) as _,
+            SyscallId::WAIT4 => ruxos_posix_api::sys_wait4(
+                args[0] as ctypes::pid_t,
+                args[1] as *mut c_int,
+                args[2] as c_int,
+                args[3] as *mut ctypes::rusage,
+            ) as _,
             SyscallId::PRLIMIT64 => ruxos_posix_api::sys_prlimit64(
                 args[0] as ctypes::pid_t,
                 args[1] as c_int,
                 args[2] as *const ctypes::rlimit,
                 args[3] as *mut ctypes::rlimit,
             ) as _,
+            #[cfg(feature = "signal")]
+            SyscallId::KILL => ruxos_posix_api::sys_kill(args[0] as pid_t, args[1] as c_int) as _,
+            SyscallId::GETPGID => ruxos_posix_api::sys_getpgid(args[0] as pid_t) as _,
+            SyscallId::FACCESSAT => ruxos_posix_api::sys_faccessat(
+                args[0] as c_int,
+                args[1] as *const c_char,
+                args[2] as c_int,
+                args[3] as c_int,
+            ) as _,
+            #[cfg(feature = "fs")]
+            SyscallId::CHDIR => ruxos_posix_api::sys_chdir(args[0] as *const c_char) as _,
+            SyscallId::GETUID => ruxos_posix_api::sys_getuid() as _,
+            SyscallId::GETGID => ruxos_posix_api::sys_getgid() as _,
         }
     }
 }

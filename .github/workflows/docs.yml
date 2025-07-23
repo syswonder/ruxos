@@ -3,11 +3,11 @@ name: Build & Deploy docs
 on: [push, pull_request]
 
 env:
-  rust-toolchain: nightly-2023-09-01
+  rust-toolchain: nightly-2025-05-07
 
 jobs:
   doc:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
     permissions:

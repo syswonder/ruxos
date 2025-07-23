@@ -11,7 +11,7 @@ use core::net::{IpAddr, Ipv4Addr, SocketAddr};
 use driver_9p::_9pDriverOps;
 use driver_common::{BaseDriverOps, DeviceType};
 use log::*;
-use ruxnet::TcpSocket;
+use ruxnet::{message::MessageFlags, TcpSocket};
 
 pub struct Net9pDev {
     socket: Mutex<TcpSocket>,
@@ -23,12 +23,12 @@ impl Net9pDev {
         let ip_addr = match ip.len() {
             4 => IpAddr::V4(Ipv4Addr::new(ip[0], ip[1], ip[2], ip[3])),
             _ => {
-                error!("Unsupport IP address: {:?}, using 0.0.0.0 instead", ip);
+                error!("Unsupport IP address: {ip:?}, using 0.0.0.0 instead");
                 IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0))
             }
         };
         Self {
-            socket: Mutex::new(TcpSocket::new()),
+            socket: Mutex::new(TcpSocket::new(false)),
             srv_addr: SocketAddr::new(ip_addr, port),
         }
     }
@@ -64,16 +64,16 @@ impl _9pDriverOps for Net9pDev {
     fn send_with_recv(&mut self, inputs: &[u8], outputs: &mut [u8]) -> Result<u32, u8> {
         match self.socket.lock().send(inputs) {
             Ok(length) => {
-                debug!("net9p send successfully,length = {}", length);
+                debug!("net9p send successfully,length = {length}");
             }
             Err(_) => {
                 error!("net9p send failed");
                 return Err(0);
             }
         }
-        match self.socket.lock().recv(outputs, 0) {
+        match self.socket.lock().recv(outputs, MessageFlags::empty()) {
             Ok(length) => {
-                debug!("net9p recv successfully,length = {}", length);
+                debug!("net9p recv successfully,length = {length}");
                 Ok(length as u32)
             }
             Err(_) => {

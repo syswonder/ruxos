@@ -34,6 +34,13 @@ macro_rules! impl_vfs_dir_default {
         fn as_any(&self) -> &dyn core::any::Any {
             self
         }
+
+        #[inline]
+        fn as_any_arc(
+            self: $crate::__priv::Arc<Self>,
+        ) -> $crate::__priv::Arc<dyn core::any::Any + Send + Sync> {
+            self
+        }
     };
 }
 
@@ -46,16 +53,37 @@ macro_rules! impl_vfs_non_dir_default {
     () => {
         fn lookup(
             self: $crate::__priv::Arc<Self>,
-            _path: &str,
+            _path: &$crate::RelPath,
         ) -> $crate::VfsResult<$crate::VfsNodeRef> {
             $crate::__priv::ax_err!(NotADirectory)
         }
 
-        fn create(&self, _path: &str, _ty: $crate::VfsNodeType) -> $crate::VfsResult {
+        fn create(
+            &self,
+            _path: &$crate::RelPath,
+            _ty: $crate::VfsNodeType,
+            _mode: $crate::VfsNodePerm,
+        ) -> $crate::VfsResult {
             $crate::__priv::ax_err!(NotADirectory)
         }
 
-        fn remove(&self, _path: &str) -> $crate::VfsResult {
+        fn link(
+            &self,
+            _name: &$crate::RelPath,
+            _src: $crate::__priv::Arc<dyn VfsNodeOps>,
+        ) -> VfsResult<$crate::__priv::Arc<dyn VfsNodeOps>> {
+            $crate::__priv::ax_err!(NotADirectory)
+        }
+
+        fn unlink(&self, _path: &$crate::RelPath) -> $crate::VfsResult {
+            $crate::__priv::ax_err!(NotADirectory)
+        }
+
+        fn rename(
+            &self,
+            _src_path: &$crate::RelPath,
+            _dst_path: &$crate::RelPath,
+        ) -> $crate::VfsResult {
             $crate::__priv::ax_err!(NotADirectory)
         }
 
@@ -69,6 +97,13 @@ macro_rules! impl_vfs_non_dir_default {
 
         #[inline]
         fn as_any(&self) -> &dyn core::any::Any {
+            self
+        }
+
+        #[inline]
+        fn as_any_arc(
+            self: $crate::__priv::Arc<Self>,
+        ) -> $crate::__priv::Arc<dyn core::any::Any + Send + Sync> {
             self
         }
     };

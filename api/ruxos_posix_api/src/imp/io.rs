@@ -12,9 +12,12 @@ use axerrno::LinuxError;
 use core::ffi::{c_int, c_void};
 
 #[cfg(feature = "fd")]
-use crate::imp::fd_ops::get_file_like;
+use ruxtask::fs::get_file_like;
 #[cfg(not(feature = "fd"))]
-use axio::prelude::*;
+use {
+    crate::imp::stdio::{Stdin, Stdout},
+    axio::prelude::*,
+};
 
 /// Read data from the file indicated by `fd`.
 ///
@@ -28,11 +31,11 @@ pub fn sys_read(fd: c_int, buf: *mut c_void, count: usize) -> ctypes::ssize_t {
         let dst = unsafe { core::slice::from_raw_parts_mut(buf as *mut u8, count) };
         #[cfg(feature = "fd")]
         {
-            Ok(get_file_like(fd)?.read(dst)? as ctypes::ssize_t)
+            Ok(get_file_like(fd as _)?.read(dst)? as ctypes::ssize_t)
         }
         #[cfg(not(feature = "fd"))]
         match fd {
-            0 => Ok(super::stdio::stdin().read(dst)? as ctypes::ssize_t),
+            0 => Ok(Stdin::default().read(dst)? as ctypes::ssize_t),
             1 | 2 => Err(LinuxError::EPERM),
             _ => Err(LinuxError::EBADF),
         }
@@ -56,7 +59,7 @@ pub fn sys_write(fd: c_int, buf: *const c_void, count: usize) -> ctypes::ssize_t
         #[cfg(not(feature = "fd"))]
         match fd {
             0 => Err(LinuxError::EPERM),
-            1 | 2 => Ok(super::stdio::stdout().write(src)? as ctypes::ssize_t),
+            1 | 2 => Ok(Stdout {}.write(src)? as ctypes::ssize_t),
             _ => Err(LinuxError::EBADF),
         }
     })
@@ -65,7 +68,7 @@ pub fn sys_write(fd: c_int, buf: *const c_void, count: usize) -> ctypes::ssize_t
 /// Writes `iocnt` buffers of data described by `iov` to the file associated with the file
 /// descriptor `fd`
 pub unsafe fn sys_writev(fd: c_int, iov: *const ctypes::iovec, iocnt: c_int) -> ctypes::ssize_t {
-    debug!("sys_writev <= fd: {}, iocnt: {}", fd, iocnt);
+    debug!("sys_writev <= fd: {fd}, iocnt: {iocnt}");
     syscall_body!(sys_writev, {
         if !(0..=1024).contains(&iocnt) {
             return Err(LinuxError::EINVAL);
@@ -86,7 +89,7 @@ pub unsafe fn sys_writev(fd: c_int, iov: *const ctypes::iovec, iocnt: c_int) -> 
 /// Reads `iocnt` buffers from the file associated with the file descriptor `fd` into the
 /// buffers described by `iov`
 pub unsafe fn sys_readv(fd: c_int, iov: *const ctypes::iovec, iocnt: c_int) -> ctypes::ssize_t {
-    debug!("sys_readv <= fd: {}, iocnt: {}", fd, iocnt);
+    debug!("sys_readv <= fd: {fd}, iocnt: {iocnt}");
     syscall_body!(sys_readv, {
         if !(0..=1024).contains(&iocnt) {
             return Err(LinuxError::EINVAL);

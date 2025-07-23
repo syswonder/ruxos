@@ -25,6 +25,8 @@
 
 #[cfg(feature = "block")]
 mod blk;
+#[cfg(feature = "console")]
+mod console;
 #[cfg(feature = "gpu")]
 mod gpu;
 #[cfg(feature = "net")]
@@ -34,6 +36,8 @@ mod v9p;
 
 #[cfg(feature = "block")]
 pub use self::blk::VirtIoBlkDev;
+#[cfg(feature = "console")]
+pub use self::console::VirtIoConsoleDev;
 #[cfg(feature = "gpu")]
 pub use self::gpu::VirtIoGpuDev;
 #[cfg(feature = "net")]
@@ -42,6 +46,7 @@ pub use self::net::VirtIoNetDev;
 pub use self::v9p::VirtIo9pDev;
 
 pub use virtio_drivers::transport::pci::bus as pci;
+use virtio_drivers::transport::pci::bus::ConfigurationAccess;
 pub use virtio_drivers::transport::{mmio::MmioTransport, pci::PciTransport, Transport};
 pub use virtio_drivers::{BufferDirection, Hal as VirtIoHal, PhysAddr};
 
@@ -55,13 +60,13 @@ use virtio_drivers::transport::DeviceType as VirtIoDevType;
 /// for later operations. Otherwise, returns [`None`].
 pub fn probe_mmio_device(
     reg_base: *mut u8,
-    _reg_size: usize,
-) -> Option<(DeviceType, MmioTransport)> {
+    reg_size: usize,
+) -> Option<(DeviceType, MmioTransport<'static>)> {
     use core::ptr::NonNull;
     use virtio_drivers::transport::mmio::VirtIOHeader;
 
     let header = NonNull::new(reg_base as *mut VirtIOHeader).unwrap();
-    let transport = unsafe { MmioTransport::new(header) }.ok()?;
+    let transport = unsafe { MmioTransport::new(header, reg_size) }.ok()?;
     let dev_type = as_dev_type(transport.device_type())?;
     Some((dev_type, transport))
 }
@@ -70,15 +75,19 @@ pub fn probe_mmio_device(
 ///
 /// If the device is recognized, returns the device type and a transport object
 /// for later operations. Otherwise, returns [`None`].
-pub fn probe_pci_device<H: VirtIoHal>(
-    root: &mut PciRoot,
+pub fn probe_pci_device<H, C>(
+    root: &mut PciRoot<C>,
     bdf: DeviceFunction,
     dev_info: &DeviceFunctionInfo,
-) -> Option<(DeviceType, PciTransport)> {
+) -> Option<(DeviceType, PciTransport)>
+where
+    H: VirtIoHal,
+    C: ConfigurationAccess,
+{
     use virtio_drivers::transport::pci::virtio_device_type;
 
     let dev_type = virtio_device_type(dev_info).and_then(as_dev_type)?;
-    let transport = PciTransport::new::<H>(root, bdf).ok()?;
+    let transport = PciTransport::new::<H, C>(root, bdf).ok()?;
     Some((dev_type, transport))
 }
 
@@ -89,6 +98,7 @@ const fn as_dev_type(t: VirtIoDevType) -> Option<DeviceType> {
         Network => Some(DeviceType::Net),
         GPU => Some(DeviceType::Display),
         _9P => Some(DeviceType::_9P),
+        Console => Some(DeviceType::Char),
         _ => None,
     }
 }

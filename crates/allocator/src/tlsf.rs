@@ -37,6 +37,12 @@ impl TlsfByteAllocator {
     }
 }
 
+impl Default for TlsfByteAllocator {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl BaseAllocator for TlsfByteAllocator {
     fn init(&mut self, start: usize, size: usize) {
         unsafe {

@@ -9,29 +9,172 @@
 
 //! Utilities for path manipulation.
 
-use alloc::string::String;
+use alloc::{
+    borrow::{Cow, ToOwned},
+    format,
+    string::{String, ToString},
+};
+
+/// Canonicalized absolute path type. Requirements:
+///
+/// - Starting with `/`
+/// - No `.` or `..` components
+/// - No redundant or tailing `/`
+/// - Valid examples: `/`, `/root/foo/bar`
+///
+/// Using `Cow` type to avoid unnecessary allocations.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AbsPath<'a>(Cow<'a, str>);
+
+impl AbsPath<'static> {
+    /// Simply wrap a string into a `AbsPath`.
+    ///
+    /// Caller should ensure that the path is absolute and canonicalized.
+    pub const fn new_owned(path: String) -> Self {
+        Self(Cow::Owned(path))
+    }
+
+    /// Parse and canonicalize an absolute path from a string.
+    ///
+    /// - If the given path is not canonicalized, it will be canonicalized.
+    /// - If the given path is not absolute, it will be prefixed with `/`.
+    pub fn new_canonicalized(path: &str) -> Self {
+        if !path.starts_with('/') {
+            Self(Cow::Owned(canonicalize(&("/".to_owned() + path))))
+        } else {
+            Self(Cow::Owned(canonicalize(path)))
+        }
+    }
+}
+
+impl<'a> AbsPath<'a> {
+    /// Simply wrap a str slice into a `AbsPath`.
+    ///
+    /// Caller should ensure that the path is absolute and canonicalized.
+    pub const fn new(path: &'a str) -> Self {
+        Self(Cow::Borrowed(path))
+    }
+
+    /// Trim the starting `/` to transform this `AbsPath` into a `RelPath`.
+    pub fn to_rel(&self) -> RelPath {
+        RelPath(Cow::Borrowed(self.0.trim_start_matches('/')))
+    }
+
+    /// Create a new `AbsPath` with 'static lifetime.
+    pub fn to_owned(&self) -> AbsPath<'static> {
+        AbsPath::new_owned(self.0.to_string())
+    }
+
+    /// Convert this `AbsPath` into a raw str slice.
+    pub fn as_str(&self) -> &str {
+        self.0.as_ref()
+    }
+
+    /// Convert this `AbsPath` into a raw string.
+    #[allow(clippy::inherent_to_string_shadow_display)]
+    pub fn to_string(&self) -> String {
+        self.0.to_string()
+    }
+
+    /// Concatenate a `RelPath` to this `AbsPath`.
+    pub fn join(&self, rel: &RelPath) -> AbsPath<'static> {
+        AbsPath::new_canonicalized(&format!("{}/{}", self.0, rel.0))
+    }
+}
+
+impl core::ops::Deref for AbsPath<'_> {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl core::fmt::Display for AbsPath<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
+
+/// Canonicalized relative path type. Requirements:
+///
+/// - No starting `/`
+/// - No `.` components
+/// - No redundant or tailing `/`
+/// - Possibly starts with `..`
+/// - Valid examples: ` `, `..`, `../b`, `../..`
+///
+/// Using `Cow` type to avoid unnecessary allocations.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RelPath<'a>(Cow<'a, str>);
+
+impl RelPath<'static> {
+    /// Simply wrap a string into a `RelPath`.
+    ///
+    /// Caller should ensure that the path is relative and canonicalized.
+    pub const fn new_owned(path: String) -> Self {
+        Self(Cow::Owned(path))
+    }
+
+    /// Parse and canonicalize a relative path from a string.
+    ///
+    /// - If the given path is not canonicalized, it will be canonicalized.
+    /// - If the given path is absolute, the starting '/' will be trimmed.
+    pub fn new_canonicalized(path: &str) -> Self {
+        Self(Cow::Owned(canonicalize(path.trim_start_matches('/'))))
+    }
+}
+
+impl<'a> RelPath<'a> {
+    /// Simply wrap a string into a `RelPath`.
+    ///
+    /// Caller should ensure that the path is relative and canonicalized.
+    pub const fn new(path: &'a str) -> Self {
+        Self(Cow::Borrowed(path))
+    }
+
+    /// Wrap a string into a `RelPath` with possibly leading '/' trimmed.
+    ///
+    /// Caller should ensure that the path is canonicalized.
+    pub fn new_trimmed(path: &'a str) -> Self {
+        Self(Cow::Borrowed(path.trim_start_matches('/')))
+    }
+
+    /// Convert this `RelPath` into a raw str slice.
+    pub fn as_str(&self) -> &str {
+        self.0.as_ref()
+    }
+}
+
+impl core::ops::Deref for RelPath<'_> {
+    type Target = str;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl core::fmt::Display for RelPath<'_> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        write!(f, "{}", self.0)
+    }
+}
 
 /// Returns the canonical form of the path with all intermediate components
 /// normalized.
 ///
 /// It won't force convert the path to an absolute form.
-///
-/// # Examples
-///
-/// ```
-/// use axfs_vfs::path::canonicalize;
-///
-/// assert_eq!(canonicalize("/path/./to//foo"), "/path/to/foo");
-/// assert_eq!(canonicalize("/./path/to/../bar.rs"), "/path/bar.rs");
-/// assert_eq!(canonicalize("./foo/./bar"), "foo/bar");
-/// ```
-pub fn canonicalize(path: &str) -> String {
+fn canonicalize(path: &str) -> String {
     let mut buf = String::new();
     let is_absolute = path.starts_with('/');
     for part in path.split('/') {
         match part {
             "" | "." => continue,
             ".." => {
+                if !is_absolute && buf.is_empty() {
+                    buf.push_str("..");
+                    continue;
+                }
                 while !buf.is_empty() {
                     if buf == "/" {
                         break;
@@ -72,9 +215,9 @@ mod tests {
         assert_eq!(canonicalize("/a/../"), "/");
         assert_eq!(canonicalize("/a/../..///"), "/");
         assert_eq!(canonicalize("a/../"), "");
-        assert_eq!(canonicalize("a/..//.."), "");
+        assert_eq!(canonicalize("a/..//.."), "..");
         assert_eq!(canonicalize("././a"), "a");
-        assert_eq!(canonicalize(".././a"), "a");
+        assert_eq!(canonicalize(".././a"), "../a");
         assert_eq!(canonicalize("/././a"), "/a");
         assert_eq!(canonicalize("/abc/../abc"), "/abc");
         assert_eq!(canonicalize("/test"), "/test");
@@ -93,8 +236,8 @@ mod tests {
         assert_eq!(canonicalize("/test//./../foo/bar//"), "/foo/bar");
         assert_eq!(canonicalize("/test/../foo"), "/foo");
         assert_eq!(canonicalize("/test/bar/../foo"), "/test/foo");
-        assert_eq!(canonicalize("../foo"), "foo");
-        assert_eq!(canonicalize("../foo/"), "foo");
+        assert_eq!(canonicalize("../foo"), "../foo");
+        assert_eq!(canonicalize("../foo/"), "../foo");
         assert_eq!(canonicalize("/../foo"), "/foo");
         assert_eq!(canonicalize("/../foo/"), "/foo");
         assert_eq!(canonicalize("/../../foo"), "/foo");

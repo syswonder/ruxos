@@ -18,6 +18,7 @@
 //!   example, `dyn Trait`.
 //! - It would require the list head to be pinned (in addition to the list entries).
 
+use core::ptr;
 use core::{cell::UnsafeCell, iter, marker::PhantomPinned, mem::MaybeUninit, ptr::NonNull};
 
 /// An intrusive circular doubly-linked list.
@@ -102,6 +103,12 @@ unsafe impl<A: Adapter + ?Sized> Send for List<A> where A::EntryType: Send {}
 // SAFETY: The list is itself usable from other threads via references but we restrict it to being
 // `Sync` only when its entries are also `Sync`.
 unsafe impl<A: Adapter + ?Sized> Sync for List<A> where A::EntryType: Sync {}
+
+impl<A: Adapter + ?Sized> Default for List<A> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
 
 impl<A: Adapter + ?Sized> List<A> {
     /// Constructs a new empty list.
@@ -251,7 +258,7 @@ impl<A: Adapter + ?Sized> List<A> {
         // SAFETY: The safety requirements of this function satisfy those of `insert_after`.
         unsafe { self.insert_after(self.inner_ref(existing).prev, new) };
 
-        if self.first.unwrap() == existing {
+        if ptr::addr_eq(self.first.unwrap().as_ptr(), existing.as_ptr()) {
             // Update the pointer to the first element as we're inserting before it.
             self.first = Some(NonNull::from(new));
         }
@@ -439,6 +446,12 @@ unsafe impl<T: ?Sized> Send for Links<T> {}
 // only when the list entries it points to are also `Sync`.
 unsafe impl<T: ?Sized> Sync for Links<T> {}
 
+impl<T: ?Sized> Default for Links<T> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<T: ?Sized> Links<T> {
     /// Constructs a new instance of the linked-list links.
     pub const fn new() -> Self {
@@ -468,7 +481,7 @@ impl<A: Adapter + ?Sized> CommonCursor<A> {
                 if let Some(head) = list.first {
                     // SAFETY: Per the function safety requirements, `cur` is in the list.
                     let links = unsafe { list.inner_ref(cur) };
-                    if links.next != head {
+                    if !ptr::addr_eq(links.next.as_ptr(), head.as_ptr()) {
                         self.cur = Some(links.next);
                     }
                 }
@@ -489,7 +502,7 @@ impl<A: Adapter + ?Sized> CommonCursor<A> {
                 let next = match self.cur.take() {
                     None => head,
                     Some(cur) => {
-                        if cur == head {
+                        if ptr::addr_eq(cur.as_ptr(), head.as_ptr()) {
                             return;
                         }
                         cur
@@ -566,9 +579,9 @@ mod tests {
         }
     }
 
+    #[allow(clippy::vec_box)]
     fn build_vector(size: usize) -> Vec<Box<Example>> {
-        let mut v = Vec::new();
-        v.reserve(size);
+        let mut v = Vec::with_capacity(size);
         for _ in 0..size {
             v.push(Box::new(Example {
                 links: super::Links::new(),
@@ -613,10 +626,10 @@ mod tests {
                 let mut list = super::List::<Example>::new();
 
                 // Build list.
-                for j in 0..n {
+                for vi in v.iter().take(n) {
                     // SAFETY: The entry was allocated above, it's not in any lists yet, is never
                     // moved, and outlives the list.
-                    unsafe { list.push_back(&v[j]) };
+                    unsafe { list.push_back(vi) };
                 }
 
                 // Call the test case.

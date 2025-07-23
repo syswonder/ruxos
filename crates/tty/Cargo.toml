@@ -2,8 +2,19 @@
 name = "tty"
 version = "0.0.1"
 edition = "2021"
+authors = ["Quan Shi <749990226@qq.com>", "Zhengning Chen <thesayol>"]
+description = "The TTY module provides a  terminal interface, managing data flow through layers like TTY Core, Line Discipline, and Driver"
+license = "Mulan PSL v2"
+homepage = "https://github.com/syswonder/ruxos"
+repository = "https://github.com/syswonder/ruxos/tree/dev/crates/tty"
 
 [dependencies]
 spinlock = { path = "../spinlock" }
 lazy_init = { path = "../lazy_init" }
-log = "0.4"
+axlog = { path = "../axlog" }
+bitflags = { workspace = true }
+ringbuffer = { path = "../../crates/ringbuffer" }
+spin = { workspace = true }
+axerrno = { path = "../../crates/axerrno" }
+axio = { path = "../../crates/axio" }
+num_enum = { version = "0.5.11", default-features = false }

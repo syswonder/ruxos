@@ -1,3 +1,12 @@
+/* Copyright (c) [2023] [Syswonder Community]
+ *   [Ruxos] is licensed under Mulan PSL v2.
+ *   You can use this software according to the terms and conditions of the Mulan PSL v2.
+ *   You may obtain a copy of Mulan PSL v2 at:
+ *               http://license.coscl.org.cn/MulanPSL2
+ *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ *   See the Mulan PSL v2 for more details.
+ */
+
 use super::driver::lwip_loop_once;
 use crate::{IpAddr, Ipv4Addr};
 use alloc::{ffi::CString, vec, vec::Vec};
@@ -24,11 +33,7 @@ extern "C" fn dns_found_callback(
     ipaddr: *const ip_addr_t,
     callback_arg: *mut c_void,
 ) {
-    trace!(
-        "[dns_found_callback]: name_ptr={:?} ipaddr_ptr={:?}",
-        name,
-        ipaddr
-    );
+    trace!("[dns_found_callback]: name_ptr={name:?} ipaddr_ptr={ipaddr:?}");
     let res = callback_arg as *mut DnsQueryEntry;
     unsafe {
         (*res).finished = true;
@@ -98,7 +103,7 @@ pub fn resolve_socket_addr(name: &str) -> AxResult<Vec<IpAddr>> {
 }
 
 /// Public function for DNS query.
-pub fn dns_query(name: &str) -> AxResult<alloc::vec::Vec<core::net::IpAddr>> {
+pub fn dns_query(_name: &str) -> AxResult<alloc::vec::Vec<core::net::IpAddr>> {
     let empty_vec = alloc::vec::Vec::new();
     Ok(empty_vec)
 }

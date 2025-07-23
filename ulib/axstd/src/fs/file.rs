@@ -31,6 +31,12 @@ pub struct Metadata(api::AxFileAttr);
 #[derive(Clone, Debug)]
 pub struct OpenOptions(api::AxOpenOptions);
 
+impl Default for OpenOptions {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl OpenOptions {
     /// Creates a blank new set of options ready for configuration.
     pub const fn new() -> Self {
@@ -80,6 +86,11 @@ impl OpenOptions {
 }
 
 impl Metadata {
+    /// Wraps an `AxFileAttr` in a `Metadata` object.
+    pub(super) const fn new(attr: api::AxFileAttr) -> Self {
+        Metadata(attr)
+    }
+
     /// Returns the file type for this metadata.
     pub const fn file_type(&self) -> FileType {
         self.0.file_type()

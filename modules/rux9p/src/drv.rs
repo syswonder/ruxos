@@ -45,7 +45,7 @@ impl Drv9pOps {
                 info!("9p dev init success");
             }
             Err(ecode) => {
-                error!("9p dev init fail! error code:{}", ecode);
+                error!("9p dev init fail! error code:{ecode}");
             }
         }
         Self {
@@ -90,7 +90,7 @@ impl Drv9pOps {
     pub fn recycle_fid(&mut self, id: u32) {
         let mut fid_gen = self.fid_gen.write();
         if fid_gen.contains(&id) {
-            warn!("fid {} already exist", id);
+            warn!("fid {id} already exist");
         } else {
             fid_gen.push(id);
         }
@@ -757,7 +757,7 @@ impl _9PReq {
     }
 
     fn write_str(&mut self, value: &str) {
-        let str_size: u32 = value.as_bytes().len() as u32;
+        let str_size: u32 = value.len() as u32;
         self.write_u16(str_size as u16);
         for cbyte in value.bytes() {
             self.buffer.push(cbyte);
@@ -780,7 +780,7 @@ impl _9PReq {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone)]
 pub struct _9PQid {
     ftype: u8,
     version: u32,
@@ -794,6 +794,9 @@ impl _9PQid {
             version: lbytes2u64(&bytes[1..5]) as u32,
             path: lbytes2u64(&bytes[5..13]),
         }
+    }
+    pub fn path(&self) -> u64 {
+        self.path
     }
 }
 
@@ -904,8 +907,17 @@ impl FileAttr {
         }
     }
 
+    pub fn get_qid(&self) -> _9PQid {
+        self.qid
+    }
+
     pub fn get_perm(&self) -> u32 {
         self.mode
+    }
+
+    pub fn set_perm(&mut self, perm: u32) {
+        self.vaild |= _9P_SETATTR_MODE;
+        self.mode = perm;
     }
 
     pub fn set_size(&mut self, size: u64) {
@@ -1025,6 +1037,10 @@ impl UStatFs {
 
     pub fn get_perm(&self) -> u32 {
         self.mode
+    }
+
+    pub fn set_mode(&mut self, perm: u32) {
+        self.mode = perm;
     }
 
     pub fn get_ftype(&self) -> u8 {

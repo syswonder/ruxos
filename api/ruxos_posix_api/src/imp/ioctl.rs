@@ -7,62 +7,33 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-use crate::{imp::fd_ops::get_file_like, sys_getpgid};
-use axerrno::LinuxError;
 use core::ffi::c_int;
+use ruxfdtable::OpenFlags;
+use ruxtask::fs::get_file_like;
 
-/// IOCTL oprations
-pub const TCGETS: usize = 0x5401;
-pub const TIOCGPGRP: usize = 0x540F;
-pub const TIOCSPGRP: usize = 0x5410;
-pub const TIOCGWINSZ: usize = 0x5413;
 pub const FIONBIO: usize = 0x5421;
 pub const FIOCLEX: usize = 0x5451;
 
-#[derive(Clone, Copy, Default)]
-pub struct ConsoleWinSize {
-    pub ws_row: u16,
-    pub ws_col: u16,
-    pub ws_xpixel: u16,
-    pub ws_ypixel: u16,
-}
-
-/// ioctl implementation,
-/// currently only support fd = 1
+/// ioctl implementation
 pub fn sys_ioctl(fd: c_int, request: usize, data: usize) -> c_int {
-    debug!("sys_ioctl <= fd: {}, request: {}", fd, request);
+    debug!("sys_ioctl <= fd: {fd}, request: {request}");
     syscall_body!(sys_ioctl, {
         match request {
             FIONBIO => {
-                unsafe {
-                    get_file_like(fd)?.set_nonblocking(*(data as *const i32) > 0)?;
-                }
-                Ok(0)
-            }
-            TIOCGWINSZ => {
-                let winsize = data as *mut ConsoleWinSize;
-                unsafe {
-                    *winsize = ConsoleWinSize::default();
-                }
-                Ok(0)
-            }
-            TCGETS => {
-                debug!("sys_ioctl: tty TCGETS");
-                Ok(0)
-            }
-            TIOCSPGRP => {
-                warn!("stdout pretend to be tty");
-                Ok(0)
-            }
-            TIOCGPGRP => {
-                warn!("stdout TIOCGPGRP, pretend to be have a tty process group.");
-                unsafe {
-                    *(data as *mut u32) = sys_getpgid(0) as _;
-                }
+                let f = get_file_like(fd)?;
+                let flags = if unsafe { *(data as *const i32) } > 0 {
+                    f.flags() | OpenFlags::O_NONBLOCK
+                } else {
+                    f.flags() & !OpenFlags::O_NONBLOCK
+                };
+                f.set_flags(flags)?;
                 Ok(0)
             }
             FIOCLEX => Ok(0),
-            _ => Err(LinuxError::EINVAL),
+            _ => {
+                get_file_like(fd)?.ioctl(request, data)?;
+                Ok(0)
+            }
         }
     })
 }

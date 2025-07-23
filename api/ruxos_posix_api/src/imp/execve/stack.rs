@@ -1,9 +1,21 @@
-use alloc::{vec, vec::Vec};
+/* Copyright (c) [2023] [Syswonder Community]
+ *   [Ruxos] is licensed under Mulan PSL v2.
+ *   You can use this software according to the terms and conditions of the Mulan PSL v2.
+ *   You may obtain a copy of Mulan PSL v2 at:
+ *               http://license.coscl.org.cn/MulanPSL2
+ *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ *   See the Mulan PSL v2 for more details.
+ */
+
+use alloc::vec::Vec;
+use ruxtask::task::TaskStack;
 
 const STACK_SIZE: usize = ruxconfig::TASK_STACK_SIZE;
 
 #[derive(Debug)]
 pub struct Stack {
+    /// task stack
+    task_stack: TaskStack,
     /// stack
     data: Vec<u8>,
     /// index of top byte of stack
@@ -13,15 +25,29 @@ pub struct Stack {
 impl Stack {
     /// alloc a stack
     pub fn new() -> Self {
-        Self {
-            data: vec![0u8; STACK_SIZE],
-            top: STACK_SIZE,
+        let task_stack = TaskStack::alloc(STACK_SIZE);
+        unsafe {
+            let start = task_stack.top().as_mut_ptr().sub(STACK_SIZE);
+
+            Self {
+                task_stack,
+                data: Vec::from_raw_parts(start, STACK_SIZE, STACK_SIZE),
+                top: STACK_SIZE,
+            }
         }
     }
 
     /// addr of top of stack
     pub fn sp(&self) -> usize {
         self.data.as_ptr() as usize + self.top
+    }
+
+    pub fn stack_size(&self) -> usize {
+        self.data.len()
+    }
+
+    pub fn stack_top(&self) -> usize {
+        self.task_stack.top().into()
     }
 
     /// push data to stack and return the addr of sp
@@ -39,5 +65,11 @@ impl Stack {
         }
 
         sp as usize
+    }
+}
+
+impl Drop for Stack {
+    fn drop(&mut self) {
+        error!("execve's stack dropped. {self:#?}");
     }
 }

@@ -1,3 +1,12 @@
+/* Copyright (c) [2023] [Syswonder Community]
+ *   [Ruxos] is licensed under Mulan PSL v2.
+ *   You can use this software according to the terms and conditions of the Mulan PSL v2.
+ *   You may obtain a copy of Mulan PSL v2 at:
+ *               http://license.coscl.org.cn/MulanPSL2
+ *   THIS SOFTWARE IS PROVIDED ON AN "AS IS" BASIS, WITHOUT WARRANTIES OF ANY KIND, EITHER EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO NON-INFRINGEMENT, MERCHANTABILITY OR FIT FOR A PARTICULAR PURPOSE.
+ *   See the Mulan PSL v2 for more details.
+ */
+
 use num_enum::TryFromPrimitive;
 
 // TODO: syscall id are architecture-dependent
@@ -29,6 +38,10 @@ pub enum SyscallId {
     UNLINKAT = 35,
     #[cfg(feature = "fs")]
     RENAMEAT = 38,
+    #[cfg(feature = "fs")]
+    FACCESSAT = 48,
+    #[cfg(feature = "fs")]
+    CHDIR = 49,
     #[cfg(feature = "fs")]
     FCHOWNAT = 54,
     #[cfg(feature = "fs")]
@@ -63,30 +76,42 @@ pub enum SyscallId {
     FDATASYNC = 83,
     EXIT = 93,
     #[cfg(feature = "multitask")]
+    EXIT_GROUP = 94,
+    #[cfg(feature = "multitask")]
     SET_TID_ADDRESS = 96,
     #[cfg(feature = "multitask")]
     FUTEX = 98,
     NANO_SLEEP = 101,
     CLOCK_SETTIME = 112,
     CLOCK_GETTIME = 113,
+    CLOCK_NANOSLEEP = 115,
     SCHED_YIELD = 124,
+    #[cfg(feature = "signal")]
+    KILL = 129,
     #[cfg(feature = "signal")]
     SIGALTSTACK = 132,
     #[cfg(feature = "signal")]
     RT_SIGACTION = 134,
     #[cfg(feature = "signal")]
     RT_SIGPROCMASK = 135,
+    GETPGID = 155,
     UNAME = 160,
     GETRLIMIT = 163,
     SETRLIMIT = 164,
     UMASK = 166,
     #[cfg(feature = "multitask")]
     GETPID = 172,
+    GETPPID = 173,
+    GETUID = 174,
     GETEUID = 175,
+    GETGID = 176,
     GETEGID = 177,
+    GETTID = 178,
     SYSINFO = 179,
     #[cfg(feature = "net")]
     SOCKET = 198,
+    #[cfg(feature = "net")]
+    SOCKETPAIR = 199,
     #[cfg(feature = "net")]
     BIND = 200,
     #[cfg(feature = "net")]
@@ -106,6 +131,8 @@ pub enum SyscallId {
     #[cfg(feature = "net")]
     SETSOCKOPT = 208,
     #[cfg(feature = "net")]
+    GETSOCKOPT = 209,
+    #[cfg(feature = "net")]
     SHUTDOWN = 210,
     #[cfg(feature = "net")]
     SENDMSG = 211,
@@ -115,11 +142,15 @@ pub enum SyscallId {
     MREMAP = 216,
     #[cfg(feature = "multitask")]
     CLONE = 220,
+    #[cfg(feature = "fs")]
+    EXECVE = 221,
     #[cfg(feature = "alloc")]
     MMAP = 222,
     #[cfg(feature = "alloc")]
     MADVISE = 233,
     #[cfg(feature = "alloc")]
     MPROTECT = 226,
+    #[cfg(feature = "multitask")]
+    WAIT4 = 260,
     PRLIMIT64 = 261,
 }

@@ -21,9 +21,9 @@ kernel-base-paddr = "0x8020_0000"
 # Base virtual address of the kernel image.
 kernel-base-vaddr = "0xffff_ffc0_8020_0000"
 # virtual start address of the mapping memory.
-mmap-start-vaddr = "0xffff_8000_0000_0000"
+mmap-start-vaddr = "0xffff_ffc8_0000_0000"
 # virtual end address of the mapping memory.
-mmap-end-vaddr = "0xffff_f000_0000_0000"
+mmap-end-vaddr = "0xffff_ffff_0000_0000"
 # Linear mapping offset, for quick conversions between physical and virtual
 # addresses.
 phys-virt-offset = "0xffff_ffc0_0000_0000"
@@ -57,5 +57,16 @@ pci-ranges = [
     ["0x4_0000_0000", "0x4_0000_0000"],   # 64-but MMIO space
 ]
 
+# Virtio console
+virtio-console-paddr = "0xFFFFFFFF"
+# Virtio console irq
+virtio-console-irq = "0"
+
 # Timer interrupt frequency in Hz.
 timer-frequency = "10_000_000"      # 10MHz
+
+# Pipe channel bufer size.
+pipe-buffer-size = "0x10000"
+
+# Default buffer size used for pty input/output
+pty-buffer-capacity = "4096"

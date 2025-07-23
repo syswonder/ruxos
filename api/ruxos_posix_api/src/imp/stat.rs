@@ -11,11 +11,17 @@ use crate::ctypes::{self, gid_t, pid_t, uid_t};
 use core::ffi::c_int;
 
 /// Set file mode creation mask
-///
-/// TODO:
 pub fn sys_umask(mode: ctypes::mode_t) -> ctypes::mode_t {
-    debug!("sys_umask <= mode: {:x}", mode);
-    syscall_body!(sys_umask, Ok(0))
+    debug!("sys_umask <= mode: {mode:#o}");
+
+    syscall_body!(sys_umask, {
+        #[cfg(feature = "fd")]
+        {
+            Ok(ruxtask::fs::replace_umask(mode as _))
+        }
+        #[cfg(not(feature = "fd"))]
+        Ok(0)
+    })
 }
 
 /// Returns the effective user ID of the calling process
@@ -40,24 +46,32 @@ pub fn sys_getgid() -> c_int {
 
 /// set current user id
 pub fn sys_setuid(uid: uid_t) -> c_int {
-    debug!("sys_setuid: uid {}", uid);
+    debug!("sys_setuid: uid {uid}");
     syscall_body!(sys_setuid, Ok(0))
 }
 
 /// set current group id
 pub fn sys_setgid(gid: gid_t) -> c_int {
-    debug!("sys_setgid: gid {}", gid);
+    debug!("sys_setgid: gid {gid}");
     syscall_body!(sys_setgid, Ok(0))
 }
 
 /// get process gid
 pub fn sys_getpgid(pid: pid_t) -> c_int {
-    debug!("sys_getpgid: getting pgid of pid {} ", pid);
+    debug!("sys_getpgid: getting pgid of pid {pid} ");
     syscall_body!(sys_getpgid, Ok(1000))
 }
 
 /// set process gid
 pub fn sys_setpgid(pid: pid_t, pgid: pid_t) -> c_int {
-    debug!("sys_setpgid: pid {}, pgid {} ", pid, pgid);
+    debug!("sys_setpgid: pid {pid}, pgid {pgid} ");
     syscall_body!(sys_setpgid, Ok(0))
+}
+
+/// set process sid and create a new session (return 1000)
+///
+/// TODO:
+pub fn sys_setsid() -> pid_t {
+    info!("sys_setsid: create a new session");
+    syscall_body!(sys_setsid, Ok(1000))
 }

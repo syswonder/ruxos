@@ -12,6 +12,6 @@ repository = "https://github.com/syswonder/ruxos/tree/main/crates/driver_9p"
 default = []
 
 [dependencies]
-log = "0.4"
-spin = "0.9"
+log = { workspace = true }
+spin = { workspace = true }
 driver_common = { path = "../driver_common" }

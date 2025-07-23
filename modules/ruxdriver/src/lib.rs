@@ -25,15 +25,15 @@
 //! This crate supports two device models depending on the `dyn` feature:
 //!
 //! - **Static**: The type of all devices is static, it is determined at compile
-//!  time by corresponding cargo features. For example, [`AxNetDevice`] will be
-//! an alias of [`VirtioNetDev`] if the `virtio-net` feature is enabled. This
-//! model provides the best performance as it avoids dynamic dispatch. But on
-//! limitation, only one device instance is supported for each device category.
+//!   maktime by corresponding cargo features. For example, [`AxNetDevice`] will be
+//!   an alias of [`VirtioNetDev`] if the `virtio-net` feature is enabled. This
+//!   model provides the best performance as it avoids dynamic dispatch. But on
+//!   limitation, only one device instance is supported for each device category.
 //! - **Dynamic**: All device instance is using [trait objects] and wrapped in a
-//! `Box<dyn Trait>`. For example, [`AxNetDevice`] will be [`Box<dyn NetDriverOps>`].
-//! When call a method provided by the device, it uses [dynamic dispatch][dyn]
-//! that may introduce a little overhead. But on the other hand, it is more
-//! flexible, multiple instances of each device category are supported.
+//!   `Box<dyn Trait>`. For example, [`AxNetDevice`] will be [`Box<dyn NetDriverOps>`].
+//!   When call a method provided by the device, it uses [dynamic dispatch][dyn]
+//!   that may introduce a little overhead. But on the other hand, it is more
+//!   flexible, multiple instances of each device category are supported.
 //!
 //! # Supported Devices
 //!
@@ -49,13 +49,13 @@
 //!
 //! - `dyn`: use the dynamic device model (see above).
 //! - `bus-mmio`: use device tree to probe all MMIO devices. This feature is
-//!    enabeld by default.
+//!   enabeld by default.
 //! - `bus-pci`: use PCI bus to probe all PCI devices.
 //! - `virtio`: use VirtIO devices. This is enabled if any of `virtio-blk`,
 //!   `virtio-net` or `virtio-gpu` is enabled.
 //! - `net`: use network devices. This is enabled if any feature of network
-//!    devices is selected. If this feature is enabled without any network device
-//!    features, a dummy struct is used for [`AxNetDevice`].
+//!   devices is selected. If this feature is enabled without any network device
+//!   features, a dummy struct is used for [`AxNetDevice`].
 //! - `block`: use block storage devices. Similar to the `net` feature.
 //! - `display`: use graphics display devices. Similar to the `net` feature.
 //! - `_9p`: use 9pfs devices. Similar to the `net` feature.
@@ -82,7 +82,7 @@ mod dummy;
 mod structs;
 
 #[cfg(feature = "virtio")]
-mod virtio;
+pub mod virtio;
 
 #[cfg(feature = "ixgbe")]
 mod ixgbe;

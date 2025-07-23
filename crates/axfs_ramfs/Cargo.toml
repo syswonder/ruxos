@@ -11,5 +11,9 @@ documentation = "https://rcore-os.github.io/arceos/axfs_ramfs/index.html"
 
 [dependencies]
 axfs_vfs = { path = "../axfs_vfs" }
-spin = "0.9"
-log = "0.4"
+spin = { workspace = true }
+log = { workspace = true }
+axerrno = { path = "../axerrno" }
+ringbuffer = { path = "../ringbuffer" }
+axio = { path = "../axio" }
+ruxfifo = { path = "../ruxfifo" }

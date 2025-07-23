@@ -17,7 +17,12 @@ Initialize platform devices...
 Initialize device drivers...
 registered a new Net device at .\+: "virtio-net"
 Initialize network subsystem...
-  use NIC 0: "virtio-net"
+ net stack: smoltcp
+ use NIC: "loopback"
+created net interface "loopback":
+  ether:    00-00-00-00-00-00
+  ip:       127.0.0.1/24
+  use NIC: "virtio-net"
 created net interface "eth0":
   ether:    52-54-00-12-34-56
   ip:       10.0.2.15/24
@@ -26,13 +31,12 @@ Primary CPU 0 init OK.
 Hello, Ruxos C HTTP client!
 IP: [0-9]\+\.[0-9]\+\.[0-9]\+\.[0-9]\+
 HTTP/1.1 200 OK
-Server: nginx
-Date:
-Content-Type: text/plain
-Content-Length:
-Connection: keep-alive
 Access-Control-Allow-Origin: *
+Alt-Svc: h3=":443"; ma=
 Cache-Control: no-cache, no-store, must-revalidate
+Date:
+Content-Length:
+Content-Type: text/plain; charset=utf-8
 
 ^[0-9]\+\.[0-9]\+\.[0-9]\+\.[0-9]\+
 Shutting down...
