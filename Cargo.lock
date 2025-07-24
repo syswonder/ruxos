@@ -716,6 +716,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "driver_rng"
+version = "0.1.0"
+dependencies = [
+ "crate_interface",
+ "driver_common",
+ "lazy_init",
+ "percpu",
+ "rand",
+ "rand_xoshiro",
+ "spinlock",
+]
+
+[[package]]
 name = "driver_virtio"
 version = "0.1.0"
 dependencies = [
@@ -725,6 +738,7 @@ dependencies = [
  "driver_console",
  "driver_display",
  "driver_net",
+ "driver_rng",
  "log",
  "spin",
  "virtio-drivers",
@@ -1652,6 +1666,7 @@ dependencies = [
  "driver_display",
  "driver_net",
  "driver_pci",
+ "driver_rng",
  "driver_virtio",
  "log",
  "ruxconfig",
@@ -1917,6 +1932,7 @@ dependencies = [
  "capability",
  "cfg-if",
  "crate_interface",
+ "driver_virtio",
  "elf",
  "flatten_objects",
  "iovec",
@@ -1934,6 +1950,7 @@ dependencies = [
  "ruxhal",
  "ruxmm",
  "ruxnet",
+ "ruxrand",
  "ruxruntime",
  "ruxtask",
  "spin",
@@ -1947,10 +1964,13 @@ name = "ruxrand"
 version = "0.1.0"
 dependencies = [
  "crate_interface",
+ "driver_rng",
  "lazy_init",
+ "log",
  "percpu",
  "rand",
  "rand_xoshiro",
+ "ruxdriver",
  "spinlock",
 ]
 

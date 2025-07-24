@@ -38,6 +38,8 @@ pub enum DeviceType {
     Display,
     /// Plan-9 device (e.g. 9pfs)
     _9P,
+    /// Random number generator device.
+    Rng,
 }
 
 /// The error type for device operation failures.

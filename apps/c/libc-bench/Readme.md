@@ -4,7 +4,7 @@
 
 - Run with following command
 ```
-make A=apps/c/libc-bench/ MUSL=y BLK=y ARCH=aarch64 LOG=error SMP=4 run
+make A=apps/c/libc-bench/ MUSL=y BLK=y RNG=y ARCH=aarch64 LOG=error SMP=4 run
 ```
 
 - This benchmark includes (all codes are really simple to read):

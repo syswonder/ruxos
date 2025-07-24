@@ -76,6 +76,9 @@ display = [
     "ruxruntime/display",
 ]
 
+#virtio random number generator
+virtio-rng = ["ruxdriver/virtio-rng","ruxruntime/rng"]
+
 # 9P
 virtio-9p = [
     "9pfs",

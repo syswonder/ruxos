@@ -114,6 +114,32 @@ cfg_if! {
 }
 
 cfg_if! {
+    if #[cfg(rng_dev = "dummy")] {
+        pub struct DummyRngDev;
+        pub struct DummyRngDriver;
+        register_rng_driver!(DummyRngDriver, DummyRngDev);
+
+        impl BaseDriverOps for DummyRngDev {
+            fn device_type(&self) -> DeviceType {
+                DeviceType::Rng
+            }
+            fn device_name(&self) -> &str {
+                "dummy-rng"
+            }
+        }
+
+        impl RngDriverOps for DummyRngDev {
+            fn info(&self) -> driver_rng::RngInfo {
+                unreachable!()
+            }
+            fn request_entropy(&mut self, _: &mut [u8]) -> DevResult<usize> {
+                unreachable!()
+            }
+        }
+    }
+}
+
+cfg_if! {
     if #[cfg(_9p_dev = "dummy")] {
         pub struct Dummy9pDev;
         pub struct Dummy9pDriver;

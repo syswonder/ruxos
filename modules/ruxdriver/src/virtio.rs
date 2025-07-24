@@ -20,6 +20,7 @@ use ruxhal::mem::phys_to_virt;
     feature = "virtio-blk",
     feature = "virtio-gpu",
     feature = "virtio-9p",
+    feature = "virtio-rng",
     feature = "pci"
 ))]
 use ruxhal::virtio::virtio_hal::VirtIoHalImpl;
@@ -105,6 +106,22 @@ cfg_if! {
 
             fn try_new(transport: VirtIoTransport<'static>) -> DevResult<AxDeviceEnum> {
                 Ok(AxDeviceEnum::from_9p(Self::Device::try_new(transport)?))
+            }
+        }
+    }
+}
+
+cfg_if! {
+    if #[cfg(rng_dev = "virtio-rng")] {
+        /// A VirtIO RNG device.
+        pub struct VirtIoRng;
+
+        impl VirtIoDevMeta for VirtIoRng {
+            const DEVICE_TYPE: DeviceType = DeviceType::Rng;
+            type Device<'a> = driver_virtio::VirtIoRngDev<VirtIoHalImpl, VirtIoTransport<'static>>;
+
+            fn try_new(transport: VirtIoTransport<'static>) -> DevResult<AxDeviceEnum> {
+                Ok(AxDeviceEnum::from_rng(Self::Device::try_new(transport)?))
             }
         }
     }

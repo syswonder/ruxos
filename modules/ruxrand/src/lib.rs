@@ -29,11 +29,25 @@
 pub mod rng;
 
 mod spin_rand;
-
-pub use rng::{percpu_rng, random, PercpuRng};
+pub use rng::{percpu_rng, random, request_entropy, PercpuRng};
 pub use spin_rand::ExpRand;
 
+use log::info;
+use ruxdriver::{prelude::*, AxDeviceContainer};
+
 /// Initializes the per-CPU RNGs on the given CPU.
-pub fn init(cpuid: usize) {
-    rng::init(cpuid);
+pub fn init(mut rng_devs: Option<AxDeviceContainer<AxRngDevice>>, cpuid: usize) {
+    match rng_devs {
+        Some(ref mut devs) => {
+            while !devs.is_empty() {
+                let dev = devs.take_one().expect("No RNG device found!");
+                info!("  use RNG: {:?}", dev.device_name());
+                rng::init_dev(dev, cpuid);
+            }
+        }
+        None => {
+            info!("  use RNG: pseudo-random");
+            rng::init(cpuid);
+        }
+    }
 }

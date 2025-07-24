@@ -15,6 +15,8 @@ pub use crate::drivers::AxBlockDevice;
 pub use crate::drivers::AxDisplayDevice;
 #[cfg(feature = "net")]
 pub use crate::drivers::AxNetDevice;
+#[cfg(feature = "rng")]
+pub use crate::drivers::AxRngDevice;
 
 impl super::AxDeviceEnum {
     /// Constructs a network device.
@@ -33,6 +35,12 @@ impl super::AxDeviceEnum {
     #[cfg(feature = "display")]
     pub const fn from_display(dev: AxDisplayDevice) -> Self {
         Self::Display(dev)
+    }
+
+    /// Constructs a rng device.
+    #[cfg(feature = "rng")]
+    pub const fn from_rng(dev: AxRngDevice) -> Self {
+        Self::Rng(dev)
     }
 
     /// Constructs a display device.

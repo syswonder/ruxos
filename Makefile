@@ -59,6 +59,7 @@ V9P ?= n
 BUS ?= mmio
 RISCV_BIOS ?= default
 GICV3 ?= n
+RNG ?= n
 
 DISK_IMG ?= disk.img
 FS ?= fat32

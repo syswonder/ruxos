@@ -7,17 +7,21 @@
  *   See the Mulan PSL v2 for more details.
  */
 
-//! Device driver prelude that includes some traits and types.
+//! Common traits and types for random number generator device drivers.
 
+#![no_std]
+
+#[doc(no_inline)]
 pub use driver_common::{BaseDriverOps, DevError, DevResult, DeviceType};
 
-#[cfg(feature = "_9p")]
-pub use {crate::structs::Ax9pDevice, driver_9p::_9pDriverOps};
-#[cfg(feature = "block")]
-pub use {crate::structs::AxBlockDevice, driver_block::BlockDriverOps};
-#[cfg(feature = "display")]
-pub use {crate::structs::AxDisplayDevice, driver_display::DisplayDriverOps};
-#[cfg(feature = "net")]
-pub use {crate::structs::AxNetDevice, driver_net::NetDriverOps};
-#[cfg(feature = "rng")]
-pub use {crate::structs::AxRngDevice, driver_rng::RngDriverOps};
+/// The information of the graphics device.
+#[derive(Debug, Clone, Copy)]
+pub struct RngInfo {}
+
+/// Operations that require a graphics device driver to implement.
+pub trait RngDriverOps: BaseDriverOps {
+    /// Get the random number generator information.
+    fn info(&self) -> RngInfo;
+    /// Request random bytes from the device.
+    fn request_entropy(&mut self, dst: &mut [u8]) -> DevResult<usize>;
+}
