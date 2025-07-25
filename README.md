@@ -28,6 +28,23 @@ RuxOS was inspired by [Unikraft](https://github.com/unikraft/unikraft) and [Arce
 * [ ] Interrupt driven device I/O
 * [ ] Async I/O
 
+## Latest News 🎉
+
+<details open>
+<summary><b>2025</b></summary>
+
+- \[2025/07/24\] RuxOS [v0.1.0](https://github.com/syswonder/ruxos/releases/tag/RELEASE-v0.1.0) Released!
+- \[2025/07/22\] Add support for support multi-process and virtual memory management for riscv64
+- \[2025/06/26\] Add support for FUSE file system with exfat verified
+- \[2025/06/25\] Add support for sshd for aarch64 after some fixes
+- \[2025/05/13\] Add support for GICv3 for aarch64 with DTB support
+- \[2025/02/26\] Add support for static routed network with loopback support
+- \[2024/11/14\] Add support for virtio-console for virt platform
+- \[2024/10/10\] Add support for multiprocess for aarch64 in single address space
+- \[2024/09/29\] RuxOS [v0.0.3](https://github.com/syswonder/ruxos/releases/tag/RELEASE-v0.0.3) Released!
+
+</details>
+
 ## Example apps
 
 Example applications can be found in the [apps/](apps/) directory. All applications must at least depend on the following modules, while other modules are optional:
@@ -71,6 +88,16 @@ The currently supported applications and programming languages, as well as their
 | [cpp](apps/c/cpp/) | alloc, paging, irq, multitask, fs, random-hw | C++ benchmark |
 | [nginx](https://github.com/syswonder/rux-nginx) | alloc, paging, fp_simd, irq, multitask, fs, blkfs, net, pipe, epoll, poll, select, rtc, signal | Run Nginx as web server |
 | [wamr](https://github.com/syswonder/rux-wamr) | alloc, paging, fp_simd, irq, multitask, fs, virtio-9p, signal, smp | Wasm runtime |
+
+### Other applications
+
+You can try more applications built with musl libc, such as:
+
+* busybox
+* opensshd
+* [mount.fuse-exfat](https://blog.syswonder.org/#/2025/20250618_FUSE_In_RuxOS)
+
+[Alpine Linux](https://www.alpinelinux.org/) would be a good choice for you finding or building your own applications.
 
 ### Programming languages
 
