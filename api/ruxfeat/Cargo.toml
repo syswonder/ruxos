@@ -77,7 +77,7 @@ display = [
 ]
 
 #virtio random number generator
-virtio-rng = ["ruxdriver/virtio-rng","ruxruntime/rng"]
+virtio-rng = ["ruxdriver/virtio-rng","ruxruntime/rng","ruxfs/rng"]
 
 # 9P
 virtio-9p = [

@@ -41,9 +41,6 @@ impl<H: Hal, T: Transport> RngDriverOps for VirtIoRngDev<H, T> {
         self.info
     }
 
-    // fn request_entropy(&mut self, dst: &mut [u8]) -> DevResult<usize> {
-    //     self.inner.request_entropy(dst).map_err(as_dev_err)
-    // }
     fn request_entropy(&mut self, dst: &mut [u8]) -> DevResult<usize> {
         match self.inner.request_entropy(dst) {
             Ok(size) => Ok(size),

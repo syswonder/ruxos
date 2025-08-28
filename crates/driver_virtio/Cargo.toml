@@ -23,7 +23,6 @@ rng = ["driver_rng"]
 [dependencies]
 log = { workspace = true }
 spin = { workspace = true }
-#rand = { version = "0.8.5", optional = true }
 driver_common = { path = "../driver_common" }
 driver_block = { path = "../driver_block", optional = true }
 driver_net = { path = "../driver_net", optional = true }
