@@ -10,6 +10,7 @@
 const NET_DEV_FEATURES: &[&str] = &["ixgbe", "virtio-net", "loopback"];
 const BLOCK_DEV_FEATURES: &[&str] = &["ramdisk", "bcm2835-sdhci", "virtio-blk"];
 const DISPLAY_DEV_FEATURES: &[&str] = &["virtio-gpu"];
+const RNG_DEV_FEATURES: &[&str] = &["virtio-rng"];
 const _9P_DEV_FEATURES: &[&str] = &["virtio-9p"];
 
 fn has_feature(feature: &str) -> bool {
@@ -44,6 +45,7 @@ fn main() {
         ("net", NET_DEV_FEATURES),
         ("block", BLOCK_DEV_FEATURES),
         ("display", DISPLAY_DEV_FEATURES),
+        ("rng", RNG_DEV_FEATURES),
         ("_9p", _9P_DEV_FEATURES),
     ] {
         if !has_feature(dev_kind) {
@@ -80,6 +82,10 @@ fn main() {
     println!(
         "cargo::rustc-check-cfg=cfg(display_dev, values({}, \"dummy\"))",
         make_cfg_values(DISPLAY_DEV_FEATURES)
+    );
+    println!(
+        "cargo::rustc-check-cfg=cfg(rng_dev, values({}, \"dummy\"))",
+        make_cfg_values(RNG_DEV_FEATURES)
     );
     println!(
         "cargo::rustc-check-cfg=cfg(_9p_dev, values({}, \"dummy\"))",

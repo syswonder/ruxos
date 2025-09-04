@@ -18,7 +18,13 @@ use crate::fs;
 pub(crate) fn devfs() -> Arc<fs::devfs::DeviceFileSystem> {
     let null = fs::devfs::NullDev;
     let zero = fs::devfs::ZeroDev;
+    #[cfg(feature = "rng")]
+    let random = crate::rng_rand::RandomDev;
+    #[cfg(feature = "rng")]
+    let urandom = crate::rng_rand::RandomDev;
+    #[cfg(not(feature = "rng"))]
     let random = fs::devfs::RandomDev;
+    #[cfg(not(feature = "rng"))]
     let urandom = fs::devfs::RandomDev;
     let fuse = crate::devfuse::FuseDev::new();
     let pts = fs::devfs::init_pts();

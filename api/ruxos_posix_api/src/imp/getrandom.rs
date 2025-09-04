@@ -22,7 +22,7 @@ use crate::ctypes::{size_t, ssize_t};
 
 use axerrno::LinuxError;
 
-#[cfg(all(target_arch = "x86_64", feature = "random-hw"))]
+#[cfg(all(target_arch = "x86_64", feature = "random-hw", not(feature = "rng")))]
 use core::arch::x86_64::__cpuid;
 
 static SEED: AtomicU64 = AtomicU64::new(0xae_f3);
@@ -53,7 +53,7 @@ fn srand_lcg(seed: u64) {
 }
 
 /// Checking if the CPU core is compatible with hardware random number instructions.
-#[cfg(feature = "random-hw")]
+#[cfg(all(feature = "random-hw", not(feature = "rng")))]
 fn has_rdrand() -> bool {
     #[cfg(target_arch = "x86_64")]
     {
@@ -77,7 +77,7 @@ fn has_rdrand() -> bool {
 }
 
 /// Return 64-bit unsigned random interger using cpu instruction
-#[cfg(feature = "random-hw")]
+#[cfg(all(feature = "random-hw", not(feature = "rng")))]
 fn random_hw() -> u64 {
     let mut _random: u64;
 
@@ -118,33 +118,38 @@ pub unsafe extern "C" fn sys_srand(_seed: c_uint) {
 /// Returns a 32-bit unsigned random integer
 #[no_mangle]
 pub unsafe extern "C" fn sys_rand() -> c_int {
-    #[cfg(feature = "random-hw")]
+    #[cfg(all(feature = "rng", not(feature = "random-hw")))]
+    {
+        use ruxrand::random;
+        return random::<c_int>();
+    }
+    #[cfg(all(feature = "random-hw", not(feature = "rng")))]
     {
         match has_rdrand() {
-            true => (random_hw() >> 33) as c_int,
-            false => rand_lcg32() as c_int,
+            true => return (random_hw() >> 33) as c_int,
+            false => return rand_lcg32() as c_int,
         }
     }
-    #[cfg(not(feature = "random-hw"))]
-    {
-        rand_lcg32() as c_int
-    }
+    rand_lcg32() as c_int
 }
 
 /// Returns a 64-bit unsigned random integer
 #[no_mangle]
 pub unsafe extern "C" fn sys_random() -> c_long {
-    #[cfg(feature = "random-hw")]
+    #[cfg(all(feature = "rng", not(feature = "random-hw")))]
+    {
+        use ruxrand::random;
+        return random::<c_long>();
+    }
+    #[cfg(all(feature = "random-hw", not(feature = "rng")))]
     {
         match has_rdrand() {
-            true => (random_hw() >> 1) as c_long,
-            false => random_lcg64() as c_long,
+            true => return (random_hw() >> 1) as c_long,
+            false => return random_lcg64() as c_long,
         }
     }
-    #[cfg(not(feature = "random-hw"))]
-    {
-        random_lcg64() as c_long
-    }
+
+    random_lcg64() as c_long
 }
 
 /// Fills the buffer pointed to by buf with up to buflen random bytes.
@@ -159,15 +164,29 @@ pub unsafe extern "C" fn sys_getrandom(buf: *mut c_void, buflen: size_t, flags: 
         if flags != 0 {
             warn!("flags are not implemented yet, flags: {flags}, ignored");
         }
-        // fill the buffer 8 bytes at a time first, then fill the remaining bytes
-        let buflen_mod = buflen % (core::mem::size_of::<i64>() / core::mem::size_of::<u8>());
-        let buflen_div = buflen / (core::mem::size_of::<i64>() / core::mem::size_of::<u8>());
-        for i in 0..buflen_div {
-            *((buf as *mut u8 as *mut i64).add(i)) = sys_random() as i64;
+        #[cfg(feature = "rng")]
+        {
+            use ruxrand::request_entropy;
+            let slice: &mut [u8] =
+                unsafe { core::slice::from_raw_parts_mut(buf as *mut u8, buflen) };
+            request_entropy(slice).map_err(|e| {
+                warn!("Failed to get random bytes: {e:?}");
+                LinuxError::EIO
+            })?;
+            Ok(buflen as ssize_t)
         }
-        for i in 0..buflen_mod {
-            *((buf as *mut u8).add(buflen - buflen_mod + i)) = sys_rand() as u8;
+        #[cfg(not(feature = "rng"))]
+        {
+            // fill the buffer 8 bytes at a time first, then fill the remaining bytes
+            let buflen_mod = buflen % (core::mem::size_of::<i64>() / core::mem::size_of::<u8>());
+            let buflen_div = buflen / (core::mem::size_of::<i64>() / core::mem::size_of::<u8>());
+            for i in 0..buflen_div {
+                *((buf as *mut u8 as *mut i64).add(i)) = sys_random() as i64;
+            }
+            for i in 0..buflen_mod {
+                *((buf as *mut u8).add(buflen - buflen_mod + i)) = sys_rand() as u8;
+            }
+            Ok(buflen as ssize_t)
         }
-        Ok(buflen as ssize_t)
     })
 }

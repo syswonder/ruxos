@@ -77,6 +77,12 @@ register_display_driver!(
     <virtio::VirtIoGpu as VirtIoDevMeta>::Device<'static>
 );
 
+#[cfg(rng_dev = "virtio-rng")]
+register_rng_driver!(
+    <virtio::VirtIoRng as VirtIoDevMeta>::Driver,
+    <virtio::VirtIoRng as VirtIoDevMeta>::Device<'static>
+);
+
 #[cfg(_9p_dev = "virtio-9p")]
 register_9p_driver!(
     <virtio::VirtIo9p as VirtIoDevMeta>::Driver,

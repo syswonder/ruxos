@@ -101,6 +101,8 @@ pub use self::structs::AxBlockDevice;
 pub use self::structs::AxDisplayDevice;
 #[cfg(feature = "net")]
 pub use self::structs::AxNetDevice;
+#[cfg(feature = "rng")]
+pub use self::structs::AxRngDevice;
 
 /// A structure that contains all device drivers, organized by their category.
 #[derive(Default)]
@@ -114,6 +116,9 @@ pub struct AllDevices {
     /// All graphics device drivers.
     #[cfg(feature = "display")]
     pub display: AxDeviceContainer<AxDisplayDevice>,
+    /// All random number generator device drivers.
+    #[cfg(feature = "rng")]
+    pub rng: AxDeviceContainer<AxRngDevice>,
     /// All 9p device drivers.
     #[cfg(feature = "_9p")]
     pub _9p: AxDeviceContainer<Ax9pDevice>,
@@ -134,6 +139,7 @@ impl AllDevices {
     /// Probes all supported devices.
     fn probe(&mut self) {
         for_each_drivers!(type Driver, {
+            info!("Probing for {:?} devices...", core::any::type_name::<Driver>());
             if let Some(dev) = Driver::probe_global() {
                 info!(
                     "registered a new {:?} device: {:?}",
@@ -157,6 +163,8 @@ impl AllDevices {
             AxDeviceEnum::Block(dev) => self.block.push(dev),
             #[cfg(feature = "display")]
             AxDeviceEnum::Display(dev) => self.display.push(dev),
+            #[cfg(feature = "rng")]
+            AxDeviceEnum::Rng(dev) => self.rng.push(dev),
             #[cfg(feature = "_9p")]
             AxDeviceEnum::_9P(dev) => self._9p.push(dev),
         }
@@ -201,6 +209,14 @@ pub fn init_drivers() -> AllDevices {
         for (i, dev) in all_devs._9p.iter().enumerate() {
             assert_eq!(dev.device_type(), DeviceType::_9P);
             debug!("  9p device {}: {:?}", i, dev.device_name());
+        }
+    }
+    #[cfg(feature = "rng")]
+    {
+        debug!("number of rng devices: {}", all_devs.rng.len());
+        for (i, dev) in all_devs.rng.iter().enumerate() {
+            assert_eq!(dev.device_type(), DeviceType::Rng);
+            debug!("  rng device {}: {:?}", i, dev.device_name());
         }
     }
 

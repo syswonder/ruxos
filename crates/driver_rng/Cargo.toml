@@ -1,0 +1,28 @@
+[package]
+name = "driver_rng"
+version = "0.1.0"
+edition = "2021"
+authors = ["Haowen Liu <2401213328@stu.pku.edu.com>"]
+description = "Common traits and types for random number generator device drivers"
+license = "Mulan PSL v2"
+homepage = "https://github.com/syswonder/ruxos"
+repository = "https://github.com/syswonder/ruxos/tree/main/crates/driver_rng"
+
+[features]
+default = []
+xoshiro=  ["dep:rand_xoshiro"]
+
+easy-spin = []
+
+[dependencies]
+driver_common = { path = "../driver_common" }
+crate_interface = "0.1.1"
+rand = { version = "0.8.5", default-features = false }
+rand_xoshiro = { version = "0.6.0", default-features = false, optional = true }
+
+spinlock = { version = "0.1.0", path = "../../crates/spinlock" }
+percpu = "0.2"
+lazy_init = { version = "0.1.0", path = "../../crates/lazy_init", default-features = false }
+
+[dev-dependencies]
+rand = { version = "0.8.5" }

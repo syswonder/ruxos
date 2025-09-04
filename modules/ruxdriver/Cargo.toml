@@ -21,14 +21,16 @@ block = ["driver_block"]
 display = ["driver_display"]
 _9p = ["driver_9p"]
 pci = []
+rng = ["driver_rng"]
 
 # Enabled by features `virtio-*`
 virtio = ["driver_virtio", "dep:axalloc", "dep:ruxhal", "dep:ruxconfig", "ruxhal/virtio"]
 # various types of drivers
-virtio-blk = ["block", "virtio", "driver_virtio/block","virtio"]
-virtio-net = ["net", "virtio", "driver_virtio/net", "virtio"]
-virtio-gpu = ["display", "virtio", "driver_virtio/gpu", "virtio"]
-virtio-9p = ["_9p","virtio", "driver_virtio/v9p", "virtio"]
+virtio-blk = ["block", "virtio", "driver_virtio/block"]
+virtio-net = ["net", "virtio", "driver_virtio/net"]
+virtio-gpu = ["display", "virtio", "driver_virtio/gpu"]
+virtio-9p = ["_9p","virtio", "driver_virtio/v9p"]
+virtio-rng = ["rng","driver_virtio/rng", "virtio"]
 virtio_console = ["virtio"]
 ramdisk = ["block", "driver_block/ramdisk"]
 bcm2835-sdhci = ["block", "driver_block/bcm2835-sdhci"]
@@ -48,6 +50,7 @@ driver_net = { path = "../../crates/driver_net", optional = true }
 driver_display = { path = "../../crates/driver_display", optional = true }
 driver_9p = { path = "../../crates/driver_9p", optional = true }
 driver_pci = { path = "../../crates/driver_pci", optional = true }
+driver_rng = { path = "../../crates/driver_rng", optional = true }
 driver_virtio = { path = "../../crates/driver_virtio", optional = true }
 
 axalloc = { path = "../axalloc", optional = true }

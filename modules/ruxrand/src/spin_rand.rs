@@ -15,6 +15,8 @@ use core::{
 use rand::RngCore;
 use spinlock::{Backoff, Relax};
 
+use crate::rng::next_u32;
+
 #[cfg(feature = "easy-spin")]
 type SpinRng = EasyRng;
 
@@ -26,12 +28,11 @@ fn exp_rand_backoff(current_limit: &mut u32, max: u32) {
     let limit = *current_limit;
     *current_limit = max.max(limit);
 
-    let mut rng = SpinRng::default();
     // It is more "correct" to use `rng.gen_range(0..limit)`,
     // but since `limit` would only be powers of two, a simple
     // modulo would also keep the distribution uniform as long
     // as `rng.next_u32()` keeps a uniform distribution on `u32`.
-    let delay = rng.next_u32() % limit;
+    let delay = next_u32() % limit;
     for _ in 0..delay {
         core::hint::spin_loop();
     }

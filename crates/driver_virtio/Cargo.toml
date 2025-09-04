@@ -18,6 +18,7 @@ net = ["driver_net"]
 gpu = ["driver_display"]
 v9p = ["driver_9p"]
 console = ["driver_console"]
+rng = ["driver_rng"]
 
 [dependencies]
 log = { workspace = true }
@@ -28,4 +29,5 @@ driver_net = { path = "../driver_net", optional = true }
 driver_display = { path = "../driver_display", optional = true }
 driver_9p = { path = "../driver_9p", optional = true }
 driver_console = { path = "../driver_console", optional = true }
+driver_rng = { path = "../driver_rng", optional = true }
 virtio-drivers = { git = "https://github.com/syswonder/virtio-drivers.git", rev = "31f6555" }

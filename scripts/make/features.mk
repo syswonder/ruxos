@@ -14,7 +14,7 @@
 ifeq ($(APP_TYPE),c)
   ax_feat_prefix := ruxfeat/
   lib_feat_prefix := ruxmusl/
-  lib_features := fp_simd alloc irq sched_rr paging multitask fs net fd pipe select poll epoll random-hw signal
+  lib_features := fp_simd alloc irq sched_rr paging multitask fs net fd pipe select poll epoll random-hw signal rng
 else
   # TODO: it's better to use `ruxfeat/` as `ax_feat_prefix`, but all apps need to have `ruxfeat` as a dependency
   ax_feat_prefix := axstd/
@@ -53,6 +53,10 @@ endif
 
 ifeq ($(GICV3),y)
   override FEATURES += gic-v3
+endif
+
+ifeq ($(RNG),y)
+  override FEATURES += rng
 endif
 
 override FEATURES := $(strip $(FEATURES))

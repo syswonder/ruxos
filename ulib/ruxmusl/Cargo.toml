@@ -34,6 +34,9 @@ fs = ["ruxos_posix_api/fs", "fd"]
 # Networking
 net = ["ruxos_posix_api/net", "fd"]
 
+# random number generator
+rng = ["ruxos_posix_api/rng"]
+
 # Libc features
 fd = ["ruxos_posix_api/fd"]
 pipe = ["ruxos_posix_api/pipe"]

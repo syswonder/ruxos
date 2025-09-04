@@ -28,6 +28,7 @@ myfs = []
 use-ramdisk = []
 alloc = ["axalloc"]
 fp_simd = []
+rng = ["dep:ruxrand"]
 
 default = ["devfs", "ramfs", "procfs", "sysfs", "etcfs", "mntfs"]
 
@@ -49,6 +50,7 @@ ruxfifo = { path = "../../crates/ruxfifo" }
 crate_interface = { version = "0.1.1" }
 ruxfdtable = { path = "../ruxfdtable" }
 ruxdriver = { path = "../ruxdriver", features = ["block"] }
+ruxrand = { path = "../ruxrand", optional = true }
 axalloc = { path = "../axalloc", optional = true }
 memory_addr = "0.1.0"
 # lwext4_rust = { git = "https://github.com/elliott10/lwext4_rust", optional = true }

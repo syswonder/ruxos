@@ -48,6 +48,8 @@ pub mod fifo;
 mod file;
 pub mod fops;
 pub mod fuse_st;
+#[cfg(feature = "rng")]
+pub mod rng_rand;
 pub mod root;
 
 pub use directory::Directory;

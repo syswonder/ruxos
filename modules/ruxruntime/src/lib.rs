@@ -195,9 +195,6 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
 
     ruxhal::platform_init(cpu_id);
 
-    #[cfg(feature = "rand")]
-    ruxrand::init(cpu_id);
-
     #[cfg(feature = "multitask")]
     {
         ruxtask::init_scheduler();
@@ -214,10 +211,16 @@ pub extern "C" fn rust_main(cpu_id: usize, dtb: usize) -> ! {
     #[cfg(feature = "virtio_console")]
     ruxhal::virtio::virtio_console::directional_probing();
 
-    #[cfg(any(feature = "fs", feature = "net", feature = "display"))]
+    #[cfg(any(feature = "fs", feature = "net", feature = "display", feature = "rand"))]
     {
         #[allow(unused_variables)]
         let all_devices = ruxdriver::init_drivers();
+
+        #[cfg(feature = "rng")]
+        ruxrand::init(Some(all_devices.rng), cpu_id);
+
+        #[cfg(not(feature = "rng"))]
+        ruxrand::init(None, cpu_id);
 
         #[cfg(feature = "net")]
         ruxnet::init_network(all_devices.net);

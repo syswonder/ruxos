@@ -33,6 +33,7 @@ virtio-9p = ["fs", "rux9p"]
 net-9p = ["fs", "rux9p"]
 fusefs = ["ruxdriver/virtio-blk"]
 net = ["ruxdriver", "ruxnet"]
+rng = ["ruxdriver","rand"]
 display = ["ruxdriver", "ruxdisplay"]
 signal = ["ruxhal/signal", "ruxtask/signal"]
 

@@ -21,6 +21,9 @@ pub type AxBlockDevice = Box<dyn BlockDriverOps>;
 /// The unified type of the graphics display devices.
 #[cfg(feature = "display")]
 pub type AxDisplayDevice = Box<dyn DisplayDriverOps>;
+/// The unified type of the random number generator devices.
+#[cfg(feature = "rng")]
+pub type AxRngDevice = Box<dyn RngDriverOps>;
 /// The unified type of the 9p devices.
 #[cfg(feature = "_9p")]
 pub type Ax9pDevice = Box<dyn _9pDriverOps>;
@@ -38,10 +41,16 @@ impl super::AxDeviceEnum {
         Self::Block(Box::new(dev))
     }
 
-    /// Constructs a display device.
+    /// Constructs a rng device.
     #[cfg(feature = "display")]
     pub fn from_display(dev: impl DisplayDriverOps + 'static) -> Self {
         Self::Display(Box::new(dev))
+    }
+
+    /// Constructs a display device.
+    #[cfg(feature = "rng")]
+    pub fn from_rng(dev: impl RngDriverOps + 'static) -> Self {
+        Self::Rng(Box::new(dev))
     }
 
     /// Constructs a 9p device.
