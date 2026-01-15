@@ -31,6 +31,10 @@ pub fn sys_mmap(
 ) -> *mut c_void {
     debug!("sys_mmap <= start: {:p}, len: {}, fd: {}", start, len, fd);
     syscall_body!(sys_mmap, {
+        if len == 0 {
+            return Err(LinuxError::EINVAL);
+        }
+
         #[cfg(feature = "fs")]
         if !start.is_null() && fd > 0 {
             let ptr = start;
@@ -41,7 +45,7 @@ pub fn sys_mmap(
             return Ok(ptr);
         }
 
-        let layout = Layout::from_size_align(len, 8).unwrap();
+        let layout = Layout::from_size_align(len, 8).map_err(|_| LinuxError::EINVAL)?;
 
         let ptr = unsafe {
             let ptr = alloc(layout).cast::<c_void>();
@@ -66,10 +70,10 @@ pub fn sys_mmap(
 pub fn sys_munmap(start: *mut c_void, len: ctypes::size_t) -> c_int {
     debug!("sys_munmap <= start: {:p}, len: {}", start, len);
     syscall_body!(sys_munmap, {
-        if start.is_null() {
+        if start.is_null() || len == 0 {
             return Err(LinuxError::EINVAL);
         }
-        let layout = Layout::from_size_align(len, 8).unwrap();
+        let layout = Layout::from_size_align(len, 8).map_err(|_| LinuxError::EINVAL)?;
         unsafe { dealloc(start.cast(), layout) }
         Ok(0)
     })
