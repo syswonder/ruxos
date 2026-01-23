@@ -75,7 +75,7 @@ pub fn sys_mmap(
             fid
         };
 
-        let mut new = Vma::new(fid, offset, prot, flags);
+        let mut new = Vma::new(fid, offset, prot, flags)?;
         let binding_task = current();
         let mut vma_map = binding_task.mm.vma_map.lock();
         let addr_condition = if start == 0 { None } else { Some(start) };
@@ -460,10 +460,11 @@ pub fn sys_mremap(
                 return Err(LinuxError::ENOMEM);
             }
             // find the right region to expand them in orignal addr.
+            let dummy_vma = Vma::new(-1, 0, 0, 0).unwrap();
             let (upper, _) = vma_map
                 .lower_bound(Bound::Included(&old_end))
                 .peek_next()
-                .unwrap_or((&VMA_END, &Vma::new(-1, 0, 0, 0)));
+                .unwrap_or((&VMA_END, &dummy_vma));
             if upper - old_end >= new_size - old_size {
                 let ret = old_vma.start_addr;
                 let new_end = old_start + new_size;
