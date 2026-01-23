@@ -47,7 +47,7 @@ fn parse_socket_address(
         }
         SocketDomain::Unix => {
             const UNIX_PATH_MAX: u32 = 108;
-            if addrlen < 2 || addrlen > UNIX_PATH_MAX + SA_FAMILY_SIZE as u32 {
+            if addrlen <= 2 || addrlen > UNIX_PATH_MAX + SA_FAMILY_SIZE as u32 {
                 return Err(LinuxError::EINVAL);
             }
             let len = (addrlen - 2).min(UNIX_PATH_MAX);
