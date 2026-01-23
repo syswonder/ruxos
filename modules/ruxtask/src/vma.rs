@@ -17,6 +17,7 @@ use crate::fs::get_file_like;
 use crate::TaskId;
 use alloc::{collections::BTreeMap, sync::Arc};
 use axalloc::global_allocator;
+use axerrno::LinuxError;
 use memory_addr::PhysAddr;
 use ruxfs::File;
 use ruxhal::mem::phys_to_virt;
@@ -181,20 +182,20 @@ impl Default for MmapStruct {
 /// Impl for Vma.
 impl Vma {
     /// Create a new `Vma` instance.
-    pub fn new(_fid: i32, offset: usize, prot: u32, flags: u32) -> Self {
+    pub fn new(_fid: i32, offset: usize, prot: u32, flags: u32) -> Result<Self, LinuxError> {
         // #[cfg(feature = "fs")]
         let file = if _fid < 0 {
             None
         } else {
-            let f = get_file_like(_fid).expect("invaild fd for vma");
+            let f = get_file_like(_fid)?;
             Some(
                 f.clone()
                     .into_any()
                     .downcast::<File>()
-                    .expect("should be effective fid"),
+                    .map_err(|_| LinuxError::EBADF)?,
             )
         };
-        Vma {
+        Ok(Vma {
             start_addr: 0,
             end_addr: 0,
             size: 0,
@@ -204,7 +205,7 @@ impl Vma {
             flags,
             prot,
             from_process: current().id(),
-        }
+        })
     }
 
     /// Clone a new `Vma` instance.

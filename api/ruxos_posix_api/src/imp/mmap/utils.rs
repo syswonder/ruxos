@@ -108,10 +108,11 @@ pub(crate) fn find_free_region(
         } else {
             VMA_START
         };
+        let dummy_vma = Vma::new(-1, 0, 0, 0).unwrap();
         let (upper, _) = vma_map
             .lower_bound(Bound::Included(&start))
             .peek_next()
-            .unwrap_or((&VMA_END, &Vma::new(-1, 0, 0, 0)));
+            .unwrap_or((&VMA_END, &dummy_vma));
         if upper - start >= len && end_addr <= start {
             return Some(start);
         }
