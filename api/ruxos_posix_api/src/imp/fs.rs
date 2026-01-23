@@ -72,6 +72,9 @@ pub fn sys_pread64(
 ) -> ctypes::ssize_t {
     syscall_body!(sys_pread64, {
         debug!("sys_pread64 <= {fd} {count} {pos}");
+        if pos < 0 {
+            return Err(LinuxError::EINVAL);
+        }
         if buf.is_null() {
             return Err(LinuxError::EFAULT);
         }
@@ -93,6 +96,9 @@ pub fn sys_pwrite64(
 ) -> ctypes::ssize_t {
     syscall_body!(sys_pwrite64, {
         debug!("sys_pwrite64 <= {fd} {count} {pos}");
+        if pos < 0 {
+            return Err(LinuxError::EINVAL);
+        }
         if buf.is_null() {
             return Err(LinuxError::EFAULT);
         }
