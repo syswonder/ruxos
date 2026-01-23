@@ -81,7 +81,8 @@ pub fn resolve_unix_socket_addr(address: &SocketAddress) -> LinuxResult<Arc<Sock
         SocketAddress::Unix(unix_socket_addr) => match unix_socket_addr {
             UnixSocketAddr::PathName(abs_path) => {
                 let node = fops::lookup(abs_path)?;
-                let socket_node = Arc::downcast::<SocketNode>(node.as_any_arc()).unwrap();
+                let socket_node = Arc::downcast::<SocketNode>(node.as_any_arc())
+                    .map_err(|_| axerrno::LinuxError::ECONNREFUSED)?;
                 Ok(socket_node.bound_socket())
             }
             UnixSocketAddr::Unamed => todo!(),
