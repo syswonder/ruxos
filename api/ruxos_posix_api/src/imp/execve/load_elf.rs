@@ -9,6 +9,7 @@
 
 use crate::{ctypes::kstat, *};
 use alloc::{vec, vec::Vec};
+use axerrno::{LinuxError, LinuxResult};
 use core::ptr::null_mut;
 
 #[derive(Debug)]
@@ -25,7 +26,7 @@ impl ElfProg {
     /// read elf from `path`, and copy LOAD segments to a alloacated memory
     ///
     /// and load interp, if needed.
-    pub fn new(filepath: &str) -> Self {
+    pub fn new(filepath: &str) -> LinuxResult<Self> {
         debug!("sys_execve: new elf prog: {filepath}");
 
         // open file
@@ -46,7 +47,7 @@ impl ElfProg {
 
         // parse elf
         let file = elf::ElfBytes::<elf::endian::AnyEndian>::minimal_parse(&file)
-            .expect("parse ELF failed");
+            .map_err(|_| LinuxError::ENOEXEC)?;
 
         // get program's LOAD mem size
         let mut min_addr = 0;
@@ -100,13 +101,13 @@ impl ElfProg {
         debug!("sys_execve: loaded ELF in 0x{base:x}, .text is 0x{text_section_addr:x}");
 
         // create retval
-        Self {
+        Ok(Self {
             base,
             entry,
             interp_path,
             phent: file.ehdr.e_phentsize as usize,
             phnum: file.ehdr.e_phnum as usize,
             phdr,
-        }
+        })
     }
 }
