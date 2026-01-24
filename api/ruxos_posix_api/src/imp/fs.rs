@@ -53,7 +53,12 @@ pub fn sys_open(filename: *const c_char, flags: c_int, mode: ctypes::mode_t) -> 
 /// Open a file under a specific dir
 pub fn sys_openat(fd: c_int, path: *const c_char, flags: c_int, mode: ctypes::mode_t) -> c_int {
     syscall_body!(sys_openat, {
+        let raw_path = char_ptr_to_path_str(path)?;
+        if raw_path.is_empty() {
+            return Err(LinuxError::ENOENT);
+        }
         let path = parse_path_at(fd, path)?;
+        validate_path_components(&path)?;
         let flags = OpenFlags::from_bits(flags).ok_or(LinuxError::EINVAL)?;
         debug!("sys_openat <= fd {fd} {path:?}, {flags:?}, {mode:#o}");
         let mode = FilePerm::from_bits_truncate(mode as u16 & !get_umask());
@@ -740,6 +745,20 @@ pub fn parse_path_at(dirfd: c_int, path: *const c_char) -> LinuxResult<AbsPath<'
             .path()
             .join(&RelPath::new_canonicalized(path)))
     }
+}
+
+const MAX_NAME_LEN: usize = 64;
+
+fn validate_path_components(path: &AbsPath<'static>) -> LinuxResult {
+    for component in path.as_str().split('/') {
+        if component.is_empty() {
+            continue;
+        }
+        if component.len() > MAX_NAME_LEN {
+            return Err(LinuxError::ENAMETOOLONG);
+        }
+    }
+    Ok(())
 }
 
 fn file_from_fd(fd: i32) -> LinuxResult<Arc<File>> {
