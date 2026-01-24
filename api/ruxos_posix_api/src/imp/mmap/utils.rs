@@ -112,7 +112,7 @@ pub(crate) fn find_free_region(
             .lower_bound(Bound::Included(&start))
             .peek_next()
             .unwrap_or((&VMA_END, &Vma::new(-1, 0, 0, 0)));
-        if upper - start >= len && end_addr <= start {
+        if upper.checked_sub(start).is_some_and(|gap| gap >= len) && end_addr <= start {
             return Some(start);
         }
     }
@@ -122,7 +122,7 @@ pub(crate) fn find_free_region(
         if VMA_END - last_vma.end_addr >= len {
             return Some(last_vma.end_addr);
         }
-    } else if VMA_END >= VMA_START + len {
+    } else if VMA_START.checked_add(len).is_some_and(|end| VMA_END >= end) {
         return Some(VMA_START);
     }
 
@@ -147,7 +147,7 @@ pub(crate) fn snatch_fixed_region(
     start: usize,
     len: usize,
 ) -> Option<usize> {
-    let end = start + len;
+    let end = start.checked_add(len)?;
 
     // Return None if the specified address can't be used
     if start < VMA_START || end > VMA_END {

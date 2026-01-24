@@ -105,7 +105,9 @@ pub fn sys_munmap(start: *mut c_void, len: ctypes::size_t) -> c_int {
     syscall_body!(sys_munmap, {
         // transform C-type into rust-type
         let start = start as usize;
-        let end = VirtAddr::from(start + len).align_up_4k().as_usize();
+        let end = VirtAddr::from(start.checked_add(len).ok_or(LinuxError::EINVAL)?)
+            .align_up_4k()
+            .as_usize();
 
         if !VirtAddr::from(start).is_aligned(PAGE_SIZE_4K) || len == 0 {
             error!("sys_munmap start_address=0x{start:x}, len 0x{len:x?} not aligned");
