@@ -48,7 +48,7 @@ sched_cfs = ["ruxfeat/sched_cfs"]
 # File system
 fs = ["arceos_api/fs", "ruxfeat/fs"]
 myfs = ["arceos_api/myfs", "ruxfeat/myfs"]
-blkfs = ["ruxfeat/blkfs"]
+blkfs = ["arceos_api/blkfs", "ruxfeat/blkfs"]
 virtio-9p = ["ruxfeat/virtio-9p"]
 virtio_console = ["ruxfeat/virtio_console"]
 net-9p = ["ruxfeat/net-9p"]
